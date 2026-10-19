@@ -1,0 +1,126 @@
+extends RefCounted
+# Pickups: drops from kills, floating collectibles, magnet and collection.
+# Shared game state stays on main.gd (g); this file holds the logic.
+
+const Models = preload("res://scripts/models.gd")
+
+var g = null
+
+func _init(game) -> void:
+	g = game
+
+func maybe_drop(pos: Vector3, chance: float) -> void:
+	if g.state != "play" or g.pickups.size() >= 6:
+		return
+	if randf() > chance + g.up["luck"]:
+		return
+	var t = g.pick_one(g.DROPS)
+	if t == "heart" and g.hearts >= g.MAXHEARTS:
+		t = "cash"
+	spawn_pickup(t, pos)
+
+# every defeated rider feeds you: usually ammo, sometimes cash or a life, now and then a power-up
+func drop_kill(pos: Vector3, tough: bool) -> void:
+	if g.state != "play":
+		return
+	var rank = g.shop_sys.style_rank()
+	var drops = []
+	if randf() < 0.28 + 0.04 * float(rank) + (0.15 if g.perks.has("scavenger") else 0.0):
+		drops.append("ammo")
+	if g.hearts < g.MAXHEARTS and randf() < 0.07 + 0.02 * float(rank):
+		drops.append("heart")
+	if randf() < 0.15:
+		drops.append("cash")
+	if tough and g.perks.has("salvage"):
+		if not drops.has("ammo"):
+			drops.append("ammo")
+		if g.shop_sys.has_duo("SCRAPYARD"):
+			drops.append("ammo")
+			drops.append("cash")
+	if randf() < (0.7 if tough else 0.12) + g.up["luck"]:
+		drops.append(g.pick_one(["rapid", "big", "slow", "shield"]))
+	for t in drops:
+		if g.pickups.size() < 6:
+			spawn_pickup(t, pos)
+
+func spawn_pickup(t: String, pos: Vector3) -> void:
+	var inf = g.DROP_INFO[t]
+	var m = Models.build_pickup(inf["col"], inf["ch"])
+	g.add_child(m["root"])
+	var T = 1.0
+	var y_land = 0.55
+	var la = randf() * TAU                            # lands a few metres from wherever the player is
+	var ld = randf_range(2.2, 4.8)
+	var land = g.clamp_walk(Vector3(g.player.position.x + sin(la) * ld, y_land, g.player.position.z - cos(la) * ld), g.PLAYER_R_MIN + 0.3, g.PLAYER_R_MAX - 0.4)
+	var vel = Vector3((land.x - pos.x) / T, 4.9 * T + (y_land - pos.y) / T, (land.z - pos.z) / T)
+	g.pickups.append({"type": t, "node": m["root"], "m": m, "start": pos, "vel0": vel, "t": 0.0, "T": T,
+		"pos": pos, "land": land, "landed": false, "rest": 0.0})
+	m["root"].position = pos
+
+func collect_pickup(pk: Dictionary) -> void:
+	var i = g.pickups.find(pk)
+	if i >= 0:
+		g.pickups.remove_at(i)
+	var inf = g.DROP_INFO[pk["type"]]
+	g.add_popup(pk["pos"] + Vector3(0, 0.6, 0), inf["name"], inf["col"])
+	var t = pk["type"]
+	if t == "heart":
+		g.hearts = mini(g.MAXHEARTS, g.hearts + 1)
+	elif t == "rapid":
+		g.buffs["rapid"] = 8.0
+	elif t == "big":
+		g.buffs["big"] = 10.0
+	elif t == "slow":
+		g.buffs["slow"] = 6.0
+	elif t == "shield":
+		g.buffs["shield"] = 1.0
+	elif t == "ammo":
+		g.shells = mini(g.MAXSHELLS, g.shells + (4 if g.perks.has("scavenger") else 2))
+		if g.shells >= g.MAXSHELLS:
+			g.loading = false
+	else:
+		g.score += 500 * (2 if g.hype_t > 0.0 else 1)
+		g.hi_check()
+		g.shop_sys.add_cash(15)
+	g.sfx.play("pickup")
+	g.add_hype(8.0)
+	g.cheer = maxf(g.cheer, 0.6)
+	pk["node"].queue_free()
+
+func update_pickups(dt: float) -> void:
+	for i in range(g.pickups.size() - 1, -1, -1):
+		var pk = g.pickups[i]
+		var node: Node3D = pk["node"]
+		pk["t"] += dt
+		if not pk["landed"]:
+			var t: float = pk["t"]
+			var v0: Vector3 = pk["vel0"]
+			var s0: Vector3 = pk["start"]
+			var p = s0 + v0 * t + Vector3(0.0, -4.9 * t * t, 0.0)
+			pk["pos"] = p
+			if t >= pk["T"]:
+				pk["landed"] = true
+				pk["rest"] = 0.0
+				pk["pos"] = pk["land"]
+		else:
+			pk["rest"] += dt
+			var l: Vector3 = pk["land"]
+			if g.up["magnet"] > 0:
+				var dl = Vector3(g.player.position.x - l.x, 0.0, g.player.position.z - l.z)
+				var dn = dl.length()
+				if dn > 0.05 and dn < 3.5 + 3.0 * float(g.up["magnet"]):
+					l += dl / dn * minf(6.5 * dt, dn)
+					pk["land"] = l
+			pk["pos"] = Vector3(l.x, l.y + sin(g.time * 5.0 + i) * 0.06, l.z)
+		var pos: Vector3 = pk["pos"]
+		node.position = pos
+		node.rotation.y += dt * 2.5
+		node.visible = true
+		if pk["landed"] and pk["rest"] > 6.0 and int(g.time * 10.0) % 2 == 0:
+			node.visible = false
+		if Vector2(pos.x - g.player.position.x, pos.z - g.player.position.z).length() < 1.0 and pos.y < 1.6:
+			collect_pickup(pk)
+			continue
+		if pk["landed"] and pk["rest"] > 8.0:
+			pk["node"].queue_free()
+			g.pickups.remove_at(i)
