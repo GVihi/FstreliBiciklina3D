@@ -11,7 +11,6 @@ Mostly vibe coded Godot game
 ## Big Design Choice
 
 - [x] Decide on the game's long-term direction
-  - [ ] Arcade score-attack with unlockables
   - [x] Full roguelite focus (recommended)
 
 ### Recommended Roguelite Structure
@@ -57,13 +56,13 @@ Mostly vibe coded Godot game
 - [ ] Generate a daily seed
 - [ ] Use same seed for all players on that day
 - [ ] Add dedicated daily-run scoreboard
-- [ ] Submit scores to Django web leaderboard
-  - [ ] Implement REST API on Django web service
-  - [ ] Implement Seed and leaderboard display
 
 ### Deferred
 
 - [ ] Online leaderboard (future feature)
+  - [ ] Submit scores to Django web leaderboard
+    - [ ] Implement REST API on Django web service
+    - [ ] Implement Seed and leaderboard display
 
 ---
 
