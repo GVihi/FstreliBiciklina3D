@@ -637,7 +637,7 @@ func _draw_crosshair(k: float) -> void:
 		return
 	var half_fov = deg_to_rad(g.cam.fov * 0.5)
 	var gap = tan(deg_to_rad(g.spread_deg)) / tan(half_fov) * size.y * 0.5
-	gap += g.ex_bonus() * 20.0 * k
+	gap += g.player_sys.ex_bonus() * 20.0 * k
 	gap = maxf(gap, 3.0 * k)
 	var ln = 9.0 * k
 	var col = Color(1, 1, 1, 0.92)

@@ -43,7 +43,7 @@ func handle_input(event: InputEvent) -> void:
 				toggle_weapon()
 		elif kc == KEY_SPACE:
 			if g.state == "play":
-				g.try_dash()
+				g.player_sys.try_dash()
 			elif g.state == "shop":
 				g.shop_sys.leave_shop()
 		elif kc == KEY_TAB:
@@ -116,7 +116,7 @@ func on_pad_button(btn: int) -> void:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			return
 		if btn == JOY_BUTTON_A:
-			g.try_dash()
+			g.player_sys.try_dash()
 		elif btn == JOY_BUTTON_X:
 			g.combat_sys.start_load()
 		elif btn == JOY_BUTTON_Y or btn == JOY_BUTTON_RIGHT_SHOULDER or btn == JOY_BUTTON_LEFT_SHOULDER:

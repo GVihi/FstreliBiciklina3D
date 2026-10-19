@@ -47,7 +47,7 @@ func fire() -> void:
 		else:
 			g.shells -= 1
 	var lastshot = g.perks.has("lastshell") and g.shells == 0 and g.buffs["rapid"] <= 0.0
-	g.pump_dur = g.cur_pump()
+	g.pump_dur = g.player_sys.cur_pump()
 	g.pump_t = g.pump_dur
 	g.pump_fired = false
 	g.recoil = 1.0
@@ -60,7 +60,7 @@ func fire() -> void:
 	var dir = ray_dir_with_spread()
 	var org = g.cam.global_position
 	g.bloom = minf(g.bloom + 0.5, 1.6)
-	var ex = g.ex_bonus()
+	var ex = g.player_sys.ex_bonus()
 
 	# how far can the dart travel before hitting the world?
 	var t_world = 80.0

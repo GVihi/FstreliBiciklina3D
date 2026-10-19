@@ -70,7 +70,7 @@ func upgrade_stat(id: String) -> String:
 	if id == "speedload":
 		return "LEVEL %d > %d" % [g.up["reload"], g.up["reload"] + 1]
 	if id == "dashcd":
-		return "COOLDOWN %.2fs > %.2fs" % [g.dash_cooldown(), maxf(0.45, g.dash_cooldown() - 0.15)]
+		return "COOLDOWN %.2fs > %.2fs" % [g.player_sys.dash_cooldown(), maxf(0.45, g.player_sys.dash_cooldown() - 0.15)]
 	if id == "magnet":
 		return "LEVEL %d > %d" % [g.up["magnet"], g.up["magnet"] + 1]
 	return "DROPS +%d%% > +%d%%" % [int(round(g.up["luck"] * 100.0)), int(round(g.up["luck"] * 100.0 + 10.0))]
