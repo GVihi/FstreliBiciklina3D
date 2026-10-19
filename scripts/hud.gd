@@ -704,6 +704,8 @@ func _draw_boss_ui(k: float) -> void:
 			var title = b["name"]
 			if b["kind"] != "runner":
 				title += "   PHASE %d" % b["phase"]
+			if b.get("final", false):
+				title = "FINAL BOSS   " + title
 			_txt(title, cx, by - 4.0 * k, int(16 * k), TEXT, 1)
 			draw_rect(Rect2(bx - 3.0, by + 6.0 * k, bw + 6.0, 16.0 * k), Color(0.05, 0.05, 0.055, 0.8))
 			draw_rect(Rect2(bx, by + 9.0 * k, bw, 10.0 * k), Color(0.23, 0.1, 0.09))
@@ -715,7 +717,7 @@ func _draw_boss_ui(k: float) -> void:
 				draw_rect(Rect2(bx, by + 24.0 * k, bw * sf, 6.0 * k), Color(1.0, 0.82, 0.25) if mode != "stagger" or int(g.time * 10.0) % 2 == 0 else Color(1, 1, 1))
 				_txt("STAGGER", bx + bw + 8.0 * k, by + 31.0 * k, int(10 * k), GRAY)
 			if b["intro"] > 0.0:
-				_txt("BOSS FIGHT", cx, size.y * 0.27, int(30 * k), RED, 1)
+				_txt("FINAL BOSS" if b.get("final", false) else "BOSS FIGHT", cx, size.y * 0.27, int(30 * k), RED, 1)
 				_txt(b["name"], cx, size.y * 0.33, int(36 * k), TEXT, 1)
 			if mode == "tele" or mode == "lunge":
 				var pulse = 0.12 + 0.12 * absf(sin(g.time * 12.0))

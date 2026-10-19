@@ -92,6 +92,7 @@ var hi = 0
 var hearts = 3
 var combo = 0
 var best_combo = 0
+var final_boss_dead = false  # the last round's final boss was defeated (needed to win the run)
 var run_won = false          # the run ended by clearing the last round
 var kills = 0                # riders and bosses taken down this run
 var best_rank = 0            # highest style rank reached this run (0 = D .. 4 = S)
@@ -529,6 +530,7 @@ func start_game() -> void:
 	combo = 0
 	best_combo = 0
 	run_won = false
+	final_boss_dead = false
 	kills = 0
 	best_rank = 0
 	last_rank = -1
@@ -633,9 +635,15 @@ func count_hits() -> int:
 			n += 1
 	return n
 
+func is_final_round() -> bool:
+	return round_n >= MAX_ROUNDS
+
 func need_boss() -> bool:
 	if round_n < 2 or bosses.size() > 0 or pending_boss:
 		return false
+	if is_final_round():
+		# the last round has no ordinary bosses: after the riders comes the final boss, if you got far enough to face it
+		return boss_count == 0 and next_idx >= PER_ROUND and count_hits() >= NEED
 	if boss_count == 0 and next_idx >= 4:
 		return true
 	if boss_count == 1 and round_n >= 3 and next_idx >= PER_ROUND:
@@ -648,7 +656,7 @@ func after_wave() -> void:
 	if need_boss():
 		pending_boss = true
 		wait = 1.4
-		wait_msg = "BOSS FIGHT"
+		wait_msg = "FINAL BOSS" if is_final_round() else "BOSS FIGHT"
 		return
 	if next_idx >= PER_ROUND:
 		end_round()
@@ -666,7 +674,7 @@ func end_round() -> void:
 		fx_sys.confetti()
 	hi_check()
 	state_t = 0.0
-	if n >= NEED and round_n >= MAX_ROUNDS:
+	if n >= NEED and is_final_round() and final_boss_dead:
 		win_run()
 	elif n >= NEED:
 		state = "clear"

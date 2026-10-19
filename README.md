@@ -17,7 +17,7 @@ Mostly vibe coded Godot game
 
 - [x] Create runs of ~10 rounds
 - [ ] Target 20–30 minute run duration
-- [ ] Add final boss encounter
+- [x] Add final boss encounter
 - [ ] Implement permanent unlocks between runs
 
 ---

@@ -54,19 +54,31 @@ func make_boss_dict(kind: String, nm: String, variant: int, hp: int, m: Dictiona
 		"strip": make_strip()
 	}
 
+# extra health of the final boss on top of the normal per-round growth
+const FINAL_HP_MUL = 1.3
+
 func spawn_boss() -> void:
+	var final = g.is_final_round()
 	var kind = g.BOSS_KINDS[(g.round_n + g.boss_count) % g.BOSS_KINDS.size()]
-	var info = g.BOSS_INFO[kind]
 	var variant = (g.round_n + g.boss_count) % 2
+	if final:
+		kind = "minister"       # the golden president is the final boss
+		variant = 1
+	var info = g.BOSS_INFO[kind]
 	var nm = info["name"]
 	if kind == "minister" and variant == 1:
 		nm = "PREDSEDNIK POZLATA"
 	var hp = boss_hp(int(info["hp"]))
+	if final:
+		hp = int(round(float(hp) * FINAL_HP_MUL))
 	var m = Models.build_boss(kind, variant, Models.kit_of(0))
 	g.add_child(m["root"])
 	var sx = clampf(g.ptx() + randf_range(-14.0, 14.0), -Ring.lim(), Ring.lim())
 	var b = make_boss_dict(kind, nm, variant, hp, m, Ring.tw(sx, -11.6), "charge")
 	b["intro"] = 2.2
+	b["final"] = final
+	if final:
+		b["intro"] = 3.2
 	b["wyaw"] = atan2(g.player.position.x - b["wp"].x, g.player.position.z - b["wp"].z)
 	g.bosses.append(b)
 	g.boss_count += 1
@@ -176,6 +188,8 @@ func tele_wait(b: Dictionary) -> float:
 	var w = [2.6, 2.1, 1.7][b["phase"] - 1]
 	if b["kind"] == "runner":
 		w *= 0.6
+	if b.get("final", false):
+		w *= 0.85
 	return w * clampf(1.0 - 0.04 * float(g.round_n - 2), 0.65, 1.0)
 
 func boss_speed(b: Dictionary) -> float:
@@ -506,6 +520,8 @@ func do_volley(b: Dictionary) -> void:
 	fwd = fwd.normalized()
 	var side = Vector3(-fwd.z, 0.0, fwd.x)
 	var n = 3 if b["phase"] < 3 else 5
+	if b.get("final", false):
+		n += 2
 	var start = Vector3(wp.x, float(g.BOSS_INFO[b["kind"]]["cy"]) + 0.7, wp.z)
 	for i in range(n):
 		g.phone_sys.throw_phone(start, b, side * (float(i) - float(n - 1) * 0.5) * 2.0)
@@ -642,6 +658,12 @@ func kill_boss(b: Dictionary) -> void:
 	else:
 		g.pickup_sys.maybe_drop(bpos, 0.5)
 	g.add_note(("CYCLIST DOWN +" if is_run else "BOSS DOWN +") + str(pts), g.GOLD)
+	if b.get("final", false):
+		g.final_boss_dead = true
+		g.score += 10000
+		g.hi_check()
+		g.add_note("FINAL BOSS DEFEATED  +10000", g.GOLD)
+		g.fx_sys.confetti()
 	if is_run:
 		g.sfx.play3d("thud", bpos)
 		g.sfx.v_yelp(bpos)
