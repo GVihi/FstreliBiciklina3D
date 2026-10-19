@@ -55,7 +55,7 @@ Mostly vibe coded Godot game
 
 ### Daily Seed Mode
 
-- [ ] Generate a daily seed
+- [x] Generate a daily seed
 - [ ] Use same seed for all players on that day
 - [ ] Add dedicated daily-run scoreboard
 

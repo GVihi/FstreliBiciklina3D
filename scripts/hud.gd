@@ -309,6 +309,7 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		_txt(item["label"], r.position.x + r.size.x * 0.5, base, int(22 * k), TEXT if on else GRAY, 1)
 		if item.get("soon", false):
 			_txt("SOON", r.position.x + r.size.x - 12.0 * k, base - 2.0 * k, int(12 * k), GRAY, 2)
+	_txt(g.daily_label, size.x - 18.0 * k, 30.0 * k, int(14 * k), GRAY, 2)
 	if g.hi > 0:
 		_txt("HIGH SCORE " + str(g.hi).pad_zeros(6), cx, size.y * 0.885, int(20 * k), GOLD, 1)
 	_txt("WASD MOVE   SHIFT RUN   SPACE DASH   MOUSE AIM   CLICK SHOOT   R RELOAD   Q MELEE", cx, size.y * 0.93, int(14 * k), GRAY, 1)
