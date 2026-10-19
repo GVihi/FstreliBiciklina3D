@@ -36,12 +36,12 @@ Mostly vibe coded Godot game
 
 - [x] Create proper pause menu
 
-- [ ] Create run summary screen
-  - [ ] Display score
-  - [ ] Display kills
-  - [ ] Display accuracy
-  - [ ] Display best style rank
-  - [ ] Display newly unlocked items
+- [x] Create run summary screen
+  - [x] Display score
+  - [x] Display kills
+  - [x] Display accuracy
+  - [x] Display best style rank
+  - [x] Display newly unlocked items
 
 - [ ] Connect existing settings system to menus
 

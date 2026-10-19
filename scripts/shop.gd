@@ -105,6 +105,7 @@ func add_style(n: float) -> void:
 		return
 	g.style = minf(100.0, g.style + n)
 	g.style_idle = 1.6
+	g.best_rank = maxi(g.best_rank, style_rank())
 
 func style_rank() -> int:
 	return clampi(int(g.style / 20.0), 0, 4)

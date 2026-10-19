@@ -90,6 +90,9 @@ var hi = 0
 var hearts = 3
 var combo = 0
 var best_combo = 0
+var kills = 0                # riders and bosses taken down this run
+var best_rank = 0            # highest style rank reached this run (0 = D .. 4 = S)
+var new_unlocks = []         # names of items unlocked by this run (filled once the unlock system exists)
 var shots_fired = 0
 var shots_hit = 0
 var civs_hit = 0
@@ -514,6 +517,9 @@ func start_game() -> void:
 	hearts = MAXHEARTS
 	combo = 0
 	best_combo = 0
+	kills = 0
+	best_rank = 0
+	new_unlocks = []
 	shots_fired = 0
 	shots_hit = 0
 	civs_hit = 0

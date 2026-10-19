@@ -614,6 +614,7 @@ func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -
 		g.sfx.say("minister_hit")
 
 func kill_boss(b: Dictionary) -> void:
+	g.kills += 1
 	b["mode"] = "dying"
 	b["die_t"] = 0.0
 	stop_boss_sound(b)

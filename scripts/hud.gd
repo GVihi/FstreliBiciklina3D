@@ -207,6 +207,46 @@ func _draw_shop(k: float) -> void:
 	_txt("REROLL  [R]  $%d" % rc, rr.position.x + rr.size.x * 0.5, rr.position.y + 32.0 * k, int(20 * k), GOLD if rok else RED, 1)
 	_txt("CLICK OR PRESS 1-4 TO BUY", cx, size.y * 0.93, int(14 * k), GRAY, 1)
 
+# ---------------------------------------------------------------- run summary (game over)
+func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
+	_txt("RUN OVER", cx, size.y * 0.15, int(66 * k), RED, 1)
+	if g.OVER_MSG.has(g.over_reason):
+		_txt(g.OVER_MSG[g.over_reason], cx, size.y * 0.22, int(20 * k), RED, 1)
+	var acc = 0
+	if g.shots_fired > 0:
+		acc = int(round(100.0 * g.shots_hit / g.shots_fired))
+	var rcols = [GRAY, TEXT, Color(0.35, 0.7, 0.42), GOLD, ACCENT]
+	var letters = ["D", "C", "B", "A", "S"]
+	var lx = cx - 190.0 * k
+	var rx = cx + 190.0 * k
+	var y0 = size.y * 0.32
+	var step = 38.0 * k
+	var rows = [
+		["SCORE", str(g.score).pad_zeros(6), TEXT],
+		["KILLS", str(g.kills), TEXT],
+		["ACCURACY", "%d%%" % acc, TEXT],
+		["BEST STYLE RANK", letters[g.best_rank], rcols[g.best_rank]],
+		["ROUND REACHED", str(g.round_n), TEXT],
+		["BEST COMBO", "x%d" % g.best_combo, TEXT]
+	]
+	for i in range(rows.size()):
+		var y = y0 + i * step
+		draw_rect(Rect2(lx, y + 8.0 * k, rx - lx, 1.0 * k), Color(1, 1, 1, 0.1))
+		_txt(rows[i][0], lx, y, int(20 * k), GRAY)
+		_txt(rows[i][1], rx, y, int(24 * k), rows[i][2], 2)
+	var uy = y0 + rows.size() * step + 14.0 * k
+	if g.score > 0 and g.score >= g.hi:
+		_txt("NEW HIGH SCORE", cx, uy, int(24 * k), GOLD, 1)
+		uy += 34.0 * k
+	_txt("NEWLY UNLOCKED", cx, uy, int(16 * k), GRAY, 1)
+	if g.new_unlocks.is_empty():
+		_txt("NOTHING THIS RUN", cx, uy + 26.0 * k, int(18 * k), GRAY, 1)
+	else:
+		for i in range(g.new_unlocks.size()):
+			_txt(str(g.new_unlocks[i]).to_upper(), cx, uy + 26.0 * k + i * 24.0 * k, int(18 * k), GOLD, 1)
+	if g.state_t > 0.8 and blink:
+		_txt("CLICK TO CONTINUE", cx, size.y * 0.93, int(24 * k), TEXT, 1)
+
 # ---------------------------------------------------------------- title screen menu
 const TITLE_ITEMS = [
 	{"id": "play", "label": "PLAY"},
@@ -463,15 +503,13 @@ func _draw() -> void:
 			if g.title_page != "settings":
 				_draw_title_page(k, cx)
 
-	elif state == "clear" or state == "over":
+	elif state == "over":
+		_dim(0.6)
+		_draw_run_summary(k, cx, blink)
+	elif state == "clear":
 		_dim(0.52)
 		var n_hit = g.count_hits()
-		if state == "clear":
-			_txt("ROUND CLEAR", cx, size.y * 0.2, int(70 * k), GOLD, 1)
-		else:
-			_txt("GAME OVER", cx, size.y * 0.2, int(70 * k), RED, 1)
-			if g.OVER_MSG.has(g.over_reason):
-				_txt(g.OVER_MSG[g.over_reason], cx, size.y * 0.27, int(22 * k), RED, 1)
+		_txt("ROUND CLEAR", cx, size.y * 0.2, int(70 * k), GOLD, 1)
 		_txt("%d OF %d HIT" % [n_hit, g.PER_ROUND], cx, size.y * 0.38, int(32 * k), TEXT, 1)
 		_txt("SCORE " + str(g.score).pad_zeros(6), cx, size.y * 0.46, int(26 * k), TEXT, 1)
 		var acc = 0
@@ -481,8 +519,7 @@ func _draw() -> void:
 		if g.score > 0 and g.score >= g.hi:
 			_txt("NEW HIGH SCORE", cx, size.y * 0.58, int(24 * k), GOLD, 1)
 		if g.state_t > 0.8 and blink:
-			var msg = "CLICK TO PICK AN UPGRADE" if state == "clear" else "CLICK TO PLAY AGAIN"
-			_txt(msg, cx, size.y * 0.7, int(28 * k), TEXT, 1)
+			_txt("CLICK TO PICK AN UPGRADE", cx, size.y * 0.7, int(28 * k), TEXT, 1)
 	elif state == "upgrade":
 		_draw_upgrade(k)
 	elif state == "shop":
