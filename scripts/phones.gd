@@ -47,7 +47,7 @@ func update_phones(dt: float) -> void:
 	for i in range(g.phones.size() - 1, -1, -1):
 		var ph = g.phones[i]
 		if ph["ret"]:
-			g.update_returning_phone(ph, i, dt)
+			g.combat_sys.update_returning_phone(ph, i, dt)
 			continue
 		ph["p"] += dt / ph["dur"]
 		var p = minf(ph["p"], 1.0)

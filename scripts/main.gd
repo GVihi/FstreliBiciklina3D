@@ -19,6 +19,7 @@ const PhonesScript = preload("res://scripts/phones.gd")
 const BossesScript = preload("res://scripts/bosses.gd")
 const RidersScript = preload("res://scripts/riders.gd")
 const ShopScript = preload("res://scripts/shop.gd")
+const CombatScript = preload("res://scripts/combat.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -379,7 +380,7 @@ func _warm_up() -> void:
 	melee_ring.position = Vector3(3.0, 0.04, 3.5) + shift
 	rubber["root"].visible = true
 	for i in range(8):                                    # fills the dart / particle pools too
-		spawn_dart(Vector3(i * 0.3 - 1.0, 1.0, 4.0) + shift, Vector3(i * 0.3 - 1.0, 1.0, 3.0) + shift, false)
+		combat_sys.spawn_dart(Vector3(i * 0.3 - 1.0, 1.0, 4.0) + shift, Vector3(i * 0.3 - 1.0, 1.0, 3.0) + shift, false)
 	burst(Vector3(0.0, 1.0, 4.0) + shift, 60, ["#2b2f36", "#ff9a3a", "#3fa0ff", "#c9ced4"], 0.5, 0.25, 0.35, 0.07)
 	spawn_particle(Vector3(0.5, 1.0, 4.0) + shift, Vector3.ZERO, 0.3, mat_dust, Vector3(0.1, 0.1, 0.1), 0.0)
 	spawn_particle(Vector3(0.7, 1.0, 4.0) + shift, Vector3.ZERO, 0.3, confetti_mats[0], Vector3(0.14, 0.01, 0.09), 0.0, 3.0)
@@ -401,6 +402,7 @@ var civ_sys = PedestriansScript.new(self)   # pedestrians.gd: Pedestrians (civil
 var boss_sys = BossesScript.new(self)   # bosses.gd: Bosses: spawning, telegraphed attacks, weak points, phases and defeat.
 var rider_sys = RidersScript.new(self)   # riders.gd: Riders: spawning waves, movement and sound, collisions, hits and losing parts.
 var shop_sys = ShopScript.new(self)   # shop.gd: Shop: between-round upgrades, the shop and its prices, perks and duos, plus style meter and cash.
+var combat_sys = CombatScript.new(self)   # combat.gd: Combat: shotgun and reload, melee swing, deflecting phones and the dart projectiles.
 
 # the HUD calls these two on main, so they stay as thin wrappers
 func get_setting(id: String):
@@ -477,7 +479,7 @@ func _input(event: InputEvent) -> void:
 			if state == "shop":
 				shop_sys.reroll()
 			else:
-				start_load()
+				combat_sys.start_load()
 		elif kc == KEY_Q:
 			if state == "play":
 				toggle_weapon()
@@ -558,7 +560,7 @@ func on_pad_button(btn: int) -> void:
 		if btn == JOY_BUTTON_A:
 			try_dash()
 		elif btn == JOY_BUTTON_X:
-			start_load()
+			combat_sys.start_load()
 		elif btn == JOY_BUTTON_Y or btn == JOY_BUTTON_RIGHT_SHOULDER or btn == JOY_BUTTON_LEFT_SHOULDER:
 			toggle_weapon()
 		return
@@ -628,7 +630,7 @@ func on_click() -> void:
 			if not settings.click_setting(hud.setting_at(get_viewport().get_mouse_position())):
 				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		else:
-			fire()
+			combat_sys.fire()
 
 func toggle_weapon(to = null) -> void:
 	if to == null:
@@ -1097,7 +1099,7 @@ func update_player(dt: float, captured: bool) -> void:
 	cam.fov = lerpf(fov_hip, fov_hip * FOV_ADS / FOV_HIP, ads_t) + kick
 	spread_deg = current_spread()
 	if trig and active:
-		fire()
+		combat_sys.fire()
 
 # stick aim help: drifts the crosshair onto whatever is close to it
 func apply_aim_assist(dt: float) -> void:
@@ -1235,7 +1237,7 @@ func update_gun(dt: float) -> void:
 	var show_ring = melee and state == "play" and not paused
 	melee_ring.visible = show_ring
 	if show_ring:
-		var z = swing_zone()
+		var z = combat_sys.swing_zone()
 		var rr = z["r"] * 0.8
 		melee_ring.position = Vector3(z["c"].x, 0.04, z["c"].z)
 		melee_ring.scale = Vector3(rr, 1.0, rr)
@@ -1300,7 +1302,7 @@ func update_game(dt: float) -> void:
 	if swing_t > 0.0:
 		swing_t -= dt
 		if swing_t > 0.08 and state == "play":
-			deflect_scan()
+			combat_sys.deflect_scan()
 	if swing_cd > 0.0:
 		swing_cd -= dt
 	if shout_t > 0.0:
@@ -1339,7 +1341,7 @@ func update_game(dt: float) -> void:
 			notes.remove_at(i)
 
 	update_particles(dt)
-	update_darts(dt)
+	combat_sys.update_darts(dt)
 	civ_sys.update_civs(dt)
 
 	# ambience: passing cars and birds
@@ -1362,15 +1364,15 @@ func update_game(dt: float) -> void:
 			sfx.play("pump")
 	if state == "play":
 		if shells == 0 and not loading and pump_t <= 0.15:
-			start_load()
+			combat_sys.start_load()
 		if riders.size() == 0 and bosses.size() == 0 and wait > 0.0 and shells < MAXSHELLS and not loading:
-			start_load()
+			combat_sys.start_load()
 	if loading and pump_t <= 0.0:
 		load_t -= dt
 		if load_t <= 0.0:
 			shells += 1
 			sfx.play("shell_tick")
-			load_t = reload_step()
+			load_t = combat_sys.reload_step()
 			if shells >= MAXSHELLS:
 				loading = false
 
@@ -1407,384 +1409,7 @@ func update_game(dt: float) -> void:
 		if i < riders.size():
 			rider_sys.update_rider(riders[i], gdt)
 
-# ================================================================== shotgun + melee
-func reload_step() -> float:
-	return 0.38 * (1.0 - 0.22 * float(up["reload"]))
-
-func start_load() -> void:
-	if state != "play" or loading or shells >= MAXSHELLS:
-		return
-	loading = true
-	load_t = reload_step() + 0.12
-
-func ray_dir_with_spread() -> Vector3:
-	var sp = deg_to_rad(spread_deg)
-	var a = randf() * TAU
-	var rr = sqrt(randf()) * sp
-	var local = Vector3(sin(rr) * cos(a), sin(rr) * sin(a), -cos(rr))
-	return (cam.global_transform.basis * local).normalized()
-
-func fire() -> void:
-	if state != "play" or paused:
-		return
-	if melee:
-		swing()
-		return
-	if pump_t > 0.0:
-		return
-	if shells <= 0 and buffs["rapid"] <= 0.0 and free_shots <= 0:
-		sfx.play("click")
-		start_load()
-		return
-	loading = false
-	if buffs["rapid"] <= 0.0:
-		if free_shots > 0:
-			free_shots -= 1
-		else:
-			shells -= 1
-	var lastshot = perks.has("lastshell") and shells == 0 and buffs["rapid"] <= 0.0
-	pump_dur = cur_pump()
-	pump_t = pump_dur
-	pump_fired = false
-	recoil = 1.0
-	flash = 0.07
-	shake = 0.15
-	shots_fired += 1
-	sfx.play("shot")
-	pitch = clampf(pitch + deg_to_rad(0.7 * (1.0 - 0.5 * ads_t)), -1.45, 1.45)
-
-	var dir = ray_dir_with_spread()
-	var org = cam.global_position
-	bloom = minf(bloom + 0.5, 1.6)
-	var ex = ex_bonus()
-
-	# how far can the dart travel before hitting the world?
-	var t_world = 80.0
-	var world_kind = ""
-	if dir.y < -0.0001:
-		var tf = -org.y / dir.y
-		if tf > 0.0 and tf < t_world:
-			t_world = tf
-			world_kind = "floor"
-	var ts = 0.5                                                      # fountain, planter and tunnel block
-	while ts < t_world:
-		if ray_blocked(org + dir * ts):
-			t_world = ts
-			world_kind = "wall"
-			break
-		ts += 0.5
-	var tfac = Ring.ray_exit_circle(org, dir, Ring.FACADE_RHO)       # buildings all around
-	if tfac > 0.0 and tfac < t_world:
-		t_world = tfac
-		world_kind = "wall"
-
-	# nearest target of every kind
-	var best_t = 1000.0
-	var best_kind = ""
-	var best_obj = null
-	for pk in pickups:
-		var tp = Util.ray_ellipsoid(org, dir, pk["pos"], Vector3(0.6 + ex, 0.6 + ex, 0.6 + ex))
-		if tp > 0.0 and tp < best_t:
-			best_t = tp
-			best_kind = "pickup"
-			best_obj = pk
-	for ph in phones:
-		if ph["ret"]:
-			continue
-		var tph = Util.ray_ellipsoid(org, dir, ph["pos"], Vector3(0.5 + ex, 0.4 + ex, 0.5 + ex))
-		if tph > 0.0 and tph < best_t:
-			best_t = tph
-			best_kind = "phone"
-			best_obj = ph
-	for b in bosses:
-		if not boss_sys.boss_hittable(b):
-			continue
-		var inf = BOSS_INFO[b["kind"]]
-		var br: Vector3 = inf["r"]
-		var tb2 = Util.ray_ellipsoid_yaw(org, dir, tw3(b["x"], inf["cy"], b["z"]), br + Vector3(ex, ex, ex), Ring.yaw(b["x"]))
-		if tb2 > 0.0 and tb2 < best_t:
-			best_t = tb2
-			best_kind = "boss"
-			best_obj = b
-	for r in riders:
-		if (r["mode"] != "fly" and r["mode"] != "away") or Ring.hidden(r["x"]):
-			continue
-		var c = tw3(r["x"], 0.95, LANE_Z[r["ln"]])
-		var t = Util.ray_ellipsoid_yaw(org, dir, c, Vector3(1.3 + ex, 1.0 + ex, 0.55 + ex), Ring.yaw(r["x"]))
-		if t > 0.0 and t < best_t:
-			best_t = t
-			best_kind = "rider"
-			best_obj = r
-	for c2 in civs:
-		if c2["state"] != "walk" or Ring.hidden(c2["x"]):
-			continue
-		var s = c2["scale"]
-		var ctr = tw3(c2["x"], 0.95 * s, c2["z"])
-		var t2 = Util.ray_ellipsoid(org, dir, ctr, Vector3(0.55 * s, 1.0 * s, 0.55 * s))
-		if t2 > 0.0 and t2 < best_t:
-			best_t = t2
-			best_kind = "civ"
-			best_obj = c2
-
-	var end_pt: Vector3
-	var stick = false
-	var target_hit = best_kind != "" and best_t < t_world
-	if target_hit:
-		end_pt = org + dir * best_t
-	else:
-		end_pt = org + dir * t_world
-		stick = (world_kind == "floor")
-
-	spawn_dart(gun["muzzle"].global_position, end_pt, stick)
-
-	# near-miss reaction for pedestrians (not the one we hit)
-	for c3 in civs:
-		if c3["state"] != "walk" or c3 == best_obj or c3["flinch"] > 0.0 or Ring.hidden(c3["x"]):
-			continue
-		var to = tw3(c3["x"], 0.9, c3["z"]) - org
-		var proj = to.dot(dir)
-		if proj > 0.0 and proj < 45.0:
-			var perp = (to - dir * proj).length()
-			if perp < 1.5:
-				c3["flinch"] = 0.6
-				var cp = tw3(c3["x"], 1.2, c3["z"])
-				sfx.v_gasp(cp)
-				add_popup(tw3(c3["x"], 2.0, c3["z"]), "JOJ!", WHITE, true)
-
-	if target_hit:
-		if best_kind == "rider":
-			rider_sys.hit_rider(best_obj, 2 if lastshot else 1)
-		elif best_kind == "civ":
-			civ_sys.hit_civ(best_obj)
-		elif best_kind == "boss":
-			var hit_y = (org + dir * best_t).y
-			var bo = best_obj
-			var is_weak = hit_y >= float(BOSS_INFO[bo["kind"]]["weak_y"]) + boss_sys.boss_hover(bo)
-			boss_sys.hit_boss(bo, 2 if lastshot else 1, is_weak, 30.0 if is_weak else 14.0)
-		elif best_kind == "phone":
-			phone_sys.shoot_phone(best_obj)
-		elif best_kind == "pickup":
-			pickup_sys.collect_pickup(best_obj)
-	else:
-		if world_kind == "floor":
-			for i in range(3):
-				spawn_particle(end_pt, Vector3(randf_range(-0.8, 0.8), randf_range(0.6, 1.6), randf_range(-0.8, 0.8)),
-					0.4, mat_dust, Vector3(0.05, 0.05, 0.05), 4.0)
-		elif world_kind == "wall":
-			for i in range(5):
-				spawn_particle(end_pt, Vector3(randf_range(-2.0, 2.0), randf_range(0.5, 2.5), randf_range(-2.0, 2.0)),
-					0.3, mat_spark, Vector3(0.04, 0.04, 0.04), 8.0)
-
-# --- melee: a giant gummy worm swung at whatever is close to the player
-func swing_zone() -> Dictionary:
-	var f = -player.global_transform.basis.z
-	f.y = 0.0
-	f = f.normalized()
-	var c = Vector3(player.position.x + f.x * 2.3, 1.0, player.position.z + f.z * 2.3)
-	return {"c": c, "r": 1.5 + up["rubber"] * 0.3}
-
-func flat_dist(a: Vector3, bx: float, bz: float) -> float:
-	return Vector2(a.x - bx, a.z - bz).length()
-
-func swing() -> void:
-	if swing_cd > 0.0:
-		return
-	swing_cd = 0.3
-	swing_t = 0.26
-	swing_dir = -swing_dir
-	shots_fired += 1
-	sfx.play("swing")
-	var z = swing_zone()
-	var zc: Vector3 = z["c"]
-	var zr: float = z["r"]
-	var hit_any = deflect_scan()
-	for i in range(pickups.size() - 1, -1, -1):
-		if zc.distance_to(pickups[i]["pos"]) < zr * 0.8 + 0.6:
-			pickup_sys.collect_pickup(pickups[i])
-	for i in range(bosses.size() - 1, -1, -1):
-		var b = bosses[i]
-		if not boss_sys.boss_hittable(b):
-			continue
-		var inf = BOSS_INFO[b["kind"]]
-		var br: Vector3 = inf["r"]
-		if flat_dist_v(zc, boss_world(b, 0.0)) < zr * 0.8 + br.x:
-			boss_sys.hit_boss(b, 2, false, 45.0)
-			hit_any = true
-	for i in range(riders.size() - 1, -1, -1):
-		var r = riders[i]
-		if r["mode"] != "fly" and r["mode"] != "away":
-			continue
-		if not Ring.hidden(r["x"]) and flat_dist_v(zc, rider_world(r, 0.0)) < zr * 0.8 + 0.9:
-			rider_sys.hit_rider(r, 2)
-			hit_any = true
-	if hit_any:
-		sfx.play3d("rubber", zc)
-		shake = 0.35
-		hitstop = maxf(hitstop, 0.06)
-
-# --- deflect: a thrown phone that is close when the rubber swings goes straight back at whoever threw it
-func deflect_range() -> float:
-	return 2.7 + up["rubber"] * 0.3
-
-func deflect_scan() -> bool:
-	var any = false
-	for ph in phones:
-		if ph["ret"]:
-			continue
-		var pp: Vector3 = ph["pos"]
-		var d = Vector2(pp.x - player.position.x, pp.z - player.position.z).length()
-		if d <= deflect_range() and pp.y < 2.6:
-			deflect_phone(ph)
-			any = true
-	return any
-
-func deflect_phone(ph: Dictionary) -> void:
-	ph["ret"] = true
-	ph["chain"] = 2 if perks.has("boomerang") else 0
-	if shop_sys.has_duo("RICOCHET"):
-		ph["chain"] = 4
-	if perks.has("counter"):
-		shells = mini(MAXSHELLS, shells + 1)
-	ph["rspd"] = 14.0
-	var ring_node: Node3D = ph["ring"]
-	ring_node.visible = false
-	hitstop = maxf(hitstop, 0.08)
-	shake = 0.3
-	sfx.play3d("rubber", ph["pos"])
-	add_popup(ph["pos"] + Vector3(0, 0.6, 0), "DEFLECTED!", PINK, true)
-	shop_sys.add_style(12.0)
-
-func target_valid(t) -> bool:
-	if t == null:
-		return false
-	if t.get("gone", false):
-		return false
-	if t.has("ln"):
-		return t["mode"] == "fly" or t["mode"] == "away"
-	return boss_sys.boss_hittable(t)
-
-func target_pos(t) -> Vector3:
-	if t.has("ln"):
-		return tw3(t["x"], 1.1, LANE_Z[t["ln"]])
-	return tw3(t["x"], float(BOSS_INFO[t["kind"]]["cy"]) + 0.4, t["z"])
-
-func nearest_target(from: Vector3, skip):
-	var best = null
-	var bd = 1.0e9
-	for r in riders:
-		if target_valid(r) and not is_same(r, skip):
-			var d = target_pos(r).distance_to(from)
-			if d < bd:
-				bd = d
-				best = r
-	for b in bosses:
-		if target_valid(b) and not is_same(b, skip):
-			var d2 = target_pos(b).distance_to(from)
-			if d2 < bd:
-				bd = d2
-				best = b
-	return best
-
-func update_returning_phone(ph: Dictionary, i: int, dt: float) -> void:
-	var tgt = ph["src"]
-	if not target_valid(tgt):
-		tgt = nearest_target(ph["pos"], null)
-		ph["src"] = tgt
-	if tgt == null:
-		phones.remove_at(i)
-		plastic_burst(ph["pos"])
-		sfx.play3d("phone_smash", ph["pos"])
-		free_phone(ph)
-		return
-	var tp = target_pos(tgt)
-	var pos: Vector3 = ph["pos"]
-	var dv = tp - pos
-	var dist = dv.length()
-	ph["rspd"] = minf(34.0, ph["rspd"] + 60.0 * dt)
-	var step = ph["rspd"] * dt
-	if dist <= 1.0 or step >= dist:
-		strike_with_phone(ph, i, tgt)
-		return
-	pos += dv / dist * step
-	ph["pos"] = pos
-	var node: Node3D = ph["node"]
-	node.position = pos
-	node.rotation += ph["rotv"] * dt * 2.0
-
-func strike_with_phone(ph: Dictionary, i: int, tgt) -> void:
-	var tp = target_pos(tgt)
-	plastic_burst(tp)
-	sfx.play3d("phone_smash", tp)
-	if tgt.has("ln"):
-		rider_sys.hit_rider(tgt, 99)
-	else:
-		boss_sys.hit_boss(tgt, 3, false, 100.0)
-	hitstop = 0.12
-	var v = int(800 * (2 if hype_t > 0.0 else 1) * shop_sys.style_mul())
-	score += v
-	hi_check()
-	add_popup(tp + Vector3(0, 1.4, 0), "RETURN TO SENDER +%d" % v, GOLD)
-	shop_sys.add_cash(36 if shop_sys.has_duo("BOUNTY HUNTER") else 12)
-	shop_sys.add_style(25.0)
-	if ph["chain"] > 0:
-		var nxt = nearest_target(tp, tgt)
-		if nxt != null:
-			ph["chain"] -= 1
-			ph["src"] = nxt
-			ph["rspd"] = 20.0
-			return
-	phones.remove_at(i)
-	free_phone(ph)
-
-func flat_dist_v(a: Vector3, b: Vector3) -> float:
-	return Vector2(a.x - b.x, a.z - b.z).length()
-
-# ================================================================== darts + particles
-# Darts and particles are recycled instead of created and freed, so a shot or a burst costs no allocations.
-var dart_pool = []
 var particle_pool = []
-
-func release_dart(node: Node3D) -> void:
-	node.visible = false
-	dart_pool.append(node)
-
-func spawn_dart(a: Vector3, b: Vector3, stick: bool) -> void:
-	var node: Node3D
-	if dart_pool.size() > 0:
-		node = dart_pool.pop_back()
-		node.visible = true
-		node.rotation = Vector3.ZERO
-	else:
-		node = Node3D.new()
-		Util.box(node, Vector3(0.025, 0.025, 0.16), Vector3.ZERO, mat_dart)
-		Util.sphere(node, 0.022, Vector3(0, 0, -0.09), mat_tip)
-		Util.trim_shadows(node, 1.0)
-		add_child(node)
-	node.position = a
-	if a.distance_to(b) > 0.1:
-		var dirn = (b - a).normalized()
-		var upv = Vector3.UP
-		if absf(dirn.y) > 0.98:
-			upv = Vector3.RIGHT
-		node.look_at(b, upv)
-	var dur = clampf(a.distance_to(b) / 120.0, 0.03, 0.4)
-	darts.append({"node": node, "a": a, "b": b, "t": 0.0, "max": dur, "stick": stick})
-	while darts.size() > 80:
-		release_dart(darts[0]["node"])
-		darts.remove_at(0)
-
-func update_darts(dt: float) -> void:
-	for i in range(darts.size() - 1, -1, -1):
-		var d = darts[i]
-		d["t"] += dt
-		var node: Node3D = d["node"]
-		if d["t"] < d["max"]:
-			node.position = d["a"].lerp(d["b"], d["t"] / d["max"])
-		else:
-			node.position = d["b"]
-			if (not d["stick"]) or d["t"] > d["max"] + 4.0:
-				release_dart(node)
-				darts.remove_at(i)
 
 func spawn_particle(pos: Vector3, vel: Vector3, life: float, m: Material, sz: Vector3, grav: float, spin: float = 0.0) -> void:
 	var mi: MeshInstance3D
