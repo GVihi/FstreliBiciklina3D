@@ -34,7 +34,7 @@ Mostly vibe coded Godot game
   - [x] Settings button
   - [x] Quit button
 
-- [ ] Create proper pause menu
+- [x] Create proper pause menu
 
 - [ ] Create run summary screen
   - [ ] Display score

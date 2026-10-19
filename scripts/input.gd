@@ -50,7 +50,10 @@ func handle_input(event: InputEvent) -> void:
 			if g.state == "title":
 				g.title_page = "" if g.title_page == "settings" else "settings"
 			elif g.state == "play":
-				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+				if g.paused:
+					g.pause_page = "" if g.pause_page == "settings" else "settings"
+				else:
+					Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		elif kc == KEY_ENTER or kc == KEY_KP_ENTER:
 			menu_confirm()
 		elif kc == KEY_LEFT:
@@ -59,8 +62,10 @@ func handle_input(event: InputEvent) -> void:
 			menu_move(1)
 		elif kc == KEY_UP or kc == KEY_W:
 			title_move(-1)
+			pause_move(-1)
 		elif kc == KEY_DOWN or kc == KEY_S:
 			title_move(1)
+			pause_move(1)
 		elif kc == KEY_1 or kc == KEY_KP_1:
 			if g.state == "upgrade":
 				if g.state_t > 0.35:
@@ -100,8 +105,11 @@ func handle_input(event: InputEvent) -> void:
 			g.hi = 0
 			g.settings.save_hi(0)
 		elif kc == KEY_ESCAPE:
-			title_back()
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			if g.state == "play" and g.paused:
+				pause_back()
+			else:
+				title_back()
+				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		elif kc == KEY_F11:
 			if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
 				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
@@ -119,6 +127,14 @@ func on_pad_button(btn: int) -> void:
 		return
 	if g.state == "play":
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			if btn == JOY_BUTTON_DPAD_UP:
+				pause_move(-1)
+			elif btn == JOY_BUTTON_DPAD_DOWN:
+				pause_move(1)
+			elif btn == JOY_BUTTON_A:
+				pause_activate(g.pause_sel)
+			elif btn == JOY_BUTTON_B:
+				pause_back()
 			return
 		if btn == JOY_BUTTON_A:
 			g.player_sys.try_dash()
@@ -160,6 +176,8 @@ func menu_move(d: int) -> void:
 func menu_confirm() -> void:
 	if g.state == "title":
 		title_activate(g.title_sel)
+	elif g.state == "play" and g.paused:
+		pause_activate(g.pause_sel)
 	elif g.state == "upgrade" and g.state_t > 0.35:
 		g.shop_sys.pick_upgrade(g.menu_sel)
 	elif g.state == "shop":
@@ -193,6 +211,38 @@ func title_activate(i: int) -> void:
 		g.title_page = id        # loadout / unlocks / scores / settings
 		g.sfx.play("click")
 
+# ---- pause menu (entries are listed in hud.gd PAUSE_ITEMS)
+func pause_move(d: int) -> void:
+	if g.state == "play" and g.paused and g.pause_page == "":
+		g.pause_sel = posmod(g.pause_sel + d, g.hud.PAUSE_ITEMS.size())
+		g.sfx.play("click")
+
+# Esc / B: close the settings panel, or resume from the main pause menu
+func pause_back() -> void:
+	if not (g.state == "play" and g.paused):
+		return
+	if g.pause_page != "":
+		g.pause_page = ""
+		g.sfx.play("click")
+	else:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func pause_activate(i: int) -> void:
+	if g.pause_page != "":
+		pause_back()
+		return
+	g.pause_sel = i
+	var id = g.hud.PAUSE_ITEMS[i]["id"]
+	if id == "resume":
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	elif id == "settings":
+		g.pause_page = "settings"
+		g.sfx.play("click")
+	elif id == "restart":
+		g.start_game()
+	elif id == "title":
+		g.abandon_run()
+
 func on_click() -> void:
 	var captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	if g.state == "title":
@@ -225,8 +275,14 @@ func on_click() -> void:
 		g.go_to_title()
 	elif g.state == "play":
 		if not captured:
-			if not g.settings.click_setting(g.hud.setting_at(g.get_viewport().get_mouse_position())):
-				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			var pmp = g.get_viewport().get_mouse_position()
+			if g.pause_page == "settings":
+				if not g.settings.click_setting(g.hud.setting_at(pmp)) and not g.hud.panel_rect().has_point(pmp):
+					pause_back()
+			else:
+				var pi = g.hud.pause_at(pmp)
+				if pi >= 0:
+					pause_activate(pi)
 		else:
 			g.combat_sys.fire()
 

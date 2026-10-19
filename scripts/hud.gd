@@ -265,6 +265,39 @@ func _draw_title_page(k: float, cx: float) -> void:
 	_txt("COMING SOON", cx, size.y * 0.56, int(32 * k), ACCENT, 1)
 	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.78, int(18 * k), GRAY, 1)
 
+# ---------------------------------------------------------------- pause menu
+const PAUSE_ITEMS = [
+	{"id": "resume", "label": "RESUME"},
+	{"id": "settings", "label": "SETTINGS"},
+	{"id": "restart", "label": "RESTART RUN"},
+	{"id": "title", "label": "QUIT TO TITLE"}
+]
+
+func pause_rect(i: int) -> Rect2:
+	var k = size.y / 720.0
+	var w = 320.0 * k
+	var h = 46.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.36 + i * (h + 10.0 * k), w, h)
+
+func pause_at(pos: Vector2) -> int:
+	if g == null or not g.paused or g.pause_page != "":
+		return -1
+	for i in range(PAUSE_ITEMS.size()):
+		if pause_rect(i).has_point(pos):
+			return i
+	return -1
+
+func _draw_pause_menu(k: float, cx: float) -> void:
+	_txt("PAUSED", cx, size.y * 0.26, int(60 * k), TEXT, 1)
+	var hov = pause_at(get_viewport().get_mouse_position())
+	for i in range(PAUSE_ITEMS.size()):
+		var r = pause_rect(i)
+		var on = hov == i or (hov < 0 and g.pause_sel == i)
+		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
+		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
+		_txt(PAUSE_ITEMS[i]["label"], r.position.x + r.size.x * 0.5, r.position.y + 31.0 * k, int(22 * k), TEXT if on else GRAY, 1)
+	_txt("ESC TO RESUME", cx, size.y * 0.80, int(16 * k), GRAY, 1)
+
 # ---------------------------------------------------------------- settings panel (pause screen / title with TAB)
 const SETTING_ROWS = [
 	{"id": "fov", "label": "FIELD OF VIEW", "min": 60.0, "max": 105.0, "fmt": "%d"},
@@ -276,14 +309,13 @@ const SETTING_ROWS = [
 ]
 
 func settings_visible() -> bool:
-	return g != null and (g.paused or (g.state == "title" and g.title_page == "settings"))
+	return g != null and ((g.paused and g.pause_page == "settings") or (g.state == "title" and g.title_page == "settings"))
 
 func panel_rect() -> Rect2:
 	var k = size.y / 720.0
 	var w = 560.0 * k
 	var h = (44.0 + SETTING_ROWS.size() * 34.0 + 12.0) * k
-	var top = size.y * 0.57 if g.state == "play" else (size.y - h) * 0.5
-	return Rect2((size.x - w) * 0.5, top, w, h)
+	return Rect2((size.x - w) * 0.5, (size.y - h) * 0.5, w, h)
 
 func row_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
@@ -457,10 +489,13 @@ func _draw() -> void:
 		_draw_shop(k)
 
 	if g.paused:
-		_dim(0.6)
-		_txt("PAUSED", cx, size.y * 0.44, int(60 * k), TEXT, 1)
-		_txt("CLICK TO RESUME", cx, size.y * 0.52, int(26 * k), GRAY, 1)
-		_draw_settings(k)
+		if g.pause_page == "settings":
+			_dim(0.86)
+			_draw_settings(k)
+			_txt("ESC OR CLICK OUTSIDE TO GO BACK", cx, size.y * 0.92, int(14 * k), GRAY, 1)
+		else:
+			_dim(0.6)
+			_draw_pause_menu(k, cx)
 	elif state == "title" and g.title_page == "settings":
 		_draw_settings(k)
 		_txt("ESC OR CLICK OUTSIDE TO GO BACK", cx, size.y * 0.92, int(14 * k), GRAY, 1)

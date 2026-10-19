@@ -204,6 +204,8 @@ var volume = 1.0
 var outlines = true
 var drag_id = ""
 var title_page = ""          # "" = main menu, otherwise settings / loadout / unlocks / scores
+var pause_page = ""          # "" = pause menu, "settings" = settings panel
+var pause_sel = 0            # highlighted pause-menu entry (keyboard / gamepad)
 var title_sel = 0            # highlighted title-menu entry (keyboard / gamepad)
 
 var cheerleaders = []
@@ -497,6 +499,14 @@ func go_to_title() -> void:
 	title_page = ""
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
+# leave a run in progress (pause menu: quit to title); the run is simply dropped
+func abandon_run() -> void:
+	clear_riders()
+	clear_bosses()
+	clear_phones()
+	clear_pickups()
+	go_to_title()
+
 func start_game() -> void:
 	reset_run()
 	round_n = 1
@@ -713,6 +723,9 @@ func _process(delta: float) -> void:
 		dt *= 0.1
 	var captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	paused = (state == "play" and not captured)
+	if not paused:
+		pause_page = ""
+		pause_sel = 0
 	time += dt
 	player_sys.update_player(dt, captured)
 	if not paused:
