@@ -552,13 +552,13 @@ func _draw_boss_ui(k: float) -> void:
 				draw_rect(Rect2(size.x - 16.0 * k, 0, 16.0 * k, size.y), Color(1.0, 0.82, 0.25, gp))
 				_txt("DIZZY - HIT IT!  (WEAK SPOT OPEN)", cx, size.y * 0.45, int(22 * k), GOLD, 1)
 			# weak spot marker
-			if not g.cam.is_position_behind(g.tw3(b["x"], g.weak_point_y(b), b["z"])):
-				var wp = g.tw3(b["x"], g.weak_point_y(b), b["z"])
+			if not g.cam.is_position_behind(g.tw3(b["x"], g.boss_sys.weak_point_y(b), b["z"])):
+				var wp = g.tw3(b["x"], g.boss_sys.weak_point_y(b), b["z"])
 				var sp = g.cam.unproject_position(wp)
 				var dist = maxf(1.0, g.cam.global_position.distance_to(wp))
 				var rr = clampf(120.0 * k / dist * (78.0 / g.cam.fov), 7.0 * k, 26.0 * k)
 				var pul = 0.6 + 0.4 * sin(g.time * 9.0)
-				if g.weak_open(b):
+				if g.boss_sys.weak_open(b):
 					draw_arc(sp, rr * (1.0 + 0.15 * pul), 0.0, TAU, 24, Color(1.0, 0.42, 0.17, 0.9), 2.0 * k)
 					draw_circle(sp, 2.0 * k, Color(1.0, 0.42, 0.17, 0.9))
 				else:                                                  # armoured: a crossed-out grey ring
