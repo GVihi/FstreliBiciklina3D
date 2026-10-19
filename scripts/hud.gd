@@ -209,9 +209,13 @@ func _draw_shop(k: float) -> void:
 
 # ---------------------------------------------------------------- run summary (game over)
 func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
-	_txt("RUN OVER", cx, size.y * 0.15, int(66 * k), RED, 1)
-	if g.OVER_MSG.has(g.over_reason):
-		_txt(g.OVER_MSG[g.over_reason], cx, size.y * 0.22, int(20 * k), RED, 1)
+	if g.run_won:
+		_txt("RUN COMPLETE", cx, size.y * 0.15, int(66 * k), GOLD, 1)
+		_txt("ALL %d ROUNDS SURVIVED" % g.MAX_ROUNDS, cx, size.y * 0.22, int(20 * k), GOLD, 1)
+	else:
+		_txt("RUN OVER", cx, size.y * 0.15, int(66 * k), RED, 1)
+		if g.OVER_MSG.has(g.over_reason):
+			_txt(g.OVER_MSG[g.over_reason], cx, size.y * 0.22, int(20 * k), RED, 1)
 	var acc = 0
 	if g.shots_fired > 0:
 		acc = int(round(100.0 * g.shots_hit / g.shots_fired))
@@ -226,7 +230,7 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		["KILLS", str(g.kills), TEXT],
 		["ACCURACY", "%d%%" % acc, TEXT],
 		["BEST STYLE RANK", letters[g.best_rank], rcols[g.best_rank]],
-		["ROUND REACHED", str(g.round_n), TEXT],
+		["ROUND REACHED", "%d / %d" % [g.round_n, g.MAX_ROUNDS], TEXT],
 		["BEST COMBO", "x%d" % g.best_combo, TEXT]
 	]
 	for i in range(rows.size()):
@@ -614,7 +618,7 @@ func _draw_top_bar(k: float) -> void:
 		_heart((172.0 + i * 26.0) * k, 36.0 * k, 16.0 * k, RED if i < g.hearts else Color(0.23, 0.18, 0.17))
 
 	# round + progress
-	_txt("ROUND %d  %s" % [g.round_n, g.THEMES[g.theme_idx]["name"]], 300.0 * k, 17.0 * k, fs, GOLD)
+	_txt("ROUND %d/%d  %s" % [g.round_n, g.MAX_ROUNDS, g.THEMES[g.theme_idx]["name"]], 300.0 * k, 17.0 * k, fs, GOLD)
 	for i in range(g.PER_ROUND):
 		var st = g.hits[i] if i < g.hits.size() else null
 		var col = TEXT

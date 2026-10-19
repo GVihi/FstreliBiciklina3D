@@ -66,6 +66,7 @@ const ACCENT = Color(1.0, 0.42, 0.17)
 
 # values the HUD reads (vars so they are reachable from another script)
 var PER_ROUND = 10
+var MAX_ROUNDS = 10           # a run is this many rounds; clearing the last one wins the run
 var NEED = 6
 var MAXSHELLS = 6
 var MAXHEARTS = 3
@@ -91,6 +92,7 @@ var hi = 0
 var hearts = 3
 var combo = 0
 var best_combo = 0
+var run_won = false          # the run ended by clearing the last round
 var kills = 0                # riders and bosses taken down this run
 var best_rank = 0            # highest style rank reached this run (0 = D .. 4 = S)
 var last_rank = -1           # leaderboard place of the run that just ended (0 = first), -1 = not on the list
@@ -526,6 +528,7 @@ func start_game() -> void:
 	hearts = MAXHEARTS
 	combo = 0
 	best_combo = 0
+	run_won = false
 	kills = 0
 	best_rank = 0
 	last_rank = -1
@@ -663,7 +666,9 @@ func end_round() -> void:
 		fx_sys.confetti()
 	hi_check()
 	state_t = 0.0
-	if n >= NEED:
+	if n >= NEED and round_n >= MAX_ROUNDS:
+		win_run()
+	elif n >= NEED:
 		state = "clear"
 		hearts = mini(MAXHEARTS, hearts + 1)
 		sfx.play("clear")
@@ -676,6 +681,17 @@ func end_round() -> void:
 		sfx.play("over")
 		sfx.v_groan()
 		sfx.say("game_over")
+
+# the last round was cleared: the run is won. It ends on the same summary screen as a loss.
+func win_run() -> void:
+	run_won = true
+	state = "over"
+	over_reason = "victory"
+	scores.submit_run()
+	fx_sys.confetti()
+	sfx.play("clear")
+	sfx.v_cheer()
+	sfx.say("round_clear")
 
 func game_over(reason: String) -> void:
 	clear_riders()

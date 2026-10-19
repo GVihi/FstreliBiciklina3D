@@ -15,7 +15,7 @@ Mostly vibe coded Godot game
 
 ### Recommended Roguelite Structure
 
-- [ ] Create runs of ~10 rounds
+- [x] Create runs of ~10 rounds
 - [ ] Target 20–30 minute run duration
 - [ ] Add final boss encounter
 - [ ] Implement permanent unlocks between runs
