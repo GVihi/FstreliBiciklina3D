@@ -225,8 +225,8 @@ Mostly vibe coded Godot game
 
 ## Code Structure
 
-- [ ] Break up `main.gd` (~3,600 lines)
-- [ ] Move systems into dedicated modules
+- [x] Break up `main.gd` (~3,600 lines)
+- [x] Move systems into dedicated modules
 
 ## Data-Driven Content
 
