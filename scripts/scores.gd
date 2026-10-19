@@ -29,6 +29,7 @@ func load_scores() -> void:
 					"score": int(e["score"]),
 					"round": int(e.get("round", 1)),
 					"kills": int(e.get("kills", 0)),
+					"time": int(e.get("time", 0)),
 					"date": str(e.get("date", ""))
 				})
 	entries.sort_custom(func(a, b): return a["score"] > b["score"])
@@ -59,6 +60,7 @@ func submit_run() -> int:
 		"score": g.score,
 		"round": g.round_n,
 		"kills": g.kills,
+		"time": int(g.play_time + g.shop_time),
 		"date": Time.get_date_string_from_system()
 	})
 	if entries.size() > MAX_ENTRIES:

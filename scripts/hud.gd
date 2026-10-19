@@ -224,13 +224,14 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	var lx = cx - 190.0 * k
 	var rx = cx + 190.0 * k
 	var y0 = size.y * 0.29
-	var step = 32.0 * k
+	var step = 30.0 * k
 	var rows = [
 		["SCORE", str(g.score).pad_zeros(6), TEXT],
 		["KILLS", str(g.kills), TEXT],
 		["ACCURACY", "%d%%" % acc, TEXT],
 		["BEST STYLE RANK", letters[g.best_rank], rcols[g.best_rank]],
 		["ROUND REACHED", "%d / %d" % [g.round_n, g.MAX_ROUNDS], TEXT],
+		["RUN TIME", g.fmt_time(g.play_time + g.shop_time), TEXT],
 		["BEST COMBO", "x%d" % g.best_combo, TEXT]
 	]
 	for i in range(rows.size()):
