@@ -21,6 +21,7 @@ const RidersScript = preload("res://scripts/riders.gd")
 const ShopScript = preload("res://scripts/shop.gd")
 const CombatScript = preload("res://scripts/combat.gd")
 const EffectsScript = preload("res://scripts/effects.gd")
+const InputScript = preload("res://scripts/input.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -405,6 +406,7 @@ var rider_sys = RidersScript.new(self)   # riders.gd: Riders: spawning waves, mo
 var shop_sys = ShopScript.new(self)   # shop.gd: Shop: between-round upgrades, the shop and its prices, perks and duos, plus style meter and cash.
 var combat_sys = CombatScript.new(self)   # combat.gd: Combat: shotgun and reload, melee swing, deflecting phones and the dart projectiles.
 var fx_sys = EffectsScript.new(self)   # effects.gd: Effects: pooled particles, bursts, plastic debris and confetti.
+var input_sys = InputScript.new(self)   # input.gd: Input: mouse, keyboard and gamepad handling, menu clicks and weapon switching.
 
 # the HUD calls these two on main, so they stay as thin wrappers
 func get_setting(id: String):
@@ -451,195 +453,9 @@ func set_flash(node: Node, on: bool) -> void:
 func pick_one(arr: Array):
 	return arr[randi() % arr.size()]
 
-# ================================================================== input
+# engine callback: the logic lives in input.gd
 func _input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion:
-		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-			var k = SENS * sens_mul * (cam.fov / fov_hip)
-			yaw -= event.relative.x * k
-			pitch = clampf(pitch - event.relative.y * k, -1.45, 1.45)
-		elif drag_id != "":
-			hud.apply_slider(drag_id, get_viewport().get_mouse_position())
-	elif event is InputEventMouseButton:
-		if not event.pressed:
-			if event.button_index == MOUSE_BUTTON_LEFT:
-				drag_id = ""
-			return
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			on_click()
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			if toggle_ads and state == "play" and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not melee:
-				ads_on = not ads_on
-		elif event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			if state == "play":
-				toggle_weapon()
-	elif event is InputEventJoypadButton and event.pressed:
-		on_pad_button(event.button_index)
-	elif event is InputEventKey and event.pressed and not event.echo:
-		var kc = event.keycode
-		if kc == KEY_R:
-			if state == "shop":
-				shop_sys.reroll()
-			else:
-				combat_sys.start_load()
-		elif kc == KEY_Q:
-			if state == "play":
-				toggle_weapon()
-		elif kc == KEY_SPACE:
-			if state == "play":
-				try_dash()
-			elif state == "shop":
-				shop_sys.leave_shop()
-		elif kc == KEY_TAB:
-			if state == "title":
-				settings_open = not settings_open
-			elif state == "play":
-				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		elif kc == KEY_ENTER or kc == KEY_KP_ENTER:
-			menu_confirm()
-		elif kc == KEY_LEFT:
-			menu_move(-1)
-		elif kc == KEY_RIGHT:
-			menu_move(1)
-		elif kc == KEY_1 or kc == KEY_KP_1:
-			if state == "upgrade":
-				if state_t > 0.35:
-					shop_sys.pick_upgrade(0)
-			elif state == "shop":
-				shop_sys.buy(0)
-			elif state == "play":
-				toggle_weapon(false)
-		elif kc == KEY_2 or kc == KEY_KP_2:
-			if state == "upgrade":
-				if state_t > 0.35:
-					shop_sys.pick_upgrade(1)
-			elif state == "shop":
-				shop_sys.buy(1)
-			elif state == "play":
-				toggle_weapon(true)
-		elif kc == KEY_3 or kc == KEY_KP_3:
-			if state == "upgrade" and state_t > 0.35:
-				shop_sys.pick_upgrade(2)
-			elif state == "shop":
-				shop_sys.buy(2)
-		elif kc == KEY_4 or kc == KEY_KP_4:
-			if state == "shop":
-				shop_sys.buy(3)
-		elif kc == KEY_M:
-			sfx.toggle_mute()
-		elif kc == KEY_V:
-			sfx.toggle_voices()
-		elif kc == KEY_F7:
-			add_note("VOICE EFFECTS " + ("ON" if sfx.toggle_voice_fx() else "OFF"), GOLD)
-		elif kc == KEY_F9:
-			settings.cycle_quality()
-		elif kc == KEY_F10:
-			settings.set_setting("outline", not outlines)
-			add_note("OUTLINES " + ("ON" if outlines else "OFF"), GOLD)
-		elif kc == KEY_F8:
-			hi = 0
-			settings.save_hi(0)
-		elif kc == KEY_ESCAPE:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		elif kc == KEY_F11:
-			if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
-				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-			else:
-				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-
-# gamepad buttons (sticks and triggers are polled in update_player)
-func on_pad_button(btn: int) -> void:
-	if btn == JOY_BUTTON_START:
-		if state == "play":
-			if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-			else:
-				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		return
-	if state == "play":
-		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-			return
-		if btn == JOY_BUTTON_A:
-			try_dash()
-		elif btn == JOY_BUTTON_X:
-			combat_sys.start_load()
-		elif btn == JOY_BUTTON_Y or btn == JOY_BUTTON_RIGHT_SHOULDER or btn == JOY_BUTTON_LEFT_SHOULDER:
-			toggle_weapon()
-		return
-	if btn == JOY_BUTTON_DPAD_LEFT:
-		menu_move(-1)
-	elif btn == JOY_BUTTON_DPAD_RIGHT:
-		menu_move(1)
-	elif btn == JOY_BUTTON_A:
-		if state == "title":
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-			start_game()
-		elif state == "clear" and state_t > 0.8:
-			shop_sys.enter_upgrade()
-		elif state == "over" and state_t > 0.8:
-			state = "title"
-			state_t = 0.0
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		else:
-			menu_confirm()
-	elif btn == JOY_BUTTON_B and state == "shop":
-		shop_sys.leave_shop()
-	elif btn == JOY_BUTTON_X and state == "shop":
-		shop_sys.reroll()
-
-func menu_move(d: int) -> void:
-	if state == "upgrade":
-		menu_sel = posmod(menu_sel + d, maxi(1, offers.size()))
-	elif state == "shop":
-		menu_sel = posmod(menu_sel + d, maxi(1, shop_items.size()))
-
-func menu_confirm() -> void:
-	if state == "upgrade" and state_t > 0.35:
-		shop_sys.pick_upgrade(menu_sel)
-	elif state == "shop":
-		shop_sys.buy(menu_sel)
-	elif state == "clear" and state_t > 0.8:
-		shop_sys.enter_upgrade()
-
-func on_click() -> void:
-	var captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-	if state == "title":
-		if settings_open and settings.click_setting(hud.setting_at(get_viewport().get_mouse_position())):
-			return
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		start_game()
-	elif state == "clear" and state_t > 0.8:
-		shop_sys.enter_upgrade()
-	elif state == "upgrade" and state_t > 0.35:
-		var i = hud.card_at(get_viewport().get_mouse_position())
-		if i >= 0:
-			shop_sys.pick_upgrade(i)
-	elif state == "shop":
-		var mp = get_viewport().get_mouse_position()
-		var si = hud.card_at(mp)
-		if si >= 0:
-			shop_sys.buy(si)
-		elif hud.continue_rect().has_point(mp):
-			shop_sys.leave_shop()
-		elif hud.reroll_rect().has_point(mp):
-			shop_sys.reroll()
-	elif state == "over" and state_t > 0.8:
-		state = "title"
-		state_t = 0.0
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	elif state == "play":
-		if not captured:
-			if not settings.click_setting(hud.setting_at(get_viewport().get_mouse_position())):
-				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		else:
-			combat_sys.fire()
-
-func toggle_weapon(to = null) -> void:
-	if to == null:
-		melee = not melee
-	else:
-		melee = to
-	sfx.play("click")
+	input_sys.handle_input(event)
 
 # ================================================================== game flow
 func reset_run() -> void:
