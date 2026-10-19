@@ -24,6 +24,7 @@ const EffectsScript = preload("res://scripts/effects.gd")
 const InputScript = preload("res://scripts/input.gd")
 const PlayerScript = preload("res://scripts/player.gd")
 const ScoresScript = preload("res://scripts/scores.gd")
+const MetaScript = preload("res://scripts/meta.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -106,6 +107,7 @@ var player_name = "PLAYER"   # last name typed on the leaderboard (saved), offer
 var name_entry = false       # true on the run summary while the player is typing a name for a new leaderboard entry
 var name_buf = ""
 var new_unlocks = []         # names of items unlocked by this run (filled once the unlock system exists)
+var meta_earned = 0          # meta coins this run paid out (shown on the run summary); run cash is the separate `cash`
 var shots_fired = 0
 var shots_hit = 0
 var civs_hit = 0
@@ -428,6 +430,7 @@ var shop_sys = ShopScript.new(self)   # shop.gd: Shop: between-round upgrades, t
 var combat_sys = CombatScript.new(self)   # combat.gd: Combat: shotgun and reload, melee swing, deflecting phones and the dart projectiles.
 var fx_sys = EffectsScript.new(self)   # effects.gd: Effects: pooled particles, bursts, plastic debris and confetti.
 var scores = ScoresScript.new(self)   # scores.gd: Scores: the local Top 10 leaderboard saved to user://scores.json.
+var meta = MetaScript.new(self)   # meta.gd: Meta currency: earned from finished runs, saved to user://meta.json, separate from run cash.
 var input_sys = InputScript.new(self)   # input.gd: Input: mouse, keyboard and gamepad handling, menu clicks and weapon switching.
 var player_sys = PlayerScript.new(self)   # player.gd: Player: movement, dash and slide, perfect dodges, aim assist, spread and gun handling.
 
@@ -529,6 +532,7 @@ func abandon_run() -> void:
 
 func start_game() -> void:
 	reset_run()
+	meta.begin_run()
 	round_n = 1
 	score = 0
 	hearts = MAXHEARTS
@@ -700,6 +704,7 @@ func end_round() -> void:
 	else:
 		state = "over"
 		over_reason = "riders"
+		meta.award_run()
 		scores.submit_run()
 		sfx.play("over")
 		sfx.v_groan()
@@ -710,6 +715,7 @@ func win_run() -> void:
 	run_won = true
 	state = "over"
 	over_reason = "victory"
+	meta.award_run()
 	scores.submit_run()
 	fx_sys.confetti()
 	sfx.play("clear")
@@ -724,6 +730,7 @@ func game_over(reason: String) -> void:
 	state_t = 0.0
 	over_reason = reason
 	hi_check()
+	meta.award_run()
 	scores.submit_run()
 	sfx.play("over")
 	if reason == "civ":

@@ -232,7 +232,8 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		["BEST STYLE RANK", letters[g.best_rank], rcols[g.best_rank]],
 		["ROUND REACHED", "%d / %d" % [g.round_n, g.MAX_ROUNDS], TEXT],
 		["RUN TIME", g.fmt_time(g.play_time + g.shop_time), TEXT],
-		["BEST COMBO", "x%d" % g.best_combo, TEXT]
+		["BEST COMBO", "x%d" % g.best_combo, TEXT],
+		["META COINS", "+%d" % g.meta_earned, GOLD]
 	]
 	for i in range(rows.size()):
 		var y = y0 + i * step
@@ -309,6 +310,7 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		_txt(item["label"], r.position.x + r.size.x * 0.5, base, int(22 * k), TEXT if on else GRAY, 1)
 		if item.get("soon", false):
 			_txt("SOON", r.position.x + r.size.x - 12.0 * k, base - 2.0 * k, int(12 * k), GRAY, 2)
+	_txt("META COINS %d" % g.meta.balance, 18.0 * k, 30.0 * k, int(14 * k), GOLD)
 	if g.hi > 0:
 		_txt("HIGH SCORE " + str(g.hi).pad_zeros(6), cx, size.y * 0.885, int(20 * k), GOLD, 1)
 	_txt("WASD MOVE   SHIFT RUN   SPACE DASH   MOUSE AIM   CLICK SHOOT   R RELOAD   Q MELEE", cx, size.y * 0.93, int(14 * k), GRAY, 1)

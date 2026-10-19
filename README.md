@@ -73,11 +73,11 @@ Mostly vibe coded Godot game
 ## Meta Progression
 
 - [ ] Add meta currency
-  - [ ] Earn from score
+  - [x] Earn from score
   - [ ] Earn from boss kills
   - [ ] Earn from challenges
 
-- [ ] Keep meta currency separate from run cash
+- [x] Keep meta currency separate from run cash
 
 ## Meta Unlocks
 
