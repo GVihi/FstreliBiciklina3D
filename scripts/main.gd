@@ -23,6 +23,7 @@ const CombatScript = preload("res://scripts/combat.gd")
 const EffectsScript = preload("res://scripts/effects.gd")
 const InputScript = preload("res://scripts/input.gd")
 const PlayerScript = preload("res://scripts/player.gd")
+const ScoresScript = preload("res://scripts/scores.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -92,6 +93,10 @@ var combo = 0
 var best_combo = 0
 var kills = 0                # riders and bosses taken down this run
 var best_rank = 0            # highest style rank reached this run (0 = D .. 4 = S)
+var last_rank = -1           # leaderboard place of the run that just ended (0 = first), -1 = not on the list
+var player_name = "PLAYER"   # last name typed on the leaderboard (saved), offered again next time
+var name_entry = false       # true on the run summary while the player is typing a name for a new leaderboard entry
+var name_buf = ""
 var new_unlocks = []         # names of items unlocked by this run (filled once the unlock system exists)
 var shots_fired = 0
 var shots_hit = 0
@@ -414,6 +419,7 @@ var rider_sys = RidersScript.new(self)   # riders.gd: Riders: spawning waves, mo
 var shop_sys = ShopScript.new(self)   # shop.gd: Shop: between-round upgrades, the shop and its prices, perks and duos, plus style meter and cash.
 var combat_sys = CombatScript.new(self)   # combat.gd: Combat: shotgun and reload, melee swing, deflecting phones and the dart projectiles.
 var fx_sys = EffectsScript.new(self)   # effects.gd: Effects: pooled particles, bursts, plastic debris and confetti.
+var scores = ScoresScript.new(self)   # scores.gd: Scores: the local Top 10 leaderboard saved to user://scores.json.
 var input_sys = InputScript.new(self)   # input.gd: Input: mouse, keyboard and gamepad handling, menu clicks and weapon switching.
 var player_sys = PlayerScript.new(self)   # player.gd: Player: movement, dash and slide, perfect dodges, aim assist, spread and gun handling.
 
@@ -501,6 +507,8 @@ func go_to_title() -> void:
 	state = "title"
 	state_t = 0.0
 	title_page = ""
+	last_rank = -1
+	name_entry = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 # leave a run in progress (pause menu: quit to title); the run is simply dropped
@@ -520,6 +528,8 @@ func start_game() -> void:
 	best_combo = 0
 	kills = 0
 	best_rank = 0
+	last_rank = -1
+	name_entry = false
 	new_unlocks = []
 	shots_fired = 0
 	shots_hit = 0
@@ -662,6 +672,7 @@ func end_round() -> void:
 	else:
 		state = "over"
 		over_reason = "riders"
+		scores.submit_run()
 		sfx.play("over")
 		sfx.v_groan()
 		sfx.say("game_over")
@@ -674,6 +685,7 @@ func game_over(reason: String) -> void:
 	state_t = 0.0
 	over_reason = reason
 	hi_check()
+	scores.submit_run()
 	sfx.play("over")
 	if reason == "civ":
 		sfx.play("siren")

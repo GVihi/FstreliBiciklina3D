@@ -59,6 +59,7 @@ func load_settings() -> void:
 	_muted = bool(cf.get_value("game", "muted", _muted))
 	_voices = bool(cf.get_value("game", "voices", _voices))
 	_fullscreen = bool(cf.get_value("game", "fullscreen", _fullscreen))
+	g.player_name = str(cf.get_value("game", "player_name", g.player_name))
 
 func save_settings() -> void:
 	var cf = ConfigFile.new()
@@ -72,6 +73,7 @@ func save_settings() -> void:
 	cf.set_value("game", "muted", g.sfx.muted)
 	cf.set_value("game", "voices", g.sfx.voices_on)
 	cf.set_value("game", "fullscreen", is_fullscreen())
+	cf.set_value("game", "player_name", g.player_name)
 	cf.save("user://settings.cfg")
 
 func get_setting(id: String):

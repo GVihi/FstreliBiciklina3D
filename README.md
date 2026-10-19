@@ -47,8 +47,8 @@ Mostly vibe coded Godot game
 
 ## High Scores
 
-- [ ] Implement local Top 10 leaderboard
-- [ ] Add player name entry
+- [x] Implement local Top 10 leaderboard
+- [x] Add player name entry
 - [ ] Support separate leaderboards per difficulty
 
 ### Daily Seed Mode
