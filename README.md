@@ -197,6 +197,11 @@ Mostly vibe coded Godot game
 
 # Milestone E: Polish & Accessibility
 
+## Graphics & Sound Overhaul
+
+- [ ] Complete and hard graphics overhaul
+- [ ] Sound overhaul
+
 ## Dynamic Presentation
 
 - [ ] Dynamic music system
