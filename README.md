@@ -6,7 +6,7 @@ Mostly vibe coded Godot game
 > The game is already most of the way to a roguelite. It has runs made of rounds, a shop, perks that pair into duos, and bosses. Almost everything on this list is a layer on top of that, plus the missing "between runs" progression.
 
 ## Proper version control
-- [ ] GitHub
+- [x] GitHub
 
 ## Big Design Choice
 
