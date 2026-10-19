@@ -15,6 +15,7 @@ const Content = preload("res://scripts/content.gd")
 const SettingsScript = preload("res://scripts/settings.gd")
 const PedestriansScript = preload("res://scripts/pedestrians.gd")
 const PickupsScript = preload("res://scripts/pickups.gd")
+const PhonesScript = preload("res://scripts/phones.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -391,6 +392,7 @@ func _warm_up() -> void:
 # ------------------------------------------------------------------ graphics quality (F9)
 var quality = 0     # 0 = shadows + 2x MSAA, 1 = no MSAA, 2 = no MSAA and no sun shadows
 var settings = SettingsScript.new(self)   # settings.gd: saved settings, graphics quality, high score file
+var phone_sys = PhonesScript.new(self)   # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
 var pickup_sys = PickupsScript.new(self)   # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
 var civ_sys = PedestriansScript.new(self)   # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
 
@@ -1676,7 +1678,7 @@ func update_game(dt: float) -> void:
 	elif hype > 0.0:
 		hype = maxf(0.0, hype - 3.0 * dt)
 	pickup_sys.update_pickups(dt)
-	update_phones(gdt)
+	phone_sys.update_phones(gdt)
 	update_bosses(gdt)
 	if riders.size() == 0 and bosses.size() == 0 and wait > 0.0:
 		wait -= dt
@@ -1846,7 +1848,7 @@ func fire() -> void:
 			var is_weak = hit_y >= float(BOSS_INFO[bo["kind"]]["weak_y"]) + boss_hover(bo)
 			hit_boss(bo, 2 if lastshot else 1, is_weak, 30.0 if is_weak else 14.0)
 		elif best_kind == "phone":
-			shoot_phone(best_obj)
+			phone_sys.shoot_phone(best_obj)
 		elif best_kind == "pickup":
 			pickup_sys.collect_pickup(best_obj)
 	else:
@@ -2248,12 +2250,12 @@ func update_rider(r: Dictionary, dt: float) -> void:
 		if r["wind_t"] > 0.0:
 			r["wind_t"] -= dt
 			if r["wind_t"] <= 0.0:
-				launch_phone(r)
+				phone_sys.launch_phone(r)
 		elif r["can_throw"] and r["entered"] and not Ring.hidden(r["x"]) and phones.size() < 3:
 			r["throw_t"] -= dt
 			if r["throw_t"] <= 0.0:
 				if throw_cool <= 0.0 and state == "play":
-					start_throw(r)
+					phone_sys.start_throw(r)
 				else:
 					r["throw_t"] = 0.3
 		if r["age"] > r["limit"]:
@@ -2411,88 +2413,6 @@ func resolve(r: Dictionary, hit: bool) -> void:
 		if randf() < 0.35:
 			sfx.say("taunt")
 	after_wave()
-
-# ================================================================== phones
-func start_throw(r: Dictionary) -> void:
-	r["wind_t"] = 0.5
-	r["throw_t"] = randf_range(1.4, 2.6)
-	throw_cool = 1.0
-	sfx.say("phone_throw")
-
-func launch_phone(r: Dictionary) -> void:
-	if r["mode"] != "fly":
-		return
-	throw_phone(tw3(r["x"] + r["dir"] * 0.6, 1.4, LANE_Z[r["ln"]]), r)
-
-# src is whoever threw it (a rider or a boss): a deflected phone flies back to it
-func throw_phone(start: Vector3, src, off: Vector3 = Vector3.ZERO) -> void:
-	var target = Vector3(player.position.x + off.x, 0.45, player.position.z + off.z)
-	var d = clampf(1.25 - round_n * 0.05, 0.75, 1.25)
-	var node = Models.build_phone()
-	add_child(node)
-	node.position = start
-	var ring = MeshInstance3D.new()
-	ring.mesh = Util.torus_mesh(1.0, 1.12, 24, 4)
-	var rmat = StandardMaterial3D.new()
-	rmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	rmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	rmat.albedo_color = Color(1.0, 0.24, 0.16, 0.3)
-	ring.material_override = rmat
-	add_child(ring)
-	ring.position = Vector3(target.x, 0.04, target.z)
-	phones.append({"node": node, "ring": ring, "rmat": rmat, "start": start, "target": target, "pos": start,
-		"p": 0.0, "dur": d, "src": src, "ret": false, "chain": 0, "rspd": 0.0, "off": off,
-		"rotv": Vector3(randf_range(-9.0, 9.0), randf_range(-9.0, 9.0), randf_range(-9.0, 9.0))})
-	sfx.play3d("throw", start)
-	sfx.play3d("ring", start)
-
-func update_phones(dt: float) -> void:
-	for i in range(phones.size() - 1, -1, -1):
-		var ph = phones[i]
-		if ph["ret"]:
-			update_returning_phone(ph, i, dt)
-			continue
-		ph["p"] += dt / ph["dur"]
-		var p = minf(ph["p"], 1.0)
-		var s: Vector3 = ph["start"]
-		var tg: Vector3 = ph["target"]
-		if ph["p"] < 0.6:                                         # it follows you (a little ahead of you) until the last moment
-			var lead = Vector3(player.position.x + pvel.x * 0.35 + ph["off"].x, 0.45, player.position.z + pvel.z * 0.35 + ph["off"].z)
-			tg = tg.lerp(lead, minf(1.0, dt * 5.0))
-			ph["target"] = tg
-			var rg: MeshInstance3D = ph["ring"]
-			rg.position = Vector3(tg.x, 0.04, tg.z)
-		var pos = Vector3(lerpf(s.x, tg.x, p), lerpf(s.y, tg.y, pow(p, 1.35)) + sin(p * PI) * 0.9, lerpf(s.z, tg.z, p))
-		ph["pos"] = pos
-		var node: Node3D = ph["node"]
-		node.position = pos
-		node.rotation += ph["rotv"] * dt
-		var rm: StandardMaterial3D = ph["rmat"]
-		rm.albedo_color = Color(1.0, 0.24, 0.16, 0.25 + 0.5 * minf(1.0, ph["p"]))
-		if ph["p"] >= 1.0:
-			phones.remove_at(i)
-			var near = Vector2(tg.x - player.position.x, tg.z - player.position.z).length() < 1.5
-			plastic_burst(Vector3(tg.x, 0.4, tg.z))
-			if near:
-				free_phone(ph)
-				damage_player("MISSED CALL", "phone")
-				if state != "play":
-					return
-			else:
-				add_popup(Vector3(tg.x, 1.4, tg.z), "DODGED!", GOLD)
-				sfx.play3d("phone_smash", tg)
-				free_phone(ph)
-
-func shoot_phone(ph: Dictionary) -> void:
-	var i = phones.find(ph)
-	if i >= 0:
-		phones.remove_at(i)
-	plastic_burst(ph["pos"])
-	sfx.play3d("phone_smash", ph["pos"])
-	score += 150
-	hi_check()
-	add_popup(ph["pos"] + Vector3(0, 0.6, 0), "+150", GOLD)
-	free_phone(ph)
 
 # ================================================================== bosses
 func make_strip() -> MeshInstance3D:
@@ -2831,7 +2751,7 @@ func boss_throws(b: Dictionary, dt: float) -> void:
 	b["throw_t"] -= dt
 	if b["throw_t"] <= 0.0 and phones.size() < 3 and state == "play":
 		b["throw_t"] = 3.4 if b["phase"] == 2 else 2.4
-		throw_phone(tw3(b["x"], float(BOSS_INFO[b["kind"]]["cy"]) + 0.7, b["z"]), b)
+		phone_sys.throw_phone(tw3(b["x"], float(BOSS_INFO[b["kind"]]["cy"]) + 0.7, b["z"]), b)
 
 func update_bosses(dt: float) -> void:
 	for i in range(bosses.size() - 1, -1, -1):
@@ -2991,7 +2911,7 @@ func do_volley(b: Dictionary) -> void:
 	var n = 3 if b["phase"] < 3 else 5
 	var start = Vector3(wp.x, float(BOSS_INFO[b["kind"]]["cy"]) + 0.7, wp.z)
 	for i in range(n):
-		throw_phone(start, b, side * (float(i) - float(n - 1) * 0.5) * 2.0)
+		phone_sys.throw_phone(start, b, side * (float(i) - float(n - 1) * 0.5) * 2.0)
 	b["mode"] = "charge"
 	b["pat"] = "lunge"
 	b["chase_t"] = tele_wait(b) * 0.4
