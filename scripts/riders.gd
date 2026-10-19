@@ -218,7 +218,7 @@ func hit_rider(r: Dictionary, dmg: int) -> void:
 		g.hi_check()
 		g.add_hype(6.0)
 		g.add_popup(wpos + Vector3(0, 1.2, 0), "ARMOURED  %d LEFT" % r["hp"], g.WHITE, true)
-		g.burst(wpos, 6, ["#f2b630"], 3.0, 0.3, 0.4, 0.06)
+		g.fx_sys.burst(wpos, 6, ["#f2b630"], 3.0, 0.3, 0.4, 0.06)
 		return
 	r["mode"] = "hit"
 	r["t"] = 0.0
@@ -250,7 +250,7 @@ func hit_rider(r: Dictionary, dmg: int) -> void:
 		label += "  x%d" % g.combo
 	g.add_popup(wpos + Vector3(0, 1.0, 0), label, g.GOLD)
 	g.add_popup(wpos + Vector3(0, 0.5, 0), "JOJ!", g.WHITE, true)
-	g.burst(wpos, 10, ["#ff9a3a"], 4.0, 0.3, 0.5, 0.06)
+	g.fx_sys.burst(wpos, 10, ["#ff9a3a"], 4.0, 0.3, 0.5, 0.06)
 	g.sfx.v_yelp(wpos)
 	if randf() < 0.4:
 		g.sfx.say("rider_hit")

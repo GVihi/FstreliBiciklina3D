@@ -20,6 +20,7 @@ const BossesScript = preload("res://scripts/bosses.gd")
 const RidersScript = preload("res://scripts/riders.gd")
 const ShopScript = preload("res://scripts/shop.gd")
 const CombatScript = preload("res://scripts/combat.gd")
+const EffectsScript = preload("res://scripts/effects.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -381,9 +382,9 @@ func _warm_up() -> void:
 	rubber["root"].visible = true
 	for i in range(8):                                    # fills the dart / particle pools too
 		combat_sys.spawn_dart(Vector3(i * 0.3 - 1.0, 1.0, 4.0) + shift, Vector3(i * 0.3 - 1.0, 1.0, 3.0) + shift, false)
-	burst(Vector3(0.0, 1.0, 4.0) + shift, 60, ["#2b2f36", "#ff9a3a", "#3fa0ff", "#c9ced4"], 0.5, 0.25, 0.35, 0.07)
-	spawn_particle(Vector3(0.5, 1.0, 4.0) + shift, Vector3.ZERO, 0.3, mat_dust, Vector3(0.1, 0.1, 0.1), 0.0)
-	spawn_particle(Vector3(0.7, 1.0, 4.0) + shift, Vector3.ZERO, 0.3, confetti_mats[0], Vector3(0.14, 0.01, 0.09), 0.0, 3.0)
+	fx_sys.burst(Vector3(0.0, 1.0, 4.0) + shift, 60, ["#2b2f36", "#ff9a3a", "#3fa0ff", "#c9ced4"], 0.5, 0.25, 0.35, 0.07)
+	fx_sys.spawn_particle(Vector3(0.5, 1.0, 4.0) + shift, Vector3.ZERO, 0.3, mat_dust, Vector3(0.1, 0.1, 0.1), 0.0)
+	fx_sys.spawn_particle(Vector3(0.7, 1.0, 4.0) + shift, Vector3.ZERO, 0.3, confetti_mats[0], Vector3(0.14, 0.01, 0.09), 0.0, 3.0)
 
 	for i in range(4):
 		await get_tree().process_frame
@@ -403,6 +404,7 @@ var boss_sys = BossesScript.new(self)   # bosses.gd: Bosses: spawning, telegraph
 var rider_sys = RidersScript.new(self)   # riders.gd: Riders: spawning waves, movement and sound, collisions, hits and losing parts.
 var shop_sys = ShopScript.new(self)   # shop.gd: Shop: between-round upgrades, the shop and its prices, perks and duos, plus style meter and cash.
 var combat_sys = CombatScript.new(self)   # combat.gd: Combat: shotgun and reload, melee swing, deflecting phones and the dart projectiles.
+var fx_sys = EffectsScript.new(self)   # effects.gd: Effects: pooled particles, bursts, plastic debris and confetti.
 
 # the HUD calls these two on main, so they stay as thin wrappers
 func get_setting(id: String):
@@ -806,7 +808,7 @@ func end_round() -> void:
 	if perfect:
 		score += 5000
 		add_note("PERFECT  +5000", GOLD)
-		confetti()
+		fx_sys.confetti()
 	hi_check()
 	state_t = 0.0
 	if n >= NEED:
@@ -1340,7 +1342,7 @@ func update_game(dt: float) -> void:
 		if notes[i]["t"] > 1.6:
 			notes.remove_at(i)
 
-	update_particles(dt)
+	fx_sys.update_particles(dt)
 	combat_sys.update_darts(dt)
 	civ_sys.update_civs(dt)
 
@@ -1408,65 +1410,3 @@ func update_game(dt: float) -> void:
 	for i in range(riders.size() - 1, -1, -1):
 		if i < riders.size():
 			rider_sys.update_rider(riders[i], gdt)
-
-var particle_pool = []
-
-func spawn_particle(pos: Vector3, vel: Vector3, life: float, m: Material, sz: Vector3, grav: float, spin: float = 0.0) -> void:
-	var mi: MeshInstance3D
-	if particle_pool.size() > 0:
-		mi = particle_pool.pop_back()
-		mi.visible = true
-		mi.scale = Vector3.ONE
-		mi.rotation = Vector3.ZERO
-	else:
-		mi = MeshInstance3D.new()
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(mi)
-	mi.mesh = Util.box_mesh(sz)
-	mi.material_override = m
-	mi.position = pos
-	particles.append({"node": mi, "vel": vel, "life": life, "max": life, "grav": grav, "spin": spin})
-	while particles.size() > 300:
-		release_particle(particles[0]["node"])
-		particles.remove_at(0)
-
-func release_particle(node: Node3D) -> void:
-	node.visible = false
-	particle_pool.append(node)
-
-func update_particles(dt: float) -> void:
-	for i in range(particles.size() - 1, -1, -1):
-		var p = particles[i]
-		p["life"] -= dt
-		var node: Node3D = p["node"]
-		if p["life"] <= 0.0:
-			release_particle(node)
-			particles.remove_at(i)
-			continue
-		var v: Vector3 = p["vel"]
-		v.y -= p["grav"] * dt
-		p["vel"] = v
-		node.position += v * dt
-		if node.position.y < 0.02:
-			node.position = Vector3(node.position.x, 0.02, node.position.z)
-			p["vel"] = Vector3(v.x * 0.3, 0.0, v.z * 0.3)
-		if p["spin"] != 0.0:
-			node.rotation += Vector3(p["spin"], p["spin"] * 0.7, 0.0) * dt
-		else:
-			var f = clampf(p["life"] / p["max"], 0.05, 1.0)
-			node.scale = Vector3(f, f, f)
-
-func burst(pos: Vector3, count: int, cols: Array, speed: float, life_lo: float, life_hi: float, size: float) -> void:
-	for i in range(count):
-		spawn_particle(pos + Vector3(randf_range(-0.3, 0.3), randf_range(-0.3, 0.3), randf_range(-0.3, 0.3)),
-			Vector3(randf_range(-speed, speed), randf_range(0.5, speed * 1.2), randf_range(-speed, speed)),
-			randf_range(life_lo, life_hi), col_mat(pick_one(cols)), Vector3(size, size, size), 10.0)
-
-func plastic_burst(pos: Vector3) -> void:
-	burst(pos, 14, ["#2b2f36", "#3a3f47", "#3fa0ff", "#c9ced4"], 4.0, 0.5, 0.8, 0.07)
-
-func confetti() -> void:
-	for i in range(70):
-		var pos = Vector3(randf_range(-12.0, 12.0), randf_range(5.0, 9.0), randf_range(-9.0, 2.0))
-		spawn_particle(pos, Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 0.5), randf_range(-1.0, 1.0)),
-			randf_range(2.5, 4.0), pick_one(confetti_mats), Vector3(0.14, 0.01, 0.09), 1.5, randf_range(-8.0, 8.0))

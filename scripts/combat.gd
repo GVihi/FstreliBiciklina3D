@@ -6,6 +6,7 @@ const Ring = preload("res://scripts/ring.gd")
 const Util = preload("res://scripts/util.gd")
 
 var g = null
+var dart_pool = []
 
 func _init(game) -> void:
 	g = game
@@ -171,11 +172,11 @@ func fire() -> void:
 	else:
 		if world_kind == "floor":
 			for i in range(3):
-				g.spawn_particle(end_pt, Vector3(randf_range(-0.8, 0.8), randf_range(0.6, 1.6), randf_range(-0.8, 0.8)),
+				g.fx_sys.spawn_particle(end_pt, Vector3(randf_range(-0.8, 0.8), randf_range(0.6, 1.6), randf_range(-0.8, 0.8)),
 					0.4, g.mat_dust, Vector3(0.05, 0.05, 0.05), 4.0)
 		elif world_kind == "wall":
 			for i in range(5):
-				g.spawn_particle(end_pt, Vector3(randf_range(-2.0, 2.0), randf_range(0.5, 2.5), randf_range(-2.0, 2.0)),
+				g.fx_sys.spawn_particle(end_pt, Vector3(randf_range(-2.0, 2.0), randf_range(0.5, 2.5), randf_range(-2.0, 2.0)),
 					0.3, g.mat_spark, Vector3(0.04, 0.04, 0.04), 8.0)
 
 # --- melee: a giant gummy worm swung at whatever is close to the player
@@ -295,7 +296,7 @@ func update_returning_phone(ph: Dictionary, i: int, dt: float) -> void:
 		ph["src"] = tgt
 	if tgt == null:
 		g.phones.remove_at(i)
-		g.plastic_burst(ph["pos"])
+		g.fx_sys.plastic_burst(ph["pos"])
 		g.sfx.play3d("phone_smash", ph["pos"])
 		g.free_phone(ph)
 		return
@@ -316,7 +317,7 @@ func update_returning_phone(ph: Dictionary, i: int, dt: float) -> void:
 
 func strike_with_phone(ph: Dictionary, i: int, tgt) -> void:
 	var tp = target_pos(tgt)
-	g.plastic_burst(tp)
+	g.fx_sys.plastic_burst(tp)
 	g.sfx.play3d("phone_smash", tp)
 	if tgt.has("ln"):
 		g.rider_sys.hit_rider(tgt, 99)
@@ -344,7 +345,6 @@ func flat_dist_v(a: Vector3, b: Vector3) -> float:
 
 # ================================================================== darts + particles
 # Darts and particles are recycled instead of created and freed, so a shot or a burst costs no allocations.
-var dart_pool = []
 
 func release_dart(node: Node3D) -> void:
 	node.visible = false

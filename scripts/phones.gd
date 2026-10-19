@@ -69,7 +69,7 @@ func update_phones(dt: float) -> void:
 		if ph["p"] >= 1.0:
 			g.phones.remove_at(i)
 			var near = Vector2(tg.x - g.player.position.x, tg.z - g.player.position.z).length() < 1.5
-			g.plastic_burst(Vector3(tg.x, 0.4, tg.z))
+			g.fx_sys.plastic_burst(Vector3(tg.x, 0.4, tg.z))
 			if near:
 				g.free_phone(ph)
 				g.damage_player("MISSED CALL", "phone")
@@ -84,7 +84,7 @@ func shoot_phone(ph: Dictionary) -> void:
 	var i = g.phones.find(ph)
 	if i >= 0:
 		g.phones.remove_at(i)
-	g.plastic_burst(ph["pos"])
+	g.fx_sys.plastic_burst(ph["pos"])
 	g.sfx.play3d("phone_smash", ph["pos"])
 	g.score += 150
 	g.hi_check()

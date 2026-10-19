@@ -488,7 +488,7 @@ func do_slam(b: Dictionary) -> void:
 	g.sfx.play3d("crash", pos)
 	g.shake = maxf(g.shake, 0.7)
 	g.hitstop = maxf(g.hitstop, 0.05)
-	g.burst(pos, 22, ["#c9ced4", "#f2b630", "#8a8f98"], 5.0, 0.4, 0.8, 0.1)
+	g.fx_sys.burst(pos, 22, ["#c9ced4", "#f2b630", "#8a8f98"], 5.0, 0.4, 0.8, 0.1)
 	if boss_flat_dist(b) < float(b["slam_r"]):
 		g.damage_player("BOSS SLAMMED YOU", "boss")
 		if g.state != "play":
@@ -539,7 +539,7 @@ func resolve_lunge(b: Dictionary) -> void:
 	b["combo"] = 0
 	g.sfx.play3d("crash", pos)
 	g.shake = 0.6
-	g.burst(pos, 14, ["#c9ced4", "#f2b630", "#8a8f98"], 3.0, 0.4, 0.7, 0.09)
+	g.fx_sys.burst(pos, 14, ["#c9ced4", "#f2b630", "#8a8f98"], 3.0, 0.4, 0.7, 0.09)
 	g.hitstop = 0.1
 	var sp = 300 if runner else 600
 	g.score += int(sp * (2 if g.hype_t > 0.0 else 1) * g.shop_sys.style_mul())
@@ -582,7 +582,7 @@ func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -
 		g.sfx.play3d("boss_hit_wifi", c)
 	else:
 		g.sfx.play3d("boss_hit_minister", c)
-	g.burst(c, 8, ["#ff9a3a"], 4.0, 0.3, 0.5, 0.06)
+	g.fx_sys.burst(c, 8, ["#ff9a3a"], 4.0, 0.3, 0.5, 0.06)
 	var lbl = "HIT"
 	if armoured:
 		lbl = "ARMOURED"
@@ -655,10 +655,10 @@ func kill_boss(b: Dictionary) -> void:
 		cols = ["#f1f3ef", "#2fae5f", "#ffd23f", "#3a3d41"]
 	elif b["kind"] == "wifi":
 		cols = ["#ffffff", "#e5533d", "#cfd4da"]
-	g.burst(bpos, 40, cols, 6.0, 0.6, 1.1, 0.09)
+	g.fx_sys.burst(bpos, 40, cols, 6.0, 0.6, 1.1, 0.09)
 	if b["kind"] == "minister":
 		for i in range(26):
-			g.spawn_particle(bpos + Vector3(randf_range(-0.6, 0.6), randf_range(0.3, 1.5), randf_range(-0.6, 0.6)),
+			g.fx_sys.spawn_particle(bpos + Vector3(randf_range(-0.6, 0.6), randf_range(0.3, 1.5), randf_range(-0.6, 0.6)),
 				Vector3(randf_range(-2.5, 2.5), randf_range(1.0, 4.0), randf_range(-2.5, 2.5)),
 				randf_range(1.5, 2.5), g.pick_one(g.confetti_mats), Vector3(0.12, 0.01, 0.08), 3.0, randf_range(-8.0, 8.0))
 		g.sfx.say("minister_out")
