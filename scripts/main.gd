@@ -13,6 +13,7 @@ const SfxScript = preload("res://scripts/sfx.gd")
 const Ring = preload("res://scripts/ring.gd")
 const Content = preload("res://scripts/content.gd")
 const SettingsScript = preload("res://scripts/settings.gd")
+const PedestriansScript = preload("res://scripts/pedestrians.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -295,8 +296,8 @@ func _ready() -> void:
 	settings.apply_quality()
 	for i in range(PER_ROUND):
 		hits.append(null)
-	spawn_civ(-7.0)
-	spawn_civ(8.0)
+	civ_sys.spawn_civ(-7.0)
+	civ_sys.spawn_civ(8.0)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_warm_up()
 
@@ -389,6 +390,7 @@ func _warm_up() -> void:
 # ------------------------------------------------------------------ graphics quality (F9)
 var quality = 0     # 0 = shadows + 2x MSAA, 1 = no MSAA, 2 = no MSAA and no sun shadows
 var settings = SettingsScript.new(self)   # settings.gd: saved settings, graphics quality, high score file
+var civ_sys = PedestriansScript.new(self)   # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
 
 # the HUD calls these two on main, so they stay as thin wrappers
 func get_setting(id: String):
@@ -1620,7 +1622,7 @@ func update_game(dt: float) -> void:
 
 	update_particles(dt)
 	update_darts(dt)
-	update_civs(dt)
+	civ_sys.update_civs(dt)
 
 	# ambience: passing cars and birds
 	amb_t -= dt
@@ -1835,7 +1837,7 @@ func fire() -> void:
 		if best_kind == "rider":
 			hit_rider(best_obj, 2 if lastshot else 1)
 		elif best_kind == "civ":
-			hit_civ(best_obj)
+			civ_sys.hit_civ(best_obj)
 		elif best_kind == "boss":
 			var hit_y = (org + dir * best_t).y
 			var bo = best_obj
@@ -3258,113 +3260,3 @@ func kill_boss(b: Dictionary) -> void:
 				Vector3(randf_range(-2.5, 2.5), randf_range(1.0, 4.0), randf_range(-2.5, 2.5)),
 				randf_range(1.5, 2.5), pick_one(confetti_mats), Vector3(0.12, 0.01, 0.08), 3.0, randf_range(-8.0, 8.0))
 		sfx.say("minister_out")
-
-# ================================================================== pedestrians
-func spawn_civ(init_x: float = 9999.0) -> void:
-	var kind = pick_one(["walker", "granny", "jogger", "tourist"])
-	var dir = 1 if randf() < 0.5 else -1
-	var spd = 0.0
-	if kind == "jogger":
-		spd = randf_range(105.0, 150.0)
-	elif kind == "granny":
-		spd = randf_range(20.0, 32.0)
-	elif kind == "tourist":
-		spd = randf_range(28.0, 42.0)
-	else:
-		spd = randf_range(34.0, 55.0)
-	spd *= CIV_SCALE
-	var pants_list = [Color.html("#2d3a52"), Color.html("#4a4036"), Color.html("#2a2a2e"), Color.html("#6b7a8f")]
-	var shirts = ["#d65a4a", "#4a90d6", "#e0b83a", "#58b36a", "#9a62c8", "#e8e8e0", "#2f3b4f"]
-	var hairs = ["#2b1d12", "#6b4a2b", "#c9a266", "#1a1a1a", "#8a8a8a"]
-	var skins = ["#f0c8a0", "#d9a273", "#a8734a", "#7a4e30"]
-	var bags = ["#c49a5a", "#5a7fa8", "#b86a6a"]
-	var pal = {
-		"shirt": Color.html(pick_one(shirts)), "pants": pick_one(pants_list),
-		"hair": Color.html("#8a8a8a" if kind == "granny" else pick_one(hairs)),
-		"skin": Color.html(pick_one(skins)), "bag": Color.html(pick_one(bags))
-	}
-	var m = Models.build_civ(kind, pal)
-	add_child(m["root"])
-	var x0 = init_x
-	if init_x > 9000.0:
-		x0 = -(ARENA_HX + 1.8) if dir > 0 else (ARENA_HX + 1.8)
-	var z = JOG_Z if kind == "jogger" else SIDEWALK_Z + randf_range(-0.5, 0.5)
-	var c = {
-		"type": kind, "x": x0, "z": z, "dir": dir, "spd": spd, "ph": randf_range(0.0, 6.0), "t": 0.0,
-		"state": "walk", "hop": 0.0, "flinch": 0.0, "photo": 0.0, "photo_t": randf_range(1.0, 3.0),
-		"scale": m["scale"] * randf_range(0.97, 1.04), "model": m
-	}
-	civs.append(c)
-	apply_civ(c)
-
-func apply_civ(c: Dictionary) -> void:
-	var m = c["model"]
-	var s = c["scale"]
-	var cr: Node3D = m["root"]
-	cr.position = Ring.tw(c["x"], c["z"], c["hop"])
-	cr.rotation = Vector3(0.0, (0.0 if c["dir"] > 0 else PI) + Ring.yaw(c["x"]), 0.0)
-	cr.scale = Vector3(s, s, s)
-	Models.pose_civ(m, c["ph"], c["photo"] > 0.0, c["type"] == "jogger" or c["state"] == "flee")
-
-func update_civs(dt: float) -> void:
-	civ_t -= dt
-	var max_c = mini(4, 2 + int(round_n / 2))
-	if civ_t <= 0.0:
-		civ_t = maxf(0.8, randf_range(1.4, 3.4) - round_n * 0.1)
-		if civs.size() < max_c:
-			spawn_civ()
-	for i in range(civs.size() - 1, -1, -1):
-		var c = civs[i]
-		c["t"] += dt
-		if c["flinch"] > 0.0:
-			c["flinch"] -= dt
-		var st = c["state"]
-		if st == "walk":
-			var moving = true
-			if c["type"] == "tourist":
-				c["photo_t"] -= dt
-				if c["photo_t"] <= 0.0:
-					if c["photo"] > 0.0:
-						c["photo"] = 0.0
-						c["photo_t"] = randf_range(2.0, 4.0)
-					else:
-						c["photo"] = randf_range(0.9, 1.4)
-						c["photo_t"] = c["photo"]
-				if c["photo"] > 0.0:
-					moving = false
-			if moving:
-				c["x"] += c["dir"] * c["spd"] * dt
-				c["ph"] += dt * (4.0 + c["spd"] * 2.0)
-		elif st == "startled":
-			c["hop"] = absf(sin(c["t"] * PI / 0.35)) * 0.3 if c["t"] < 0.7 else 0.0
-			if c["t"] > 0.8:
-				c["state"] = "flee"
-				c["dir"] = -1 if c["x"] < 0.0 else 1
-				c["hop"] = 0.0
-		elif st == "flee":
-			c["x"] += c["dir"] * 6.6 * dt
-			c["ph"] += dt * 16.0
-		if absf(c["x"]) > ARENA_HX + 2.4:
-			c["model"]["root"].queue_free()
-			civs.remove_at(i)
-		else:
-			apply_civ(c)
-
-func hit_civ(c: Dictionary) -> void:
-	c["state"] = "startled"
-	c["t"] = 0.0
-	c["hop"] = 0.0
-	hearts -= 1
-	combo = 0
-	civs_hit += 1
-	hit_marker = 0.18
-	score = maxi(0, score - 1500)
-	var cp = tw3(c["x"], 1.2, c["z"])
-	add_popup(tw3(c["x"], 2.2, c["z"]), "ALO!", WHITE, true)
-	add_note("PEDESTRIAN HIT  -1 LIFE  -1500", RED)
-	red_flash = 0.25
-	sfx.play3d("thud", cp)
-	sfx.v_hey(cp)
-	sfx.say("civ_hit")
-	if hearts <= 0:
-		game_over("civ")
