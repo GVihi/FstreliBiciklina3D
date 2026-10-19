@@ -18,6 +18,7 @@ const PickupsScript = preload("res://scripts/pickups.gd")
 const PhonesScript = preload("res://scripts/phones.gd")
 const BossesScript = preload("res://scripts/bosses.gd")
 const RidersScript = preload("res://scripts/riders.gd")
+const ShopScript = preload("res://scripts/shop.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -399,6 +400,7 @@ var pickup_sys = PickupsScript.new(self)   # pickups.gd: Pickups: drops from kil
 var civ_sys = PedestriansScript.new(self)   # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
 var boss_sys = BossesScript.new(self)   # bosses.gd: Bosses: spawning, telegraphed attacks, weak points, phases and defeat.
 var rider_sys = RidersScript.new(self)   # riders.gd: Riders: spawning waves, movement and sound, collisions, hits and losing parts.
+var shop_sys = ShopScript.new(self)   # shop.gd: Shop: between-round upgrades, the shop and its prices, perks and duos, plus style meter and cash.
 
 # the HUD calls these two on main, so they stay as thin wrappers
 func get_setting(id: String):
@@ -473,7 +475,7 @@ func _input(event: InputEvent) -> void:
 		var kc = event.keycode
 		if kc == KEY_R:
 			if state == "shop":
-				reroll()
+				shop_sys.reroll()
 			else:
 				start_load()
 		elif kc == KEY_Q:
@@ -483,7 +485,7 @@ func _input(event: InputEvent) -> void:
 			if state == "play":
 				try_dash()
 			elif state == "shop":
-				leave_shop()
+				shop_sys.leave_shop()
 		elif kc == KEY_TAB:
 			if state == "title":
 				settings_open = not settings_open
@@ -498,27 +500,27 @@ func _input(event: InputEvent) -> void:
 		elif kc == KEY_1 or kc == KEY_KP_1:
 			if state == "upgrade":
 				if state_t > 0.35:
-					pick_upgrade(0)
+					shop_sys.pick_upgrade(0)
 			elif state == "shop":
-				buy(0)
+				shop_sys.buy(0)
 			elif state == "play":
 				toggle_weapon(false)
 		elif kc == KEY_2 or kc == KEY_KP_2:
 			if state == "upgrade":
 				if state_t > 0.35:
-					pick_upgrade(1)
+					shop_sys.pick_upgrade(1)
 			elif state == "shop":
-				buy(1)
+				shop_sys.buy(1)
 			elif state == "play":
 				toggle_weapon(true)
 		elif kc == KEY_3 or kc == KEY_KP_3:
 			if state == "upgrade" and state_t > 0.35:
-				pick_upgrade(2)
+				shop_sys.pick_upgrade(2)
 			elif state == "shop":
-				buy(2)
+				shop_sys.buy(2)
 		elif kc == KEY_4 or kc == KEY_KP_4:
 			if state == "shop":
-				buy(3)
+				shop_sys.buy(3)
 		elif kc == KEY_M:
 			sfx.toggle_mute()
 		elif kc == KEY_V:
@@ -569,7 +571,7 @@ func on_pad_button(btn: int) -> void:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 			start_game()
 		elif state == "clear" and state_t > 0.8:
-			enter_upgrade()
+			shop_sys.enter_upgrade()
 		elif state == "over" and state_t > 0.8:
 			state = "title"
 			state_t = 0.0
@@ -577,9 +579,9 @@ func on_pad_button(btn: int) -> void:
 		else:
 			menu_confirm()
 	elif btn == JOY_BUTTON_B and state == "shop":
-		leave_shop()
+		shop_sys.leave_shop()
 	elif btn == JOY_BUTTON_X and state == "shop":
-		reroll()
+		shop_sys.reroll()
 
 func menu_move(d: int) -> void:
 	if state == "upgrade":
@@ -589,11 +591,11 @@ func menu_move(d: int) -> void:
 
 func menu_confirm() -> void:
 	if state == "upgrade" and state_t > 0.35:
-		pick_upgrade(menu_sel)
+		shop_sys.pick_upgrade(menu_sel)
 	elif state == "shop":
-		buy(menu_sel)
+		shop_sys.buy(menu_sel)
 	elif state == "clear" and state_t > 0.8:
-		enter_upgrade()
+		shop_sys.enter_upgrade()
 
 func on_click() -> void:
 	var captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
@@ -603,20 +605,20 @@ func on_click() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		start_game()
 	elif state == "clear" and state_t > 0.8:
-		enter_upgrade()
+		shop_sys.enter_upgrade()
 	elif state == "upgrade" and state_t > 0.35:
 		var i = hud.card_at(get_viewport().get_mouse_position())
 		if i >= 0:
-			pick_upgrade(i)
+			shop_sys.pick_upgrade(i)
 	elif state == "shop":
 		var mp = get_viewport().get_mouse_position()
 		var si = hud.card_at(mp)
 		if si >= 0:
-			buy(si)
+			shop_sys.buy(si)
 		elif hud.continue_rect().has_point(mp):
-			leave_shop()
+			shop_sys.leave_shop()
 		elif hud.reroll_rect().has_point(mp):
-			reroll()
+			shop_sys.reroll()
 	elif state == "over" and state_t > 0.8:
 		state = "title"
 		state_t = 0.0
@@ -855,8 +857,8 @@ func damage_player(label: String, reason: String) -> void:
 		red_flash = 0.35
 		add_note("SECOND WIND - HANG ON!", GOLD)
 		sfx.play("clank2")
-		if has_duo("LIFE INSURANCE"):
-			add_cash(80)
+		if shop_sys.has_duo("LIFE INSURANCE"):
+			shop_sys.add_cash(80)
 		return
 	hearts -= 1
 	combo = 0
@@ -873,97 +875,6 @@ func add_popup(pos: Vector3, txt: String, col: Color, sm: bool = false) -> void:
 
 func add_note(txt: String, col: Color) -> void:
 	notes.append({"txt": txt, "col": col, "t": 0.0})
-
-# ------------------------------------------------------------------ upgrades
-func upgrade_ok(id: String) -> bool:
-	if id == "clip":
-		return MAXSHELLS < 12
-	if id == "pump":
-		return pump_base > 0.11
-	if id == "wide":
-		return up["wide"] < 4
-	if id == "heart":
-		return MAXHEARTS < 4
-	if id == "rubber":
-		return up["rubber"] < 4
-	if id == "hype":
-		return hype_gain < 2.6
-	if id == "luck":
-		return up["luck"] < 0.4
-	if id == "speedload":
-		return up["reload"] < 3
-	if id == "dashcd":
-		return up["dashcd"] < 4
-	if id == "magnet":
-		return up["magnet"] < 2
-	return false
-
-func apply_upgrade(id: String) -> void:
-	if id == "clip":
-		MAXSHELLS = mini(12, MAXSHELLS + 2)
-	elif id == "pump":
-		pump_base = maxf(0.1, pump_base - 0.035)
-	elif id == "wide":
-		up["wide"] += 1
-	elif id == "heart":
-		MAXHEARTS += 1
-		hearts = mini(MAXHEARTS, hearts + 1)
-	elif id == "rubber":
-		up["rubber"] += 1
-	elif id == "hype":
-		hype_gain += 0.5
-	elif id == "luck":
-		up["luck"] += 0.1
-	elif id == "speedload":
-		up["reload"] += 1
-	elif id == "dashcd":
-		up["dashcd"] += 1
-	elif id == "magnet":
-		up["magnet"] += 1
-
-func upgrade_stat(id: String) -> String:
-	if id == "clip":
-		return "DARTS %d > %d" % [MAXSHELLS, mini(12, MAXSHELLS + 2)]
-	if id == "pump":
-		return "PUMP %.2fs > %.2fs" % [pump_base, maxf(0.1, pump_base - 0.035)]
-	if id == "wide":
-		return "LEVEL %d > %d" % [up["wide"], up["wide"] + 1]
-	if id == "heart":
-		return "MAX LIVES %d > %d" % [MAXHEARTS, MAXHEARTS + 1]
-	if id == "rubber":
-		return "LEVEL %d > %d" % [up["rubber"], up["rubber"] + 1]
-	if id == "hype":
-		return "GAIN x%.1f > x%.1f" % [hype_gain, hype_gain + 0.5]
-	if id == "speedload":
-		return "LEVEL %d > %d" % [up["reload"], up["reload"] + 1]
-	if id == "dashcd":
-		return "COOLDOWN %.2fs > %.2fs" % [dash_cooldown(), maxf(0.45, dash_cooldown() - 0.15)]
-	if id == "magnet":
-		return "LEVEL %d > %d" % [up["magnet"], up["magnet"] + 1]
-	return "DROPS +%d%% > +%d%%" % [int(round(up["luck"] * 100.0)), int(round(up["luck"] * 100.0 + 10.0))]
-
-func enter_upgrade() -> void:
-	var pool = []
-	for u in UPGRADES:
-		if upgrade_ok(u["id"]):
-			pool.append(u)
-	pool.shuffle()
-	offers = pool.slice(0, 3)
-	state = "upgrade"
-	state_t = 0.0
-	clear_pickups()
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	if offers.size() == 0:
-		enter_shop()
-
-func pick_upgrade(i: int) -> void:
-	if i < 0 or i >= offers.size():
-		return
-	apply_upgrade(offers[i]["id"])
-	sfx.play("pickup")
-	sfx.v_cheer()
-	sfx.say("upgrade")
-	enter_shop()
 
 # ================================================================== frame loop
 func _process(delta: float) -> void:
@@ -1221,14 +1132,14 @@ func apply_aim_assist(dt: float) -> void:
 func grant_free_shots() -> void:
 	if not perks.has("slideshot"):
 		return
-	free_shots = 5 if has_duo("QUICK DRAW") else 3
+	free_shots = 5 if shop_sys.has_duo("QUICK DRAW") else 3
 	add_note("SLIDE SHOT: %d FREE DARTS" % free_shots, GOLD)
 
 func dash_cooldown() -> float:
 	var c = 1.3 - 0.15 * float(up["dashcd"])
 	if perks.has("adrenaline"):
 		c *= 0.6
-	if has_duo("SPEEDSTER"):
+	if shop_sys.has_duo("SPEEDSTER"):
 		c *= 0.8
 	return maxf(0.3, c)
 
@@ -1244,7 +1155,7 @@ func try_dash() -> void:
 	dir.y = 0.0
 	dash_dir = dir.normalized()
 	dash_t = DASH_TIME
-	dash_inv = DASH_TIME + 0.18 + (0.15 if has_duo("GHOST") else 0.0)
+	dash_inv = DASH_TIME + 0.18 + (0.15 if shop_sys.has_duo("GHOST") else 0.0)
 	dash_cd = dash_cooldown()
 	slide_t = 0.0
 	grant_free_shots()
@@ -1256,16 +1167,16 @@ func perfect_dodge() -> void:
 		return
 	dodge_cd = 0.5
 	perfect_dodges += 1
-	var v = int(250 * (2 if hype_t > 0.0 else 1) * style_mul())
+	var v = int(250 * (2 if hype_t > 0.0 else 1) * shop_sys.style_mul())
 	score += v
 	hi_check()
 	add_hype(15.0)
-	add_style(15.0)
-	add_cash(2)
+	shop_sys.add_style(15.0)
+	shop_sys.add_cash(2)
 	add_note("PERFECT DODGE  +%d" % v, GOLD)
 	hitstop = 0.12
 	sfx.play("clank2", -6.0)
-	if has_duo("MATADOR"):
+	if shop_sys.has_duo("MATADOR"):
 		shells = mini(MAXSHELLS, shells + 3)
 	if perks.has("closeshave") and perfect_dodges % 2 == 0 and hearts < MAXHEARTS:
 		hearts += 1
@@ -1345,207 +1256,6 @@ func cheer_say() -> void:
 	var cx = float(cheerleaders[i]["x"])
 	add_popup(tw3(cx, 2.5, CHEER_Z), txt, Color(1.0, 0.82, 0.93), true)
 
-# ------------------------------------------------------------------ style meter + cash + perks
-func add_style(n: float) -> void:
-	if state != "play":
-		return
-	style = minf(100.0, style + n)
-	style_idle = 1.6
-
-func style_rank() -> int:
-	return clampi(int(style / 20.0), 0, 4)
-
-func style_letter() -> String:
-	return ["D", "C", "B", "A", "S"][style_rank()]
-
-# higher style, bigger score: x1.0 at D up to x2.0 at S
-func style_mul() -> float:
-	return 1.0 + 0.25 * float(style_rank())
-
-func add_cash(n: int) -> void:
-	var v = float(n) * (1.0 + 0.08 * float(round_n - 1))      # pay grows a little every round, like the shop prices
-	if perks.has("bounty"):
-		v *= 1.35
-	cash += int(round(v))
-
-func has_duo(nm: String) -> bool:
-	for d in DUOS:
-		if d["name"] == nm:
-			return perks.has(d["a"]) and perks.has(d["b"])
-	return false
-
-func perk_name(id: String) -> String:
-	for it in SHOP_POOL:
-		if it["id"] == id:
-			return it["name"]
-	return id
-
-func shop_item(id: String) -> Dictionary:
-	for it in SHOP_POOL:
-		if it["id"] == id:
-			return it
-	return {}
-
-func shop_ok(id: String) -> bool:
-	var it = shop_item(id)
-	if it.size() == 0 or int(it["min"]) > round_n:
-		return false
-	var kind = it["kind"]
-	if kind == "heal":
-		return hearts < MAXHEARTS
-	if kind == "tier":
-		return upgrade_ok(id)
-	if kind == "pack":
-		return true
-	return not perks.has(id)
-
-func shop_tag(id: String) -> String:
-	for d in DUOS:
-		if d["a"] == id or d["b"] == id:
-			var other = d["b"] if d["a"] == id else d["a"]
-			if perks.has(other):
-				return "DUO: " + d["name"] + " - " + d["desc"]
-	for d2 in DUOS:
-		if d2["a"] == id or d2["b"] == id:
-			var other2 = d2["b"] if d2["a"] == id else d2["a"]
-			return "PAIRS WITH " + perk_name(other2)
-	return ""
-
-func shop_price(it: Dictionary) -> int:
-	var v = float(it["cost"]) * (1.0 + 0.12 * float(round_n - 1)) * (1.0 + 0.06 * float(shop_buys))
-	if it["kind"] == "tier":
-		v *= 1.0 + 0.45 * float(shop_lvl.get(it["id"], 0))
-	if perks.has("haggler"):
-		v *= 0.85
-	return maxi(5, int(round(v / 5.0)) * 5)
-
-func reroll_cost() -> int:
-	var v = 20 + 15 * shop_rerolls
-	if perks.has("haggler"):
-		v = int(v * 0.5)
-	return v
-
-func build_shop() -> void:
-	var pool = []
-	for it in SHOP_POOL:
-		if shop_ok(it["id"]):
-			var c = it.duplicate()
-			c["cost"] = shop_price(it)
-			c["sold"] = false
-			c["perk"] = it["kind"] == "perk"
-			c["tag"] = ""
-			if c["perk"]:
-				c["tag"] = shop_tag(it["id"])
-			elif it["kind"] == "tier":
-				c["tag"] = upgrade_stat(it["id"])
-			c["label"] = {"perk": "PERK", "pack": "NEXT ROUND", "tier": "UPGRADE", "heal": ""}[it["kind"]]
-			pool.append(c)
-	pool.shuffle()
-	shop_items = []
-	# 1. something affordable: a heal if you are hurt, otherwise a pack or one of the plain upgrades
-	var cheap = null
-	for c in pool:
-		if c["kind"] == "heal":
-			cheap = c
-			break
-	if cheap == null:
-		for c in pool:
-			if c["kind"] != "perk":
-				cheap = c
-				break
-	if cheap != null:
-		shop_items.append(cheap)
-	# 2. a perk that completes a duo with something you already own
-	for c in pool:
-		if shop_items.size() < 2 and c["tag"].begins_with("DUO") and not shop_items.has(c):
-			shop_items.append(c)
-	# 3. at least one perk on every shelf (once you can afford to think about them)
-	if round_n >= 2:
-		var have_perk = false
-		for c in shop_items:
-			if c["kind"] == "perk":
-				have_perk = true
-		if not have_perk:
-			for c in pool:
-				if c["kind"] == "perk" and not shop_items.has(c):
-					shop_items.append(c)
-					break
-	# 4. fill the rest at random, but never two copies of the same kind of pack
-	for c in pool:
-		if shop_items.size() < 4 and not shop_items.has(c):
-			shop_items.append(c)
-	shop_items.shuffle()
-
-func reroll() -> void:
-	if state != "shop":
-		return
-	var cost = reroll_cost()
-	if cash < cost:
-		add_note("NOT ENOUGH CASH", RED)
-		sfx.play("click")
-		return
-	cash -= cost
-	shop_rerolls += 1
-	build_shop()
-	menu_sel = 0
-	sfx.play("pickup")
-
-func enter_shop() -> void:
-	shop_rerolls = 0
-	build_shop()
-	menu_sel = 0
-	state = "shop"
-	state_t = 0.0
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	sfx.say("shop")
-
-func leave_shop() -> void:
-	if state != "shop":
-		return
-	round_n += 1
-	start_round()
-
-func buy(i: int) -> void:
-	if state != "shop" or i < 0 or i >= shop_items.size():
-		return
-	var it = shop_items[i]
-	if it["sold"]:
-		sfx.play("click")
-		return
-	if cash < it["cost"]:
-		add_note("NOT ENOUGH CASH", RED)
-		sfx.play("click")
-		return
-	cash -= it["cost"]
-	it["sold"] = true
-	shop_buys += 1
-	var id = it["id"]
-	var kind = it["kind"]
-	if kind == "heal":
-		hearts = mini(MAXHEARTS, hearts + 1)
-	elif kind == "tier":
-		apply_upgrade(id)
-		shop_lvl[id] = int(shop_lvl.get(id, 0)) + 1
-	elif kind == "pack":
-		if id == "pack_rapid":
-			pending["rapid"] = 25.0
-		elif id == "pack_fat":
-			pending["big"] = 25.0
-		elif id == "pack_shield":
-			pending["shield"] = true
-		elif id == "pack_hype":
-			pending["hype"] = true
-		elif id == "pack_free":
-			pending["free"] = 12
-		add_note(it["name"] + " READY", GOLD)
-	else:
-		perks[id] = true
-		for d in DUOS:
-			if (d["a"] == id or d["b"] == id) and has_duo(d["name"]):
-				add_note("DUO UNLOCKED: " + d["name"], GOLD)
-				sfx.v_cheer()
-	sfx.play("pickup")
-
 # ------------------------------------------------------------------ hype
 func add_hype(n: float) -> void:
 	if hype_t > 0.0 or state != "play":
@@ -1610,7 +1320,7 @@ func update_game(dt: float) -> void:
 			style_idle -= dt
 		elif style > 0.0:
 			style = maxf(0.0, style - (4.0 + style * 0.06) * dt)
-		if style_rank() >= 4 and shells < MAXSHELLS and not loading:
+		if shop_sys.style_rank() >= 4 and shells < MAXSHELLS and not loading:
 			regen_t -= dt
 			if regen_t <= 0.0:
 				regen_t = 3.0
@@ -1931,7 +1641,7 @@ func deflect_scan() -> bool:
 func deflect_phone(ph: Dictionary) -> void:
 	ph["ret"] = true
 	ph["chain"] = 2 if perks.has("boomerang") else 0
-	if has_duo("RICOCHET"):
+	if shop_sys.has_duo("RICOCHET"):
 		ph["chain"] = 4
 	if perks.has("counter"):
 		shells = mini(MAXSHELLS, shells + 1)
@@ -1942,7 +1652,7 @@ func deflect_phone(ph: Dictionary) -> void:
 	shake = 0.3
 	sfx.play3d("rubber", ph["pos"])
 	add_popup(ph["pos"] + Vector3(0, 0.6, 0), "DEFLECTED!", PINK, true)
-	add_style(12.0)
+	shop_sys.add_style(12.0)
 
 func target_valid(t) -> bool:
 	if t == null:
@@ -2010,12 +1720,12 @@ func strike_with_phone(ph: Dictionary, i: int, tgt) -> void:
 	else:
 		boss_sys.hit_boss(tgt, 3, false, 100.0)
 	hitstop = 0.12
-	var v = int(800 * (2 if hype_t > 0.0 else 1) * style_mul())
+	var v = int(800 * (2 if hype_t > 0.0 else 1) * shop_sys.style_mul())
 	score += v
 	hi_check()
 	add_popup(tp + Vector3(0, 1.4, 0), "RETURN TO SENDER +%d" % v, GOLD)
-	add_cash(36 if has_duo("BOUNTY HUNTER") else 12)
-	add_style(25.0)
+	shop_sys.add_cash(36 if shop_sys.has_duo("BOUNTY HUNTER") else 12)
+	shop_sys.add_style(25.0)
 	if ph["chain"] > 0:
 		var nxt = nearest_target(tp, tgt)
 		if nxt != null:

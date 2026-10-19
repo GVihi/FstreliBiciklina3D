@@ -494,7 +494,7 @@ func do_slam(b: Dictionary) -> void:
 		if g.state != "play":
 			return
 	else:
-		g.add_style(6.0)
+		g.shop_sys.add_style(6.0)
 		g.add_popup(pos + Vector3(0, 1.6, 0), "SLAM DODGED", g.ACCENT, true)
 	start_stagger(b, 1.2, false)
 
@@ -532,7 +532,7 @@ func resolve_lunge(b: Dictionary) -> void:
 			b["combo"] -= 1
 			start_tele(b, true)
 			return
-		g.add_style(5.0)
+		g.shop_sys.add_style(5.0)
 		g.add_note("OVERSHOT - HIT IT", g.ACCENT)
 		start_stagger(b, 1.0 if runner else 1.3, false)
 		return
@@ -542,11 +542,11 @@ func resolve_lunge(b: Dictionary) -> void:
 	g.burst(pos, 14, ["#c9ced4", "#f2b630", "#8a8f98"], 3.0, 0.4, 0.7, 0.09)
 	g.hitstop = 0.1
 	var sp = 300 if runner else 600
-	g.score += int(sp * (2 if g.hype_t > 0.0 else 1) * g.style_mul())
+	g.score += int(sp * (2 if g.hype_t > 0.0 else 1) * g.shop_sys.style_mul())
 	g.hi_check()
 	g.add_hype(12.0)
-	g.add_style(20.0)
-	g.add_cash(5 if runner else 12)
+	g.shop_sys.add_style(20.0)
+	g.shop_sys.add_cash(5 if runner else 12)
 	g.add_popup(pos + Vector3(0, 1.8, 0), "CRASHED!  +%d" % sp, g.GOLD)
 	g.add_note("DIZZY: HIT IT NOW", g.ACCENT)
 	start_stagger(b, 2.0 if runner else 2.4, true)
@@ -568,9 +568,9 @@ func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -
 		total += 1
 	if weak and g.perks.has("deadeye"):
 		total += 1
-	if weak and g.has_duo("SNIPER") and g.shells == 0:
+	if weak and g.shop_sys.has_duo("SNIPER") and g.shells == 0:
 		total += 2
-	if weak and g.has_duo("HEADHUNTER"):
+	if weak and g.shop_sys.has_duo("HEADHUNTER"):
 		g.shells = mini(g.MAXSHELLS, g.shells + 2)
 	b["hp"] -= total
 	b["flash"] = 0.12
@@ -589,10 +589,10 @@ func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -
 	if weak:
 		lbl = "WEAK SPOT x2"
 		g.hitstop = maxf(g.hitstop, 0.05)
-		g.add_style(8.0)
+		g.shop_sys.add_style(8.0)
 	elif stunned:
 		lbl = "DIZZY  +1"
-	g.add_style(4.0)
+	g.shop_sys.add_style(4.0)
 	g.add_popup(c + Vector3(0, 1.0, 0), lbl, g.ACCENT if weak else (Color(0.65, 0.68, 0.72) if armoured else g.WHITE), true)
 	if b["hp"] <= 0:
 		kill_boss(b)
@@ -628,8 +628,8 @@ func kill_boss(b: Dictionary) -> void:
 	g.shout_t = 0.0
 	hide_strip(b)
 	g.hitstop = 0.15
-	g.add_style(30.0)
-	g.add_cash(18 if is_run else 55)
+	g.shop_sys.add_style(30.0)
+	g.shop_sys.add_cash(18 if is_run else 55)
 	var bpos = g.tw3(b["x"], 1.0, b["z"])
 	if not is_run:
 		if g.hearts < g.MAXHEARTS:

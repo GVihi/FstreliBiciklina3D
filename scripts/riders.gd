@@ -235,14 +235,14 @@ func hit_rider(r: Dictionary, dmg: int) -> void:
 		pts *= 2
 	if g.melee:
 		pts = int(round(pts * 1.5))
-	pts = int(round(pts * g.style_mul()))
+	pts = int(round(pts * g.shop_sys.style_mul()))
 	g.score += pts
 	g.hi_check()
 	g.add_hype(10.0 + 3.0 * g.combo)
 	g.cheer = maxf(g.cheer, 0.7 + 0.1 * g.combo)
 	g.combo_shout()
-	g.add_style(12.0 + (6.0 if g.melee else 0.0))
-	g.add_cash(13 if r["type"] == "tough" else 5)
+	g.shop_sys.add_style(12.0 + (6.0 if g.melee else 0.0))
+	g.shop_sys.add_cash(13 if r["type"] == "tough" else 5)
 	g.hitstop = maxf(g.hitstop, 0.09 if g.melee else 0.04)
 	g.pickup_sys.drop_kill(wpos + Vector3(0, 0.5, 0), r["type"] == "tough")
 	var label = "+%d" % pts

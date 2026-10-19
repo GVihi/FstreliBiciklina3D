@@ -23,7 +23,7 @@ func maybe_drop(pos: Vector3, chance: float) -> void:
 func drop_kill(pos: Vector3, tough: bool) -> void:
 	if g.state != "play":
 		return
-	var rank = g.style_rank()
+	var rank = g.shop_sys.style_rank()
 	var drops = []
 	if randf() < 0.28 + 0.04 * float(rank) + (0.15 if g.perks.has("scavenger") else 0.0):
 		drops.append("ammo")
@@ -34,7 +34,7 @@ func drop_kill(pos: Vector3, tough: bool) -> void:
 	if tough and g.perks.has("salvage"):
 		if not drops.has("ammo"):
 			drops.append("ammo")
-		if g.has_duo("SCRAPYARD"):
+		if g.shop_sys.has_duo("SCRAPYARD"):
 			drops.append("ammo")
 			drops.append("cash")
 	if randf() < (0.7 if tough else 0.12) + g.up["luck"]:
@@ -81,7 +81,7 @@ func collect_pickup(pk: Dictionary) -> void:
 	else:
 		g.score += 500 * (2 if g.hype_t > 0.0 else 1)
 		g.hi_check()
-		g.add_cash(15)
+		g.shop_sys.add_cash(15)
 	g.sfx.play("pickup")
 	g.add_hype(8.0)
 	g.cheer = maxf(g.cheer, 0.6)

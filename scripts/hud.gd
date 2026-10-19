@@ -134,7 +134,7 @@ func _draw_upgrade(k: float) -> void:
 		for ln2 in _wrap(u["desc"], r.size.x - 36.0 * k, int(15 * k)):
 			_txt(ln2, r.position.x + r.size.x * 0.5, dy, int(15 * k), Color(0.79, 0.81, 0.83), 1)
 			dy += 24.0 * k
-		_txt(g.upgrade_stat(u["id"]), r.position.x + r.size.x * 0.5, r.position.y + r.size.y - 30.0 * k, int(14 * k), ACCENT, 1)
+		_txt(g.shop_sys.upgrade_stat(u["id"]), r.position.x + r.size.x * 0.5, r.position.y + r.size.y - 30.0 * k, int(14 * k), ACCENT, 1)
 	if int(g.time * 2.0) % 2 == 0:
 		_txt("CLICK A CARD OR PRESS 1 2 3", cx, size.y * 0.8, int(20 * k), TEXT, 1)
 
@@ -184,12 +184,12 @@ func _draw_shop(k: float) -> void:
 	# what you own
 	var owned = []
 	for id in g.perks.keys():
-		owned.append(g.perk_name(id))
+		owned.append(g.shop_sys.perk_name(id))
 	var line = "PERKS: " + (", ".join(owned) if owned.size() > 0 else "NONE YET")
 	_txt(line, cx, size.y * 0.72, int(15 * k), TEXT, 1)
 	var duos = []
 	for d in g.DUOS:
-		if g.has_duo(d["name"]):
+		if g.shop_sys.has_duo(d["name"]):
 			duos.append(d["name"] + " (" + d["desc"] + ")")
 	if duos.size() > 0:
 		_txt("DUOS: " + ", ".join(duos), cx, size.y * 0.76, int(14 * k), GOLD, 1)
@@ -199,7 +199,7 @@ func _draw_shop(k: float) -> void:
 	draw_rect(cr, ACCENT if chov else Color(0.29, 0.31, 0.33), false, 3.0 * k)
 	_txt("CONTINUE  [SPACE]", cx, cr.position.y + 32.0 * k, int(22 * k), TEXT, 1)
 	var rr = reroll_rect()
-	var rc = g.reroll_cost()
+	var rc = g.shop_sys.reroll_cost()
 	var rhov = rr.has_point(mp)
 	var rok = g.cash >= rc
 	draw_rect(rr, Color(0.176, 0.196, 0.22) if rhov else Color(0.13, 0.14, 0.16))
@@ -497,14 +497,14 @@ func _draw_bottom(k: float) -> void:
 	draw_rect(Rect2(mx - dw * 0.5 - 2.0, size.y - 56.0 * k, dw + 4.0, 10.0 * k), Color(0.05, 0.05, 0.055, 0.8))
 	var df = 1.0 if ready else clampf(1.0 - g.dash_cd / 0.9, 0.0, 1.0)
 	draw_rect(Rect2(mx - dw * 0.5, size.y - 54.0 * k, dw * df, 6.0 * k), Color(1.0, 0.82, 0.25) if ready else Color(0.5, 0.42, 0.2))
-	var rank = g.style_rank()
+	var rank = g.shop_sys.style_rank()
 	var rcols = [GRAY, TEXT, Color(0.35, 0.7, 0.42), GOLD, ACCENT]
 	_txt("STYLE", mx - 40.0 * k, size.y - 18.0 * k, int(12 * k), GRAY, 2)
-	_txt(g.style_letter(), mx - 28.0 * k, size.y - 12.0 * k, int(34 * k), rcols[rank])
+	_txt(g.shop_sys.style_letter(), mx - 28.0 * k, size.y - 12.0 * k, int(34 * k), rcols[rank])
 	draw_rect(Rect2(mx + 6.0 * k, size.y - 24.0 * k, dw * 0.6, 8.0 * k), Color(0.05, 0.05, 0.055, 0.8))
 	draw_rect(Rect2(mx + 7.0 * k, size.y - 23.0 * k, (dw * 0.6 - 2.0) * clampf(fmod(g.style, 20.0) / 20.0 if rank < 4 else 1.0, 0.0, 1.0), 6.0 * k), rcols[rank])
 	if rank > 0:
-		_txt("x%.2f SCORE" % g.style_mul(), mx + 6.0 * k, size.y - 30.0 * k, int(11 * k), rcols[rank])
+		_txt("x%.2f SCORE" % g.shop_sys.style_mul(), mx + 6.0 * k, size.y - 30.0 * k, int(11 * k), rcols[rank])
 	if g.free_shots > 0:
 		_txt("FREE DARTS %d" % g.free_shots, mx, size.y - 84.0 * k, int(13 * k), GOLD, 1)
 
