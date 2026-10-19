@@ -227,6 +227,7 @@ func hit_rider(r: Dictionary, dmg: int) -> void:
 	r["snd"] = null
 	g.sfx.play3d("hit", wpos)
 	g.shots_hit += 1
+	g.kills += 1
 	g.combo = mini(5, g.combo + 1)
 	g.best_combo = maxi(g.best_combo, g.combo)
 	var pts = int(round(500.0 * g.TYPES[r["type"]]["pts"] * g.LANE_MULT[r["ln"]] * (1.0 + 0.1 * (g.round_n - 1))))

@@ -26,24 +26,24 @@ Mostly vibe coded Godot game
 
 ## Menu & Game Flow
 
-- [ ] Create title screen
-  - [ ] Play button
-  - [ ] Loadout button
-  - [ ] Unlocks button
-  - [ ] High Scores button
-  - [ ] Settings button
-  - [ ] Quit button
+- [x] Create title screen
+  - [x] Play button
+  - [x] Loadout button
+  - [x] Unlocks button
+  - [x] High Scores button
+  - [x] Settings button
+  - [x] Quit button
 
-- [ ] Create proper pause menu
+- [x] Create proper pause menu
 
-- [ ] Create run summary screen
-  - [ ] Display score
-  - [ ] Display kills
-  - [ ] Display accuracy
-  - [ ] Display best style rank
-  - [ ] Display newly unlocked items
+- [x] Create run summary screen
+  - [x] Display score
+  - [x] Display kills
+  - [x] Display accuracy
+  - [x] Display best style rank
+  - [x] Display newly unlocked items
 
-- [ ] Connect existing settings system to menus
+- [x] Connect existing settings system to menus
 
 ## High Scores
 

@@ -90,6 +90,9 @@ var hi = 0
 var hearts = 3
 var combo = 0
 var best_combo = 0
+var kills = 0                # riders and bosses taken down this run
+var best_rank = 0            # highest style rank reached this run (0 = D .. 4 = S)
+var new_unlocks = []         # names of items unlocked by this run (filled once the unlock system exists)
 var shots_fired = 0
 var shots_hit = 0
 var civs_hit = 0
@@ -203,7 +206,10 @@ var aim_assist = 0.6
 var volume = 1.0
 var outlines = true
 var drag_id = ""
-var settings_open = false
+var title_page = ""          # "" = main menu, otherwise settings / loadout / unlocks / scores
+var pause_page = ""          # "" = pause menu, "settings" = settings panel
+var pause_sel = 0            # highlighted pause-menu entry (keyboard / gamepad)
+var title_sel = 0            # highlighted title-menu entry (keyboard / gamepad)
 
 var cheerleaders = []
 var melee_ring: MeshInstance3D
@@ -233,6 +239,7 @@ func _ready() -> void:
 	sfx = SfxScript.new()
 	add_child(sfx)
 	sfx.set_master(volume)
+	settings.apply_loaded()
 
 	mat_spark = Util.unshaded(Color.html("#ff9a3a"))
 	mat_dust = Util.unshaded(Color(0.72, 0.67, 0.58))
@@ -490,6 +497,20 @@ func reset_run() -> void:
 	shop_rerolls = 0
 	pending = {"rapid": 0.0, "big": 0.0, "shield": false, "hype": false, "free": 0}
 
+func go_to_title() -> void:
+	state = "title"
+	state_t = 0.0
+	title_page = ""
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+# leave a run in progress (pause menu: quit to title); the run is simply dropped
+func abandon_run() -> void:
+	clear_riders()
+	clear_bosses()
+	clear_phones()
+	clear_pickups()
+	go_to_title()
+
 func start_game() -> void:
 	reset_run()
 	round_n = 1
@@ -497,6 +518,9 @@ func start_game() -> void:
 	hearts = MAXHEARTS
 	combo = 0
 	best_combo = 0
+	kills = 0
+	best_rank = 0
+	new_unlocks = []
 	shots_fired = 0
 	shots_hit = 0
 	civs_hit = 0
@@ -706,6 +730,9 @@ func _process(delta: float) -> void:
 		dt *= 0.1
 	var captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	paused = (state == "play" and not captured)
+	if not paused:
+		pause_page = ""
+		pause_sel = 0
 	time += dt
 	player_sys.update_player(dt, captured)
 	if not paused:
