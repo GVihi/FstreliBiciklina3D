@@ -1,0 +1,43 @@
+Record over these files (keep the name; mono or stereo WAV, any length, trim silence at the start).
+The shipped files are 0.3 s of silence. Lines with several files are picked at random.
+Text = what the old text-to-speech said.
+
+round_start.wav              Naprej!
+round_clear.wav              Krog končan!
+round_perfect.wav            Popolno!
+game_over.wav                Konec igre.
+police.wav                   Policija! Stoj!
+upgrade.wav                  Nadgradnja!
+shop.wav                     Trgovina!
+hype.wav                     Hajp! Dajmo!
+praise_0.wav                 Odlično!
+praise_1.wav                 Bravo!
+unstoppable.wav              Neustavljiv!
+taunt_0.wav                  Ha ha ha!
+taunt_1.wav                  Prepočasen si!
+taunt_2.wav                  Ujemi me, če me moreš!
+taunt_3.wav                  Pa saj ne znaš streljat!
+phone_throw_0.wav            Ej Peter, prevzemi klic!
+phone_throw_1.wav            Ritter iz Eko Parka zove!
+rider_hit_0.wav              Joj!
+rider_hit_1.wav              Au, moje kolo!
+rider_hit_2.wav              Jebiga!
+rider_hit_3.wav              Kaj pa zdaj?
+civ_hit_0.wav                Alo, kej ti je?
+civ_hit_1.wav                Pička ti materna!
+civ_hit_2.wav                Jebenti mater!
+civ_hit_3.wav                Si ti normalen?
+civ_hit_4.wav                Kaj delaš, bedak?
+civ_hit_5.wav                Jebemti, glej kam streljaš!
+civ_hit_6.wav                Ti si pa zmešan!
+boss_mower.wav               Ne dotikaj se mojega travnika!
+boss_wifi.wav                Ni signala!
+boss_minister.wav            Obljubim vam!
+boss_runner.wav              Zdaj si pa ti na vrsti!
+boss_revenge_0.wav           Zdaj si pa ti na vrsti!
+boss_revenge_1.wav           Ti bom že pokazal!
+boss_revenge_2.wav           Pridi sem!
+minister_hit_0.wav           Kaj počnete?
+minister_hit_1.wav           To je škandal!
+minister_hit_2.wav           Zahtevam pojasnila!
+minister_out.wav             Odstopam!

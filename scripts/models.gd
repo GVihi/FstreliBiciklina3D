@@ -1,0 +1,500 @@
+extends RefCounted
+# Procedural low-poly models: cyclists, pedestrians and the foam-dart shotgun.
+# Everything is built from primitives so there are no art assets to import.
+
+const Util = preload("res://scripts/util.gd")
+
+const SKIN = "#e8b98a"
+const SKIN_DARK = "#c79869"
+
+static func kit_of(i: int) -> Dictionary:
+	var kits = [
+		{"suit": Color.html("#1d56b3"), "dark": Color.html("#0f2f66"), "acc": Color.html("#ff6a2b")},
+		{"suit": Color.html("#c8322b"), "dark": Color.html("#7d1a16"), "acc": Color.html("#ffffff")},
+		{"suit": Color.html("#2f9e57"), "dark": Color.html("#1a5c33"), "acc": Color.html("#ffd23f")},
+		{"suit": Color.html("#26262c"), "dark": Color.html("#0e0e11"), "acc": Color.html("#ee3c8a")},
+		{"suit": Color.html("#e9c824"), "dark": Color.html("#9a8410"), "acc": Color.html("#1d56b3")},
+		{"suit": Color.html("#5a2a8c"), "dark": Color.html("#331552"), "acc": Color.html("#f2b630")}
+	]
+	return kits[i]
+
+# ------------------------------------------------------------------
+#  Cyclist. Built facing +X. root > pivot(yaw flip) > bike / man
+#  bike and man are separate nodes so they can fly apart when hit.
+# ------------------------------------------------------------------
+static func build_rider(type: String, kit: Dictionary) -> Dictionary:
+	var root = Node3D.new()
+	var pivot = Node3D.new()
+	root.add_child(pivot)
+
+	var bike = Node3D.new()
+	bike.position = Vector3(0, 0.5, 0)
+	pivot.add_child(bike)
+	var bg = Node3D.new()                      # geometry holder, net offset 0 (ground level)
+	bg.position = Vector3(0, -0.5, 0)
+	bike.add_child(bg)
+
+	var man = Node3D.new()
+	man.position = Vector3(0, 0.9, 0)
+	pivot.add_child(man)
+	var mg = Node3D.new()
+	mg.position = Vector3(0, -0.9, 0)
+	man.add_child(mg)
+
+	var frame = Util.mat(kit["acc"], 0.4, 0.2)
+	var tyre = Util.mat(Color.html("#101215"), 0.9)
+	var rim = Util.mat(Color.html("#9aa0a8"), 0.4, 0.8)
+	var blk = Util.mat(Color.html("#17191c"), 0.7)
+	var skin = Util.mat(Color.html(SKIN), 0.8)
+	var skin_d = Util.mat(Color.html(SKIN_DARK), 0.8)
+	var suit = Util.mat(kit["suit"], 0.7)
+	var suit_d = Util.mat(kit["dark"], 0.7)
+	var white = Util.mat(Color.html("#f6f6f2"), 0.6)
+	var lens = Util.mat(Color.html("#0a1426"), 0.2, 0.3)
+
+	# ---- bike frame (side view coordinates, x forward, y up) ----
+	var bb = Vector2(0.0, 0.32)
+	Util.fbar(bg, bb, Vector2(-0.14, 0.86), 0.04, frame)                       # seat tube
+	Util.fbar(bg, Vector2(-0.13, 0.84), Vector2(0.40, 0.84), 0.04, frame)      # top tube
+	Util.fbar(bg, bb, Vector2(0.40, 0.78), 0.05, frame)                        # down tube
+	Util.fbar(bg, Vector2(0.40, 0.74), Vector2(0.43, 0.92), 0.05, frame)       # head tube
+	Util.fbar(bg, bb, Vector2(-0.50, 0.34), 0.03, frame, 0.05)                 # chain stay
+	Util.fbar(bg, bb, Vector2(-0.50, 0.34), 0.03, frame, -0.05)
+	Util.fbar(bg, Vector2(-0.14, 0.84), Vector2(-0.50, 0.34), 0.03, frame, 0.05)  # seat stay
+	Util.fbar(bg, Vector2(-0.14, 0.84), Vector2(-0.50, 0.34), 0.03, frame, -0.05)
+	Util.fbar(bg, Vector2(0.43, 0.80), Vector2(0.50, 0.34), 0.035, frame, 0.05)   # fork
+	Util.fbar(bg, Vector2(0.43, 0.80), Vector2(0.50, 0.34), 0.035, frame, -0.05)
+	Util.fbar(bg, Vector2(0.43, 0.92), Vector2(0.50, 0.97), 0.035, blk)        # stem
+	Util.box(bg, Vector3(0.05, 0.03, 0.44), Vector3(0.50, 0.97, 0), blk)       # handlebar
+	Util.box(bg, Vector3(0.26, 0.05, 0.12), Vector3(-0.15, 0.89, 0), blk)      # saddle
+
+	# ---- wheels ----
+	var wheels = []
+	for wx in [0.50, -0.50]:
+		var w = Node3D.new()
+		w.position = Vector3(wx, 0.34, 0)
+		bg.add_child(w)
+		var t = Util.torus(w, 0.305, 0.365, Vector3.ZERO, tyre)
+		t.rotation.x = PI * 0.5
+		Util.box(w, Vector3(0.62, 0.012, 0.012), Vector3.ZERO, rim)
+		Util.box(w, Vector3(0.012, 0.62, 0.012), Vector3.ZERO, rim)
+		Util.sphere(w, 0.03, Vector3(0.33, 0.0, 0.04), frame)                  # marker so you can see it spin
+		wheels.append(w)
+
+	# ---- cranks + legs ----
+	var cranks = []
+	var thighs = []
+	var shins = []
+	var shoes = []
+	for i in range(2):
+		var z = 0.12 if i == 0 else -0.12
+		var cr = Util.bar(bg, 0.03, 0.03, z, blk)
+		cranks.append(cr)
+		var th = Util.bar(mg, 0.125, 0.125, z, suit if i == 0 else suit_d)
+		thighs.append(th)
+		var sh = Util.bar(mg, 0.085, 0.085, z, skin if i == 0 else skin_d)
+		shins.append(sh)
+		var shoe = Util.box(mg, Vector3(0.22, 0.07, 0.10), Vector3(0, 0, z), white)
+		shoes.append(shoe)
+
+	# ---- torso, arms, head ----
+	var hip = Vector2(-0.12, 0.95)
+	var shoulder = Vector2(0.26, 1.36)
+	Util.set_bar(Util.bar(mg, 0.22, 0.34, 0.0, suit), hip, shoulder)
+	Util.set_bar(Util.bar(mg, 0.04, 0.35, 0.0, Util.mat(kit["acc"], 0.6)), hip + Vector2(0.03, 0.09), shoulder + Vector2(-0.01, 0.09))
+	for z in [0.19, -0.19]:
+		Util.fbar(mg, shoulder, Vector2(0.42, 1.14), 0.08, suit, z)
+		Util.fbar(mg, Vector2(0.42, 1.14), Vector2(0.50, 0.97), 0.06, skin, z)
+		Util.sphere(mg, 0.045, Vector3(0.50, 0.97, z), blk)
+	Util.sphere(mg, 0.115, Vector3(0.37, 1.50, 0), skin)
+	Util.sphere(mg, 0.14, Vector3(0.34, 1.56, 0), white, 0.78)                  # helmet
+	Util.box(mg, Vector3(0.22, 0.02, 0.05), Vector3(0.34, 1.64, 0), Util.mat(kit["acc"], 0.6))
+	Util.box(mg, Vector3(0.03, 0.045, 0.17), Vector3(0.475, 1.52, 0), lens)     # shades
+
+	if type == "courier":
+		Util.box(mg, Vector3(0.34, 0.36, 0.38), Vector3(-0.22, 1.30, 0), Util.mat(Color.html("#ff7a2b"), 0.7))
+		Util.box(mg, Vector3(0.345, 0.05, 0.385), Vector3(-0.22, 1.30, 0), white)
+
+	Util.trim_shadows(root)
+	return {
+		"root": root, "pivot": pivot, "bike": bike, "man": man,
+		"wheels": wheels, "cranks": cranks, "thighs": thighs, "shins": shins, "shoes": shoes
+	}
+
+static func pose_rider(d: Dictionary, cph: float, wph: float) -> void:
+	for w in d["wheels"]:
+		var wn: Node3D = w
+		wn.rotation.z = -wph
+	var hip = Vector2(-0.12, 0.95)
+	var bb = Vector2(0.0, 0.32)
+	for i in range(2):
+		var ang = -cph + PI * float(i)
+		var ped = bb + Vector2(cos(ang), sin(ang)) * 0.17
+		var v = ped - hip
+		var dist = maxf(v.length(), 0.05)
+		var mid = hip + v * 0.5
+		var perp = Vector2(-v.y, v.x) / dist
+		var h = sqrt(maxf(0.0, 0.43 * 0.43 - (dist * 0.5) * (dist * 0.5)))
+		var knee = mid + perp * h
+		Util.set_bar(d["thighs"][i], hip, knee)
+		Util.set_bar(d["shins"][i], knee, ped)
+		Util.set_bar(d["cranks"][i], bb, ped)
+		var shoe: Node3D = d["shoes"][i]
+		shoe.position = Vector3(ped.x + 0.05, ped.y, shoe.position.z)
+
+# ------------------------------------------------------------------
+#  Pedestrian. Built facing +X.
+# ------------------------------------------------------------------
+static func build_civ(kind: String, pal: Dictionary) -> Dictionary:
+	var root = Node3D.new()
+	var geo = Node3D.new()
+	root.add_child(geo)
+	var skin = Util.mat(pal["skin"], 0.8)
+	var shirt = Util.mat(pal["shirt"], 0.8)
+	var pants = Util.mat(pal["pants"], 0.8)
+	var hair = Util.mat(pal["hair"], 0.9)
+	var shoe = Util.mat(Color.html("#222428"), 0.8)
+
+	var legs = []
+	var arms = []
+	for z in [0.1, -0.1]:
+		var lp = Node3D.new()
+		lp.position = Vector3(0, 0.92, z)
+		geo.add_child(lp)
+		Util.box(lp, Vector3(0.14, 0.9, 0.15), Vector3(0, -0.45, 0), pants)
+		Util.box(lp, Vector3(0.25, 0.07, 0.14), Vector3(0.04, -0.9, 0), shoe)
+		legs.append(lp)
+	Util.box(geo, Vector3(0.26, 0.55, 0.42), Vector3(0, 1.2, 0), shirt)
+	for z in [0.27, -0.27]:
+		var ap = Node3D.new()
+		ap.position = Vector3(0, 1.42, z)
+		geo.add_child(ap)
+		Util.box(ap, Vector3(0.1, 0.5, 0.1), Vector3(0, -0.25, 0), shirt)
+		Util.sphere(ap, 0.05, Vector3(0, -0.55, 0), skin)
+		arms.append(ap)
+	Util.sphere(geo, 0.12, Vector3(0.02, 1.62, 0), skin)
+	Util.sphere(geo, 0.13, Vector3(-0.01, 1.68, 0), hair, 0.65)
+	if kind == "granny":
+		Util.sphere(geo, 0.07, Vector3(-0.12, 1.72, 0), hair)               # bun
+		Util.box(geo, Vector3(0.12, 0.26, 0.2), Vector3(0.0, 0.88, 0.37), Util.mat(pal["bag"], 0.8))
+	elif kind == "walker":
+		Util.box(geo, Vector3(0.1, 0.26, 0.2), Vector3(-0.1, 0.9, 0.36), Util.mat(pal["bag"], 0.8))
+	elif kind == "jogger":
+		Util.box(geo, Vector3(0.27, 0.03, 0.14), Vector3(0.03, 1.7, 0), Util.mat(Color.html("#ee3c8a"), 0.7))  # headband
+	var cam_prop = Util.box(geo, Vector3(0.12, 0.09, 0.06), Vector3(0.40, 1.42, 0), Util.mat(Color.html("#111111"), 0.5))
+	cam_prop.visible = false
+	var s = 0.88 if kind == "granny" else 1.0
+	Util.trim_shadows(root)
+	return {"root": root, "geo": geo, "legs": legs, "arms": arms, "cam": cam_prop, "scale": s}
+
+static func pose_civ(d: Dictionary, ph: float, photo: bool, fast: bool) -> void:
+	var amp = 0.8 if fast else 0.5
+	var sw = sin(ph) * amp
+	var l0: Node3D = d["legs"][0]
+	var l1: Node3D = d["legs"][1]
+	var a0: Node3D = d["arms"][0]
+	var a1: Node3D = d["arms"][1]
+	var cp: Node3D = d["cam"]
+	l0.rotation.z = sw
+	l1.rotation.z = -sw
+	if photo:
+		a0.rotation.z = 1.45
+		a1.rotation.z = 1.35
+		cp.visible = true
+	else:
+		a0.rotation.z = -sw * 0.9
+		a1.rotation.z = sw * 0.9
+		cp.visible = false
+
+# ------------------------------------------------------------------
+#  Foam-dart pump shotgun (first-person viewmodel). Barrel points to -Z.
+# ------------------------------------------------------------------
+static func build_gun() -> Dictionary:
+	var root = Node3D.new()
+	var orange = Util.mat(Color.html("#ff6a2b"), 0.5)
+	var orange_d = Util.mat(Color.html("#c24a16"), 0.5)
+	var dark = Util.mat(Color.html("#23252a"), 0.4, 0.4)
+	var blue = Util.mat(Color.html("#1c63c8"), 0.5)
+
+	Util.box(root, Vector3(0.07, 0.10, 0.34), Vector3(0, 0, -0.05), orange)               # receiver
+	var barrel = Util.cyl(root, 0.022, 0.022, 0.52, Vector3(0, 0.03, -0.40), dark)
+	barrel.rotation.x = PI * 0.5
+	var tube = Util.cyl(root, 0.018, 0.018, 0.40, Vector3(0, -0.022, -0.33), dark)
+	tube.rotation.x = PI * 0.5
+	Util.box(root, Vector3(0.012, 0.016, 0.02), Vector3(0, 0.063, -0.64), blue)           # front sight
+	Util.box(root, Vector3(0.03, 0.012, 0.012), Vector3(0, 0.058, -0.12), dark)           # rear sight
+	var stock = Util.box(root, Vector3(0.05, 0.11, 0.24), Vector3(0, -0.04, 0.22), orange_d)
+	stock.rotation.x = -0.12
+	var grip = Util.box(root, Vector3(0.045, 0.12, 0.06), Vector3(0, -0.10, 0.08), orange_d)
+	grip.rotation.x = 0.25
+	var pump = Util.box(root, Vector3(0.06, 0.055, 0.16), Vector3(0, -0.05, -0.30), blue)  # animated slide
+
+	var muzzle = Node3D.new()
+	muzzle.position = Vector3(0, 0.03, -0.66)
+	root.add_child(muzzle)
+	var light = OmniLight3D.new()
+	light.omni_range = 6.0
+	light.light_color = Color(1.0, 0.8, 0.5)
+	light.light_energy = 0.0
+	muzzle.add_child(light)
+
+	for ch in root.get_children():
+		if ch is MeshInstance3D:
+			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return {"root": root, "pump": pump, "muzzle": muzzle, "light": light}
+
+# ------------------------------------------------------------------
+#  v4 additions: bosses, angry cyclist, phone, rubber, cheerleaders, pickups
+# ------------------------------------------------------------------
+static func _scaled(mi: MeshInstance3D, s: Vector3) -> MeshInstance3D:
+	mi.scale = s
+	return mi
+
+# Standing person used by the minister / president and the dismounted cyclist.
+# Built facing +Z (the direction bosses charge in). Returns pivots to animate.
+static func build_fighter(c: Dictionary) -> Dictionary:
+	var root = Node3D.new()
+	var geo = Node3D.new()
+	root.add_child(geo)
+	var suit = Util.mat(c["suit"], 0.7)
+	var dark = Util.mat(c["dark"], 0.7)
+	var skin = Util.mat(c["skin"], 0.8)
+	var shoe = Util.mat(Color.html("#17191c"), 0.7)
+	var white = Util.mat(Color.html("#f6f6f2"), 0.6)
+	var blk = Util.mat(Color.html("#16181b"), 0.6)
+
+	var legs = []
+	for x in [0.13, -0.13]:
+		var lp = Node3D.new()
+		lp.position = Vector3(x, 0.95, 0)
+		geo.add_child(lp)
+		Util.box(lp, Vector3(0.18, 0.95, 0.2), Vector3(0, -0.47, 0), dark)
+		Util.box(lp, Vector3(0.2, 0.09, 0.32), Vector3(0, -0.93, 0.06), shoe)
+		legs.append(lp)
+	Util.box(geo, Vector3(0.52, 0.64, 0.3), Vector3(0, 1.27, 0), suit)
+	if c.has("stripe"):
+		Util.box(geo, Vector3(0.54, 0.07, 0.32), Vector3(0, 1.2, 0), Util.mat(c["stripe"], 0.6))
+	if c.has("tie"):
+		Util.box(geo, Vector3(0.16, 0.34, 0.02), Vector3(0, 1.36, 0.155), white)
+		Util.box(geo, Vector3(0.07, 0.32, 0.03), Vector3(0, 1.34, 0.165), Util.mat(c["tie"], 0.6))
+
+	var arms = []
+	var bases = c["arm_base"]
+	var side = [0.34, -0.34]
+	for i in range(2):
+		var ap = Node3D.new()
+		ap.position = Vector3(side[i], 1.5, 0)
+		ap.rotation.x = bases[i]
+		geo.add_child(ap)
+		Util.box(ap, Vector3(0.12, 0.52, 0.12), Vector3(0, -0.26, 0), suit)
+		Util.sphere(ap, 0.075, Vector3(0, -0.56, 0), blk if c.get("gloves", false) else skin)
+		arms.append(ap)
+	if c.get("paper", false):
+		var a0: Node3D = arms[0]
+		Util.box(a0, Vector3(0.34, 0.04, 0.42), Vector3(0, -0.6, 0.18), white)
+	if c.get("mic", false):
+		var a1: Node3D = arms[1]
+		Util.cyl(a1, 0.02, 0.02, 0.3, Vector3(0, -0.72, 0.0), Util.mat(Color.html("#2b2f36"), 0.5))
+		Util.sphere(a1, 0.08, Vector3(0, -0.9, 0.0), Util.mat(Color.html("#8a8f98"), 0.4, 0.5))
+
+	Util.sphere(geo, 0.15, Vector3(0, 1.78, 0), skin)
+	if c.has("hair"):
+		Util.sphere(geo, 0.16, Vector3(0, 1.84, -0.02), Util.mat(c["hair"], 0.9), 0.7)
+	if c.get("helmet", false):
+		Util.sphere(geo, 0.18, Vector3(0, 1.85, -0.01), white, 0.8)
+		Util.box(geo, Vector3(0.3, 0.03, 0.05), Vector3(0, 1.93, 0.05), Util.mat(c["acc"], 0.6))
+	if c.get("glasses", false):
+		Util.box(geo, Vector3(0.3, 0.05, 0.02), Vector3(0, 1.8, 0.15), blk)
+	for x in [0.055, -0.055]:
+		Util.box(geo, Vector3(0.03, 0.03, 0.02), Vector3(x, 1.79, 0.145), blk)
+	var b1 = Util.box(geo, Vector3(0.1, 0.02, 0.02), Vector3(0.06, 1.835, 0.15), blk)
+	b1.rotation.z = 0.4
+	var b2 = Util.box(geo, Vector3(0.1, 0.02, 0.02), Vector3(-0.06, 1.835, 0.15), blk)
+	b2.rotation.z = -0.4
+	var mouth = Util.box(geo, Vector3(0.09, 0.05, 0.02), Vector3(0, 1.7, 0.145), Util.mat(Color.html("#5a1a1a"), 0.8))
+	Util.trim_shadows(root)
+	return {"root": root, "geo": geo, "legs": legs, "arms": arms, "arm_base": bases, "mouth": mouth}
+
+static func pose_fighter(d: Dictionary, ph: float) -> void:
+	var s = sin(ph)
+	var l0: Node3D = d["legs"][0]
+	var l1: Node3D = d["legs"][1]
+	l0.rotation.x = s * 0.9
+	l1.rotation.x = -s * 0.9
+	var bases = d["arm_base"]
+	for i in range(2):
+		var a: Node3D = d["arms"][i]
+		a.rotation.x = bases[i] + sin(ph + PI * float(i)) * 0.25
+	var m: Node3D = d["mouth"]
+	m.scale = Vector3(1.0, 0.6 + absf(s) * 1.2, 1.0)
+	var g: Node3D = d["geo"]
+	g.position.y = absf(s) * 0.06
+
+static func build_runner(kit: Dictionary) -> Dictionary:
+	return build_fighter({
+		"suit": kit["suit"], "dark": kit["dark"], "acc": kit["acc"], "skin": Color.html(SKIN),
+		"stripe": kit["acc"], "helmet": true, "gloves": true, "arm_base": [-1.45, -1.45]})
+
+static func build_minister(variant: int) -> Dictionary:
+	var c = {
+		"suit": Color.html("#4a4034") if variant == 1 else Color.html("#3d4756"),
+		"dark": Color.html("#23262c"), "acc": Color.html("#f2b630"), "skin": Color.html("#f0c8a0"),
+		"tie": Color.html("#c8322b") if variant == 1 else Color.html("#1d56b3"),
+		"hair": Color.html("#b8b8b8") if variant == 1 else Color.html("#2a2018"),
+		"glasses": variant == 1, "paper": true, "mic": true, "arm_base": [-1.0, -1.75]}
+	return build_fighter(c)
+
+# Boss models face +Z. Returns {"root": Node3D, ... animation handles}.
+static func build_boss(kind: String, variant: int, kit: Dictionary) -> Dictionary:
+	if kind == "runner":
+		var d = build_runner(kit)
+		d["fighter"] = true
+		return d
+	if kind == "minister":
+		var d2 = build_minister(variant)
+		d2["fighter"] = true
+		return d2
+	var root = Node3D.new()
+	var white = Util.mat(Color.html("#f1f3ef"), 0.5)
+	var blk = Util.mat(Color.html("#16181b"), 0.7)
+	var grey = Util.mat(Color.html("#c9ced4"), 0.4, 0.5)
+	if kind == "mower":
+		var green = Util.mat(Color.html("#2fae5f"), 0.5)
+		Util.box(root, Vector3(1.0, 0.45, 1.3), Vector3(0, 0.5, 0), white)
+		Util.box(root, Vector3(1.02, 0.1, 1.32), Vector3(0, 0.4, 0), green)
+		Util.sphere(root, 0.5, Vector3(0, 0.78, -0.1), Util.mat(Color.html("#dde2dc"), 0.5), 0.5)
+		for x in [0.56, -0.56]:
+			for z in [0.45, -0.45]:
+				var w = Util.cyl(root, 0.2, 0.2, 0.13, Vector3(x, 0.2, z), blk)
+				w.rotation.z = PI * 0.5
+		var eyes = Util.glow(Color(1.0, 0.15, 0.15), 2.0)
+		for x in [0.25, -0.25]:
+			Util.box(root, Vector3(0.24, 0.08, 0.05), Vector3(x, 0.66, 0.66), eyes)
+			var br = Util.box(root, Vector3(0.28, 0.04, 0.04), Vector3(x, 0.74, 0.67), blk)
+			br.rotation.z = -0.35 if x > 0 else 0.35
+		var blade = Util.cyl(root, 0.52, 0.52, 0.03, Vector3(0, 0.1, 0), grey)
+		return {"root": root, "spin": blade, "eyes": eyes, "fighter": false}
+	# wifi node
+	var red = Util.glow(Color(0.9, 0.2, 0.24), 2.0)
+	var body = Node3D.new()
+	root.add_child(body)
+	Util.cyl(body, 0.3, 0.3, 1.3, Vector3(0, 0.75, 0), Util.mat(Color.html("#f4f5f6"), 0.4))
+	Util.sphere(body, 0.3, Vector3(0, 1.4, 0), Util.mat(Color.html("#f4f5f6"), 0.4))
+	Util.cyl(body, 0.31, 0.31, 0.08, Vector3(0, 0.55, 0), red)
+	for x in [0.12, -0.12]:
+		Util.box(body, Vector3(0.1, 0.06, 0.03), Vector3(x, 1.38, 0.28), red)
+		var b = Util.box(body, Vector3(0.12, 0.025, 0.025), Vector3(x, 1.46, 0.29), blk)
+		b.rotation.z = -0.4 if x > 0 else 0.4
+	for i in range(4):
+		Util.box(body, Vector3(0.05, 0.04, 0.02), Vector3(-0.1 + i * 0.07, 1.2 + (0.04 if i % 2 == 0 else 0.0), 0.3), blk)
+	for x in [0.2, -0.2]:
+		var ant = Util.cyl(body, 0.012, 0.012, 0.5, Vector3(x * 1.6, 1.85, 0), grey)
+		ant.rotation.z = -0.35 if x > 0 else 0.35
+		Util.sphere(body, 0.045, Vector3(x * 2.0, 2.08, 0), red)
+	return {"root": root, "body": body, "eyes": red, "fighter": false}
+
+static func build_phone() -> Node3D:
+	var root = Node3D.new()
+	var shell = Util.mat(Color.html("#2b2f36"), 0.5)
+	Util.box(root, Vector3(0.5, 0.12, 0.34), Vector3.ZERO, shell)
+	Util.box(root, Vector3(0.22, 0.012, 0.12), Vector3(-0.1, 0.065, -0.07), Util.glow_shared(Color.html("#3fa0ff"), 1.2))
+	Util.box(root, Vector3(0.58, 0.07, 0.09), Vector3(0, 0.13, 0.0), Util.mat(Color.html("#1b1e23"), 0.5))
+	for r in range(3):
+		for c in range(3):
+			Util.box(root, Vector3(0.04, 0.01, 0.04), Vector3(0.08 + c * 0.055, 0.065, -0.07 + r * 0.055), Util.mat(Color.html("#6b727c"), 0.5))
+	Util.sphere(root, 0.02, Vector3(0.2, 0.065, 0.12), Util.glow_shared(Color(1.0, 0.2, 0.15), 2.0))
+	return root
+
+# Melee weapon: a GIANT ribbed, rubbery pink gummy worm, held by the tail. First-person viewmodel, the tail is at
+# +Z (in your hand) and the worm reaches out along -Z with a lazy S-curve. Each rib is a flattened sphere; light and
+# dark pink alternate so the ridges read even with the toon shading.
+static func build_rubber() -> Dictionary:
+	var root = Node3D.new()
+	var light = Util.mat(Color.html("#ff95cb"), 0.25)
+	var dark = Util.mat(Color.html("#ff5fae"), 0.3)
+	var segs = 22
+	var z0 = 0.2
+	var z1 = -1.0
+	var first = null
+	for i in range(segs):
+		var t = float(i) / float(segs - 1)
+		var z = lerpf(z0, z1, t)
+		var sway = 0.045 * sin(t * PI * 2.2)                    # S-curve
+		var droop = -0.03 * sin(t * PI)                         # sags a little in the middle
+		# fat in the middle, thinner at the tail, a rounded head
+		var rad = 0.07 + 0.03 * sin(t * PI) - 0.02 * (1.0 - t) * (1.0 - t)
+		if i == segs - 1:
+			rad = 0.085                                          # head
+		var seg = Util.sphere(root, 0.5, Vector3(sway, droop, z), light if i % 2 == 0 else dark)
+		seg.scale = Vector3(rad * 2.0, rad * 2.0, 0.085)        # flattened: overlapping discs make the ribs
+		if first == null:
+			first = seg
+		if i == segs - 1:
+			seg.scale = Vector3(rad * 2.0, rad * 2.0, 0.14)
+			var eye_m = Util.mat(Color.html("#ffffff"), 0.3)
+			var pupil_m = Util.mat(Color.html("#16181d"), 0.4)
+			for sx in [-1.0, 1.0]:
+				var eye = Util.sphere(root, 0.022, Vector3(sway + sx * 0.04, droop + 0.035, z - 0.045), eye_m)
+				var pup = Util.sphere(root, 0.011, Vector3(sway + sx * 0.04, droop + 0.037, z - 0.062), pupil_m)
+	for ch in root.get_children():
+		if ch is MeshInstance3D:
+			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return {"root": root, "paddle": first}
+
+# Cheerleader built facing +X like the pedestrians.
+static func build_cheer(i: int) -> Dictionary:
+	var root = Node3D.new()
+	var geo = Node3D.new()
+	root.add_child(geo)
+	var skin = Util.mat(Color.html("#f3d2b0") if i % 2 == 1 else Color.html("#f0c8a0"), 0.8)
+	var orange = Util.mat(Color.html("#ff6a2b"), 0.6)
+	var white = Util.mat(Color.html("#ffffff"), 0.6)
+	var hair = Util.mat(Color.html("#f4d35e"), 0.8)
+	for z in [0.08, -0.08]:
+		Util.box(geo, Vector3(0.1, 0.62, 0.1), Vector3(0, 0.31, z), skin)
+		Util.box(geo, Vector3(0.18, 0.05, 0.12), Vector3(0.03, 0.025, z), white)
+	Util.box(geo, Vector3(0.34, 0.22, 0.42), Vector3(0, 0.72, 0), white)
+	Util.box(geo, Vector3(0.35, 0.04, 0.43), Vector3(0, 0.63, 0), orange)
+	Util.box(geo, Vector3(0.22, 0.36, 0.32), Vector3(0, 1.0, 0), orange)
+	Util.box(geo, Vector3(0.225, 0.05, 0.325), Vector3(0, 1.0, 0), white)
+	Util.sphere(geo, 0.115, Vector3(0.01, 1.35, 0), skin)
+	Util.sphere(geo, 0.125, Vector3(-0.015, 1.4, 0), hair, 0.7)
+	Util.sphere(geo, 0.06, Vector3(-0.15, 1.38, 0.0), hair)
+	Util.sphere(geo, 0.04, Vector3(-0.2, 1.3, 0.0), hair)
+	var arms = []
+	var poms = []
+	var pc = [Color.html("#ff6a2b"), Color.html("#ffffff")]
+	for z in [0.22, -0.22]:
+		var ap = Node3D.new()
+		ap.position = Vector3(0, 1.15, z)
+		geo.add_child(ap)
+		Util.box(ap, Vector3(0.07, 0.42, 0.07), Vector3(0, -0.21, 0), skin)
+		for k in range(3):
+			Util.sphere(ap, 0.075, Vector3(0.05 * (k - 1), -0.46 - 0.03 * (k % 2), 0.04 * (k - 1)), Util.mat(pc[k % 2], 0.7))
+		arms.append(ap)
+	Util.trim_shadows(root)
+	return {"root": root, "geo": geo, "arms": arms}
+
+static func pose_cheer(d: Dictionary, ph: float, chv: float) -> void:
+	var amp = 0.3 + chv * 0.3
+	var a0: Node3D = d["arms"][0]
+	var a1: Node3D = d["arms"][1]
+	a0.rotation.z = 2.5 + sin(ph * 1.3) * amp
+	a1.rotation.z = 2.5 + cos(ph * 1.3) * amp
+
+# Pickup: glowing orb with a white ring and a letter.
+static func build_pickup(col: Color, ch: String) -> Dictionary:
+	var root = Node3D.new()
+	var orb = Util.sphere(root, 0.3, Vector3.ZERO, Util.glow_shared(col, 1.4))
+	var ring = Util.torus(root, 0.31, 0.36, Vector3.ZERO, Util.unshaded(Color.WHITE))
+	ring.rotation.x = PI * 0.5
+	var lab = Label3D.new()
+	lab.text = ch
+	lab.font_size = 96
+	lab.pixel_size = 0.0045
+	lab.outline_size = 14
+	lab.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lab.no_depth_test = true
+	lab.modulate = Color.WHITE
+	root.add_child(lab)
+	return {"root": root, "orb": orb, "ring": ring}
