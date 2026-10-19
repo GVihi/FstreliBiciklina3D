@@ -345,7 +345,11 @@ const SETTING_ROWS = [
 	{"id": "assist", "label": "AIM ASSIST (STICK)", "min": 0.0, "max": 1.0, "fmt": "pct"},
 	{"id": "vol", "label": "VOLUME", "min": 0.0, "max": 1.0, "fmt": "pct"},
 	{"id": "tads", "label": "TOGGLE AIM (RMB / LT)", "toggle": true},
-	{"id": "outline", "label": "OUTLINES", "toggle": true}
+	{"id": "outline", "label": "OUTLINES", "toggle": true},
+	{"id": "quality", "label": "GRAPHICS", "choices": ["HIGH", "MEDIUM", "LOW"]},
+	{"id": "fullscreen", "label": "FULLSCREEN", "toggle": true},
+	{"id": "sound", "label": "SOUND", "toggle": true},
+	{"id": "voices", "label": "VOICES", "toggle": true}
 ]
 
 func settings_visible() -> bool:
@@ -378,7 +382,7 @@ func setting_at(pos: Vector2) -> String:
 func is_toggle(id: String) -> bool:
 	for row in SETTING_ROWS:
 		if row["id"] == id:
-			return row.get("toggle", false)
+			return row.get("toggle", false) or row.has("choices")
 	return false
 
 func apply_slider(id: String, pos: Vector2) -> void:
@@ -402,7 +406,10 @@ func _draw_settings(k: float) -> void:
 			draw_rect(r, Color(1, 1, 1, 0.06))
 		var ty = r.position.y + 21.0 * k
 		_txt(row["label"], r.position.x + 8.0 * k, ty, int(14 * k), TEXT)
-		if row.get("toggle", false):
+		if row.has("choices"):
+			var ch = int(g.get_setting(row["id"]))
+			_txt(row["choices"][ch], r.position.x + r.size.x - 10.0 * k, ty, int(14 * k), ACCENT, 2)
+		elif row.get("toggle", false):
 			var on = bool(g.get_setting(row["id"]))
 			_txt("ON" if on else "OFF", r.position.x + r.size.x - 10.0 * k, ty, int(14 * k), ACCENT if on else GRAY, 2)
 		else:

@@ -43,7 +43,7 @@ Mostly vibe coded Godot game
   - [x] Display best style rank
   - [x] Display newly unlocked items
 
-- [ ] Connect existing settings system to menus
+- [x] Connect existing settings system to menus
 
 ## High Scores
 

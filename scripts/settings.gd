@@ -5,6 +5,10 @@ extends RefCounted
 const GOLD = Color(0.95, 0.71, 0.19)
 
 var g = null
+# audio / window values read from the file before the sound system exists; apply_loaded() uses them
+var _muted = false
+var _voices = true
+var _fullscreen = false
 
 func _init(game) -> void:
 	g = game
@@ -22,6 +26,24 @@ func cycle_quality() -> void:
 	apply_quality()
 	var names = ["GRAPHICS: HIGH", "GRAPHICS: MEDIUM (NO MSAA)", "GRAPHICS: LOW (NO MSAA, NO SHADOWS)"]
 	g.add_note(names[g.quality], GOLD)
+	save_settings()
+
+func is_fullscreen() -> bool:
+	return DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+
+func set_fullscreen(on: bool) -> void:
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if on else DisplayServer.WINDOW_MODE_WINDOWED)
+
+func toggle_fullscreen() -> void:
+	set_fullscreen(not is_fullscreen())
+	save_settings()
+
+# call once the sound system exists: applies the saved sound and window settings
+func apply_loaded() -> void:
+	g.sfx.muted = _muted
+	g.sfx.voices_on = _voices
+	if _fullscreen:
+		set_fullscreen(true)
 
 func load_settings() -> void:
 	var cf = ConfigFile.new()
@@ -33,6 +55,10 @@ func load_settings() -> void:
 	g.aim_assist = clampf(float(cf.get_value("game", "assist", g.aim_assist)), 0.0, 1.0)
 	g.volume = clampf(float(cf.get_value("game", "volume", g.volume)), 0.0, 1.0)
 	g.outlines = bool(cf.get_value("game", "outlines", g.outlines))
+	g.quality = clampi(int(cf.get_value("game", "quality", g.quality)), 0, 2)
+	_muted = bool(cf.get_value("game", "muted", _muted))
+	_voices = bool(cf.get_value("game", "voices", _voices))
+	_fullscreen = bool(cf.get_value("game", "fullscreen", _fullscreen))
 
 func save_settings() -> void:
 	var cf = ConfigFile.new()
@@ -42,6 +68,10 @@ func save_settings() -> void:
 	cf.set_value("game", "assist", g.aim_assist)
 	cf.set_value("game", "volume", g.volume)
 	cf.set_value("game", "outlines", g.outlines)
+	cf.set_value("game", "quality", g.quality)
+	cf.set_value("game", "muted", g.sfx.muted)
+	cf.set_value("game", "voices", g.sfx.voices_on)
+	cf.set_value("game", "fullscreen", is_fullscreen())
 	cf.save("user://settings.cfg")
 
 func get_setting(id: String):
@@ -57,6 +87,14 @@ func get_setting(id: String):
 		return g.toggle_ads
 	if id == "outline":
 		return g.outlines
+	if id == "quality":
+		return g.quality
+	if id == "sound":
+		return not g.sfx.muted
+	if id == "voices":
+		return g.sfx.voices_on
+	if id == "fullscreen":
+		return is_fullscreen()
 	return null
 
 func set_setting(id: String, v) -> void:
@@ -75,14 +113,31 @@ func set_setting(id: String, v) -> void:
 	elif id == "outline":
 		g.outlines = bool(v)
 		apply_quality()
+	elif id == "quality":
+		g.quality = clampi(int(v), 0, 2)
+		apply_quality()
+	elif id == "sound":
+		if bool(v) == g.sfx.muted:
+			g.sfx.toggle_mute()
+	elif id == "voices":
+		if bool(v) != g.sfx.voices_on:
+			g.sfx.toggle_voices()
+	elif id == "fullscreen":
+		set_fullscreen(bool(v))
 	save_settings()
+
+# the value a click on a toggle / choice row switches to
+func next_value(id: String):
+	if id == "quality":
+		return (g.quality + 1) % 3
+	return not get_setting(id)
 
 # a click on the settings panel: toggles flip, sliders start a drag. Returns true when the click was used.
 func click_setting(sid: String) -> bool:
 	if sid == "":
 		return false
 	if g.hud.is_toggle(sid):
-		set_setting(sid, not get_setting(sid))
+		set_setting(sid, next_value(sid))
 	else:
 		g.drag_id = sid
 		g.hud.apply_slider(sid, g.get_viewport().get_mouse_position())

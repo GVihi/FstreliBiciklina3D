@@ -239,6 +239,7 @@ func _ready() -> void:
 	sfx = SfxScript.new()
 	add_child(sfx)
 	sfx.set_master(volume)
+	settings.apply_loaded()
 
 	mat_spark = Util.unshaded(Color.html("#ff9a3a"))
 	mat_dust = Util.unshaded(Color(0.72, 0.67, 0.58))

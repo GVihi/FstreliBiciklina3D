@@ -92,8 +92,10 @@ func handle_input(event: InputEvent) -> void:
 				g.shop_sys.buy(3)
 		elif kc == KEY_M:
 			g.sfx.toggle_mute()
+			g.settings.save_settings()
 		elif kc == KEY_V:
 			g.sfx.toggle_voices()
+			g.settings.save_settings()
 		elif kc == KEY_F7:
 			g.add_note("VOICE EFFECTS " + ("ON" if g.sfx.toggle_voice_fx() else "OFF"), g.GOLD)
 		elif kc == KEY_F9:
@@ -111,10 +113,7 @@ func handle_input(event: InputEvent) -> void:
 				title_back()
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		elif kc == KEY_F11:
-			if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
-				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-			else:
-				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+			g.settings.toggle_fullscreen()
 
 # gamepad buttons (sticks and triggers are polled in update_player)
 func on_pad_button(btn: int) -> void:
