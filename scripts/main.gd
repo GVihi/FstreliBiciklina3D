@@ -12,6 +12,7 @@ const Toon = preload("res://scripts/toon.gd")
 const SfxScript = preload("res://scripts/sfx.gd")
 const Ring = preload("res://scripts/ring.gd")
 const Content = preload("res://scripts/content.gd")
+const SettingsScript = preload("res://scripts/settings.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -212,8 +213,8 @@ var confetti_mats = []
 # ================================================================== setup
 func _ready() -> void:
 	randomize()
-	hi = load_hi()
-	load_settings()
+	hi = settings.load_hi()
+	settings.load_settings()
 	hearts = MAXHEARTS
 	shells = MAXSHELLS
 
@@ -291,7 +292,7 @@ func _ready() -> void:
 	hud.g = self
 
 	apply_theme(0)
-	apply_quality()
+	settings.apply_quality()
 	for i in range(PER_ROUND):
 		hits.append(null)
 	spawn_civ(-7.0)
@@ -387,105 +388,19 @@ func _warm_up() -> void:
 
 # ------------------------------------------------------------------ graphics quality (F9)
 var quality = 0     # 0 = shadows + 2x MSAA, 1 = no MSAA, 2 = no MSAA and no sun shadows
+var settings = SettingsScript.new(self)   # settings.gd: saved settings, graphics quality, high score file
 
-func apply_quality() -> void:
-	get_viewport().msaa_3d = Viewport.MSAA_2X if quality == 0 else Viewport.MSAA_DISABLED
-	var sun: DirectionalLight3D = world["sun"]
-	sun.shadow_enabled = quality < 2
-	outline_quad.visible = outlines and quality < 2
-	var env: Environment = world["env"]
-	env.glow_enabled = quality < 2
-
-func cycle_quality() -> void:
-	quality = (quality + 1) % 3
-	apply_quality()
-	var names = ["GRAPHICS: HIGH", "GRAPHICS: MEDIUM (NO MSAA)", "GRAPHICS: LOW (NO MSAA, NO SHADOWS)"]
-	add_note(names[quality], GOLD)
-
-func load_settings() -> void:
-	var cf = ConfigFile.new()
-	if cf.load("user://settings.cfg") != OK:
-		return
-	fov_hip = clampf(float(cf.get_value("game", "fov", fov_hip)), 60.0, 105.0)
-	sens_mul = clampf(float(cf.get_value("game", "sens", sens_mul)), 0.3, 3.0)
-	toggle_ads = bool(cf.get_value("game", "toggle_ads", toggle_ads))
-	aim_assist = clampf(float(cf.get_value("game", "assist", aim_assist)), 0.0, 1.0)
-	volume = clampf(float(cf.get_value("game", "volume", volume)), 0.0, 1.0)
-	outlines = bool(cf.get_value("game", "outlines", outlines))
-
-func save_settings() -> void:
-	var cf = ConfigFile.new()
-	cf.set_value("game", "fov", fov_hip)
-	cf.set_value("game", "sens", sens_mul)
-	cf.set_value("game", "toggle_ads", toggle_ads)
-	cf.set_value("game", "assist", aim_assist)
-	cf.set_value("game", "volume", volume)
-	cf.set_value("game", "outlines", outlines)
-	cf.save("user://settings.cfg")
-
+# the HUD calls these two on main, so they stay as thin wrappers
 func get_setting(id: String):
-	if id == "fov":
-		return fov_hip
-	if id == "sens":
-		return sens_mul
-	if id == "assist":
-		return aim_assist
-	if id == "vol":
-		return volume
-	if id == "tads":
-		return toggle_ads
-	if id == "outline":
-		return outlines
-	return null
+	return settings.get_setting(id)
 
 func set_setting(id: String, v) -> void:
-	if id == "fov":
-		fov_hip = clampf(float(v), 60.0, 105.0)
-	elif id == "sens":
-		sens_mul = clampf(float(v), 0.3, 3.0)
-	elif id == "assist":
-		aim_assist = clampf(float(v), 0.0, 1.0)
-	elif id == "vol":
-		volume = clampf(float(v), 0.0, 1.0)
-		sfx.set_master(volume)
-	elif id == "tads":
-		toggle_ads = bool(v)
-		ads_on = false
-	elif id == "outline":
-		outlines = bool(v)
-		apply_quality()
-	save_settings()
-
-# a click on the settings panel: toggles flip, sliders start a drag. Returns true when the click was used.
-func click_setting(sid: String) -> bool:
-	if sid == "":
-		return false
-	if hud.is_toggle(sid):
-		set_setting(sid, not get_setting(sid))
-	else:
-		drag_id = sid
-		hud.apply_slider(sid, get_viewport().get_mouse_position())
-	return true
-
-func load_hi() -> int:
-	if FileAccess.file_exists("user://hi.dat"):
-		var f = FileAccess.open("user://hi.dat", FileAccess.READ)
-		if f:
-			var v = f.get_as_text().to_int()
-			f.close()
-			return v
-	return 0
-
-func save_hi(v: int) -> void:
-	var f = FileAccess.open("user://hi.dat", FileAccess.WRITE)
-	if f:
-		f.store_string(str(v))
-		f.close()
+	settings.set_setting(id, v)
 
 func hi_check() -> void:
 	if score > hi:
 		hi = score
-		save_hi(hi)
+		settings.save_hi(hi)
 
 func apply_theme(i: int) -> void:
 	var th = THEMES[i]
@@ -601,13 +516,13 @@ func _input(event: InputEvent) -> void:
 		elif kc == KEY_F7:
 			add_note("VOICE EFFECTS " + ("ON" if sfx.toggle_voice_fx() else "OFF"), GOLD)
 		elif kc == KEY_F9:
-			cycle_quality()
+			settings.cycle_quality()
 		elif kc == KEY_F10:
-			set_setting("outline", not outlines)
+			settings.set_setting("outline", not outlines)
 			add_note("OUTLINES " + ("ON" if outlines else "OFF"), GOLD)
 		elif kc == KEY_F8:
 			hi = 0
-			save_hi(0)
+			settings.save_hi(0)
 		elif kc == KEY_ESCAPE:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		elif kc == KEY_F11:
@@ -673,7 +588,7 @@ func menu_confirm() -> void:
 func on_click() -> void:
 	var captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	if state == "title":
-		if settings_open and click_setting(hud.setting_at(get_viewport().get_mouse_position())):
+		if settings_open and settings.click_setting(hud.setting_at(get_viewport().get_mouse_position())):
 			return
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		start_game()
@@ -698,7 +613,7 @@ func on_click() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif state == "play":
 		if not captured:
-			if not click_setting(hud.setting_at(get_viewport().get_mouse_position())):
+			if not settings.click_setting(hud.setting_at(get_viewport().get_mouse_position())):
 				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		else:
 			fire()
