@@ -209,9 +209,13 @@ func _draw_shop(k: float) -> void:
 
 # ---------------------------------------------------------------- run summary (game over)
 func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
-	_txt("RUN OVER", cx, size.y * 0.15, int(66 * k), RED, 1)
-	if g.OVER_MSG.has(g.over_reason):
-		_txt(g.OVER_MSG[g.over_reason], cx, size.y * 0.22, int(20 * k), RED, 1)
+	if g.run_won:
+		_txt("RUN COMPLETE", cx, size.y * 0.15, int(66 * k), GOLD, 1)
+		_txt("ALL %d ROUNDS SURVIVED" % g.MAX_ROUNDS, cx, size.y * 0.22, int(20 * k), GOLD, 1)
+	else:
+		_txt("RUN OVER", cx, size.y * 0.15, int(66 * k), RED, 1)
+		if g.OVER_MSG.has(g.over_reason):
+			_txt(g.OVER_MSG[g.over_reason], cx, size.y * 0.22, int(20 * k), RED, 1)
 	var acc = 0
 	if g.shots_fired > 0:
 		acc = int(round(100.0 * g.shots_hit / g.shots_fired))
@@ -220,13 +224,14 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	var lx = cx - 190.0 * k
 	var rx = cx + 190.0 * k
 	var y0 = size.y * 0.29
-	var step = 32.0 * k
+	var step = 30.0 * k
 	var rows = [
 		["SCORE", str(g.score).pad_zeros(6), TEXT],
 		["KILLS", str(g.kills), TEXT],
 		["ACCURACY", "%d%%" % acc, TEXT],
 		["BEST STYLE RANK", letters[g.best_rank], rcols[g.best_rank]],
-		["ROUND REACHED", str(g.round_n), TEXT],
+		["ROUND REACHED", "%d / %d" % [g.round_n, g.MAX_ROUNDS], TEXT],
+		["RUN TIME", g.fmt_time(g.play_time + g.shop_time), TEXT],
 		["BEST COMBO", "x%d" % g.best_combo, TEXT]
 	]
 	for i in range(rows.size()):
@@ -614,7 +619,7 @@ func _draw_top_bar(k: float) -> void:
 		_heart((172.0 + i * 26.0) * k, 36.0 * k, 16.0 * k, RED if i < g.hearts else Color(0.23, 0.18, 0.17))
 
 	# round + progress
-	_txt("ROUND %d  %s" % [g.round_n, g.THEMES[g.theme_idx]["name"]], 300.0 * k, 17.0 * k, fs, GOLD)
+	_txt("ROUND %d/%d  %s" % [g.round_n, g.MAX_ROUNDS, g.THEMES[g.theme_idx]["name"]], 300.0 * k, 17.0 * k, fs, GOLD)
 	for i in range(g.PER_ROUND):
 		var st = g.hits[i] if i < g.hits.size() else null
 		var col = TEXT
@@ -700,6 +705,8 @@ func _draw_boss_ui(k: float) -> void:
 			var title = b["name"]
 			if b["kind"] != "runner":
 				title += "   PHASE %d" % b["phase"]
+			if b.get("final", false):
+				title = "FINAL BOSS   " + title
 			_txt(title, cx, by - 4.0 * k, int(16 * k), TEXT, 1)
 			draw_rect(Rect2(bx - 3.0, by + 6.0 * k, bw + 6.0, 16.0 * k), Color(0.05, 0.05, 0.055, 0.8))
 			draw_rect(Rect2(bx, by + 9.0 * k, bw, 10.0 * k), Color(0.23, 0.1, 0.09))
@@ -711,7 +718,7 @@ func _draw_boss_ui(k: float) -> void:
 				draw_rect(Rect2(bx, by + 24.0 * k, bw * sf, 6.0 * k), Color(1.0, 0.82, 0.25) if mode != "stagger" or int(g.time * 10.0) % 2 == 0 else Color(1, 1, 1))
 				_txt("STAGGER", bx + bw + 8.0 * k, by + 31.0 * k, int(10 * k), GRAY)
 			if b["intro"] > 0.0:
-				_txt("BOSS FIGHT", cx, size.y * 0.27, int(30 * k), RED, 1)
+				_txt("FINAL BOSS" if b.get("final", false) else "BOSS FIGHT", cx, size.y * 0.27, int(30 * k), RED, 1)
 				_txt(b["name"], cx, size.y * 0.33, int(36 * k), TEXT, 1)
 			if mode == "tele" or mode == "lunge":
 				var pulse = 0.12 + 0.12 * absf(sin(g.time * 12.0))

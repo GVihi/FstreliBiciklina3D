@@ -66,6 +66,7 @@ const ACCENT = Color(1.0, 0.42, 0.17)
 
 # values the HUD reads (vars so they are reachable from another script)
 var PER_ROUND = 10
+var MAX_ROUNDS = 10           # a run is this many rounds; clearing the last one wins the run
 var NEED = 6
 var MAXSHELLS = 6
 var MAXHEARTS = 3
@@ -91,6 +92,13 @@ var hi = 0
 var hearts = 3
 var combo = 0
 var best_combo = 0
+# run timer, to tune the run length (README target: 20-30 minutes). Paused and menu time is not counted.
+var play_time = 0.0          # seconds spent fighting this run
+var shop_time = 0.0          # seconds on the clear / upgrade / shop screens this run
+var round_t = 0.0            # fighting seconds in the current round
+var round_times = []         # fighting seconds of each finished round (also printed to the console)
+var final_boss_dead = false  # the last round's final boss was defeated (needed to win the run)
+var run_won = false          # the run ended by clearing the last round
 var kills = 0                # riders and bosses taken down this run
 var best_rank = 0            # highest style rank reached this run (0 = D .. 4 = S)
 var last_rank = -1           # leaderboard place of the run that just ended (0 = first), -1 = not on the list
@@ -526,6 +534,11 @@ func start_game() -> void:
 	hearts = MAXHEARTS
 	combo = 0
 	best_combo = 0
+	run_won = false
+	final_boss_dead = false
+	play_time = 0.0
+	shop_time = 0.0
+	round_times = []
 	kills = 0
 	best_rank = 0
 	last_rank = -1
@@ -589,6 +602,7 @@ func start_round() -> void:
 	clear_pickups()
 	theme_idx = (round_n - 1) % THEMES.size()
 	apply_theme(theme_idx)
+	round_t = 0.0
 	hits.clear()
 	for i in range(PER_ROUND):
 		hits.append(null)
@@ -630,9 +644,19 @@ func count_hits() -> int:
 			n += 1
 	return n
 
+func fmt_time(sec: float) -> String:
+	var s = int(sec)
+	return "%d:%02d" % [int(sec / 60.0), s % 60]
+
+func is_final_round() -> bool:
+	return round_n >= MAX_ROUNDS
+
 func need_boss() -> bool:
 	if round_n < 2 or bosses.size() > 0 or pending_boss:
 		return false
+	if is_final_round():
+		# the last round has no ordinary bosses: after the riders comes the final boss, if you got far enough to face it
+		return boss_count == 0 and next_idx >= PER_ROUND and count_hits() >= NEED
 	if boss_count == 0 and next_idx >= 4:
 		return true
 	if boss_count == 1 and round_n >= 3 and next_idx >= PER_ROUND:
@@ -645,7 +669,7 @@ func after_wave() -> void:
 	if need_boss():
 		pending_boss = true
 		wait = 1.4
-		wait_msg = "BOSS FIGHT"
+		wait_msg = "FINAL BOSS" if is_final_round() else "BOSS FIGHT"
 		return
 	if next_idx >= PER_ROUND:
 		end_round()
@@ -655,6 +679,8 @@ func after_wave() -> void:
 
 func end_round() -> void:
 	var n = count_hits()
+	round_times.append(round_t)
+	print("[run timer] round %d: %s fighting, run so far %s (+%s in shops)" % [round_n, fmt_time(round_t), fmt_time(play_time), fmt_time(shop_time)])
 	var perfect = (n == PER_ROUND)
 	clear_phones()
 	if perfect:
@@ -663,7 +689,9 @@ func end_round() -> void:
 		fx_sys.confetti()
 	hi_check()
 	state_t = 0.0
-	if n >= NEED:
+	if n >= NEED and is_final_round() and final_boss_dead:
+		win_run()
+	elif n >= NEED:
 		state = "clear"
 		hearts = mini(MAXHEARTS, hearts + 1)
 		sfx.play("clear")
@@ -676,6 +704,17 @@ func end_round() -> void:
 		sfx.play("over")
 		sfx.v_groan()
 		sfx.say("game_over")
+
+# the last round was cleared: the run is won. It ends on the same summary screen as a loss.
+func win_run() -> void:
+	run_won = true
+	state = "over"
+	over_reason = "victory"
+	scores.submit_run()
+	fx_sys.confetti()
+	sfx.play("clear")
+	sfx.v_cheer()
+	sfx.say("round_clear")
 
 func game_over(reason: String) -> void:
 	clear_riders()
@@ -910,6 +949,11 @@ func combo_shout() -> void:
 # ================================================================== update
 func update_game(dt: float) -> void:
 	state_t += dt
+	if state == "play":
+		play_time += dt
+		round_t += dt
+	elif state == "clear" or state == "upgrade" or state == "shop":
+		shop_time += dt
 	if invuln > 0.0:
 		invuln -= dt
 	if red_flash > 0.0:
