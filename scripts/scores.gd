@@ -1,6 +1,6 @@
 extends RefCounted
 # Local leaderboard: the best MAX_ENTRIES runs, best first, saved to user://scores.json.
-# Every entry is {"score", "round", "kills", "date"}. A run is recorded once, when it ends.
+# Every entry is {"name", "score", "round", "kills", "date"}. A run is recorded once, when it ends.
 
 const MAX_ENTRIES = 10
 const PATH = "user://scores.json"
@@ -25,6 +25,7 @@ func load_scores() -> void:
 		for e in data:
 			if e is Dictionary and e.has("score"):
 				entries.append({
+					"name": str(e.get("name", "")),
 					"score": int(e["score"]),
 					"round": int(e.get("round", 1)),
 					"kills": int(e.get("kills", 0)),
@@ -54,6 +55,7 @@ func submit_run() -> int:
 	if idx >= MAX_ENTRIES:
 		return -1
 	entries.insert(idx, {
+		"name": g.player_name,
 		"score": g.score,
 		"round": g.round_n,
 		"kills": g.kills,
@@ -63,4 +65,11 @@ func submit_run() -> int:
 		entries.resize(MAX_ENTRIES)
 	save_scores()
 	g.last_rank = idx
+	g.name_entry = true
+	g.name_buf = g.player_name
 	return idx
+
+func set_name(idx: int, nm: String) -> void:
+	if idx >= 0 and idx < entries.size():
+		entries[idx]["name"] = nm
+		save_scores()

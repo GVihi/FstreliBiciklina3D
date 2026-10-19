@@ -219,8 +219,8 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	var letters = ["D", "C", "B", "A", "S"]
 	var lx = cx - 190.0 * k
 	var rx = cx + 190.0 * k
-	var y0 = size.y * 0.32
-	var step = 38.0 * k
+	var y0 = size.y * 0.29
+	var step = 32.0 * k
 	var rows = [
 		["SCORE", str(g.score).pad_zeros(6), TEXT],
 		["KILLS", str(g.kills), TEXT],
@@ -241,13 +241,25 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	if g.last_rank >= 0:
 		_txt("LEADERBOARD RANK #%d" % (g.last_rank + 1), cx, uy, int(20 * k), GOLD, 1)
 		uy += 30.0 * k
+		if g.name_entry:
+			_txt("TYPE YOUR NAME, ENTER TO CONFIRM", cx, uy, int(14 * k), GRAY, 1)
+			var br = Rect2(cx - 150.0 * k, uy + 8.0 * k, 300.0 * k, 36.0 * k)
+			draw_rect(br, Color(0.13, 0.14, 0.16))
+			draw_rect(br, ACCENT, false, 3.0 * k)
+			_txt(g.name_buf, cx, uy + 36.0 * k, int(22 * k), TEXT, 1)
+			if blink:
+				var tw = _line(g.name_buf, int(22 * k), -1.0, HORIZONTAL_ALIGNMENT_LEFT).get_line_width()
+				draw_rect(Rect2(cx + tw * 0.5 + 4.0 * k, uy + 14.0 * k, 3.0 * k, 24.0 * k), TEXT)
+		else:
+			_txt("SAVED AS  " + g.player_name, cx, uy + 30.0 * k, int(20 * k), TEXT, 1)
+		uy += 72.0 * k
 	_txt("NEWLY UNLOCKED", cx, uy, int(16 * k), GRAY, 1)
 	if g.new_unlocks.is_empty():
 		_txt("NOTHING THIS RUN", cx, uy + 26.0 * k, int(18 * k), GRAY, 1)
 	else:
 		for i in range(g.new_unlocks.size()):
 			_txt(str(g.new_unlocks[i]).to_upper(), cx, uy + 26.0 * k + i * 24.0 * k, int(18 * k), GOLD, 1)
-	if g.state_t > 0.8 and blink:
+	if g.state_t > 0.8 and blink and not g.name_entry:
 		_txt("CLICK TO CONTINUE", cx, size.y * 0.93, int(24 * k), TEXT, 1)
 
 # ---------------------------------------------------------------- title screen menu
@@ -300,12 +312,14 @@ func _draw_title_menu(k: float, cx: float) -> void:
 func _draw_scores_page(k: float, cx: float) -> void:
 	_txt("HIGH SCORES", cx, size.y * 0.14, int(56 * k), GOLD, 1)
 	var y0 = size.y * 0.27
-	var c_rank = cx - 290.0 * k
-	var c_score = cx - 70.0 * k
-	var c_round = cx + 50.0 * k
-	var c_kills = cx + 150.0 * k
-	var c_date = cx + 290.0 * k
+	var c_rank = cx - 300.0 * k
+	var c_name = cx - 262.0 * k
+	var c_score = cx + 20.0 * k
+	var c_round = cx + 110.0 * k
+	var c_kills = cx + 195.0 * k
+	var c_date = cx + 300.0 * k
 	_txt("#", c_rank, y0, int(14 * k), GRAY)
+	_txt("NAME", c_name, y0, int(14 * k), GRAY)
 	_txt("SCORE", c_score, y0, int(14 * k), GRAY, 2)
 	_txt("ROUND", c_round, y0, int(14 * k), GRAY, 2)
 	_txt("KILLS", c_kills, y0, int(14 * k), GRAY, 2)
@@ -321,6 +335,8 @@ func _draw_scores_page(k: float, cx: float) -> void:
 			draw_rect(Rect2(c_rank - 12.0 * k, y - 24.0 * k, (c_date - c_rank) + 24.0 * k, 32.0 * k), Color(0.95, 0.71, 0.19, 0.14))
 		var col = GOLD if mine else TEXT
 		_txt(str(i + 1), c_rank, y, int(20 * k), col)
+		var nm = str(e.get("name", ""))
+		_txt(nm if nm != "" else "-", c_name, y, int(20 * k), col)
 		_txt(str(e["score"]).pad_zeros(6), c_score, y, int(22 * k), col, 2)
 		_txt(str(e["round"]), c_round, y, int(20 * k), col, 2)
 		_txt(str(e["kills"]), c_kills, y, int(20 * k), col, 2)

@@ -32,6 +32,9 @@ func handle_input(event: InputEvent) -> void:
 	elif event is InputEventJoypadButton and event.pressed:
 		on_pad_button(event.button_index)
 	elif event is InputEventKey and event.pressed and not event.echo:
+		if g.state == "over" and g.name_entry:
+			name_key(event)       # typing a leaderboard name: no hotkeys
+			return
 		var kc = event.keycode
 		if kc == KEY_R:
 			if g.state == "shop":
@@ -156,7 +159,10 @@ func on_pad_button(btn: int) -> void:
 		elif g.state == "clear" and g.state_t > 0.8:
 			g.shop_sys.enter_upgrade()
 		elif g.state == "over" and g.state_t > 0.8:
-			g.go_to_title()
+			if g.name_entry:
+				confirm_name()
+			else:
+				g.go_to_title()
 		else:
 			menu_confirm()
 	elif btn == JOY_BUTTON_B and g.state == "title":
@@ -183,6 +189,33 @@ func menu_confirm() -> void:
 		g.shop_sys.buy(g.menu_sel)
 	elif g.state == "clear" and g.state_t > 0.8:
 		g.shop_sys.enter_upgrade()
+
+# ---- leaderboard name entry (run summary)
+const MAX_NAME = 10
+
+func name_key(event: InputEventKey) -> void:
+	if g.state_t < 0.8:
+		return                   # keys still held from the last second of the run must not type
+	var kc = event.keycode
+	if kc == KEY_ENTER or kc == KEY_KP_ENTER or kc == KEY_ESCAPE:
+		confirm_name()
+	elif kc == KEY_BACKSPACE:
+		g.name_buf = g.name_buf.substr(0, maxi(0, g.name_buf.length() - 1))
+	elif event.unicode > 31 and g.name_buf.length() < MAX_NAME:
+		var ch = char(event.unicode).to_upper()
+		var ok = ch.to_lower() != ch.to_upper() or "0123456789-_.".contains(ch) or (ch == " " and g.name_buf != "")
+		if ok:
+			g.name_buf += ch
+
+func confirm_name() -> void:
+	var nm = g.name_buf.strip_edges()
+	if nm == "":
+		nm = "PLAYER"
+	g.player_name = nm
+	g.name_entry = false
+	g.scores.set_name(g.last_rank, nm)
+	g.settings.save_settings()
+	g.sfx.play("click")
 
 # ---- title screen menu (entries are listed in hud.gd TITLE_ITEMS)
 func title_move(d: int) -> void:
@@ -271,7 +304,10 @@ func on_click() -> void:
 		elif g.hud.reroll_rect().has_point(mp):
 			g.shop_sys.reroll()
 	elif g.state == "over" and g.state_t > 0.8:
-		g.go_to_title()
+		if g.name_entry:
+			confirm_name()
+		else:
+			g.go_to_title()
 	elif g.state == "play":
 		if not captured:
 			var pmp = g.get_viewport().get_mouse_position()

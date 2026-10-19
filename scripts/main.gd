@@ -94,6 +94,9 @@ var best_combo = 0
 var kills = 0                # riders and bosses taken down this run
 var best_rank = 0            # highest style rank reached this run (0 = D .. 4 = S)
 var last_rank = -1           # leaderboard place of the run that just ended (0 = first), -1 = not on the list
+var player_name = "PLAYER"   # last name typed on the leaderboard (saved), offered again next time
+var name_entry = false       # true on the run summary while the player is typing a name for a new leaderboard entry
+var name_buf = ""
 var new_unlocks = []         # names of items unlocked by this run (filled once the unlock system exists)
 var shots_fired = 0
 var shots_hit = 0
@@ -505,6 +508,7 @@ func go_to_title() -> void:
 	state_t = 0.0
 	title_page = ""
 	last_rank = -1
+	name_entry = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 # leave a run in progress (pause menu: quit to title); the run is simply dropped
@@ -525,6 +529,7 @@ func start_game() -> void:
 	kills = 0
 	best_rank = 0
 	last_rank = -1
+	name_entry = false
 	new_unlocks = []
 	shots_fired = 0
 	shots_hit = 0
