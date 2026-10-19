@@ -14,6 +14,7 @@ const Ring = preload("res://scripts/ring.gd")
 const Content = preload("res://scripts/content.gd")
 const SettingsScript = preload("res://scripts/settings.gd")
 const PedestriansScript = preload("res://scripts/pedestrians.gd")
+const PickupsScript = preload("res://scripts/pickups.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -390,6 +391,7 @@ func _warm_up() -> void:
 # ------------------------------------------------------------------ graphics quality (F9)
 var quality = 0     # 0 = shadows + 2x MSAA, 1 = no MSAA, 2 = no MSAA and no sun shadows
 var settings = SettingsScript.new(self)   # settings.gd: saved settings, graphics quality, high score file
+var pickup_sys = PickupsScript.new(self)   # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
 var civ_sys = PedestriansScript.new(self)   # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
 
 # the HUD calls these two on main, so they stay as thin wrappers
@@ -1673,7 +1675,7 @@ func update_game(dt: float) -> void:
 			hype = 0.0
 	elif hype > 0.0:
 		hype = maxf(0.0, hype - 3.0 * dt)
-	update_pickups(dt)
+	pickup_sys.update_pickups(dt)
 	update_phones(gdt)
 	update_bosses(gdt)
 	if riders.size() == 0 and bosses.size() == 0 and wait > 0.0:
@@ -1846,7 +1848,7 @@ func fire() -> void:
 		elif best_kind == "phone":
 			shoot_phone(best_obj)
 		elif best_kind == "pickup":
-			collect_pickup(best_obj)
+			pickup_sys.collect_pickup(best_obj)
 	else:
 		if world_kind == "floor":
 			for i in range(3):
@@ -1882,7 +1884,7 @@ func swing() -> void:
 	var hit_any = deflect_scan()
 	for i in range(pickups.size() - 1, -1, -1):
 		if zc.distance_to(pickups[i]["pos"]) < zr * 0.8 + 0.6:
-			collect_pickup(pickups[i])
+			pickup_sys.collect_pickup(pickups[i])
 	for i in range(bosses.size() - 1, -1, -1):
 		var b = bosses[i]
 		if not boss_hittable(b):
@@ -2128,123 +2130,6 @@ func confetti() -> void:
 		spawn_particle(pos, Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 0.5), randf_range(-1.0, 1.0)),
 			randf_range(2.5, 4.0), pick_one(confetti_mats), Vector3(0.14, 0.01, 0.09), 1.5, randf_range(-8.0, 8.0))
 
-# ================================================================== pickups
-func maybe_drop(pos: Vector3, chance: float) -> void:
-	if state != "play" or pickups.size() >= 6:
-		return
-	if randf() > chance + up["luck"]:
-		return
-	var t = pick_one(DROPS)
-	if t == "heart" and hearts >= MAXHEARTS:
-		t = "cash"
-	spawn_pickup(t, pos)
-
-# every defeated rider feeds you: usually ammo, sometimes cash or a life, now and then a power-up
-func drop_kill(pos: Vector3, tough: bool) -> void:
-	if state != "play":
-		return
-	var rank = style_rank()
-	var drops = []
-	if randf() < 0.28 + 0.04 * float(rank) + (0.15 if perks.has("scavenger") else 0.0):
-		drops.append("ammo")
-	if hearts < MAXHEARTS and randf() < 0.07 + 0.02 * float(rank):
-		drops.append("heart")
-	if randf() < 0.15:
-		drops.append("cash")
-	if tough and perks.has("salvage"):
-		if not drops.has("ammo"):
-			drops.append("ammo")
-		if has_duo("SCRAPYARD"):
-			drops.append("ammo")
-			drops.append("cash")
-	if randf() < (0.7 if tough else 0.12) + up["luck"]:
-		drops.append(pick_one(["rapid", "big", "slow", "shield"]))
-	for t in drops:
-		if pickups.size() < 6:
-			spawn_pickup(t, pos)
-
-func spawn_pickup(t: String, pos: Vector3) -> void:
-	var inf = DROP_INFO[t]
-	var m = Models.build_pickup(inf["col"], inf["ch"])
-	add_child(m["root"])
-	var T = 1.0
-	var y_land = 0.55
-	var la = randf() * TAU                            # lands a few metres from wherever the player is
-	var ld = randf_range(2.2, 4.8)
-	var land = clamp_walk(Vector3(player.position.x + sin(la) * ld, y_land, player.position.z - cos(la) * ld), PLAYER_R_MIN + 0.3, PLAYER_R_MAX - 0.4)
-	var vel = Vector3((land.x - pos.x) / T, 4.9 * T + (y_land - pos.y) / T, (land.z - pos.z) / T)
-	pickups.append({"type": t, "node": m["root"], "m": m, "start": pos, "vel0": vel, "t": 0.0, "T": T,
-		"pos": pos, "land": land, "landed": false, "rest": 0.0})
-	m["root"].position = pos
-
-func collect_pickup(pk: Dictionary) -> void:
-	var i = pickups.find(pk)
-	if i >= 0:
-		pickups.remove_at(i)
-	var inf = DROP_INFO[pk["type"]]
-	add_popup(pk["pos"] + Vector3(0, 0.6, 0), inf["name"], inf["col"])
-	var t = pk["type"]
-	if t == "heart":
-		hearts = mini(MAXHEARTS, hearts + 1)
-	elif t == "rapid":
-		buffs["rapid"] = 8.0
-	elif t == "big":
-		buffs["big"] = 10.0
-	elif t == "slow":
-		buffs["slow"] = 6.0
-	elif t == "shield":
-		buffs["shield"] = 1.0
-	elif t == "ammo":
-		shells = mini(MAXSHELLS, shells + (4 if perks.has("scavenger") else 2))
-		if shells >= MAXSHELLS:
-			loading = false
-	else:
-		score += 500 * (2 if hype_t > 0.0 else 1)
-		hi_check()
-		add_cash(15)
-	sfx.play("pickup")
-	add_hype(8.0)
-	cheer = maxf(cheer, 0.6)
-	pk["node"].queue_free()
-
-func update_pickups(dt: float) -> void:
-	for i in range(pickups.size() - 1, -1, -1):
-		var pk = pickups[i]
-		var node: Node3D = pk["node"]
-		pk["t"] += dt
-		if not pk["landed"]:
-			var t: float = pk["t"]
-			var v0: Vector3 = pk["vel0"]
-			var s0: Vector3 = pk["start"]
-			var p = s0 + v0 * t + Vector3(0.0, -4.9 * t * t, 0.0)
-			pk["pos"] = p
-			if t >= pk["T"]:
-				pk["landed"] = true
-				pk["rest"] = 0.0
-				pk["pos"] = pk["land"]
-		else:
-			pk["rest"] += dt
-			var l: Vector3 = pk["land"]
-			if up["magnet"] > 0:
-				var dl = Vector3(player.position.x - l.x, 0.0, player.position.z - l.z)
-				var dn = dl.length()
-				if dn > 0.05 and dn < 3.5 + 3.0 * float(up["magnet"]):
-					l += dl / dn * minf(6.5 * dt, dn)
-					pk["land"] = l
-			pk["pos"] = Vector3(l.x, l.y + sin(time * 5.0 + i) * 0.06, l.z)
-		var pos: Vector3 = pk["pos"]
-		node.position = pos
-		node.rotation.y += dt * 2.5
-		node.visible = true
-		if pk["landed"] and pk["rest"] > 6.0 and int(time * 10.0) % 2 == 0:
-			node.visible = false
-		if Vector2(pos.x - player.position.x, pos.z - player.position.z).length() < 1.0 and pos.y < 1.6:
-			collect_pickup(pk)
-			continue
-		if pk["landed"] and pk["rest"] > 8.0:
-			pk["node"].queue_free()
-			pickups.remove_at(i)
-
 # ================================================================== riders
 func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 	var roll = randf()
@@ -2479,7 +2364,7 @@ func hit_rider(r: Dictionary, dmg: int) -> void:
 	add_style(12.0 + (6.0 if melee else 0.0))
 	add_cash(13 if r["type"] == "tough" else 5)
 	hitstop = maxf(hitstop, 0.09 if melee else 0.04)
-	drop_kill(wpos + Vector3(0, 0.5, 0), r["type"] == "tough")
+	pickup_sys.drop_kill(wpos + Vector3(0, 0.5, 0), r["type"] == "tough")
 	var label = "+%d" % pts
 	if combo > 1:
 		label += "  x%d" % combo
@@ -3235,9 +3120,9 @@ func kill_boss(b: Dictionary) -> void:
 		else:
 			score += 1000
 			hi_check()
-		maybe_drop(bpos, 1.0)
+		pickup_sys.maybe_drop(bpos, 1.0)
 	else:
-		maybe_drop(bpos, 0.5)
+		pickup_sys.maybe_drop(bpos, 0.5)
 	add_note(("CYCLIST DOWN +" if is_run else "BOSS DOWN +") + str(pts), GOLD)
 	if is_run:
 		sfx.play3d("thud", bpos)
