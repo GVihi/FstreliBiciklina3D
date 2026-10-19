@@ -48,7 +48,7 @@ func handle_input(event: InputEvent) -> void:
 				g.shop_sys.leave_shop()
 		elif kc == KEY_TAB:
 			if g.state == "title":
-				g.settings_open = not g.settings_open
+				g.title_page = "" if g.title_page == "settings" else "settings"
 			elif g.state == "play":
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		elif kc == KEY_ENTER or kc == KEY_KP_ENTER:
@@ -57,6 +57,10 @@ func handle_input(event: InputEvent) -> void:
 			menu_move(-1)
 		elif kc == KEY_RIGHT:
 			menu_move(1)
+		elif kc == KEY_UP or kc == KEY_W:
+			title_move(-1)
+		elif kc == KEY_DOWN or kc == KEY_S:
+			title_move(1)
 		elif kc == KEY_1 or kc == KEY_KP_1:
 			if g.state == "upgrade":
 				if g.state_t > 0.35:
@@ -96,6 +100,7 @@ func handle_input(event: InputEvent) -> void:
 			g.hi = 0
 			g.settings.save_hi(0)
 		elif kc == KEY_ESCAPE:
+			title_back()
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		elif kc == KEY_F11:
 			if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
@@ -122,22 +127,25 @@ func on_pad_button(btn: int) -> void:
 		elif btn == JOY_BUTTON_Y or btn == JOY_BUTTON_RIGHT_SHOULDER or btn == JOY_BUTTON_LEFT_SHOULDER:
 			toggle_weapon()
 		return
-	if btn == JOY_BUTTON_DPAD_LEFT:
+	if btn == JOY_BUTTON_DPAD_UP:
+		title_move(-1)
+	elif btn == JOY_BUTTON_DPAD_DOWN:
+		title_move(1)
+	elif btn == JOY_BUTTON_DPAD_LEFT:
 		menu_move(-1)
 	elif btn == JOY_BUTTON_DPAD_RIGHT:
 		menu_move(1)
 	elif btn == JOY_BUTTON_A:
 		if g.state == "title":
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-			g.start_game()
+			title_activate(g.title_sel)
 		elif g.state == "clear" and g.state_t > 0.8:
 			g.shop_sys.enter_upgrade()
 		elif g.state == "over" and g.state_t > 0.8:
-			g.state = "title"
-			g.state_t = 0.0
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			g.go_to_title()
 		else:
 			menu_confirm()
+	elif btn == JOY_BUTTON_B and g.state == "title":
+		title_back()
 	elif btn == JOY_BUTTON_B and g.state == "shop":
 		g.shop_sys.leave_shop()
 	elif btn == JOY_BUTTON_X and g.state == "shop":
@@ -150,20 +158,54 @@ func menu_move(d: int) -> void:
 		g.menu_sel = posmod(g.menu_sel + d, maxi(1, g.shop_items.size()))
 
 func menu_confirm() -> void:
-	if g.state == "upgrade" and g.state_t > 0.35:
+	if g.state == "title":
+		title_activate(g.title_sel)
+	elif g.state == "upgrade" and g.state_t > 0.35:
 		g.shop_sys.pick_upgrade(g.menu_sel)
 	elif g.state == "shop":
 		g.shop_sys.buy(g.menu_sel)
 	elif g.state == "clear" and g.state_t > 0.8:
 		g.shop_sys.enter_upgrade()
 
+# ---- title screen menu (entries are listed in hud.gd TITLE_ITEMS)
+func title_move(d: int) -> void:
+	if g.state == "title" and g.title_page == "":
+		g.title_sel = posmod(g.title_sel + d, g.hud.TITLE_ITEMS.size())
+		g.sfx.play("click")
+
+func title_back() -> void:
+	if g.state == "title" and g.title_page != "":
+		g.title_page = ""
+		g.sfx.play("click")
+
+func title_activate(i: int) -> void:
+	if g.title_page != "":
+		title_back()
+		return
+	g.title_sel = i
+	var id = g.hud.TITLE_ITEMS[i]["id"]
+	if id == "play":
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		g.start_game()
+	elif id == "quit":
+		g.get_tree().quit()
+	else:
+		g.title_page = id        # loadout / unlocks / scores / settings
+		g.sfx.play("click")
+
 func on_click() -> void:
 	var captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	if g.state == "title":
-		if g.settings_open and g.settings.click_setting(g.hud.setting_at(g.get_viewport().get_mouse_position())):
-			return
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		g.start_game()
+		var mp = g.get_viewport().get_mouse_position()
+		if g.title_page == "settings":
+			if not g.settings.click_setting(g.hud.setting_at(mp)) and not g.hud.panel_rect().has_point(mp):
+				title_back()
+		elif g.title_page != "":
+			title_back()
+		else:
+			var ti = g.hud.title_at(mp)
+			if ti >= 0:
+				title_activate(ti)
 	elif g.state == "clear" and g.state_t > 0.8:
 		g.shop_sys.enter_upgrade()
 	elif g.state == "upgrade" and g.state_t > 0.35:
@@ -180,9 +222,7 @@ func on_click() -> void:
 		elif g.hud.reroll_rect().has_point(mp):
 			g.shop_sys.reroll()
 	elif g.state == "over" and g.state_t > 0.8:
-		g.state = "title"
-		g.state_t = 0.0
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		g.go_to_title()
 	elif g.state == "play":
 		if not captured:
 			if not g.settings.click_setting(g.hud.setting_at(g.get_viewport().get_mouse_position())):

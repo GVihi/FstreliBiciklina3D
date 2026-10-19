@@ -203,7 +203,8 @@ var aim_assist = 0.6
 var volume = 1.0
 var outlines = true
 var drag_id = ""
-var settings_open = false
+var title_page = ""          # "" = main menu, otherwise settings / loadout / unlocks / scores
+var title_sel = 0            # highlighted title-menu entry (keyboard / gamepad)
 
 var cheerleaders = []
 var melee_ring: MeshInstance3D
@@ -489,6 +490,12 @@ func reset_run() -> void:
 	shop_buys = 0
 	shop_rerolls = 0
 	pending = {"rapid": 0.0, "big": 0.0, "shield": false, "hype": false, "free": 0}
+
+func go_to_title() -> void:
+	state = "title"
+	state_t = 0.0
+	title_page = ""
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func start_game() -> void:
 	reset_run()

@@ -207,6 +207,64 @@ func _draw_shop(k: float) -> void:
 	_txt("REROLL  [R]  $%d" % rc, rr.position.x + rr.size.x * 0.5, rr.position.y + 32.0 * k, int(20 * k), GOLD if rok else RED, 1)
 	_txt("CLICK OR PRESS 1-4 TO BUY", cx, size.y * 0.93, int(14 * k), GRAY, 1)
 
+# ---------------------------------------------------------------- title screen menu
+const TITLE_ITEMS = [
+	{"id": "play", "label": "PLAY"},
+	{"id": "loadout", "label": "LOADOUT", "soon": true},
+	{"id": "unlocks", "label": "UNLOCKS", "soon": true},
+	{"id": "scores", "label": "HIGH SCORES", "soon": true},
+	{"id": "settings", "label": "SETTINGS"},
+	{"id": "quit", "label": "QUIT"}
+]
+const TITLE_PAGES = {
+	"loadout": ["LOADOUT", "PICK YOUR STARTING WEAPON AND PERK BEFORE A RUN."],
+	"unlocks": ["UNLOCKS", "SPEND WHAT YOU EARN ON PERMANENT UNLOCKS BETWEEN RUNS."],
+	"scores": ["HIGH SCORES", "THE LOCAL TOP 10 LEADERBOARD."]
+}
+
+func title_rect(i: int) -> Rect2:
+	var k = size.y / 720.0
+	var w = 320.0 * k
+	var h = 46.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.38 + i * (h + 10.0 * k), w, h)
+
+func title_at(pos: Vector2) -> int:
+	if g == null or g.state != "title" or g.title_page != "":
+		return -1
+	for i in range(TITLE_ITEMS.size()):
+		if title_rect(i).has_point(pos):
+			return i
+	return -1
+
+func _draw_title_menu(k: float, cx: float) -> void:
+	_txt("FSTRELI", cx, size.y * 0.17, int(76 * k), ACCENT, 1)
+	_txt("BICIKLINA 3D", cx, size.y * 0.28, int(76 * k), ACCENT, 1)
+	var hov = title_at(get_viewport().get_mouse_position())
+	for i in range(TITLE_ITEMS.size()):
+		var item = TITLE_ITEMS[i]
+		var r = title_rect(i)
+		var on = hov == i or (hov < 0 and g.title_sel == i)
+		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
+		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
+		var base = r.position.y + 31.0 * k
+		_txt(item["label"], r.position.x + r.size.x * 0.5, base, int(22 * k), TEXT if on else GRAY, 1)
+		if item.get("soon", false):
+			_txt("SOON", r.position.x + r.size.x - 12.0 * k, base - 2.0 * k, int(12 * k), GRAY, 2)
+	if g.hi > 0:
+		_txt("HIGH SCORE " + str(g.hi).pad_zeros(6), cx, size.y * 0.885, int(20 * k), GOLD, 1)
+	_txt("WASD MOVE   SHIFT RUN   SPACE DASH   MOUSE AIM   CLICK SHOOT   R RELOAD   Q MELEE", cx, size.y * 0.93, int(14 * k), GRAY, 1)
+	_txt("GAMEPAD: STICKS MOVE + AIM   RT SHOOT   LT AIM   A DASH   X RELOAD   Y SWITCH   START PAUSE", cx, size.y * 0.965, int(14 * k), GRAY, 1)
+
+# placeholder pages for the screens that are still on the roadmap (High Scores shows the current best)
+func _draw_title_page(k: float, cx: float) -> void:
+	var info = TITLE_PAGES.get(g.title_page, ["", ""])
+	_txt(info[0], cx, size.y * 0.24, int(60 * k), GOLD, 1)
+	_txt(info[1], cx, size.y * 0.34, int(20 * k), TEXT, 1)
+	if g.title_page == "scores":
+		_txt("BEST  " + str(g.hi).pad_zeros(6), cx, size.y * 0.46, int(36 * k), GOLD, 1)
+	_txt("COMING SOON", cx, size.y * 0.56, int(32 * k), ACCENT, 1)
+	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.78, int(18 * k), GRAY, 1)
+
 # ---------------------------------------------------------------- settings panel (pause screen / title with TAB)
 const SETTING_ROWS = [
 	{"id": "fov", "label": "FIELD OF VIEW", "min": 60.0, "max": 105.0, "fmt": "%d"},
@@ -218,7 +276,7 @@ const SETTING_ROWS = [
 ]
 
 func settings_visible() -> bool:
-	return g != null and (g.paused or (g.state == "title" and g.settings_open))
+	return g != null and (g.paused or (g.state == "title" and g.title_page == "settings"))
 
 func panel_rect() -> Rect2:
 	var k = size.y / 720.0
@@ -365,20 +423,14 @@ func _draw() -> void:
 
 	var blink = int(g.time * 2.0) % 2 == 0
 	if state == "title":
-		_dim(0.45)
-		_txt("FSTRELI", cx, size.y * 0.20, int(84 * k), ACCENT, 1)
-		_txt("BICIKLINA 3D", cx, size.y * 0.32, int(84 * k), ACCENT, 1)
-		_txt("HIT 6 OF 10 RIDERS TO CLEAR A ROUND", cx, size.y * 0.42, int(22 * k), TEXT, 1)
-		_txt("DO NOT HIT THE PEDESTRIANS", cx, size.y * 0.47, int(22 * k), TEXT, 1)
-		_txt("WASD MOVE   SHIFT RUN   SPACE DASH   CTRL CROUCH (SPRINTING = SLIDE)", cx, size.y * 0.54, int(17 * k), GRAY, 1)
-		_txt("MOUSE AIM   LEFT CLICK SHOOT   RIGHT CLICK AIM DOWN SIGHTS   R RELOAD", cx, size.y * 0.58, int(17 * k), GRAY, 1)
-		_txt("Q OR WHEEL = MELEE: SWING AT A PHONE TO SEND IT BACK AT THE THROWER", cx, size.y * 0.62, int(17 * k), PINK, 1)
-		_txt("M SOUND   V VOICES   TAB SETTINGS   F9 GRAPHICS   F11 FULLSCREEN   F8 RESET HI", cx, size.y * 0.66, int(15 * k), GRAY, 1)
-		_txt("GAMEPAD: STICKS MOVE + AIM   RT SHOOT   LT AIM   A DASH   X RELOAD   Y SWITCH   START PAUSE", cx, size.y * 0.70, int(14 * k), GRAY, 1)
-		if blink:
-			_txt("CLICK TO START", cx, size.y * 0.78, int(32 * k), TEXT, 1)
-		if g.hi > 0:
-			_txt("HIGH SCORE " + str(g.hi).pad_zeros(6), cx, size.y * 0.84, int(20 * k), GOLD, 1)
+		if g.title_page == "":
+			_dim(0.45)
+			_draw_title_menu(k, cx)
+		else:
+			_dim(0.86)
+			if g.title_page != "settings":
+				_draw_title_page(k, cx)
+
 	elif state == "clear" or state == "over":
 		_dim(0.52)
 		var n_hit = g.count_hits()
@@ -409,9 +461,9 @@ func _draw() -> void:
 		_txt("PAUSED", cx, size.y * 0.44, int(60 * k), TEXT, 1)
 		_txt("CLICK TO RESUME", cx, size.y * 0.52, int(26 * k), GRAY, 1)
 		_draw_settings(k)
-	elif state == "title" and g.settings_open:
-		_dim(0.86)
+	elif state == "title" and g.title_page == "settings":
 		_draw_settings(k)
+		_txt("ESC OR CLICK OUTSIDE TO GO BACK", cx, size.y * 0.92, int(14 * k), GRAY, 1)
 
 # ---------------------------------------------------------------- pieces
 func _draw_top_bar(k: float) -> void:

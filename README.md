@@ -26,13 +26,13 @@ Mostly vibe coded Godot game
 
 ## Menu & Game Flow
 
-- [ ] Create title screen
-  - [ ] Play button
-  - [ ] Loadout button
-  - [ ] Unlocks button
-  - [ ] High Scores button
-  - [ ] Settings button
-  - [ ] Quit button
+- [x] Create title screen
+  - [x] Play button
+  - [x] Loadout button
+  - [x] Unlocks button
+  - [x] High Scores button
+  - [x] Settings button
+  - [x] Quit button
 
 - [ ] Create proper pause menu
 
