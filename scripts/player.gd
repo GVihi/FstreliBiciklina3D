@@ -211,10 +211,10 @@ func ex_bonus() -> float:
 	return (g.up["wide"] * 5.0 + (18.0 if g.buffs["big"] > 0.0 else 0.0)) * 0.025
 
 func update_gun(dt: float) -> void:
-	var g: Node3D = g.gun["root"]
+	var gun_node: Node3D = g.gun["root"]
 	var rb: Node3D = g.rubber["root"]
 	var menu = g.state == "upgrade" or g.state == "shop"
-	g.visible = not g.melee and not menu
+	gun_node.visible = not g.melee and not menu
 	rb.visible = g.melee and not menu
 	var pump: Node3D = g.gun["pump"]
 	var hip = Vector3(0.24, -0.22, -0.52)
@@ -222,8 +222,8 @@ func update_gun(dt: float) -> void:
 	var p = hip.lerp(ads, g.ads_t)
 	p.z += g.recoil * 0.07
 	p.y -= (0.05 if g.sprinting else 0.0) + (0.04 if g.loading else 0.0)
-	g.position = g.position.lerp(p, minf(1.0, dt * 18.0))
-	g.rotation = Vector3(g.recoil * 0.14 + (0.18 if g.sprinting else 0.0), (1.0 - g.ads_t) * 0.06, 0.0)
+	gun_node.position = gun_node.position.lerp(p, minf(1.0, dt * 18.0))
+	gun_node.rotation = Vector3(g.recoil * 0.14 + (0.18 if g.sprinting else 0.0), (1.0 - g.ads_t) * 0.06, 0.0)
 	var phase = 0.0
 	if g.pump_t > 0.0:
 		phase = sin(PI * (1.0 - g.pump_t / maxf(g.pump_dur, 0.01)))
