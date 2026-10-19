@@ -24,6 +24,19 @@ static func seed_for(date: String) -> int:
 static func today_seed() -> int:
 	return seed_for(date_string())
 
+# Seed for one named part of one round of a daily run, e.g. ("upgrade", run seed, round 3).
+# Every part gets its own seed, so what one part draws never changes what another part sees.
+static func stream_seed(run_seed: int, round_n: int, part: String) -> int:
+	return seed_for("%d:%d:%s" % [run_seed, round_n, part])
+
+# Fisher-Yates shuffle driven by the given generator (Array.shuffle() always uses the global one).
+static func shuffle_with(arr: Array, rng: RandomNumberGenerator) -> void:
+	for i in range(arr.size() - 1, 0, -1):
+		var j = rng.randi() % (i + 1)
+		var tmp = arr[i]
+		arr[i] = arr[j]
+		arr[j] = tmp
+
 # Short text for screens, e.g. "7F3A91C2".
 static func seed_text(s: int) -> String:
 	return "%08X" % s

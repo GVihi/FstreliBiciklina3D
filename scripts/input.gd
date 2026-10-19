@@ -237,6 +237,9 @@ func title_activate(i: int) -> void:
 	if id == "play":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		g.start_game()
+	elif id == "daily":
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		g.start_game(true)
 	elif id == "quit":
 		g.get_tree().quit()
 	else:
@@ -271,7 +274,7 @@ func pause_activate(i: int) -> void:
 		g.pause_page = "settings"
 		g.sfx.play("click")
 	elif id == "restart":
-		g.start_game()
+		g.start_game(g.daily_mode)
 	elif id == "title":
 		g.abandon_run()
 

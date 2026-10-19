@@ -240,7 +240,7 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		_txt(rows[i][0], lx, y, int(20 * k), GRAY)
 		_txt(rows[i][1], rx, y, int(24 * k), rows[i][2], 2)
 	var uy = y0 + rows.size() * step + 14.0 * k
-	if g.score > 0 and g.score >= g.hi:
+	if g.score > 0 and g.score >= g.hi and not g.daily_mode:
 		_txt("NEW HIGH SCORE", cx, uy, int(24 * k), GOLD, 1)
 		uy += 34.0 * k
 	if g.last_rank >= 0:
@@ -270,6 +270,7 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 # ---------------------------------------------------------------- title screen menu
 const TITLE_ITEMS = [
 	{"id": "play", "label": "PLAY"},
+	{"id": "daily", "label": "DAILY RUN"},
 	{"id": "loadout", "label": "LOADOUT", "soon": true},
 	{"id": "unlocks", "label": "UNLOCKS", "soon": true},
 	{"id": "scores", "label": "HIGH SCORES"},
@@ -284,8 +285,8 @@ const TITLE_PAGES = {
 func title_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var w = 320.0 * k
-	var h = 46.0 * k
-	return Rect2((size.x - w) * 0.5, size.y * 0.38 + i * (h + 10.0 * k), w, h)
+	var h = 42.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.35 + i * (h + 8.0 * k), w, h)
 
 func title_at(pos: Vector2) -> int:
 	if g == null or g.state != "title" or g.title_page != "":
@@ -305,7 +306,7 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		var on = hov == i or (hov < 0 and g.title_sel == i)
 		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
 		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
-		var base = r.position.y + 31.0 * k
+		var base = r.position.y + 29.0 * k
 		_txt(item["label"], r.position.x + r.size.x * 0.5, base, int(22 * k), TEXT if on else GRAY, 1)
 		if item.get("soon", false):
 			_txt("SOON", r.position.x + r.size.x - 12.0 * k, base - 2.0 * k, int(12 * k), GRAY, 2)
@@ -578,7 +579,7 @@ func _draw() -> void:
 		if g.shots_fired > 0:
 			acc = int(round(100.0 * g.shots_hit / g.shots_fired))
 		_txt("ACCURACY %d%%   BEST COMBO x%d" % [acc, g.best_combo], cx, size.y * 0.52, int(20 * k), TEXT, 1)
-		if g.score > 0 and g.score >= g.hi:
+		if g.score > 0 and g.score >= g.hi and not g.daily_mode:
 			_txt("NEW HIGH SCORE", cx, size.y * 0.58, int(24 * k), GOLD, 1)
 		if g.state_t > 0.8 and blink:
 			_txt("CLICK TO PICK AN UPGRADE", cx, size.y * 0.7, int(28 * k), TEXT, 1)
@@ -620,7 +621,10 @@ func _draw_top_bar(k: float) -> void:
 		_heart((172.0 + i * 26.0) * k, 36.0 * k, 16.0 * k, RED if i < g.hearts else Color(0.23, 0.18, 0.17))
 
 	# round + progress
-	_txt("ROUND %d/%d  %s" % [g.round_n, g.MAX_ROUNDS, g.THEMES[g.theme_idx]["name"]], 300.0 * k, 17.0 * k, fs, GOLD)
+	var round_label = "ROUND %d/%d  %s" % [g.round_n, g.MAX_ROUNDS, g.THEMES[g.theme_idx]["name"]]
+	if g.daily_mode:
+		round_label += "  DAILY"
+	_txt(round_label, 300.0 * k, 17.0 * k, fs, GOLD)
 	for i in range(g.PER_ROUND):
 		var st = g.hits[i] if i < g.hits.size() else null
 		var col = TEXT

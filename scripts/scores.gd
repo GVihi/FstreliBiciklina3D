@@ -45,6 +45,8 @@ func save_scores() -> void:
 # Records the run that just ended. Sets g.last_rank to its place (0 = first), or -1 when it did not make the list.
 func submit_run() -> int:
 	g.last_rank = -1
+	if g.daily_mode:           # kept out of the normal Top 10; the daily scoreboard is a separate roadmap item
+		return -1
 	if g.score <= 0:
 		return -1
 	# an equal score ranks below the older one
