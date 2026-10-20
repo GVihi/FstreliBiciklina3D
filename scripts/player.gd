@@ -24,6 +24,7 @@ var gun_base = Vector3.ZERO     # the smoothed hip / aim position, before the re
 var kick_dip = 0.0              # the gun dips a little each time a shell goes in (metres, negative = down)
 var kick_dip_v = 0.0
 var shells_prev = -1
+var ammo_text = ""               # what the ammo label on the gun shows now, so the text is only set when it changes
 var flash_roll = 0.0            # the muzzle flash is turned a random amount for every shot
 var shell_out = false           # true once the shell of the current pump has been thrown out
 var pump_slide = 0.0            # 0 = slide forward, 1 = pulled all the way back
@@ -391,6 +392,21 @@ func update_gun(dt: float) -> void:
 		flash_node.visible = fl > 0.0 and gun_node.visible
 		flash_node.scale = Vector3.ONE * lerpf(0.5, 1.15, fl) * (1.0 - g.ads_t * 0.5)
 		flash_node.rotation = Vector3(0.0, 0.0, flash_roll)
+
+	# ammo count on the gun: cyan, amber when nearly empty, red when empty, INF with the rapid-fire pickup
+	var ammo_label = g.gun.get("ammo")
+	if ammo_label != null:
+		var unlimited = g.buffs["rapid"] > 0.0
+		var txt = "INF" if unlimited else str(g.shells)
+		if txt != ammo_text:
+			ammo_text = txt
+			ammo_label.text = txt
+		var ac = Color(0.22, 0.91, 1.0)
+		if not unlimited and g.shells <= 0:
+			ac = Color(1.0, 0.29, 0.23)
+		elif not unlimited and g.shells <= 2:
+			ac = Color(1.0, 0.69, 0.18)
+		ammo_label.modulate = ac
 
 	# shell ejection: when the pump pulls the slide back, the spent shell flies out of the right side
 	if not pumping:

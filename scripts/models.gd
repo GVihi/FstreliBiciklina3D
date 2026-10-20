@@ -215,6 +215,9 @@ const GUN_MODEL_PATH = "res://assets/models/dart_gun.glb"
 # stand 0.078 m above the root, the old procedural ones 0.062 m
 const GUN_MODEL_ADS_Y = -0.078
 const GUN_PROC_ADS_Y = -0.062
+# where the ammo number sits on the gun's left side (the side that faces you); the receiver plate / the receiver
+const GUN_MODEL_AMMO_POS = Vector3(-0.0418, -0.018, -0.10)
+const GUN_PROC_AMMO_POS = Vector3(-0.0365, 0.0, -0.05)
 
 static func build_gun() -> Dictionary:
 	if GUN_MODEL_GLB:
@@ -244,10 +247,10 @@ static func _build_gun_from_glb() -> Dictionary:
 	inst.free()
 	root.add_child(body)
 	root.add_child(pump)
-	return _finish_gun(root, pump, GUN_MODEL_ADS_Y)
+	return _finish_gun(root, pump, GUN_MODEL_ADS_Y, GUN_MODEL_AMMO_POS)
 
 # the muzzle point and the muzzle-flash light, shared by the modelled and the procedural gun
-static func _finish_gun(root: Node3D, pump: Node3D, ads_y: float) -> Dictionary:
+static func _finish_gun(root: Node3D, pump: Node3D, ads_y: float, ammo_pos: Vector3) -> Dictionary:
 	var muzzle = Node3D.new()
 	muzzle.position = Vector3(0, 0.03, -0.66)
 	root.add_child(muzzle)
@@ -258,10 +261,28 @@ static func _finish_gun(root: Node3D, pump: Node3D, ads_y: float) -> Dictionary:
 	muzzle.add_child(light)
 	var flash = _build_muzzle_flash()
 	muzzle.add_child(flash)
+	var ammo = _build_ammo_label(ammo_pos)
+	root.add_child(ammo)
 	for ch in root.get_children():
 		if ch is MeshInstance3D:
 			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return {"root": root, "pump": pump, "muzzle": muzzle, "light": light, "flash": flash, "ads_y": ads_y}
+	return {"root": root, "pump": pump, "muzzle": muzzle, "light": light, "flash": flash, "ammo": ammo, "ads_y": ads_y}
+
+# The ammo count on the gun: a small glowing number on the left side of the receiver, facing you (update_gun in player.gd
+# sets the text and colour). The HUD ammo display stays as it is.
+static func _build_ammo_label(pos: Vector3) -> Label3D:
+	var l = Label3D.new()
+	l.text = "6"
+	l.font_size = 64
+	l.pixel_size = 0.0006                  # 64 px = about 3.8 cm tall
+	l.position = pos
+	l.rotation = Vector3(0.0, -PI * 0.5, 0.0)   # the text faces -X, towards the player's side of the gun
+	l.shaded = false
+	l.double_sided = false
+	l.modulate = Color(0.22, 0.91, 1.0)
+	l.outline_size = 0
+	l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return l
 
 # The muzzle flash: a hot white core, an orange cone forward and a three-armed star across the barrel, all unshaded so it
 # glows in any light. It sits on the muzzle, is hidden until a shot (update_gun in player.gd) and is a child of the gun so
@@ -304,7 +325,7 @@ static func _build_gun_procedural() -> Dictionary:
 	grip.rotation.x = 0.25
 	var pump = Util.box(root, Vector3(0.06, 0.055, 0.16), Vector3(0, -0.05, -0.30), blue)  # animated slide
 
-	return _finish_gun(root, pump, GUN_PROC_ADS_Y)
+	return _finish_gun(root, pump, GUN_PROC_ADS_Y, GUN_PROC_AMMO_POS)
 
 # ------------------------------------------------------------------
 #  v4 additions: bosses, angry cyclist, phone, rubber, cheerleaders, pickups

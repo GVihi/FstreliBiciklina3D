@@ -61,7 +61,7 @@ func setup(main_cam: Camera3D, nodes: Array, world_env: Environment) -> void:
 
 # gives the gun's meshes to the viewmodel layer. Lights are left alone: they light by their own cull mask, not by layer.
 func _to_layer(n: Node) -> void:
-	if n is MeshInstance3D:
+	if n is GeometryInstance3D:                       # meshes and the 3D text on the gun
 		n.layers = LAYER_MASK
 	for ch in n.get_children():
 		_to_layer(ch)
