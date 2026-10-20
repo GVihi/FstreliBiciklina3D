@@ -304,7 +304,7 @@ func update_gun(dt: float) -> void:
 	rb.visible = g.melee and not menu
 	var pump: Node3D = g.gun["pump"]
 	var hip = Vector3(0.24, -0.22, -0.52)
-	var ads = Vector3(0.0, -0.062, -0.42)
+	var ads = Vector3(0.0, float(g.gun.get("ads_y", -0.062)), -0.42)   # the gun's own height: its sights sit on the screen centre
 	var p = hip.lerp(ads, g.ads_t)
 	p.y -= (0.05 if g.sprinting else 0.0)
 

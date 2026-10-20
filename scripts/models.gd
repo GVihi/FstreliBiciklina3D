@@ -211,6 +211,10 @@ static func pose_civ(d: Dictionary, ph: float, photo: bool, fast: bool) -> void:
 # ------------------------------------------------------------------
 const GUN_MODEL_GLB = true     # Milestone F2: the gun comes from assets/models/dart_gun.glb; false = the procedural gun below
 const GUN_MODEL_PATH = "res://assets/models/dart_gun.glb"
+# gun root height (m) that puts the tops of the sights on the middle of the screen while aiming; the modelled sights
+# stand 0.078 m above the root, the old procedural ones 0.062 m
+const GUN_MODEL_ADS_Y = -0.078
+const GUN_PROC_ADS_Y = -0.062
 
 static func build_gun() -> Dictionary:
 	if GUN_MODEL_GLB:
@@ -240,10 +244,10 @@ static func _build_gun_from_glb() -> Dictionary:
 	inst.free()
 	root.add_child(body)
 	root.add_child(pump)
-	return _finish_gun(root, pump)
+	return _finish_gun(root, pump, GUN_MODEL_ADS_Y)
 
 # the muzzle point and the muzzle-flash light, shared by the modelled and the procedural gun
-static func _finish_gun(root: Node3D, pump: Node3D) -> Dictionary:
+static func _finish_gun(root: Node3D, pump: Node3D, ads_y: float) -> Dictionary:
 	var muzzle = Node3D.new()
 	muzzle.position = Vector3(0, 0.03, -0.66)
 	root.add_child(muzzle)
@@ -255,7 +259,7 @@ static func _finish_gun(root: Node3D, pump: Node3D) -> Dictionary:
 	for ch in root.get_children():
 		if ch is MeshInstance3D:
 			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return {"root": root, "pump": pump, "muzzle": muzzle, "light": light}
+	return {"root": root, "pump": pump, "muzzle": muzzle, "light": light, "ads_y": ads_y}
 
 static func _build_gun_procedural() -> Dictionary:
 	var root = Node3D.new()
@@ -277,7 +281,7 @@ static func _build_gun_procedural() -> Dictionary:
 	grip.rotation.x = 0.25
 	var pump = Util.box(root, Vector3(0.06, 0.055, 0.16), Vector3(0, -0.05, -0.30), blue)  # animated slide
 
-	return _finish_gun(root, pump)
+	return _finish_gun(root, pump, GUN_PROC_ADS_Y)
 
 # ------------------------------------------------------------------
 #  v4 additions: bosses, angry cyclist, phone, rubber, cheerleaders, pickups

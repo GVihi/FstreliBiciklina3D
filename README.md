@@ -270,7 +270,7 @@ Mostly vibe coded Godot game
 - [ ] Idle sway and walk / sprint bob (written in `update_gun` in `scripts/player.gd`, tuning constants at the top of that file; waiting for your in-game check: breathing sway, walk and sprint bob, and a small lag when you turn; all of it fades out while aiming)
 - [ ] Shoot and recoil animation (springy kick-back, muzzle rise and a little roll that overshoot and settle, rapid fire stacks up to a limit; `update_kick` in `scripts/player.gd`, tuning constants at the top of that file; waiting for your in-game check)
 - [ ] Pump / reload animation (slide pulls back fast and pushes forward slower, the gun jolts a little with each pump; while loading it tilts towards you, the slide rests part way open and each shell nudges the gun down; `pump_curve` and `update_gun` in `scripts/player.gd`, tuning constants at the top; waiting for your in-game check)
-- [ ] Aim-down-sights pose and crosshair behaviour
+- [ ] Aim-down-sights pose and crosshair behaviour (the gun's own height puts the tops of the modelled sights on the middle of the screen, `ads_y` in `models.gd`; the crosshair shrinks and fades to nearly a dot while aiming, turns red when out of darts and dims while loading, `_draw_crosshair` in `scripts/hud.gd`; waiting for your in-game check)
 - [ ] Dart and shell models
 - [ ] Muzzle flash and shell ejection
 - [ ] (Optional) Ammo count shown on the gun itself
