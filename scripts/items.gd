@@ -1,6 +1,6 @@
 extends RefCounted
 # Loads the shop item table (heals, packs and upgrade tiers) from res://data/items.json.
-# Perks and duos are still in content.gd. Item *effects* (what a tier changes) stay in shop.gd.
+# Perks and duos are in data/perks.json (perks.gd). Item *effects* (what a tier changes) stay in shop.gd.
 # Format and rules: data/README.md. JSON numbers arrive as floats, so they are cast to the types the game code expects.
 
 const PATH = "res://data/items.json"
@@ -44,7 +44,7 @@ static func _clean(raw, by_id: Dictionary) -> Dictionary:
 			push_error("items: %s needs a number \"%s\"" % [raw["id"], key])
 			return {}
 	if not KINDS.has(raw["kind"]):
-		push_error("items: %s has unknown kind \"%s\" (perks are not in this table yet)" % [raw["id"], raw["kind"]])
+		push_error("items: %s has unknown kind \"%s\" (perks live in data/perks.json)" % [raw["id"], raw["kind"]])
 		return {}
 	if by_id.has(raw["id"]):
 		push_error("items: duplicate id \"%s\"" % raw["id"])

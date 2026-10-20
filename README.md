@@ -413,7 +413,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 ## Data-Driven Content
 
 - [x] Move items into data tables (shop items, packs and upgrade tiers are in `data/items.json`; see `data/README.md`)
-- [ ] Move perks into data tables
+- [x] Move perks into data tables (perks and duos are in `data/perks.json`; see `data/README.md`)
 - [ ] Move weapons into data tables
 
 ## Future-Proofing
