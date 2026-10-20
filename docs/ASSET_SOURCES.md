@@ -50,7 +50,7 @@ The art direction is chunky low-poly, so these fit well and can be edited:
 | Mixamo | Free with an Adobe account; check its terms | Humanoid rigging and animation; its terms restrict redistributing the raw animation files |
 
 ## Rules for this project
-1. One `CREDITS.md` entry per third-party file or pack, written when the file is added.
+1. One [`CREDITS.md`](../CREDITS.md) entry per third-party file or pack, written when the file is added (the entry template is in that file).
 2. Keep the original download (zip or page link) noted, in case a licence needs proving later.
 3. Never mix an unclear-licence file into the project "for now".
 4. The in-game credits screen (Milestone E) is generated from `CREDITS.md`.
