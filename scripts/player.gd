@@ -21,6 +21,11 @@ var kick_roll = 0.0
 var kick_roll_v = 0.0
 var shots_seen = 0
 var gun_base = Vector3.ZERO     # the smoothed hip / aim position, before the recoil is added
+var kick_dip = 0.0              # the gun dips a little each time a shell goes in (metres, negative = down)
+var kick_dip_v = 0.0
+var shells_prev = -1
+var pump_slide = 0.0            # 0 = slide forward, 1 = pulled all the way back
+var load_blend = 0.0            # 0 = normal hold, 1 = tilted for loading shells
 
 # Gun motion tuning (Milestone F2). Everything is in metres / radians and fades out while aiming down sights.
 const IDLE_SWAY = 0.0035        # breathing: how far the gun drifts up/down while standing still
@@ -37,6 +42,14 @@ const KICK_RISE_SPEED = 3.6     # recoil: how hard it flips the muzzle up (rad/s
 const KICK_ROLL_SPEED = 0.7     # recoil: random roll, to either side (rad/s)
 const KICK_STIFFNESS = 320.0    # spring strength: higher = snappier return
 const KICK_DAMPING = 24.0       # spring damping: lower = more wobble after the kick
+const PUMP_TRAVEL = 0.12        # pump: how far the slide travels (metres)
+const PUMP_PULL = 0.4           # pump: the slide spends this share of the pump time going back (a fast pull, a slower push)
+const PUMP_JOLT_PITCH = 0.05    # pump: the muzzle dips this much (rad) when the slide is back
+const PUMP_JOLT_BACK = 0.012    # pump: and the gun is pulled this far towards you (metres)
+const LOAD_OPEN = 0.25          # reload: how far back the slide rests while shells go in (0 to 1)
+const LOAD_SHIFT = Vector3(-0.035, -0.04, 0.02)   # reload: where the gun moves to
+const LOAD_TILT = Vector2(0.22, 0.5)              # reload: pitch up and roll (rad), so the loading port faces you
+const SHELL_DIP_SPEED = 0.45    # reload: how hard each shell nudges the gun down (m/s, about 1 cm)
 const KICK_BACK_MAX = 0.09      # limits, so rapid fire stacks up but never runs away
 const KICK_RISE_MAX = 0.26
 const KICK_ADS_MUL = 0.5        # recoil is this much smaller while aiming down sights (the view carries it instead)
@@ -266,10 +279,22 @@ func update_kick(dt: float) -> void:
 		kick_rise += kick_rise_v * h
 		kick_roll_v += (-KICK_STIFFNESS * kick_roll - KICK_DAMPING * kick_roll_v) * h
 		kick_roll += kick_roll_v * h
+		kick_dip_v += (-KICK_STIFFNESS * kick_dip - KICK_DAMPING * kick_dip_v) * h
+		kick_dip += kick_dip_v * h
 	kick_back = clampf(kick_back, -KICK_BACK_MAX, KICK_BACK_MAX)
 	kick_rise = clampf(kick_rise, -KICK_RISE_MAX, KICK_RISE_MAX)
 	kick_roll = clampf(kick_roll, -0.12, 0.12)
+	kick_dip = clampf(kick_dip, -0.03, 0.03)
 	# kick_back is a push towards +Z (towards the player), kick_rise tips the muzzle up
+
+# the slide over one pump, k from 0 to 1: a fast pull back (eased out), then a slower push forward (eased in and out)
+func pump_curve(k: float) -> float:
+	k = clampf(k, 0.0, 1.0)
+	if k < PUMP_PULL:
+		var t = k / PUMP_PULL
+		return 1.0 - (1.0 - t) * (1.0 - t)
+	var u = (k - PUMP_PULL) / (1.0 - PUMP_PULL)
+	return 1.0 - smoothstep(0.0, 1.0, u)
 
 func update_gun(dt: float) -> void:
 	var gun_node: Node3D = g.gun["root"]
@@ -281,7 +306,30 @@ func update_gun(dt: float) -> void:
 	var hip = Vector3(0.24, -0.22, -0.52)
 	var ads = Vector3(0.0, -0.062, -0.42)
 	var p = hip.lerp(ads, g.ads_t)
-	p.y -= (0.05 if g.sprinting else 0.0) + (0.04 if g.loading else 0.0)
+	p.y -= (0.05 if g.sprinting else 0.0)
+
+	# pump and reload: the slide curve, a small jolt of the whole gun, and the tilt while shells go in
+	var pumping = g.pump_t > 0.0
+	var slide_target = 0.0
+	if pumping:
+		slide_target = pump_curve(1.0 - g.pump_t / maxf(g.pump_dur, 0.01))
+		pump_slide = slide_target                          # follows the pump timing exactly
+	else:
+		if g.loading:
+			slide_target = LOAD_OPEN
+		pump_slide = lerpf(pump_slide, slide_target, minf(1.0, dt * 20.0))
+	var reloading = g.loading and not pumping
+	load_blend = move_toward(load_blend, 1.0 if reloading else 0.0, dt * 7.0)
+	var lb = smoothstep(0.0, 1.0, load_blend) * (1.0 - g.ads_t * 0.6)
+	p += LOAD_SHIFT * lb
+	var jolt = pump_slide if pumping else 0.0
+	jolt *= 1.0 - g.ads_t * 0.5
+	p.z += jolt * PUMP_JOLT_BACK
+	if shells_prev < 0:
+		shells_prev = g.shells
+	if g.shells > shells_prev and g.loading:
+		kick_dip_v -= SHELL_DIP_SPEED
+	shells_prev = g.shells
 
 	# idle sway (breathing), walk / sprint bob and look sway. They ease out while aiming down sights.
 	var calm = 1.0 - g.ads_t * ADS_CALM
@@ -316,17 +364,12 @@ func update_gun(dt: float) -> void:
 	var tilt = step_up * 0.018 * bob_mul * moving * calm
 	update_kick(dt)
 	gun_base = gun_base.lerp(p, minf(1.0, dt * 18.0))
-	gun_node.position = gun_base + Vector3(0.0, 0.0, kick_back)
+	gun_node.position = gun_base + Vector3(0.0, kick_dip, kick_back)
 	gun_node.rotation = Vector3(
-		kick_rise + (0.18 if g.sprinting else 0.0) + tilt + sway_pitch * calm,
+		kick_rise + (0.18 if g.sprinting else 0.0) + tilt + sway_pitch * calm + LOAD_TILT.x * lb - jolt * PUMP_JOLT_PITCH,
 		(1.0 - g.ads_t) * 0.06 + sway_yaw * calm,
-		roll + kick_roll)
-	var phase = 0.0
-	if g.pump_t > 0.0:
-		phase = sin(PI * (1.0 - g.pump_t / maxf(g.pump_dur, 0.01)))
-	if g.loading:
-		phase = maxf(phase, 0.5 * (0.5 + 0.5 * sin(g.time * 24.0)))
-	pump.position = Vector3(0.0, pump.position.y, -0.30 + 0.12 * phase)
+		roll + kick_roll + LOAD_TILT.y * lb)
+	pump.position = Vector3(0.0, pump.position.y, -0.30 + PUMP_TRAVEL * pump_slide)
 	g.gun["light"].light_energy = 3.0 * (g.flash / 0.07) if g.flash > 0.0 else 0.0
 	if g.viewmodel != null:
 		g.viewmodel.update(g.ads_t)
