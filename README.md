@@ -272,7 +272,7 @@ Mostly vibe coded Godot game
 - [ ] Pump / reload animation (slide pulls back fast and pushes forward slower, the gun jolts a little with each pump; while loading it tilts towards you, the slide rests part way open and each shell nudges the gun down; `pump_curve` and `update_gun` in `scripts/player.gd`, tuning constants at the top; waiting for your in-game check)
 - [ ] Aim-down-sights pose and crosshair behaviour (the gun's own height puts the tops of the modelled sights on the middle of the screen, `ads_y` in `models.gd`; the crosshair shrinks and fades to nearly a dot while aiming, turns red when out of darts and dims while loading, `_draw_crosshair` in `scripts/hud.gd`; waiting for your in-game check)
 - [ ] Dart and shell models (`tools/models/models/dart.py` and `shell.py` -> `assets/models/dart.glb` and `shell.glb`, 312 and 268 tris; darts in flight now use the dart model, `DART_MODEL_GLB = false` in `combat.gd` brings back the old box and ball; the shell model is used by the shell ejection item; waiting for your in-game check)
-- [ ] Muzzle flash and shell ejection
+- [ ] Muzzle flash and shell ejection (a glowing flash on the muzzle for each shot, smaller while aiming, `_build_muzzle_flash` in `models.gd`; each pump throws a shell out of the right side that tumbles, lands and shrinks away, `eject_shell` in `player.gd` and `spawn_shell` in `effects.gd`; uses the shell model; waiting for your in-game check)
 - [ ] (Optional) Ammo count shown on the gun itself
 
 ### F3. Melee (giant gummy worm)

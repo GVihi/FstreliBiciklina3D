@@ -256,10 +256,33 @@ static func _finish_gun(root: Node3D, pump: Node3D, ads_y: float) -> Dictionary:
 	light.light_color = Color(1.0, 0.8, 0.5)
 	light.light_energy = 0.0
 	muzzle.add_child(light)
+	var flash = _build_muzzle_flash()
+	muzzle.add_child(flash)
 	for ch in root.get_children():
 		if ch is MeshInstance3D:
 			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return {"root": root, "pump": pump, "muzzle": muzzle, "light": light, "ads_y": ads_y}
+	return {"root": root, "pump": pump, "muzzle": muzzle, "light": light, "flash": flash, "ads_y": ads_y}
+
+# The muzzle flash: a hot white core, an orange cone forward and a three-armed star across the barrel, all unshaded so it
+# glows in any light. It sits on the muzzle, is hidden until a shot (update_gun in player.gd) and is a child of the gun so
+# it goes to the viewmodel layer with the rest of the gun.
+static func _build_muzzle_flash() -> Node3D:
+	var f = Node3D.new()
+	var hot = Util.unshaded(Color(1.0, 0.96, 0.75))
+	var warm = Util.unshaded(Color(1.0, 0.62, 0.16))
+	Util.sphere(f, 0.035, Vector3.ZERO, hot)
+	var cone = Util.cyl(f, 0.0, 0.03, 0.30, Vector3(0, 0, -0.15), warm)     # tip towards -Z, away from the gun
+	cone.rotation.x = -PI * 0.5
+	var core = Util.cyl(f, 0.0, 0.016, 0.20, Vector3(0, 0, -0.10), hot)
+	core.rotation.x = -PI * 0.5
+	for i in range(3):
+		var spike = Util.box(f, Vector3(0.22, 0.012, 0.012), Vector3(0, 0, -0.02), warm)
+		spike.rotation.z = float(i) * PI / 3.0
+	for ch in f.get_children():
+		if ch is MeshInstance3D:
+			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	f.visible = false
+	return f
 
 static func _build_gun_procedural() -> Dictionary:
 	var root = Node3D.new()

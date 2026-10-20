@@ -24,6 +24,8 @@ var gun_base = Vector3.ZERO     # the smoothed hip / aim position, before the re
 var kick_dip = 0.0              # the gun dips a little each time a shell goes in (metres, negative = down)
 var kick_dip_v = 0.0
 var shells_prev = -1
+var flash_roll = 0.0            # the muzzle flash is turned a random amount for every shot
+var shell_out = false           # true once the shell of the current pump has been thrown out
 var pump_slide = 0.0            # 0 = slide forward, 1 = pulled all the way back
 var load_blend = 0.0            # 0 = normal hold, 1 = tilted for loading shells
 
@@ -50,6 +52,8 @@ const LOAD_OPEN = 0.25          # reload: how far back the slide rests while she
 const LOAD_SHIFT = Vector3(-0.035, -0.04, 0.02)   # reload: where the gun moves to
 const LOAD_TILT = Vector2(0.22, 0.5)              # reload: pitch up and roll (rad), so the loading port faces you
 const SHELL_DIP_SPEED = 0.45    # reload: how hard each shell nudges the gun down (m/s, about 1 cm)
+const SHELL_PORT = Vector3(0.0405, 0.03, 0.0)       # the ejection port on the gun's right side
+const SHELL_EJECT_AT = 0.7      # a shell flies out when the pumped slide is this far back (0 to 1)
 const KICK_BACK_MAX = 0.09      # limits, so rapid fire stacks up but never runs away
 const KICK_RISE_MAX = 0.26
 const KICK_ADS_MUL = 0.5        # recoil is this much smaller while aiming down sights (the view carries it instead)
@@ -267,6 +271,7 @@ func update_kick(dt: float) -> void:
 			kick_back_v += KICK_BACK_SPEED * mul
 			kick_rise_v += KICK_RISE_SPEED * mul
 			kick_roll_v += randf_range(-KICK_ROLL_SPEED, KICK_ROLL_SPEED) * mul
+			flash_roll = randf() * TAU
 		shots_seen = g.shots_fired
 	var steps = clampi(ceili(dt / 0.008), 0, 8)           # small steps keep the stiff spring stable on a slow frame
 	if steps == 0:
@@ -286,6 +291,13 @@ func update_kick(dt: float) -> void:
 	kick_roll = clampf(kick_roll, -0.12, 0.12)
 	kick_dip = clampf(kick_dip, -0.03, 0.03)
 	# kick_back is a push towards +Z (towards the player), kick_rise tips the muzzle up
+
+# throws one shell out of the ejection port: out to the right, up and a little back, plus some of your own speed
+func eject_shell(gun_node: Node3D) -> void:
+	var basis = g.cam.global_transform.basis
+	var vel = basis.x * randf_range(1.5, 2.2) + basis.y * randf_range(1.0, 1.7) + basis.z * randf_range(0.2, 0.8)
+	vel += g.pvel * 0.6
+	g.fx_sys.spawn_shell(gun_node.to_global(SHELL_PORT), vel)
 
 # the slide over one pump, k from 0 to 1: a fast pull back (eased out), then a slower push forward (eased in and out)
 func pump_curve(k: float) -> float:
@@ -371,6 +383,21 @@ func update_gun(dt: float) -> void:
 		roll + kick_roll + LOAD_TILT.y * lb)
 	pump.position = Vector3(0.0, pump.position.y, -0.30 + PUMP_TRAVEL * pump_slide)
 	g.gun["light"].light_energy = 3.0 * (g.flash / 0.07) if g.flash > 0.0 else 0.0
+
+	# muzzle flash: bright for the first moments after a shot, smaller while aiming so it does not cover the sights
+	var flash_node = g.gun.get("flash")
+	if flash_node != null:
+		var fl = clampf(g.flash / 0.07, 0.0, 1.0) if g.flash > 0.0 else 0.0
+		flash_node.visible = fl > 0.0 and gun_node.visible
+		flash_node.scale = Vector3.ONE * lerpf(0.5, 1.15, fl) * (1.0 - g.ads_t * 0.5)
+		flash_node.rotation = Vector3(0.0, 0.0, flash_roll)
+
+	# shell ejection: when the pump pulls the slide back, the spent shell flies out of the right side
+	if not pumping:
+		shell_out = false
+	elif not shell_out and pump_slide >= SHELL_EJECT_AT and gun_node.visible:
+		shell_out = true
+		eject_shell(gun_node)
 	if g.viewmodel != null:
 		g.viewmodel.update(g.ads_t)
 
