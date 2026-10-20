@@ -247,13 +247,15 @@ Mostly vibe coded Godot game
 ## Graphics
 
 ### F1. Foundation (before any new asset)
-- [ ] Review and answer the open questions in `docs/ART_DIRECTION.md` (minimum PC spec, who makes models, reference images, grit level)
-- [ ] Record the "before" baseline: screenshots of every screen and theme, plus frame time
-- [ ] Set up the asset pipeline: `assets/` folders, naming rules, Blender to glTF export settings, import presets, 1 unit = 1 metre
+- [x] Answer the first open questions (minimum spec, who makes models, references, bright look): done, see `docs/ART_DIRECTION.md`
+- [ ] Answer the remaining questions in section 9 of `docs/ART_DIRECTION.md` (UI language, ammo on the weapon, rarity colours, hazard-stripe motif, logo)
+- [ ] Record the "before" baseline: screenshots of every screen and theme, plus frame time on the minimum-spec machine (needs you: Godot cannot run in my working environment)
+- [ ] Set up the model pipeline: scripted Blender in `tools/models/`, output to `assets/models/*.glb` with a turntable preview image per model, naming rules, Godot import presets, 1 unit = 1 metre
+- [ ] Build the shared style kit: bevelled primitive helpers, the colour palette and material set, a test model to check the look in the game
 - [ ] Create `CREDITS.md` and the rule that every third-party asset gets an entry when it is added
 - [ ] Switch off the outline pass and flat unlit toon materials behind a flag; simple lit low-poly materials become the default
-- [ ] Lighting baseline for DAY: strong sun and deep shadow, simple sky, tone mapping, light haze, glow on gameplay accents
-- [ ] Lighting for GOLDEN HOUR, DUSK and NIGHT (coloured lamp pools and lit windows included, arena stays readable)
+- [ ] Lighting baseline for DAY: bright sun with soft readable shadows, light sky, tone mapping, glow on gameplay accents
+- [ ] Lighting for GOLDEN HOUR, DUSK and NIGHT (warm lamp pools and lit windows, medium-dark sky, nothing hides in the dark)
 - [ ] Test the Compatibility renderer against Forward+ on old hardware and decide which to ship
 - [ ] Anti-aliasing choice (MSAA or cheaper FXAA) and re-define the F9 quality presets for the new look
 
@@ -266,6 +268,7 @@ Mostly vibe coded Godot game
 - [ ] Aim-down-sights pose and crosshair behaviour
 - [ ] Dart and shell models
 - [ ] Muzzle flash and shell ejection
+- [ ] Ammo count shown on the gun itself
 
 ### F3. Melee (giant gummy worm)
 - [ ] Chunky worm model with a glossy gummy material
@@ -322,13 +325,13 @@ Mostly vibe coded Godot game
 - [ ] Confetti (perfect round, victory)
 
 ### F11. UI and menus
-- [ ] UI theme: font, colours, icons and panel style
+- [ ] UI theme: condensed bold font, dark translucent panels with amber accents, icons, key-hint chips (see section 4 of the art direction)
 - [ ] HUD top bar (hearts, score, round, round progress)
 - [ ] HUD bottom (ammo, dash, style rank), crosshair and hit marker
 - [ ] Threat arrows, radar and floating popups
-- [ ] Upgrade and shop cards
+- [ ] Upgrade and shop cards (header, icon, rarity tag, reroll button, key hints)
 - [ ] Title screen with a live 3D background and logo
-- [ ] Pause menu and settings panel
+- [ ] Pause menu and settings panel (amber buttons, hazard-stripe footer)
 - [ ] Run summary and leaderboard screens
 - [ ] Ultrawide and resolution scaling check
 
