@@ -80,7 +80,7 @@ func enter_upgrade() -> void:
 	for u in g.UPGRADES:
 		if upgrade_ok(u["id"]):
 			pool.append(u)
-	pool.shuffle()
+	g.offer_shuffle(pool, "upgrade")
 	g.offers = pool.slice(0, 3)
 	g.state = "upgrade"
 	g.state_t = 0.0
@@ -195,7 +195,7 @@ func build_shop() -> void:
 				c["tag"] = upgrade_stat(it["id"])
 			c["label"] = {"perk": "PERK", "pack": "NEXT ROUND", "tier": "UPGRADE", "heal": ""}[it["kind"]]
 			pool.append(c)
-	pool.shuffle()
+	g.offer_shuffle(pool, "shop%d" % g.shop_rerolls)
 	g.shop_items = []
 	# 1. something affordable: a heal if you are hurt, otherwise a pack or one of the plain upgrades
 	var cheap = null
@@ -229,7 +229,7 @@ func build_shop() -> void:
 	for c in pool:
 		if g.shop_items.size() < 4 and not g.shop_items.has(c):
 			g.shop_items.append(c)
-	g.shop_items.shuffle()
+	g.offer_shuffle(g.shop_items, "shopfinal%d" % g.shop_rerolls)
 
 func reroll() -> void:
 	if g.state != "shop":

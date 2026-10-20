@@ -19,8 +19,10 @@ Mostly vibe coded Godot game
 - [ ] Target 20–30 minute run duration
   - [x] Add a run timer (run summary + console log per round) to measure it
   - [ ] Tune round length once real run times are known
-- [x] Add final boss encounter
+- [x] Add final boss encounter (reuses the golden president model)
+  - [ ] Give the final boss its own model, attacks and arena moment
 - [ ] Implement permanent unlocks between runs
+- [ ] Balance pass for the 10-round difficulty curve (rider speed, boss health, final boss health)
 
 ---
 
@@ -30,8 +32,8 @@ Mostly vibe coded Godot game
 
 - [x] Create title screen
   - [x] Play button
-  - [x] Loadout button
-  - [x] Unlocks button
+  - [x] Loadout button (opens a "coming soon" page until loadouts exist)
+  - [x] Unlocks button (opens a "coming soon" page until unlocks exist)
   - [x] High Scores button
   - [x] Settings button
   - [x] Quit button
@@ -43,20 +45,33 @@ Mostly vibe coded Godot game
   - [x] Display kills
   - [x] Display accuracy
   - [x] Display best style rank
-  - [x] Display newly unlocked items
+  - [x] Display newly unlocked items (shows "nothing this run" until the unlock system exists)
 
 - [x] Connect existing settings system to menus
+
+### Menu follow-ups (found while checking the list)
+
+- [ ] Keyboard and gamepad navigation for the settings panel (sliders are mouse-only today)
+- [ ] Controls / "How to play" page (the long controls text was removed from the title screen)
+- [ ] Pause automatically when the game window loses focus
+- [ ] Confirm before Restart Run / Quit to Title (a run is lost with one click)
+- [ ] Optional: "Continue" button to resume an interrupted run
 
 ## High Scores
 
 - [x] Implement local Top 10 leaderboard
 - [x] Add player name entry
-- [ ] Support separate leaderboards per difficulty
+- [ ] Support separate leaderboards per difficulty (needs a difficulty system first: build it together with Heat in Milestone B, then split the boards by Heat level)
+- [ ] Show run time on the leaderboard (it is already saved with each entry)
+- [ ] Reset leaderboard option (F8 still only resets the old single high score)
+- [ ] Use the leaderboard's best entry for the HI score shown in the HUD, and retire `hi.dat`
 
 ### Daily Seed Mode
 
-- [ ] Generate a daily seed
-- [ ] Use same seed for all players on that day
+- [x] Generate a daily seed
+- [x] Use same seed for all players on that day
+  - [x] Separate "Daily Run" entry on the title menu; normal Play stays fully random
+  - [x] Seed only the run layout (rider mix, shop and upgrade offers, starting boss and lighting theme), not moment-to-moment combat
 - [ ] Add dedicated daily-run scoreboard
 
 ### Deferred
@@ -197,11 +212,6 @@ Mostly vibe coded Godot game
 
 # Milestone E: Polish & Accessibility
 
-## Graphics & Sound Overhaul
-
-- [ ] Complete and hard graphics overhaul
-- [ ] Sound overhaul
-
 ## Dynamic Presentation
 
 - [ ] Dynamic music system
@@ -218,12 +228,177 @@ Mostly vibe coded Godot game
 - [ ] Colourblind-safe telegraphs
 - [ ] English localization
 - [ ] Slovenian localization review
+- [ ] Screen shake and screen flash intensity options (reduced-motion / photosensitivity)
 
 ## Release Readiness
 
 - [ ] Create app icon
-- [ ] Add credits screen
-- [ ] Configure Windows export presets
+- [ ] Add credits screen (include audio, font and voice-recording credits)
+- [ ] Configure Windows export presets (the current export path points at a personal Desktop folder: make it relative)
+- [ ] Show the game version on the title screen
+- [ ] Bring `README.txt` up to date (it still describes v10 controls and the old click-to-start / click-to-resume flow)
+
+---
+
+# Milestone F: Graphics & Sound Overhaul
+
+> Complete, hard overhaul of how the game looks and sounds. The current toon look (outlines, flat unlit colours, smooth primitive models) is removed and replaced by a chunky, rugged low-poly style with strong light and dark contrast and glowing accents, inspired by the Deep Rock franchise and built to run on low-end PCs. Direction and rules: [`docs/ART_DIRECTION.md`](docs/ART_DIRECTION.md). Free asset sources and licences: [`docs/ASSET_SOURCES.md`](docs/ASSET_SOURCES.md).
+>
+> **3D models: Claude is the 3D modeler.** Models are written as Python scripts for **Blender used as a Python module (`bpy`)**, kept in `tools/models/`, and exported as `.glb` into `assets/models/`. Claude cannot run Godot in its working environment, so every model step ends with an in-game check by the owner.
+>
+> Work top to bottom, one checkbox at a time. Each step is done when the old version of that thing is fully replaced, it passes the readability rules in the art direction, frame time is within budget, and there is a before/after screenshot.
+
+## Graphics
+
+### F1. Foundation (before any new asset)
+- [x] Answer the first open questions (minimum spec, who makes models, references, bright look): done, see `docs/ART_DIRECTION.md`
+- [x] Answer the remaining questions (UI language, ammo on the weapon, rarity colours, hazard-stripe motif, logo): done, see section 9 of `docs/ART_DIRECTION.md`
+- [ ] Record the "before" baseline: screenshots of every screen and theme, plus frame time on the minimum-spec machine (needs you: Godot cannot run in my working environment)
+- [ ] Set up the model pipeline (Claude as modeler, Blender as a Python module `bpy`): scripts in `tools/models/`, output to `assets/models/*.glb` with a turntable preview image per model, naming rules, Godot import presets, 1 unit = 1 metre
+- [ ] Build the shared style kit: bevelled primitive helpers, the colour palette and material set, a test model to check the look in the game
+- [ ] Create `CREDITS.md` and the rule that every third-party asset gets an entry when it is added
+- [ ] Switch off the outline pass and flat unlit toon materials behind a flag; simple lit low-poly materials become the default
+- [ ] Lighting baseline for DAY: bright sun with soft readable shadows, light sky, tone mapping, glow on gameplay accents
+- [ ] Lighting for GOLDEN HOUR, DUSK and NIGHT (warm lamp pools and lit windows, medium-dark sky, nothing hides in the dark)
+- [ ] Test the Compatibility renderer against Forward+ on old hardware and decide which to ship
+- [ ] Anti-aliasing choice (MSAA or cheaper FXAA) and re-define the F9 quality presets for the new look
+
+### F2. Dart gun (first person)
+- [ ] Viewmodel setup: separate camera and FOV so the gun never clips into walls
+- [ ] Chunky low-poly gun model with a hand-painted texture
+- [ ] Idle sway and walk / sprint bob
+- [ ] Shoot and recoil animation
+- [ ] Pump / reload animation
+- [ ] Aim-down-sights pose and crosshair behaviour
+- [ ] Dart and shell models
+- [ ] Muzzle flash and shell ejection
+- [ ] (Optional) Ammo count shown on the gun itself
+
+### F3. Melee (giant gummy worm)
+- [ ] Chunky worm model with a glossy gummy material
+- [ ] Swing animation
+- [ ] Hit, deflect and phone-return feedback
+
+### F4. Riders and bikes
+- [ ] Base rider and bike model ("pro") with a rig
+- [ ] Pedal, lean and steer animation cycle
+- [ ] Sprinter variant
+- [ ] Courier variant
+- [ ] Armoured ("tough") variant, including the dismount and charge animation
+- [ ] Variation kit: helmets, clothes and bike colours (also the base for rider skins in Milestone B)
+- [ ] Hit reactions, crash and the parts that fall off
+- [ ] Readability check of all riders against all four themes
+
+### F5. Thrown phones
+- [ ] Desk phone model
+- [ ] Throw, flight trail and smash effect
+
+### F6. Pedestrians and cheerleaders
+- [ ] Pedestrian models (several body types and outfits) and walk cycle
+- [ ] Pedestrian hit reaction
+- [ ] Pedestrian vs rider readability check, including NIGHT
+- [ ] Cheerleader models and animations
+
+### F7. Bosses
+- [ ] Rogue lawnmower (model, animation, attack telegraphs)
+- [ ] Mesh wifi adapter (model, hover, animation, attack telegraphs)
+- [ ] Minister (model, animation)
+- [ ] Golden president / final boss (model, animation, intro moment)
+- [ ] Angry cyclist
+- [ ] Boss health bar, weak-spot marker and defeat effects
+
+### F8. Pickups
+- [ ] Pickup models or icons for rapid fire, fat darts, slow motion, shield, extra life and cash
+- [ ] Glow, pickup and magnet effects
+
+### F9. World
+- [ ] Road, lane markings and curbs (stylised asphalt and concrete)
+- [ ] Central fountain
+- [ ] Buildings (chunky facade kit with windows that light up at dusk and night)
+- [ ] Tunnel
+- [ ] Props: lamps, benches, trees, bins, signs
+- [ ] Ambient life: passing cars, birds and other background motion
+- [ ] Weather and atmosphere touches per theme
+
+### F10. Effects
+- [ ] Dart impact and hit sparks
+- [ ] Dust, debris and rider crash effects
+- [ ] Boss telegraphs (lane strip, slam circle, volley warning) as bold glowing overlays or decals
+- [ ] Hype, shield and slow-motion screen effects
+- [ ] Damage vignette and screen response
+- [ ] Confetti (perfect round, victory)
+
+### F11. UI and menus
+- [ ] UI theme: condensed bold font, dark translucent panels with amber accents, icons, key-hint chips (see section 4 of the art direction)
+- [ ] HUD top bar (hearts, score, round, round progress)
+- [ ] HUD bottom (ammo, dash, style rank), crosshair and hit marker
+- [ ] Threat arrows, radar and floating popups
+- [ ] Upgrade and shop cards (header, icon, reroll button, key hints; rarity tags are optional and can come later)
+- [ ] Title screen with a live 3D background and a text-only logo
+- [ ] Pause menu and settings panel (amber buttons, hazard-stripe footer)
+- [ ] Run summary and leaderboard screens
+- [ ] Ultrawide and resolution scaling check
+
+### F12. Final pass
+- [ ] Remove `toon.gd`, the outline option and all leftover cartoon assets and code
+- [ ] Performance pass on the minimum-spec machine (instancing, shadow and light counts, particle overdraw)
+- [ ] Final colour grade and consistency review of every screen and theme
+- [ ] Before / after comparison for the repo
+
+## Sound
+
+Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/ASSET_SOURCES.md). Plan: use professional free libraries for effects and ambience, keep your own voice recordings, and keep the existing synthesised sounds only until each is replaced.
+
+### S1. Foundation
+- [ ] Set up the audio pipeline: folders, naming, one loudness target, and a `CREDITS.md` entry for every file
+- [ ] Download the sources worth mining (the latest Sonniss GDC bundle, Freesound CC0 / CC-BY searches, Kenney) and build a shortlist per sound category
+- [ ] Bus layout: Master with Music, SFX, Voice, Ambience and UI buses; voice ducking
+- [ ] One volume slider per bus in Settings (only one master slider today)
+
+### S2. Weapons and combat
+- [ ] Dart gun: shot, pump / reload, empty click, shell drops
+- [ ] Dart impact on rider, pedestrian, boss armour and weak spot
+- [ ] Melee: swing, hit and deflect
+- [ ] Phone: throw whoosh, flight, smash
+
+### S3. Riders and world
+- [ ] Bike and rider loop (with pitch and volume by speed)
+- [ ] Footsteps, landing, slide and dash
+- [ ] Crashes and falling parts
+- [ ] Ambience loops per theme (day, golden hour, dusk, night) and the tunnel
+- [ ] Passing cars, birds, sirens and crowd cheer
+
+### S4. Bosses
+- [ ] Lawnmower and wifi loops, intro and hit sounds
+- [ ] Minister and golden president sounds
+- [ ] Boss defeat and final boss defeat stingers
+
+### S5. UI and flow
+- [ ] Menu sounds: hover, confirm, back, error
+- [ ] Pickup, hype, shield and slow-motion sounds
+- [ ] Stingers: round start, round clear, game over, run complete
+- [ ] Leaderboard name entry sounds
+
+### S6. Voice lines
+- [ ] Normalise all 79 lines to one loudness and remove the unused `voice_old` files
+- [ ] Record new lines: run start, final boss intro, victory
+- [ ] Note who recorded each line (for the credits)
+
+### S7. 3D audio and mixing pass
+- [ ] Distance attenuation, doppler for riders, tunnel reverb
+- [ ] Mix pass of every theme and boss fight
+- [ ] Remove `tools/bake_audio.py` and the synthesised files once nothing uses them
+
+### S8. Music
+- [ ] Music: see "Dynamic music system" in Milestone E
+
+---
+
+# Tooling & QA
+
+- [ ] Playtest pass of everything built in Milestone A (title, pause, settings, run, win / lose, leaderboard, name entry). It was written without running the game
+- [ ] CI check on every pull request: GDScript lint / format (gdtoolkit) and a headless Godot project load
+- [ ] Save-file safety: version the settings and score files so later changes do not break old saves
 
 ---
 
@@ -255,3 +430,4 @@ Mostly vibe coded Godot game
 - [ ] Milestone C: Weapon slots and new weapons
 - [ ] Milestone D: Run map, relics, modifiers
 - [ ] Milestone E: Polish, tutorial, music
+- [ ] Milestone F: Graphics and sound overhaul (art direction first; can start any time after Milestone A)
