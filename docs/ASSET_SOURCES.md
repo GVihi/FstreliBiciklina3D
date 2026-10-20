@@ -38,15 +38,16 @@ Compiled 2026-10-20 from a game-asset licence guide and, for Pixabay, its own te
 
 Dynamic music works best with **stems or loops that share one tempo and key**. Most free tracks are single mixes, so plan either to pick several tracks in the same key/tempo, or to commission or compose a short loop set.
 
-## Graphics (models, textures, HDRIs) *(not re-checked)*
+## Graphics (models, textures) *(not re-checked)*
+
+The art direction is chunky low-poly, so these fit well and can be edited:
 
 | Source | Licence | Use for |
 |---|---|---|
-| Poly Haven | CC0 | HDRI skies, PBR textures, props |
-| ambientCG | CC0 | PBR materials (asphalt, concrete, metal) |
-| Quaternius, Kenney | CC0 | Props and low-poly bases to modify |
+| Kenney, Quaternius | CC0 | Low-poly props, vehicles, characters to modify |
+| Poly Haven, ambientCG | CC0 | Reference and base textures (paint over them to stay stylised) |
 | Sketchfab (filter: downloadable) | Per model, often CC-BY | Check each licence; credit required for CC-BY |
-| Mixamo | Free with an Adobe account; check its terms | Humanoid rigging and animation; the terms restrict redistributing the raw animation files |
+| Mixamo | Free with an Adobe account; check its terms | Humanoid rigging and animation; its terms restrict redistributing the raw animation files |
 
 ## Rules for this project
 1. One `CREDITS.md` entry per third-party file or pack, written when the file is added.

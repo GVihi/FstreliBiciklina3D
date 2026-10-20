@@ -240,25 +240,26 @@ Mostly vibe coded Godot game
 
 # Milestone F: Graphics & Sound Overhaul
 
-> Complete, hard overhaul of how the game looks and sounds. The cartoon style is removed completely (toon shading, outlines, flat colours, primitive-shape models) and replaced by modern, physically based graphics. Direction and rules: [`docs/ART_DIRECTION.md`](docs/ART_DIRECTION.md). Free asset sources and licences: [`docs/ASSET_SOURCES.md`](docs/ASSET_SOURCES.md).
+> Complete, hard overhaul of how the game looks and sounds. The current toon look (outlines, flat unlit colours, smooth primitive models) is removed and replaced by a chunky, rugged low-poly style with strong light and dark contrast and glowing accents, inspired by the Deep Rock franchise and built to run on low-end PCs. Direction and rules: [`docs/ART_DIRECTION.md`](docs/ART_DIRECTION.md). Free asset sources and licences: [`docs/ASSET_SOURCES.md`](docs/ASSET_SOURCES.md).
 >
 > Work top to bottom, one checkbox at a time. Each step is done when the old version of that thing is fully replaced, it passes the readability rules in the art direction, frame time is within budget, and there is a before/after screenshot.
 
 ## Graphics
 
 ### F1. Foundation (before any new asset)
-- [ ] Review and answer the open questions in `docs/ART_DIRECTION.md` (realism level, who makes models, minimum PC spec, reference images)
+- [ ] Review and answer the open questions in `docs/ART_DIRECTION.md` (minimum PC spec, who makes models, reference images, grit level)
 - [ ] Record the "before" baseline: screenshots of every screen and theme, plus frame time
 - [ ] Set up the asset pipeline: `assets/` folders, naming rules, Blender to glTF export settings, import presets, 1 unit = 1 metre
 - [ ] Create `CREDITS.md` and the rule that every third-party asset gets an entry when it is added
-- [ ] Switch off the outline pass and toon materials behind a flag; PBR materials become the default
-- [ ] Lighting baseline for DAY: HDRI sky, sun, global illumination, tone mapping, haze, colour grade
-- [ ] Lighting for GOLDEN HOUR, DUSK and NIGHT (lamps and lit windows included)
-- [ ] Replace 2x MSAA with TAA or FSR and re-define the F9 quality presets
+- [ ] Switch off the outline pass and flat unlit toon materials behind a flag; simple lit low-poly materials become the default
+- [ ] Lighting baseline for DAY: strong sun and deep shadow, simple sky, tone mapping, light haze, glow on gameplay accents
+- [ ] Lighting for GOLDEN HOUR, DUSK and NIGHT (coloured lamp pools and lit windows included, arena stays readable)
+- [ ] Test the Compatibility renderer against Forward+ on old hardware and decide which to ship
+- [ ] Anti-aliasing choice (MSAA or cheaper FXAA) and re-define the F9 quality presets for the new look
 
 ### F2. Dart gun (first person)
 - [ ] Viewmodel setup: separate camera and FOV so the gun never clips into walls
-- [ ] Gun model with PBR textures
+- [ ] Chunky low-poly gun model with a hand-painted texture
 - [ ] Idle sway and walk / sprint bob
 - [ ] Shoot and recoil animation
 - [ ] Pump / reload animation
@@ -267,14 +268,13 @@ Mostly vibe coded Godot game
 - [ ] Muzzle flash and shell ejection
 
 ### F3. Melee (giant gummy worm)
-- [ ] Worm model with a realistic gummy / silicone material
+- [ ] Chunky worm model with a glossy gummy material
 - [ ] Swing animation
 - [ ] Hit, deflect and phone-return feedback
 
 ### F4. Riders and bikes
 - [ ] Base rider and bike model ("pro") with a rig
 - [ ] Pedal, lean and steer animation cycle
-- [ ] Level-of-detail versions
 - [ ] Sprinter variant
 - [ ] Courier variant
 - [ ] Armoured ("tough") variant, including the dismount and charge animation
@@ -305,9 +305,9 @@ Mostly vibe coded Godot game
 - [ ] Glow, pickup and magnet effects
 
 ### F9. World
-- [ ] Road, lane markings and curbs (PBR asphalt and concrete)
+- [ ] Road, lane markings and curbs (stylised asphalt and concrete)
 - [ ] Central fountain
-- [ ] Buildings (facade kit with windows that light up at dusk and night)
+- [ ] Buildings (chunky facade kit with windows that light up at dusk and night)
 - [ ] Tunnel
 - [ ] Props: lamps, benches, trees, bins, signs
 - [ ] Ambient life: passing cars, birds and other background motion
@@ -316,7 +316,7 @@ Mostly vibe coded Godot game
 ### F10. Effects
 - [ ] Dart impact and hit sparks
 - [ ] Dust, debris and rider crash effects
-- [ ] Boss telegraphs (lane strip, slam circle, volley warning) as clear overlays or decals
+- [ ] Boss telegraphs (lane strip, slam circle, volley warning) as bold glowing overlays or decals
 - [ ] Hype, shield and slow-motion screen effects
 - [ ] Damage vignette and screen response
 - [ ] Confetti (perfect round, victory)
@@ -334,7 +334,7 @@ Mostly vibe coded Godot game
 
 ### F12. Final pass
 - [ ] Remove `toon.gd`, the outline option and all leftover cartoon assets and code
-- [ ] Performance pass on the minimum-spec machine (instancing, LODs, shadow and GI settings)
+- [ ] Performance pass on the minimum-spec machine (instancing, shadow and light counts, particle overdraw)
 - [ ] Final colour grade and consistency review of every screen and theme
 - [ ] Before / after comparison for the repo
 

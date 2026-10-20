@@ -1,84 +1,93 @@
-# Art Direction Brief (draft)
+# Art Direction Brief (draft 2)
 
-Status: **draft for review.** Written from the code as it is today and your request: *a complete overhaul with modern graphics, completely stripping the current cartoony style.* Decisions marked **[confirm]** are my recommendation, not yet agreed.
+Status: **draft for review.** Direction from the owner: *not realistic, it is still a video game, it must run on lower-end PCs. Main inspiration: the Deep Rock Galactic franchise (including Deep Rock Galactic: Survivor), but not alien or dwarf themed.*
 
-## 1. What changes and what stays
+## 1. The idea in one line
 
-| Today | Direction |
+**Chunky, rugged, low-poly with strong light and dark contrast and glowing accents, set in a city street.** Heavy, utilitarian shapes; a handful of bold colours; everything readable at a glance; cheap to render.
+
+What I could confirm about the Deep Rock look (developer interview and a style write-up; nothing specific to *Survivor* was found, so I apply the franchise traits):
+- Low-poly, with simple textures and a "consistent chunky feel": boxy, heavy-duty weapons, rough-hewn outfits, creatures built from large chunks.
+- The team chose variety over fidelity ("ten types of stylized monsters rather than one really high-def one"), and tried normal-mapped detailed models and moved away from them.
+- The look depends on stark contrast between light and dark, with glowing light sources (crystals, flares) giving colour; colours are real light colours, not a screen tint.
+
+This is inspiration for *principles*. Nothing is copied: no assets, characters, logos or recognisable designs, and no dwarf or alien themes. Our world is a city roundabout, our enemies are cyclists and absurd office-and-garden machines.
+
+## 2. What goes, what stays
+
+| Goes | Stays |
 |---|---|
-| Toon look: flat colours, black outline pass (`toon.gd`, F10 outlines) | **Removed.** Physically based materials, real lighting, no outlines |
-| Models assembled from primitive shapes in code (`models.gd`) | Authored 3D models with rigs and textures (glTF) |
-| Procedural sky, 4 hand-tuned lighting themes (DAY, GOLDEN HOUR, DUSK, NIGHT) | Same four moods, rebuilt with an HDRI sky, global illumination and colour grading |
-| Pooled box and quad particles | Real particle systems, decals, light flashes |
-| HUD drawn by hand in `hud.gd` with outlined all-caps text | Themed UI (fonts, icons, panels), cleaner and smaller |
-
-**What stays:** the game design, the roundabout arena layout (fountain in the middle, lanes, tunnel at the seam), the rules, the boss and rider roster, the humour of the voice lines, and every gameplay readability rule in section 4.
-
-## 2. Direction **[confirm]**
-
-**Grounded, modern realism with a dry, deadpan tone.** Think believable Central European city street in real light, shot like a contemporary first-person game: PBR materials, soft real shadows, bounce light, atmospheric haze, filmic colour. The comedy lives in the situation, the voice lines and the animation timing, not in the rendering. Absurd things (a rogue robot lawnmower, a golden president, a giant gummy worm) are rendered as if they were real objects, which is funnier and keeps the style consistent.
-
-Not in scope: gore. Darts, rubber and slapstick crashes stay non-graphic, so the rating stays low.
-
-### Pillars
-1. **Real light.** The mood comes from the sun, sky and lamps, not from saturated colours.
-2. **Readable at speed.** A rider crossing the screen must be identifiable in a quarter second (section 4).
-3. **Believable, then absurd.** Everything is photographed-real until the joke needs it not to be.
-4. **One world.** Every asset obeys the same scale, material and colour rules. No mixed styles.
+| Black outline pass (`toon.gd`, F10 outlines) | Game design, rules, rider and boss roster |
+| Flat unlit toon shading and candy palette | The roundabout arena layout (fountain, lanes, tunnel) |
+| Smooth capsule-and-sphere models assembled in code | The humour of the voice lines |
+| Procedural sky and plain ambient light | Every readability rule in section 5 |
+| Pooled box and quad effects | The four moods (DAY, GOLDEN HOUR, DUSK, NIGHT) |
 
 ## 3. Look
 
-**Light and colour**
-- One authored HDRI sky per lighting theme, plus a sun light; global illumination on (SDFGI or baked probes) so shadow areas pick up bounce.
-- Themes map to times of day: DAY (clear, neutral), GOLDEN HOUR (low warm sun, long shadows), DUSK (blue sky, warm lamps start), NIGHT (street lamps, lit windows, wet-looking asphalt).
-- Filmic tone mapping and a light colour grade per theme. Keep saturation realistic; use colour sparingly for gameplay objects (pickups, telegraphs, weak spots).
-- Light haze/fog for depth, stronger at dusk and night.
+**Shapes**
+- Chunky, slightly exaggerated proportions: big helmets, big boots and gloves, thick frames. Hard edges and bevels, faceted forms, few curves.
+- Strong silhouettes first. If a character is a flat black shape it must still be identifiable as pro, sprinter, courier or armoured.
+- Utilitarian "heavy duty" props: hazard stripes, hi-vis vests, reflectors, dented metal, delivery boxes.
+- Variety over detail: many distinct simple models beat a few detailed ones.
 
 **Materials**
-- PBR only (albedo, normal, roughness/metal/AO). No unshaded or toon materials except HUD and gameplay overlays.
-- Wear and variation: scuffed paint, dirt in seams, worn asphalt, slightly different bike and clothing per rider.
+- Simple lit materials: a single colour or gradient, a small hand-painted texture or shared atlas for grime and wear, no normal maps on most assets.
+- A little roughness variation so metal and rubber look different; emissive for lights, screens, glowing parts.
+- No outlines. Edges are defined by lighting and value contrast.
 
-**Characters**
-- Realistic proportions, readable clothing silhouettes, helmets and bikes in recognisable categories (road, courier with bag, sprinter, armoured).
-- Pedestrians must look clearly different from riders (clothes, posture, no bikes).
+**Light and colour**
+- Stark contrast: bright key light and deep shadow, then coloured pools of light on top (street lamps, lit windows, shop signs, boss glow).
+- Keep the arena itself always playable-bright; contrast comes from shadow shapes, not from hiding enemies in the dark.
+- Four moods: DAY (clean, high contrast), GOLDEN HOUR (warm low sun, long shadows), DUSK (blue sky, lamps coming on), NIGHT (dark blue with strong warm lamps).
+- A restrained base palette (concrete, asphalt, brick, painted metal) so gameplay colours stand out: pickups, telegraphs, weak spots, hit effects.
+- Glow and bloom on gameplay accents, since it is cheap and effective.
+
+**Characters and bosses**
+- Riders as enemy "species" like the roster in other roguelites: each type has its own silhouette and key colour (pro, sprinter, courier with a big bag, armoured with plates).
+- Bosses are bigger, chunkier versions of the same rules, with a clearly lit weak spot.
 
 **First-person view**
-- Gun and gummy worm are rendered on a separate viewmodel pass (own FOV) so they never clip into walls.
-- Real animation: sway, recoil, pump reload, melee swing.
+- Gun and gummy worm are chunky, readable and bright, on a separate viewmodel pass (own FOV, no wall clipping).
+- Punchy animation: recoil, pump, swing; screen response does the rest.
 
-## 4. Gameplay readability rules (non-negotiable)
+## 4. Technical targets for low-end PCs (starting values, adjust after profiling)
 
-Removing the outlines and flat colours takes away what currently makes things easy to see, so the new look has to earn it back:
-1. **Riders read against the background** by value contrast and clothing colour; the road and buildings stay mid-tone and desaturated.
-2. **Telegraphs stay stylised.** Boss lane strips, slam circles, phone warnings and weak-spot rings stay as clear, high-contrast overlays or decals, not realistic ones. Their colours must pass a colourblind check (see Milestone E).
-3. **The weak spot stays marked** (armoured or open state remains obvious).
-4. **Pedestrians vs riders:** shooting a pedestrian ends runs, so this distinction is checked at distance in every lighting theme, including NIGHT.
-5. **Hit feedback must stay punchy** even without cartoon squash: hit sparks, sound, screen response and short slow-downs carry it.
+| Item | Target |
+|---|---|
+| Frame rate | 60 fps on an integrated GPU (720p to 1080p) **[confirm minimum spec]** |
+| Rider + bike | about 3,000 to 6,000 triangles, 1 LOD |
+| Boss | about 8,000 to 15,000 triangles |
+| Props and buildings | 200 to 2,000 triangles each, instanced |
+| Textures | shared 512 to 1024 px atlases, hand-painted; no normal maps on most assets |
+| Lighting | one directional sun with soft shadows, a few real lights, baked light for the static world (arena is static) where it helps |
+| Not used | SDFGI, volumetric fog, SSR, SSAO (unless a "high" preset can afford them) |
+| Anti-aliasing | keep MSAA or use cheaper FXAA; no temporal AA required |
+| Effects | cheap GPU particles, few overdraw-heavy layers |
+| Quality presets | F9 stays: high (shadows, MSAA, glow), medium (no MSAA), low (no shadows, no glow) |
 
-## 5. Technical targets (starting values, adjust after profiling)
+Open technical decision: test whether the **Compatibility renderer** (broadest hardware support) looks and performs acceptably on an old GPU, versus Forward+ (current default). It is a roadmap item in F1.
 
-- Renderer: Forward+ (project default).
-- Target 60 fps on a mid-range GPU at 1080p; the F9 quality presets are redefined around this (high: GI + shadows + AA; medium: baked GI, cheaper shadows; low: no GI, no volumetric fog).
-- Up to about 8 riders plus 1 boss on screen. Starting budgets per model: rider + bike ~20k triangles with 2 LODs; boss ~40k; props ~2-5k; texture sets 2K for hero assets, 1K for the rest.
-- Anti-aliasing: TAA or FSR in place of the current 2x MSAA.
-- Scale: 1 unit = 1 metre. Models exported as `.glb` from Blender, Y up, applied transforms, named per `assets/` folder rules (set up in the foundation steps of the roadmap).
+## 5. Gameplay readability rules (non-negotiable)
+
+1. **Riders read against the background** by silhouette, value contrast and key colour; the road and buildings stay mid-tone and desaturated.
+2. **Telegraphs stay stylised and glowing.** Boss lane strips, slam circles, phone warnings and weak-spot rings are bold, high-contrast overlays or decals, and must pass a colourblind check (Milestone E).
+3. **The weak spot is clearly marked** (open vs armoured stays obvious).
+4. **Pedestrians vs riders:** hitting a pedestrian ends the run, so they are checked at distance in every theme, NIGHT included.
+5. **Hit feedback stays punchy:** sparks, sound, screen response and short slow-downs.
 
 ## 6. Asset sourcing
 
-Mix of custom models and CC0 libraries (see `docs/ASSET_SOURCES.md`). Whatever the source, every asset gets an entry in `CREDITS.md` with its source and licence, and anything not CC0 is checked before it ships.
+Low-poly CC0 libraries are a good match for this style and can be modified (see `docs/ASSET_SOURCES.md`). Custom models are still needed for the hero assets (gun, riders, bosses). Every third-party asset gets a `CREDITS.md` entry.
 
 ## 7. How the work is split
 
-The roadmap (Milestone F in `README.md`) breaks the overhaul into small steps, one asset or screen each, in this order: foundation (baseline, pipeline, lighting) → gun → melee → riders → phones → pedestrians and cheerleaders → bosses → pickups → world → effects → UI and menus → final pass. Each step is done when:
-- it replaces the old version completely (no mixed styles left in that area),
-- it passes the readability rules in section 4,
-- frame time is checked against the budget,
-- there is a before/after screenshot.
+Milestone F in `README.md` lists small steps in this order: foundation → dart gun → melee → riders → phones → pedestrians and cheerleaders → bosses → pickups → world → effects → UI and menus → final pass. A step is done when the old version is fully replaced, it passes section 5, frame time is within the targets above, and there is a before/after screenshot.
 
 ## 8. Open questions for you
 
-1. **Realism level:** fully photoreal, or "stylised realism" (real materials, slightly simplified shapes)? I recommended the second for the budget a small team can finish; the first is possible but much more work for characters.
-2. **Models:** do you (or someone) make 3D models, or should the plan lean on CC0 libraries and modify them?
-3. **Minimum PC spec** you want to support, since it decides how aggressive GI and fog can be.
-4. **Reference images:** a handful of screenshots from games or photos you like would fix the look faster than any description.
-5. **Keep the humour visible** in costumes and props (for example the golden president), or make everything more serious?
+1. **Minimum PC spec:** the oldest hardware you want to run at 60 fps (it sets how many lights and shadows we can afford).
+2. **Who makes the 3D models?** If nobody does, the plan leans on CC0 low-poly packs plus simple models built in Blender, and the look will be a bit more generic.
+3. **Reference images:** a few Deep Rock screenshots you love (which areas, which enemies, which UI), so I can describe the exact feel rather than guess.
+4. **Grit level:** clean and colourful, or dirtier and moodier? Deep Rock leans dark and moody; a sunny city arena might want to stay brighter.
+5. **Humour in costumes and props:** keep the golden president and other absurd bosses as they are, only re-styled chunky?
