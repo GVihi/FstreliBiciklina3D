@@ -232,6 +232,8 @@ func update_gun(dt: float) -> void:
 		phase = maxf(phase, 0.5 * (0.5 + 0.5 * sin(g.time * 24.0)))
 	pump.position = Vector3(0.0, pump.position.y, -0.30 + 0.12 * phase)
 	g.gun["light"].light_energy = 3.0 * (g.flash / 0.07) if g.flash > 0.0 else 0.0
+	if g.viewmodel != null:
+		g.viewmodel.update(g.ads_t)
 
 	# rubber swing
 	var sw = 0.0

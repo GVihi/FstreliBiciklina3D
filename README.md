@@ -265,7 +265,7 @@ Mostly vibe coded Godot game
 - [ ] Anti-aliasing choice (MSAA or cheaper FXAA) and re-define the F9 quality presets for the new look
 
 ### F2. Dart gun (first person)
-- [ ] Viewmodel setup: separate camera and FOV so the gun never clips into walls
+- [x] Viewmodel setup: separate camera and FOV so the gun never clips into walls (`scripts/viewmodel.gd`; checked in game by the owner: no clipping, same look, frame time fine; `VIEWMODEL_PASS = false` in `main.gd` switches it off)
 - [ ] Chunky low-poly gun model with a hand-painted texture
 - [ ] Idle sway and walk / sprint bob
 - [ ] Shoot and recoil animation
