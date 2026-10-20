@@ -12,15 +12,15 @@ func _init(game) -> void:
 
 # ================================================================== riders
 func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
-	var roll = randf()
+	var roll = g.layout_f()
 	var type = "pro"
 	if g.round_n >= 2 and roll < 0.2:
 		type = "sprinter"
 	elif g.round_n >= 2 and roll < 0.4:
 		type = "courier"
-	if g.round_n >= 2 and randf() < minf(0.36, 0.12 + g.round_n * 0.04):
+	if g.round_n >= 2 and g.layout_f() < minf(0.36, 0.12 + g.round_n * 0.04):
 		type = "tough"
-	var kit_i = randi() % 4
+	var kit_i = g.layout_i(4)
 	if type == "sprinter":
 		kit_i = 4
 	elif type == "courier":
@@ -44,7 +44,7 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 		"entered": false, "type": type, "idx": g.next_idx, "model": m, "parts": [], "kit": kit,
 		"limit": maxf(3.0, 6.1 - g.round_n * 0.35) + g.RIDER_TIME_BONUS,
 		"hp": hp, "max_hp": hp, "flash": 0.0, "snd": null, "gone": false,
-		"can_throw": randf() < clampf(0.55 + 0.06 * g.round_n, 0.6, 0.9), "throw_t": randf_range(0.5, 1.4), "wind_t": 0.0
+		"can_throw": g.layout_f() < clampf(0.55 + 0.06 * g.round_n, 0.6, 0.9), "throw_t": randf_range(0.5, 1.4), "wind_t": 0.0
 	}
 	g.next_idx += 1
 	g.riders.append(r)
@@ -55,14 +55,14 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 func spawn_wave() -> void:
 	var remaining = g.PER_ROUND - g.next_idx
 	var n = 1
-	if g.round_n >= 2 and remaining >= 2 and randf() < minf(0.55, 0.12 + g.round_n * 0.08):
+	if g.round_n >= 2 and remaining >= 2 and g.layout_f() < minf(0.55, 0.12 + g.round_n * 0.08):
 		n = 2
 	var order = [0, 1, 2]
-	order.shuffle()
-	var dir = 1 if randf() < 0.5 else -1
+	g.layout_shuffle(order)
+	var dir = 1 if g.layout_f() < 0.5 else -1
 	for k in range(n):
 		var d = dir
-		if k > 0 and randf() < 0.5:
+		if k > 0 and g.layout_f() < 0.5:
 			d = -dir
 		var r = spawn_rider(order[k], d)
 		if n == 2:

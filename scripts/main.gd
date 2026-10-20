@@ -93,6 +93,9 @@ var hi = 0
 var daily_date = ""          # UTC date the daily seed belongs to, "YYYY-MM-DD"
 var daily_seed = 0           # same for every player on that date (daily.gd); the daily run mode will use it
 var daily_label = ""         # title-screen text for the above
+var daily_mode = false       # true while a Daily Run is in progress; normal runs never touch the seeded generators
+var run_seed = 0             # the daily seed this run started with (daily_seed can roll over to a new day mid-run)
+var rider_rng = RandomNumberGenerator.new()   # daily mode: which riders spawn, reseeded at the start of every round
 var hearts = 3
 var combo = 0
 var best_combo = 0
@@ -451,6 +454,8 @@ func set_setting(id: String, v) -> void:
 	settings.set_setting(id, v)
 
 func hi_check() -> void:
+	if daily_mode:                       # daily runs get their own scoreboard (not built yet), not the normal high score
+		return
 	if score > hi:
 		hi = score
 		settings.save_hi(hi)
@@ -487,6 +492,34 @@ func set_flash(node: Node, on: bool) -> void:
 
 func pick_one(arr: Array):
 	return arr[randi() % arr.size()]
+
+# ---- run layout randomness. Normal runs use the global generator exactly as before; a Daily Run draws the
+# parts that shape the run (rider mix, shop and upgrade offers) from generators seeded by the daily seed, so
+# every player faces the same layout. Moment-to-moment randomness (effects, aim spread, drops) stays unseeded.
+func layout_f() -> float:
+	return rider_rng.randf() if daily_mode else randf()
+
+func layout_i(n: int) -> int:
+	return (rider_rng.randi() % n) if daily_mode else (randi() % n)
+
+func layout_shuffle(arr: Array) -> void:
+	if daily_mode:
+		DailyScript.shuffle_with(arr, rider_rng)
+	else:
+		arr.shuffle()
+
+# shuffles an offer list; in a Daily Run the order depends only on the seed, the round and `part`
+func offer_shuffle(arr: Array, part: String) -> void:
+	if daily_mode:
+		var rng = RandomNumberGenerator.new()
+		rng.seed = DailyScript.stream_seed(run_seed, round_n, part)
+		DailyScript.shuffle_with(arr, rng)
+	else:
+		arr.shuffle()
+
+# daily mode rotates which boss comes first and which lighting theme starts, so each day feels different
+func daily_shift(n: int) -> int:
+	return (run_seed % n) if daily_mode else 0
 
 # engine callback: the logic lives in input.gd
 func _input(event: InputEvent) -> void:
@@ -540,8 +573,12 @@ func abandon_run() -> void:
 	clear_pickups()
 	go_to_title()
 
-func start_game() -> void:
+func start_game(daily: bool = false) -> void:
 	reset_run()
+	daily_mode = daily
+	if daily:
+		refresh_daily_seed()
+		run_seed = daily_seed
 	round_n = 1
 	score = 0
 	hearts = MAXHEARTS
@@ -613,8 +650,10 @@ func start_round() -> void:
 	clear_bosses()
 	clear_phones()
 	clear_pickups()
-	theme_idx = (round_n - 1) % THEMES.size()
+	theme_idx = (round_n - 1 + daily_shift(THEMES.size())) % THEMES.size()
 	apply_theme(theme_idx)
+	if daily_mode:
+		rider_rng.seed = DailyScript.stream_seed(run_seed, round_n, "riders")
 	round_t = 0.0
 	hits.clear()
 	for i in range(PER_ROUND):

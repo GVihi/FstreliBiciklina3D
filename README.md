@@ -69,7 +69,9 @@ Mostly vibe coded Godot game
 ### Daily Seed Mode
 
 - [x] Generate a daily seed
-- [ ] Use same seed for all players on that day
+- [x] Use same seed for all players on that day
+  - [x] Separate "Daily Run" entry on the title menu; normal Play stays fully random
+  - [x] Seed only the run layout (rider mix, shop and upgrade offers, starting boss and lighting theme), not moment-to-moment combat
 - [ ] Add dedicated daily-run scoreboard
 
 ### Deferred
