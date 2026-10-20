@@ -10,9 +10,9 @@ func _init(game) -> void:
 # ------------------------------------------------------------------ upgrades
 func upgrade_ok(id: String) -> bool:
 	if id == "clip":
-		return g.MAXSHELLS < 12
+		return g.MAXSHELLS < int(g.WEAPONS["dart_gun"]["max_clip"])
 	if id == "pump":
-		return g.pump_base > 0.11
+		return g.pump_base > float(g.WEAPONS["dart_gun"]["pump_min"]) + 0.01
 	if id == "wide":
 		return g.up["wide"] < 4
 	if id == "heart":
@@ -33,9 +33,9 @@ func upgrade_ok(id: String) -> bool:
 
 func apply_upgrade(id: String) -> void:
 	if id == "clip":
-		g.MAXSHELLS = mini(12, g.MAXSHELLS + 2)
+		g.MAXSHELLS = mini(int(g.WEAPONS["dart_gun"]["max_clip"]), g.MAXSHELLS + int(g.WEAPONS["dart_gun"]["clip_step"]))
 	elif id == "pump":
-		g.pump_base = maxf(0.1, g.pump_base - 0.035)
+		g.pump_base = maxf(float(g.WEAPONS["dart_gun"]["pump_min"]), g.pump_base - float(g.WEAPONS["dart_gun"]["pump_step"]))
 	elif id == "wide":
 		g.up["wide"] += 1
 	elif id == "heart":
@@ -56,9 +56,9 @@ func apply_upgrade(id: String) -> void:
 
 func upgrade_stat(id: String) -> String:
 	if id == "clip":
-		return "DARTS %d > %d" % [g.MAXSHELLS, mini(12, g.MAXSHELLS + 2)]
+		return "DARTS %d > %d" % [g.MAXSHELLS, mini(int(g.WEAPONS["dart_gun"]["max_clip"]), g.MAXSHELLS + int(g.WEAPONS["dart_gun"]["clip_step"]))]
 	if id == "pump":
-		return "PUMP %.2fs > %.2fs" % [g.pump_base, maxf(0.1, g.pump_base - 0.035)]
+		return "PUMP %.2fs > %.2fs" % [g.pump_base, maxf(float(g.WEAPONS["dart_gun"]["pump_min"]), g.pump_base - float(g.WEAPONS["dart_gun"]["pump_step"]))]
 	if id == "wide":
 		return "LEVEL %d > %d" % [g.up["wide"], g.up["wide"] + 1]
 	if id == "heart":

@@ -70,7 +70,7 @@ const ACCENT = Color(1.0, 0.42, 0.17)
 var PER_ROUND = 10
 var MAX_ROUNDS = 10           # a run is this many rounds; clearing the last one wins the run
 var NEED = 6
-var MAXSHELLS = 6
+var MAXSHELLS = int(Content.WEAPONS["dart_gun"]["start_clip"])
 var MAXHEARTS = 3
 # game content tables live in content.gd; same names, so the HUD still reads g.NAME
 var OVER_MSG = Content.OVER_MSG
@@ -84,6 +84,7 @@ var DROP_INFO = Content.DROP_INFO
 var SHOP_POOL = Content.SHOP_POOL
 var DUOS = Content.DUOS
 var UPGRADES = Content.UPGRADES
+var WEAPONS = Content.WEAPONS
 
 # ------------------------------------------------------------------ state
 var state = "title"          # title / play / clear / upgrade / over
@@ -166,7 +167,7 @@ var shop_lvl = {}         # how many times each tiered upgrade was bought in the
 var shop_buys = 0         # purchases this run: every one makes the next ones dearer
 var shop_rerolls = 0      # rerolls in the current shop
 var pending = {"rapid": 0.0, "big": 0.0, "shield": false, "hype": false, "free": 0}   # packs, used up at the start of the next round
-var pump_base = 0.2
+var pump_base = float(Content.WEAPONS["dart_gun"]["pump_start"])
 var pump_dur = 0.2
 
 # shotgun
@@ -530,8 +531,8 @@ func _input(event: InputEvent) -> void:
 
 # ================================================================== game flow
 func reset_run() -> void:
-	MAXSHELLS = 6
-	pump_base = 0.2
+	MAXSHELLS = int(WEAPONS["dart_gun"]["start_clip"])
+	pump_base = float(WEAPONS["dart_gun"]["pump_start"])
 	pump_dur = 0.2
 	MAXHEARTS = 3
 	melee = false

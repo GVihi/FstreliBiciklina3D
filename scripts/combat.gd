@@ -13,13 +13,14 @@ func _init(game) -> void:
 
 # ================================================================== shotgun + melee
 func reload_step() -> float:
-	return 0.38 * (1.0 - 0.22 * float(g.up["reload"]))
+	var w = g.WEAPONS["dart_gun"]
+	return float(w["reload_step"]) * (1.0 - float(w["reload_cut_per_level"]) * float(g.up["reload"]))
 
 func start_load() -> void:
 	if g.state != "play" or g.loading or g.shells >= g.MAXSHELLS:
 		return
 	g.loading = true
-	g.load_t = reload_step() + 0.12
+	g.load_t = reload_step() + float(g.WEAPONS["dart_gun"]["reload_extra"])
 
 func ray_dir_with_spread() -> Vector3:
 	var sp = deg_to_rad(g.spread_deg)
@@ -46,6 +47,7 @@ func fire() -> void:
 			g.free_shots -= 1
 		else:
 			g.shells -= 1
+	var dart_dmg = int(g.WEAPONS["dart_gun"]["damage"])
 	var lastshot = g.perks.has("lastshell") and g.shells == 0 and g.buffs["rapid"] <= 0.0
 	g.pump_dur = g.player_sys.cur_pump()
 	g.pump_t = g.pump_dur
@@ -59,11 +61,11 @@ func fire() -> void:
 
 	var dir = ray_dir_with_spread()
 	var org = g.cam.global_position
-	g.bloom = minf(g.bloom + 0.5, 1.6)
+	g.bloom = minf(g.bloom + float(g.WEAPONS["dart_gun"]["bloom_per_shot"]), float(g.WEAPONS["dart_gun"]["bloom_max"]))
 	var ex = g.player_sys.ex_bonus()
 
 	# how far can the dart travel before hitting the world?
-	var t_world = 80.0
+	var t_world = float(g.WEAPONS["dart_gun"]["range"])
 	var world_kind = ""
 	if dir.y < -0.0001:
 		var tf = -org.y / dir.y
@@ -157,14 +159,14 @@ func fire() -> void:
 
 	if target_hit:
 		if best_kind == "rider":
-			g.rider_sys.hit_rider(best_obj, 2 if lastshot else 1)
+			g.rider_sys.hit_rider(best_obj, dart_dmg * (2 if lastshot else 1))
 		elif best_kind == "civ":
 			g.civ_sys.hit_civ(best_obj)
 		elif best_kind == "boss":
 			var hit_y = (org + dir * best_t).y
 			var bo = best_obj
 			var is_weak = hit_y >= float(g.BOSS_INFO[bo["kind"]]["weak_y"]) + g.boss_sys.boss_hover(bo)
-			g.boss_sys.hit_boss(bo, 2 if lastshot else 1, is_weak, 30.0 if is_weak else 14.0)
+			g.boss_sys.hit_boss(bo, dart_dmg * (2 if lastshot else 1), is_weak, 30.0 if is_weak else 14.0)
 		elif best_kind == "phone":
 			g.phone_sys.shoot_phone(best_obj)
 		elif best_kind == "pickup":
@@ -184,8 +186,10 @@ func swing_zone() -> Dictionary:
 	var f = -g.player.global_transform.basis.z
 	f.y = 0.0
 	f = f.normalized()
-	var c = Vector3(g.player.position.x + f.x * 2.3, 1.0, g.player.position.z + f.z * 2.3)
-	return {"c": c, "r": 1.5 + g.up["rubber"] * 0.3}
+	var m = g.WEAPONS["melee"]
+	var fwd = float(m["zone_forward"])
+	var c = Vector3(g.player.position.x + f.x * fwd, 1.0, g.player.position.z + f.z * fwd)
+	return {"c": c, "r": float(m["zone_radius"]) + g.up["rubber"] * float(m["reach_per_level"])}
 
 func flat_dist(a: Vector3, bx: float, bz: float) -> float:
 	return Vector2(a.x - bx, a.z - bz).length()
@@ -193,8 +197,8 @@ func flat_dist(a: Vector3, bx: float, bz: float) -> float:
 func swing() -> void:
 	if g.swing_cd > 0.0:
 		return
-	g.swing_cd = 0.3
-	g.swing_t = 0.26
+	g.swing_cd = float(g.WEAPONS["melee"]["cooldown"])
+	g.swing_t = float(g.WEAPONS["melee"]["swing_time"])
 	g.swing_dir = -g.swing_dir
 	g.shots_fired += 1
 	g.sfx.play("swing")
@@ -212,14 +216,14 @@ func swing() -> void:
 		var inf = g.BOSS_INFO[b["kind"]]
 		var br: Vector3 = inf["r"]
 		if flat_dist_v(zc, g.boss_world(b, 0.0)) < zr * 0.8 + br.x:
-			g.boss_sys.hit_boss(b, 2, false, 45.0)
+			g.boss_sys.hit_boss(b, int(g.WEAPONS["melee"]["damage"]), false, 45.0)
 			hit_any = true
 	for i in range(g.riders.size() - 1, -1, -1):
 		var r = g.riders[i]
 		if r["mode"] != "fly" and r["mode"] != "away":
 			continue
 		if not Ring.hidden(r["x"]) and flat_dist_v(zc, g.rider_world(r, 0.0)) < zr * 0.8 + 0.9:
-			g.rider_sys.hit_rider(r, 2)
+			g.rider_sys.hit_rider(r, int(g.WEAPONS["melee"]["damage"]))
 			hit_any = true
 	if hit_any:
 		g.sfx.play3d("rubber", zc)
@@ -228,7 +232,7 @@ func swing() -> void:
 
 # --- deflect: a thrown phone that is close when the rubber swings goes straight back at whoever threw it
 func deflect_range() -> float:
-	return 2.7 + g.up["rubber"] * 0.3
+	return float(g.WEAPONS["melee"]["deflect_range"]) + g.up["rubber"] * float(g.WEAPONS["melee"]["reach_per_level"])
 
 func deflect_scan() -> bool:
 	var any = false
