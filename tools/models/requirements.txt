@@ -1,0 +1,4 @@
+# Blender as a Python module + preview/validation helpers (Python 3.11-3.13)
+bpy
+pillow
+trimesh
