@@ -267,7 +267,7 @@ Mostly vibe coded Godot game
 ### F2. Dart gun (first person)
 - [x] Viewmodel setup: separate camera and FOV so the gun never clips into walls (`scripts/viewmodel.gd`; checked in game by the owner: no clipping, same look, frame time fine; `VIEWMODEL_PASS = false` in `main.gd` switches it off)
 - [ ] Chunky low-poly gun model with a hand-painted texture (model done and wired in: `tools/models/models/dart_gun.py` -> `assets/models/dart_gun.glb`, 1,848 tris, pump slide as its own mesh so the pump animation keeps working, `GUN_MODEL_GLB = false` in `models.gd` brings the old gun back. Waiting for: your in-game check (open the project once so Godot imports the `.glb`), and the hand-painted texture, which the model pipeline does not support yet: the gun uses the shared palette materials for now)
-- [ ] Idle sway and walk / sprint bob
+- [ ] Idle sway and walk / sprint bob (written in `update_gun` in `scripts/player.gd`, tuning constants at the top of that file; waiting for your in-game check: breathing sway, walk and sprint bob, and a small lag when you turn; all of it fades out while aiming)
 - [ ] Shoot and recoil animation
 - [ ] Pump / reload animation
 - [ ] Aim-down-sights pose and crosshair behaviour

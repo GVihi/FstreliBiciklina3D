@@ -6,6 +6,23 @@ const Ring = preload("res://scripts/ring.gd")
 
 var g = null
 
+# gun motion (update_gun): how far the gun lags behind turning, and the look angles of the last frame
+var sway_yaw = 0.0
+var sway_pitch = 0.0
+var look_prev = Vector2.ZERO
+var look_seen = false
+
+# Gun motion tuning (Milestone F2). Everything is in metres / radians and fades out while aiming down sights.
+const IDLE_SWAY = 0.0035        # breathing: how far the gun drifts up/down while standing still
+const BOB_SIDE = 0.010          # walk bob: side-to-side travel
+const BOB_UP = 0.010            # walk bob: up/down travel
+const BOB_SPRINT_MUL = 1.8      # a sprint bobs this much harder than a walk
+const BOB_LAG = 0.6             # the gun trails the camera bob by this many radians, so it feels heavy
+const LOOK_SWAY = 0.5           # how much of a turn the gun lags behind (1.0 = no follow at all)
+const LOOK_SWAY_MAX = 0.07      # largest lag in radians
+const LOOK_SWAY_RETURN = 9.0    # how fast the gun catches up again (per second)
+const ADS_CALM = 0.85           # how much of the motion aiming down sights removes
+
 func _init(game) -> void:
 	g = game
 
@@ -223,8 +240,43 @@ func update_gun(dt: float) -> void:
 	var p = hip.lerp(ads, g.ads_t)
 	p.z += g.recoil * 0.07
 	p.y -= (0.05 if g.sprinting else 0.0) + (0.04 if g.loading else 0.0)
+
+	# idle sway (breathing), walk / sprint bob and look sway. They ease out while aiming down sights.
+	var calm = 1.0 - g.ads_t * ADS_CALM
+	var spd = g.pvel.length()
+	var moving = clampf(spd / g.RUN, 0.0, 1.0)
+	if g.slide_t > 0.0 or g.dash_t > 0.0:
+		moving = 0.0
+	var bob_mul = BOB_SPRINT_MUL if g.sprinting else 1.0
+	var still = 1.0 - moving
+	var step_side = sin(g.bob_t * 0.5)                    # one full sway left-right per two steps
+	var step_up = sin(g.bob_t - BOB_LAG)                  # one bounce per step, a little behind the camera
+	var off = Vector3(
+		sin(g.time * 0.85) * IDLE_SWAY * 0.7 * still + step_side * BOB_SIDE * bob_mul * moving,
+		sin(g.time * 1.7) * IDLE_SWAY * still + step_up * BOB_UP * bob_mul * moving,
+		0.0)
+	p += off * calm
+
+	# look sway: turning the view leaves the gun lagging a little, then it catches up
+	var look = Vector2(g.yaw, g.pitch)
+	if not look_seen:
+		look_prev = look
+		look_seen = true
+	var turn = Vector2(wrapf(look.x - look_prev.x, -PI, PI), look.y - look_prev.y)
+	look_prev = look
+	sway_yaw = clampf(sway_yaw - turn.x * LOOK_SWAY, -LOOK_SWAY_MAX, LOOK_SWAY_MAX)
+	sway_pitch = clampf(sway_pitch + turn.y * LOOK_SWAY, -LOOK_SWAY_MAX, LOOK_SWAY_MAX)
+	var back = minf(1.0, dt * LOOK_SWAY_RETURN)
+	sway_yaw = lerpf(sway_yaw, 0.0, back)
+	sway_pitch = lerpf(sway_pitch, 0.0, back)
+
+	var roll = (sin(g.time * 0.85) * 0.010 * still + step_side * 0.025 * bob_mul * moving) * calm
+	var tilt = step_up * 0.018 * bob_mul * moving * calm
 	gun_node.position = gun_node.position.lerp(p, minf(1.0, dt * 18.0))
-	gun_node.rotation = Vector3(g.recoil * 0.14 + (0.18 if g.sprinting else 0.0), (1.0 - g.ads_t) * 0.06, 0.0)
+	gun_node.rotation = Vector3(
+		g.recoil * 0.14 + (0.18 if g.sprinting else 0.0) + tilt + sway_pitch * calm,
+		(1.0 - g.ads_t) * 0.06 + sway_yaw * calm,
+		roll)
 	var phase = 0.0
 	if g.pump_t > 0.0:
 		phase = sin(PI * (1.0 - g.pump_t / maxf(g.pump_dur, 0.01)))
