@@ -240,33 +240,149 @@ Mostly vibe coded Godot game
 
 # Milestone F: Graphics & Sound Overhaul
 
-> Complete, hard overhaul of how the game looks and sounds. Today everything is built in code: models are assembled from primitive shapes (`models.gd`), the sky is procedural, effects are pooled boxes and quads, and all ~50 sound effects are synthesised by `tools/bake_audio.py`. Voice lines are your own recordings (`audio/voice/`). Do the art direction first; everything else follows from it.
+> Complete, hard overhaul of how the game looks and sounds. The cartoon style is removed completely (toon shading, outlines, flat colours, primitive-shape models) and replaced by modern, physically based graphics. Direction and rules: [`docs/ART_DIRECTION.md`](docs/ART_DIRECTION.md). Free asset sources and licences: [`docs/ASSET_SOURCES.md`](docs/ASSET_SOURCES.md).
+>
+> Work top to bottom, one checkbox at a time. Each step is done when the old version of that thing is fully replaced, it passes the readability rules in the art direction, frame time is within budget, and there is a before/after screenshot.
 
 ## Graphics
 
-- [ ] Art direction pass: one visual style, a short style guide (palette, outline weight, shape language, UI look)
-- [ ] Replace primitive-built models with authored 3D models and rigs
-  - [ ] Riders and bikes (all types: pro, sprinter, courier, armoured)
-  - [ ] Bosses (lawnmower, mesh wifi node, minister, golden president / final boss)
-  - [ ] Pedestrians and cheerleaders
-  - [ ] First-person viewmodel: dart gun, gummy worm, hands
-- [ ] Animation: rider and boss cycles, hit reactions, death animations, gun reload / shoot / melee swing
-- [ ] Environment art pass: roundabout, buildings, props, textures and materials for all 4 lighting themes
-- [ ] Lighting and post-processing: authored sky, colour grading per theme, SSAO, fog and glow tuning
-- [ ] Rebuild effects with real particle systems: muzzle flash, dart trails, hit sparks, impact decals, boss telegraphs
-- [ ] HUD and menu redesign: custom font and icons, one consistent theme, animated transitions, ultrawide support
-- [ ] Animated title screen background (live 3D scene)
-- [ ] Performance budget (target 60 fps on a mid-range GPU), instancing / LODs, keep the F9 quality presets meaningful
+### F1. Foundation (before any new asset)
+- [ ] Review and answer the open questions in `docs/ART_DIRECTION.md` (realism level, who makes models, minimum PC spec, reference images)
+- [ ] Record the "before" baseline: screenshots of every screen and theme, plus frame time
+- [ ] Set up the asset pipeline: `assets/` folders, naming rules, Blender to glTF export settings, import presets, 1 unit = 1 metre
+- [ ] Create `CREDITS.md` and the rule that every third-party asset gets an entry when it is added
+- [ ] Switch off the outline pass and toon materials behind a flag; PBR materials become the default
+- [ ] Lighting baseline for DAY: HDRI sky, sun, global illumination, tone mapping, haze, colour grade
+- [ ] Lighting for GOLDEN HOUR, DUSK and NIGHT (lamps and lit windows included)
+- [ ] Replace 2x MSAA with TAA or FSR and re-define the F9 quality presets
+
+### F2. Dart gun (first person)
+- [ ] Viewmodel setup: separate camera and FOV so the gun never clips into walls
+- [ ] Gun model with PBR textures
+- [ ] Idle sway and walk / sprint bob
+- [ ] Shoot and recoil animation
+- [ ] Pump / reload animation
+- [ ] Aim-down-sights pose and crosshair behaviour
+- [ ] Dart and shell models
+- [ ] Muzzle flash and shell ejection
+
+### F3. Melee (giant gummy worm)
+- [ ] Worm model with a realistic gummy / silicone material
+- [ ] Swing animation
+- [ ] Hit, deflect and phone-return feedback
+
+### F4. Riders and bikes
+- [ ] Base rider and bike model ("pro") with a rig
+- [ ] Pedal, lean and steer animation cycle
+- [ ] Level-of-detail versions
+- [ ] Sprinter variant
+- [ ] Courier variant
+- [ ] Armoured ("tough") variant, including the dismount and charge animation
+- [ ] Variation kit: helmets, clothes and bike colours (also the base for rider skins in Milestone B)
+- [ ] Hit reactions, crash and the parts that fall off
+- [ ] Readability check of all riders against all four themes
+
+### F5. Thrown phones
+- [ ] Desk phone model
+- [ ] Throw, flight trail and smash effect
+
+### F6. Pedestrians and cheerleaders
+- [ ] Pedestrian models (several body types and outfits) and walk cycle
+- [ ] Pedestrian hit reaction
+- [ ] Pedestrian vs rider readability check, including NIGHT
+- [ ] Cheerleader models and animations
+
+### F7. Bosses
+- [ ] Rogue lawnmower (model, animation, attack telegraphs)
+- [ ] Mesh wifi adapter (model, hover, animation, attack telegraphs)
+- [ ] Minister (model, animation)
+- [ ] Golden president / final boss (model, animation, intro moment)
+- [ ] Angry cyclist
+- [ ] Boss health bar, weak-spot marker and defeat effects
+
+### F8. Pickups
+- [ ] Pickup models or icons for rapid fire, fat darts, slow motion, shield, extra life and cash
+- [ ] Glow, pickup and magnet effects
+
+### F9. World
+- [ ] Road, lane markings and curbs (PBR asphalt and concrete)
+- [ ] Central fountain
+- [ ] Buildings (facade kit with windows that light up at dusk and night)
+- [ ] Tunnel
+- [ ] Props: lamps, benches, trees, bins, signs
+- [ ] Ambient life: passing cars, birds and other background motion
+- [ ] Weather and atmosphere touches per theme
+
+### F10. Effects
+- [ ] Dart impact and hit sparks
+- [ ] Dust, debris and rider crash effects
+- [ ] Boss telegraphs (lane strip, slam circle, volley warning) as clear overlays or decals
+- [ ] Hype, shield and slow-motion screen effects
+- [ ] Damage vignette and screen response
+- [ ] Confetti (perfect round, victory)
+
+### F11. UI and menus
+- [ ] UI theme: font, colours, icons and panel style
+- [ ] HUD top bar (hearts, score, round, round progress)
+- [ ] HUD bottom (ammo, dash, style rank), crosshair and hit marker
+- [ ] Threat arrows, radar and floating popups
+- [ ] Upgrade and shop cards
+- [ ] Title screen with a live 3D background and logo
+- [ ] Pause menu and settings panel
+- [ ] Run summary and leaderboard screens
+- [ ] Ultrawide and resolution scaling check
+
+### F12. Final pass
+- [ ] Remove `toon.gd`, the outline option and all leftover cartoon assets and code
+- [ ] Performance pass on the minimum-spec machine (instancing, LODs, shadow and GI settings)
+- [ ] Final colour grade and consistency review of every screen and theme
+- [ ] Before / after comparison for the repo
 
 ## Sound
 
-- [ ] Replace the synthesised effects (`tools/bake_audio.py`) with recorded or produced sounds: shots, hits, bikes, steps, ambience
-- [ ] Variations and pitch randomisation for every frequently repeated sound
-- [ ] Proper mixing: separate Music / SFX / Voice / Ambience / UI buses, voice ducking, and a volume slider per bus in Settings (only one master slider today)
-- [ ] 3D audio pass: distance attenuation, doppler for riders, tunnel reverb
-- [ ] Clean up and normalise the 79 voice lines to one loudness, remove the unused `voice_old` files, record new lines for the final boss, victory and run start
-- [ ] Menu sounds: hover, confirm, back (menus currently reuse the click sound)
-- [ ] Stingers for round clear, boss intro, final boss defeat, run complete and game over
+Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/ASSET_SOURCES.md). Plan: use professional free libraries for effects and ambience, keep your own voice recordings, and keep the existing synthesised sounds only until each is replaced.
+
+### S1. Foundation
+- [ ] Set up the audio pipeline: folders, naming, one loudness target, and a `CREDITS.md` entry for every file
+- [ ] Download the sources worth mining (the latest Sonniss GDC bundle, Freesound CC0 / CC-BY searches, Kenney) and build a shortlist per sound category
+- [ ] Bus layout: Master with Music, SFX, Voice, Ambience and UI buses; voice ducking
+- [ ] One volume slider per bus in Settings (only one master slider today)
+
+### S2. Weapons and combat
+- [ ] Dart gun: shot, pump / reload, empty click, shell drops
+- [ ] Dart impact on rider, pedestrian, boss armour and weak spot
+- [ ] Melee: swing, hit and deflect
+- [ ] Phone: throw whoosh, flight, smash
+
+### S3. Riders and world
+- [ ] Bike and rider loop (with pitch and volume by speed)
+- [ ] Footsteps, landing, slide and dash
+- [ ] Crashes and falling parts
+- [ ] Ambience loops per theme (day, golden hour, dusk, night) and the tunnel
+- [ ] Passing cars, birds, sirens and crowd cheer
+
+### S4. Bosses
+- [ ] Lawnmower and wifi loops, intro and hit sounds
+- [ ] Minister and golden president sounds
+- [ ] Boss defeat and final boss defeat stingers
+
+### S5. UI and flow
+- [ ] Menu sounds: hover, confirm, back, error
+- [ ] Pickup, hype, shield and slow-motion sounds
+- [ ] Stingers: round start, round clear, game over, run complete
+- [ ] Leaderboard name entry sounds
+
+### S6. Voice lines
+- [ ] Normalise all 79 lines to one loudness and remove the unused `voice_old` files
+- [ ] Record new lines: run start, final boss intro, victory
+- [ ] Note who recorded each line (for the credits)
+
+### S7. 3D audio and mixing pass
+- [ ] Distance attenuation, doppler for riders, tunnel reverb
+- [ ] Mix pass of every theme and boss fight
+- [ ] Remove `tools/bake_audio.py` and the synthesised files once nothing uses them
+
+### S8. Music
 - [ ] Music: see "Dynamic music system" in Milestone E
 
 ---
