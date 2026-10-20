@@ -1,2 +1,5 @@
 # Normalize line endings: store LF in the repo, avoid Windows/Linux churn
 * text=auto eol=lf
+# binary assets: never touch line endings
+*.glb binary
+*.png binary

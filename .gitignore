@@ -24,3 +24,7 @@ mono_crash.*.json
 # Uncomment if your project does not version PCK files as runtime dependencies.
 # *.pck
 *.uid
+
+# 3D model tooling
+tools/models/.venv/
+__pycache__/

@@ -76,6 +76,7 @@ Target machine: **i5-7500 (4 cores), GTX 1060 3 GB, 8 GB RAM, 1080p at 60 fps.**
 | Frame time | 16.6 ms at 1080p on the target machine |
 | Rider + bike | about 3,000 to 6,000 triangles |
 | Boss | about 8,000 to 15,000 triangles |
+| First-person gun / melee | up to about 10,000 triangles (seen up close, one at a time) |
 | Props and buildings | 200 to 2,000 triangles each, instanced |
 | Draw calls | keep low: shared materials and atlases, MultiMesh for repeated props and particles |
 | Video memory | all textures together well under about 1 GB; shared 512 to 1024 px atlases, no normal maps on most assets |
@@ -100,8 +101,8 @@ Open technical test: **Compatibility renderer vs Forward+** on this class of har
 
 **Claude builds them with scripted Blender** (`bpy`, the Blender Python module). I tested this in the working environment: it installs, builds a bevelled model, renders a preview with the CPU renderer and exports `.glb`.
 
-- Scripts live in `tools/models/`, one per asset, so every model can be rebuilt and tweaked later (change a number, rerun).
-- Output goes to `assets/models/*.glb`, with a turntable preview image per model for review.
+- Scripts live in `tools/models/models/`, one per asset, so every model can be rebuilt and tweaked later (change a number, rerun).
+- Output goes to `assets/models/*.glb`, with a four-angle preview sheet per model in `docs/model_previews/`. Triangle budgets and file validity are checked automatically on every build, and `tools/viewer/model_viewer.tscn` shows the models in Godot. Usage: `tools/models/README.md`.
 - A shared kit keeps the style consistent: chunky bevelled primitives, a common palette, one material set, one scale (1 unit = 1 metre), consistent naming.
 - Rigs and animation: simple skeletons and animation clips built in the same scripts (pedal cycle, recoil, swing). Complex animation may later need hand polish in Blender.
 
