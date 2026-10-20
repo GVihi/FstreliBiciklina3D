@@ -209,7 +209,55 @@ static func pose_civ(d: Dictionary, ph: float, photo: bool, fast: bool) -> void:
 # ------------------------------------------------------------------
 #  Foam-dart pump shotgun (first-person viewmodel). Barrel points to -Z.
 # ------------------------------------------------------------------
+const GUN_MODEL_GLB = true     # Milestone F2: the gun comes from assets/models/dart_gun.glb; false = the procedural gun below
+const GUN_MODEL_PATH = "res://assets/models/dart_gun.glb"
+
 static func build_gun() -> Dictionary:
+	if GUN_MODEL_GLB:
+		var d = _build_gun_from_glb()
+		if not d.is_empty():
+			return d
+		push_warning("dart_gun.glb could not be loaded, using the procedural gun")
+	return _build_gun_procedural()
+
+# The modelled gun (tools/models/models/dart_gun.py). The .glb holds two meshes: "dart_gun" (everything fixed) and
+# "pump" (the slide, already placed at (0, -0.05, -0.30) like the procedural pump). The barrel points to -Z.
+static func _build_gun_from_glb() -> Dictionary:
+	if not ResourceLoader.exists(GUN_MODEL_PATH):
+		return {}
+	var scene = load(GUN_MODEL_PATH)
+	if not (scene is PackedScene):
+		return {}
+	var inst: Node = scene.instantiate()
+	var body = inst.get_node_or_null("dart_gun")
+	var pump = inst.get_node_or_null("pump")
+	if not (body is Node3D) or not (pump is Node3D):
+		inst.free()
+		return {}
+	var root = Node3D.new()
+	inst.remove_child(body)
+	inst.remove_child(pump)
+	inst.free()
+	root.add_child(body)
+	root.add_child(pump)
+	return _finish_gun(root, pump)
+
+# the muzzle point and the muzzle-flash light, shared by the modelled and the procedural gun
+static func _finish_gun(root: Node3D, pump: Node3D) -> Dictionary:
+	var muzzle = Node3D.new()
+	muzzle.position = Vector3(0, 0.03, -0.66)
+	root.add_child(muzzle)
+	var light = OmniLight3D.new()
+	light.omni_range = 6.0
+	light.light_color = Color(1.0, 0.8, 0.5)
+	light.light_energy = 0.0
+	muzzle.add_child(light)
+	for ch in root.get_children():
+		if ch is MeshInstance3D:
+			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return {"root": root, "pump": pump, "muzzle": muzzle, "light": light}
+
+static func _build_gun_procedural() -> Dictionary:
 	var root = Node3D.new()
 	var orange = Util.mat(Color.html("#ff6a2b"), 0.5)
 	var orange_d = Util.mat(Color.html("#c24a16"), 0.5)
@@ -229,19 +277,7 @@ static func build_gun() -> Dictionary:
 	grip.rotation.x = 0.25
 	var pump = Util.box(root, Vector3(0.06, 0.055, 0.16), Vector3(0, -0.05, -0.30), blue)  # animated slide
 
-	var muzzle = Node3D.new()
-	muzzle.position = Vector3(0, 0.03, -0.66)
-	root.add_child(muzzle)
-	var light = OmniLight3D.new()
-	light.omni_range = 6.0
-	light.light_color = Color(1.0, 0.8, 0.5)
-	light.light_energy = 0.0
-	muzzle.add_child(light)
-
-	for ch in root.get_children():
-		if ch is MeshInstance3D:
-			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return {"root": root, "pump": pump, "muzzle": muzzle, "light": light}
+	return _finish_gun(root, pump)
 
 # ------------------------------------------------------------------
 #  v4 additions: bosses, angry cyclist, phone, rubber, cheerleaders, pickups
