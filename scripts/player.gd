@@ -12,6 +12,16 @@ var sway_pitch = 0.0
 var look_prev = Vector2.ZERO
 var look_seen = false
 
+# recoil spring: the gun kicks back (metres), the muzzle rises (radians) and it rolls a little, then settles with a small overshoot
+var kick_back = 0.0
+var kick_back_v = 0.0
+var kick_rise = 0.0
+var kick_rise_v = 0.0
+var kick_roll = 0.0
+var kick_roll_v = 0.0
+var shots_seen = 0
+var gun_base = Vector3.ZERO     # the smoothed hip / aim position, before the recoil is added
+
 # Gun motion tuning (Milestone F2). Everything is in metres / radians and fades out while aiming down sights.
 const IDLE_SWAY = 0.0035        # breathing: how far the gun drifts up/down while standing still
 const BOB_SIDE = 0.010          # walk bob: side-to-side travel
@@ -22,6 +32,14 @@ const LOOK_SWAY = 0.5           # how much of a turn the gun lags behind (1.0 = 
 const LOOK_SWAY_MAX = 0.07      # largest lag in radians
 const LOOK_SWAY_RETURN = 9.0    # how fast the gun catches up again (per second)
 const ADS_CALM = 0.85           # how much of the motion aiming down sights removes
+const KICK_BACK_SPEED = 1.4     # recoil: how hard a shot shoves the gun back (m/s, about 5 cm of travel)
+const KICK_RISE_SPEED = 3.6     # recoil: how hard it flips the muzzle up (rad/s, about 7 degrees)
+const KICK_ROLL_SPEED = 0.7     # recoil: random roll, to either side (rad/s)
+const KICK_STIFFNESS = 320.0    # spring strength: higher = snappier return
+const KICK_DAMPING = 24.0       # spring damping: lower = more wobble after the kick
+const KICK_BACK_MAX = 0.09      # limits, so rapid fire stacks up but never runs away
+const KICK_RISE_MAX = 0.26
+const KICK_ADS_MUL = 0.5        # recoil is this much smaller while aiming down sights (the view carries it instead)
 
 func _init(game) -> void:
 	g = game
@@ -228,6 +246,31 @@ func ex_bonus() -> float:
 	# extra hit radius in metres from fat-dart upgrades and the fat-dart pickup
 	return (g.up["wide"] * 5.0 + (18.0 if g.buffs["big"] > 0.0 else 0.0)) * 0.025
 
+# one spring per recoil axis: a shot gives them a push, then they swing back to rest with a small overshoot
+func update_kick(dt: float) -> void:
+	if g.shots_fired != shots_seen:
+		if g.shots_fired > shots_seen:
+			var mul = lerpf(1.0, KICK_ADS_MUL, g.ads_t)
+			kick_back_v += KICK_BACK_SPEED * mul
+			kick_rise_v += KICK_RISE_SPEED * mul
+			kick_roll_v += randf_range(-KICK_ROLL_SPEED, KICK_ROLL_SPEED) * mul
+		shots_seen = g.shots_fired
+	var steps = clampi(ceili(dt / 0.008), 0, 8)           # small steps keep the stiff spring stable on a slow frame
+	if steps == 0:
+		return
+	var h = minf(dt, 0.064) / float(steps)
+	for _i in range(steps):
+		kick_back_v += (-KICK_STIFFNESS * kick_back - KICK_DAMPING * kick_back_v) * h
+		kick_back += kick_back_v * h
+		kick_rise_v += (-KICK_STIFFNESS * kick_rise - KICK_DAMPING * kick_rise_v) * h
+		kick_rise += kick_rise_v * h
+		kick_roll_v += (-KICK_STIFFNESS * kick_roll - KICK_DAMPING * kick_roll_v) * h
+		kick_roll += kick_roll_v * h
+	kick_back = clampf(kick_back, -KICK_BACK_MAX, KICK_BACK_MAX)
+	kick_rise = clampf(kick_rise, -KICK_RISE_MAX, KICK_RISE_MAX)
+	kick_roll = clampf(kick_roll, -0.12, 0.12)
+	# kick_back is a push towards +Z (towards the player), kick_rise tips the muzzle up
+
 func update_gun(dt: float) -> void:
 	var gun_node: Node3D = g.gun["root"]
 	var rb: Node3D = g.rubber["root"]
@@ -238,7 +281,6 @@ func update_gun(dt: float) -> void:
 	var hip = Vector3(0.24, -0.22, -0.52)
 	var ads = Vector3(0.0, -0.062, -0.42)
 	var p = hip.lerp(ads, g.ads_t)
-	p.z += g.recoil * 0.07
 	p.y -= (0.05 if g.sprinting else 0.0) + (0.04 if g.loading else 0.0)
 
 	# idle sway (breathing), walk / sprint bob and look sway. They ease out while aiming down sights.
@@ -272,11 +314,13 @@ func update_gun(dt: float) -> void:
 
 	var roll = (sin(g.time * 0.85) * 0.010 * still + step_side * 0.025 * bob_mul * moving) * calm
 	var tilt = step_up * 0.018 * bob_mul * moving * calm
-	gun_node.position = gun_node.position.lerp(p, minf(1.0, dt * 18.0))
+	update_kick(dt)
+	gun_base = gun_base.lerp(p, minf(1.0, dt * 18.0))
+	gun_node.position = gun_base + Vector3(0.0, 0.0, kick_back)
 	gun_node.rotation = Vector3(
-		g.recoil * 0.14 + (0.18 if g.sprinting else 0.0) + tilt + sway_pitch * calm,
+		kick_rise + (0.18 if g.sprinting else 0.0) + tilt + sway_pitch * calm,
 		(1.0 - g.ads_t) * 0.06 + sway_yaw * calm,
-		roll)
+		roll + kick_roll)
 	var phase = 0.0
 	if g.pump_t > 0.0:
 		phase = sin(PI * (1.0 - g.pump_t / maxf(g.pump_dur, 0.01)))
