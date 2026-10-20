@@ -4,7 +4,7 @@ Status: **draft, owner answers included.** Direction: *not realistic, it must ru
 
 **Decisions so far**
 - Minimum spec: **Intel i5-7500, GTX 1060 3 GB, 8 GB RAM, 1080p at 60 fps.**
-- Models: **built by Claude** with scripted Blender (see section 7).
+- Models: **Claude is the 3D modeler**, working with **Blender as a Python module (`bpy`)** (see section 7).
 - Brightness: **bright and readable.** Dark and moody is out.
 - Style: chunky, bevelled low-poly with bold colour, strong light/dark shapes and glowing accents. No outlines.
 
@@ -113,10 +113,10 @@ CC0 low-poly packs (see `docs/ASSET_SOURCES.md`) remain an option for props and 
 
 Milestone F in `README.md`: foundation → dart gun → melee → riders → phones → pedestrians and cheerleaders → bosses → pickups → world → effects → UI and menus → final pass. A step is done when the old version is fully replaced, it passes section 6, frame time is within section 5, you have checked it in the game, and there is a before/after screenshot.
 
-## 9. Remaining questions for you
+## 9. Answered questions
 
-1. **UI language:** go with the dark translucent panels and amber accents from section 4 (it matches your current orange), or something brighter to suit the sunny look?
-2. **Ammo on the weapon** (like the Rogue Core screenshot) instead of in the HUD: yes?
-3. **Rarity colours** on upgrades and shop items (common, uncommon, rare, ...): yes?
-4. **Hazard stripes and hi-vis** as the recurring visual motif for the game: yes? It fits cyclists and road works naturally.
-5. **Name and logo:** the title screen will need a logo. Text-only chunky logo, or should it include a small emblem?
+1. **UI language:** dark translucent panels with amber accents for all menus. **Yes.**
+2. **Ammo on the weapon:** nice to have, **not required.** The HUD ammo display stays until it is done.
+3. **Rarity colours** on upgrades and shop items: nice to have, **not required for now.**
+4. **Hazard stripes and hi-vis** as the recurring visual motif: **Yes.**
+5. **Logo:** **text only.**

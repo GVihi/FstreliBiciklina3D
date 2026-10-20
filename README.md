@@ -242,15 +242,17 @@ Mostly vibe coded Godot game
 
 > Complete, hard overhaul of how the game looks and sounds. The current toon look (outlines, flat unlit colours, smooth primitive models) is removed and replaced by a chunky, rugged low-poly style with strong light and dark contrast and glowing accents, inspired by the Deep Rock franchise and built to run on low-end PCs. Direction and rules: [`docs/ART_DIRECTION.md`](docs/ART_DIRECTION.md). Free asset sources and licences: [`docs/ASSET_SOURCES.md`](docs/ASSET_SOURCES.md).
 >
+> **3D models: Claude is the 3D modeler.** Models are written as Python scripts for **Blender used as a Python module (`bpy`)**, kept in `tools/models/`, and exported as `.glb` into `assets/models/`. Claude cannot run Godot in its working environment, so every model step ends with an in-game check by the owner.
+>
 > Work top to bottom, one checkbox at a time. Each step is done when the old version of that thing is fully replaced, it passes the readability rules in the art direction, frame time is within budget, and there is a before/after screenshot.
 
 ## Graphics
 
 ### F1. Foundation (before any new asset)
 - [x] Answer the first open questions (minimum spec, who makes models, references, bright look): done, see `docs/ART_DIRECTION.md`
-- [ ] Answer the remaining questions in section 9 of `docs/ART_DIRECTION.md` (UI language, ammo on the weapon, rarity colours, hazard-stripe motif, logo)
+- [x] Answer the remaining questions (UI language, ammo on the weapon, rarity colours, hazard-stripe motif, logo): done, see section 9 of `docs/ART_DIRECTION.md`
 - [ ] Record the "before" baseline: screenshots of every screen and theme, plus frame time on the minimum-spec machine (needs you: Godot cannot run in my working environment)
-- [ ] Set up the model pipeline: scripted Blender in `tools/models/`, output to `assets/models/*.glb` with a turntable preview image per model, naming rules, Godot import presets, 1 unit = 1 metre
+- [ ] Set up the model pipeline (Claude as modeler, Blender as a Python module `bpy`): scripts in `tools/models/`, output to `assets/models/*.glb` with a turntable preview image per model, naming rules, Godot import presets, 1 unit = 1 metre
 - [ ] Build the shared style kit: bevelled primitive helpers, the colour palette and material set, a test model to check the look in the game
 - [ ] Create `CREDITS.md` and the rule that every third-party asset gets an entry when it is added
 - [ ] Switch off the outline pass and flat unlit toon materials behind a flag; simple lit low-poly materials become the default
@@ -268,7 +270,7 @@ Mostly vibe coded Godot game
 - [ ] Aim-down-sights pose and crosshair behaviour
 - [ ] Dart and shell models
 - [ ] Muzzle flash and shell ejection
-- [ ] Ammo count shown on the gun itself
+- [ ] (Optional) Ammo count shown on the gun itself
 
 ### F3. Melee (giant gummy worm)
 - [ ] Chunky worm model with a glossy gummy material
@@ -329,8 +331,8 @@ Mostly vibe coded Godot game
 - [ ] HUD top bar (hearts, score, round, round progress)
 - [ ] HUD bottom (ammo, dash, style rank), crosshair and hit marker
 - [ ] Threat arrows, radar and floating popups
-- [ ] Upgrade and shop cards (header, icon, rarity tag, reroll button, key hints)
-- [ ] Title screen with a live 3D background and logo
+- [ ] Upgrade and shop cards (header, icon, reroll button, key hints; rarity tags are optional and can come later)
+- [ ] Title screen with a live 3D background and a text-only logo
 - [ ] Pause menu and settings panel (amber buttons, hazard-stripe footer)
 - [ ] Run summary and leaderboard screens
 - [ ] Ultrawide and resolution scaling check
