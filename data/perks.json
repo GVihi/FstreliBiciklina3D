@@ -1,0 +1,164 @@
+{
+	"perks": [
+		{
+			"id": "haggler",
+			"name": "HAGGLER",
+			"desc": "Everything in the shop costs 15% less",
+			"cost": 110,
+			"min": 1
+		},
+		{
+			"id": "steady",
+			"name": "STEADY HANDS",
+			"desc": "30% less dart spread",
+			"cost": 105,
+			"min": 1
+		},
+		{
+			"id": "salvage",
+			"name": "SALVAGE",
+			"desc": "Armoured riders always drop ammo",
+			"cost": 100,
+			"min": 1
+		},
+		{
+			"id": "sprinter",
+			"name": "SPRINTER",
+			"desc": "Sprint 12% faster",
+			"cost": 110,
+			"min": 2
+		},
+		{
+			"id": "slideshot",
+			"name": "SLIDE SHOT",
+			"desc": "Dash or slide: your next 3 darts are free",
+			"cost": 130,
+			"min": 2
+		},
+		{
+			"id": "bounty",
+			"name": "BOUNTY",
+			"desc": "All cash you earn x1.35",
+			"cost": 120,
+			"min": 2
+		},
+		{
+			"id": "adrenaline",
+			"name": "ADRENALINE",
+			"desc": "Dash cooldown -40%",
+			"cost": 125,
+			"min": 2
+		},
+		{
+			"id": "scavenger",
+			"name": "SCAVENGER",
+			"desc": "Ammo drops are twice as big and more common",
+			"cost": 105,
+			"min": 2
+		},
+		{
+			"id": "counter",
+			"name": "COUNTER",
+			"desc": "Deflecting a phone refunds 1 dart",
+			"cost": 115,
+			"min": 2
+		},
+		{
+			"id": "closeshave",
+			"name": "CLOSE SHAVE",
+			"desc": "Every 2nd perfect dodge heals 1 life",
+			"cost": 150,
+			"min": 3
+		},
+		{
+			"id": "lastshell",
+			"name": "LAST SHELL",
+			"desc": "The last dart in your clip hits twice as hard",
+			"cost": 135,
+			"min": 3
+		},
+		{
+			"id": "deadeye",
+			"name": "DEADEYE",
+			"desc": "Weak spot hits deal +1 extra damage",
+			"cost": 140,
+			"min": 3
+		},
+		{
+			"id": "boomerang",
+			"name": "BOOMERANG",
+			"desc": "A deflected phone chains on to 2 more targets",
+			"cost": 155,
+			"min": 3
+		},
+		{
+			"id": "secondwind",
+			"name": "SECOND WIND",
+			"desc": "Once per round a deadly hit leaves you on 1 life",
+			"cost": 170,
+			"min": 3
+		}
+	],
+	"duos": [
+		{
+			"a": "slideshot",
+			"b": "closeshave",
+			"name": "MATADOR",
+			"desc": "Perfect dodges refill 3 darts"
+		},
+		{
+			"a": "boomerang",
+			"b": "bounty",
+			"name": "BOUNTY HUNTER",
+			"desc": "Deflect kills pay x3 cash"
+		},
+		{
+			"a": "slideshot",
+			"b": "bounty",
+			"name": "QUICK DRAW",
+			"desc": "Dash / slide gives 5 free darts"
+		},
+		{
+			"a": "adrenaline",
+			"b": "closeshave",
+			"name": "GHOST",
+			"desc": "Dash invulnerability lasts 0.15 s longer"
+		},
+		{
+			"a": "deadeye",
+			"b": "scavenger",
+			"name": "HEADHUNTER",
+			"desc": "Weak spot hits refund 2 darts"
+		},
+		{
+			"a": "secondwind",
+			"b": "bounty",
+			"name": "LIFE INSURANCE",
+			"desc": "Second wind pays $80"
+		},
+		{
+			"a": "lastshell",
+			"b": "deadeye",
+			"name": "SNIPER",
+			"desc": "Weak spot hit with the last dart: +2 damage"
+		},
+		{
+			"a": "salvage",
+			"b": "scavenger",
+			"name": "SCRAPYARD",
+			"desc": "Armoured riders drop two ammo and cash"
+		},
+		{
+			"a": "counter",
+			"b": "boomerang",
+			"name": "RICOCHET",
+			"desc": "Deflected phones chain on to 4 targets"
+		},
+		{
+			"a": "sprinter",
+			"b": "adrenaline",
+			"name": "SPEEDSTER",
+			"desc": "Dash cooldown a further -20%"
+		}
+	]
+}
