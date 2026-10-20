@@ -7,6 +7,10 @@ const Util = preload("res://scripts/util.gd")
 
 var g = null
 var dart_pool = []
+var dart_scene = null          # the dart model, loaded the first time a dart is made
+
+const DART_MODEL_GLB = true    # Milestone F2: darts use assets/models/dart.glb; false = the old box and ball
+const DART_MODEL_PATH = "res://assets/models/dart.glb"
 
 func _init(game) -> void:
 	g = game
@@ -357,6 +361,18 @@ func release_dart(node: Node3D) -> void:
 	node.visible = false
 	dart_pool.append(node)
 
+# a fresh copy of the modelled dart, or null when the model is switched off or missing
+func dart_model() -> Node3D:
+	if not DART_MODEL_GLB:
+		return null
+	if dart_scene == null:
+		if not ResourceLoader.exists(DART_MODEL_PATH):
+			return null
+		dart_scene = load(DART_MODEL_PATH)
+	if not (dart_scene is PackedScene):
+		return null
+	return dart_scene.instantiate() as Node3D
+
 func spawn_dart(a: Vector3, b: Vector3, stick: bool) -> void:
 	var node: Node3D
 	if dart_pool.size() > 0:
@@ -365,8 +381,12 @@ func spawn_dart(a: Vector3, b: Vector3, stick: bool) -> void:
 		node.rotation = Vector3.ZERO
 	else:
 		node = Node3D.new()
-		Util.box(node, Vector3(0.025, 0.025, 0.16), Vector3.ZERO, g.mat_dart)
-		Util.sphere(node, 0.022, Vector3(0, 0, -0.09), g.mat_tip)
+		var model = dart_model()
+		if model != null:
+			node.add_child(model)                           # the model's tip points to -Z, the way look_at aims
+		else:
+			Util.box(node, Vector3(0.025, 0.025, 0.16), Vector3.ZERO, g.mat_dart)
+			Util.sphere(node, 0.022, Vector3(0, 0, -0.09), g.mat_tip)
 		Util.trim_shadows(node, 1.0)
 		g.add_child(node)
 	node.position = a

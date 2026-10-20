@@ -833,10 +833,17 @@ func _draw_crosshair(k: float) -> void:
 	var gap = tan(deg_to_rad(g.spread_deg)) / tan(half_fov) * size.y * 0.5
 	gap += g.player_sys.ex_bonus() * 20.0 * k
 	gap = maxf(gap, 3.0 * k)
-	var ln = 9.0 * k
-	var col = Color(1, 1, 1, 0.92)
+	# aiming down sights: the gun's own sights do the aiming, so the cross shrinks and fades to nearly a dot
+	var ln = 9.0 * k * lerpf(1.0, 0.55, g.ads_t)
+	var col = Color(1, 1, 1, lerpf(0.92, 0.55, g.ads_t))
 	if g.buffs["big"] > 0.0:
-		col = Color(0.55, 0.95, 0.6, 0.95)
+		col = Color(0.55, 0.95, 0.6, col.a + 0.03)
+	# out of darts: red; loading shells (firing still stops the reload): a little dimmer
+	var empty = g.shells <= 0 and g.buffs["rapid"] <= 0.0 and g.free_shots <= 0
+	if empty:
+		col = Color(1.0, 0.36, 0.3, 0.95)
+	elif g.loading:
+		col.a *= 0.7
 	var shadow = Color(0, 0, 0, 0.6)
 	for d in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
 		draw_line(c + d * gap, c + d * (gap + ln), shadow, 4.0 * k)

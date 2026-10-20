@@ -266,14 +266,14 @@ Mostly vibe coded Godot game
 
 ### F2. Dart gun (first person)
 - [x] Viewmodel setup: separate camera and FOV so the gun never clips into walls (`scripts/viewmodel.gd`; checked in game by the owner: no clipping, same look, frame time fine; `VIEWMODEL_PASS = false` in `main.gd` switches it off)
-- [ ] Chunky low-poly gun model with a hand-painted texture
-- [ ] Idle sway and walk / sprint bob
-- [ ] Shoot and recoil animation
-- [ ] Pump / reload animation
-- [ ] Aim-down-sights pose and crosshair behaviour
-- [ ] Dart and shell models
-- [ ] Muzzle flash and shell ejection
-- [ ] (Optional) Ammo count shown on the gun itself
+- [x] Chunky low-poly gun model with a hand-painted texture (model done and wired in: `tools/models/models/dart_gun.py` -> `assets/models/dart_gun.glb`, 1,848 tris, pump slide as its own mesh so the pump animation keeps working, `GUN_MODEL_GLB = false` in `models.gd` brings the old gun back. Waiting for: your in-game check (open the project once so Godot imports the `.glb`), and the hand-painted texture, which the model pipeline does not support yet: the gun uses the shared palette materials for now)
+- [x] Idle sway and walk / sprint bob (written in `update_gun` in `scripts/player.gd`, tuning constants at the top of that file; waiting for your in-game check: breathing sway, walk and sprint bob, and a small lag when you turn; all of it fades out while aiming)
+- [x] Shoot and recoil animation (springy kick-back, muzzle rise and a little roll that overshoot and settle, rapid fire stacks up to a limit; `update_kick` in `scripts/player.gd`, tuning constants at the top of that file; waiting for your in-game check)
+- [x] Pump / reload animation (slide pulls back fast and pushes forward slower, the gun jolts a little with each pump; while loading it tilts towards you, the slide rests part way open and each shell nudges the gun down; `pump_curve` and `update_gun` in `scripts/player.gd`, tuning constants at the top; waiting for your in-game check)
+- [x] Aim-down-sights pose and crosshair behaviour (the gun's own height puts the tops of the modelled sights on the middle of the screen, `ads_y` in `models.gd`; the crosshair shrinks and fades to nearly a dot while aiming, turns red when out of darts and dims while loading, `_draw_crosshair` in `scripts/hud.gd`; waiting for your in-game check)
+- [x] Dart and shell models (`tools/models/models/dart.py` and `shell.py` -> `assets/models/dart.glb` and `shell.glb`, 312 and 268 tris; darts in flight now use the dart model, `DART_MODEL_GLB = false` in `combat.gd` brings back the old box and ball; the shell model is used by the shell ejection item; waiting for your in-game check)
+- [x] Muzzle flash and shell ejection (a glowing flash on the muzzle for each shot, smaller while aiming, `_build_muzzle_flash` in `models.gd`; each pump throws a shell out of the right side that tumbles, lands and shrinks away, `eject_shell` in `player.gd` and `spawn_shell` in `effects.gd`; uses the shell model; waiting for your in-game check)
+- [x] (Optional) Ammo count shown on the gun itself (a glowing number on the left side of the receiver: cyan, amber at 2 or fewer, red at 0, INF with rapid fire; `_build_ammo_label` in `models.gd`, updated in `update_gun`; the HUD ammo stays; waiting for your in-game check, including whether it is readable)
 
 ### F3. Melee (giant gummy worm)
 - [ ] Chunky worm model with a glossy gummy material

@@ -209,7 +209,105 @@ static func pose_civ(d: Dictionary, ph: float, photo: bool, fast: bool) -> void:
 # ------------------------------------------------------------------
 #  Foam-dart pump shotgun (first-person viewmodel). Barrel points to -Z.
 # ------------------------------------------------------------------
+const GUN_MODEL_GLB = true     # Milestone F2: the gun comes from assets/models/dart_gun.glb; false = the procedural gun below
+const GUN_MODEL_PATH = "res://assets/models/dart_gun.glb"
+# gun root height (m) that puts the tops of the sights on the middle of the screen while aiming; the modelled sights
+# stand 0.078 m above the root, the old procedural ones 0.062 m
+const GUN_MODEL_ADS_Y = -0.078
+const GUN_PROC_ADS_Y = -0.062
+# where the ammo number sits on the gun's left side (the side that faces you): just outside the left receiver plate, whose
+# face is at x = -0.045 (the number has to be in front of it, not inside it), and just outside the old receiver
+const GUN_MODEL_AMMO_POS = Vector3(-0.050, -0.018, -0.10)
+const GUN_PROC_AMMO_POS = Vector3(-0.041, 0.0, -0.05)
+
 static func build_gun() -> Dictionary:
+	if GUN_MODEL_GLB:
+		var d = _build_gun_from_glb()
+		if not d.is_empty():
+			return d
+		push_warning("dart_gun.glb could not be loaded, using the procedural gun")
+	return _build_gun_procedural()
+
+# The modelled gun (tools/models/models/dart_gun.py). The .glb holds two meshes: "dart_gun" (everything fixed) and
+# "pump" (the slide, already placed at (0, -0.05, -0.30) like the procedural pump). The barrel points to -Z.
+static func _build_gun_from_glb() -> Dictionary:
+	if not ResourceLoader.exists(GUN_MODEL_PATH):
+		return {}
+	var scene = load(GUN_MODEL_PATH)
+	if not (scene is PackedScene):
+		return {}
+	var inst: Node = scene.instantiate()
+	var body = inst.get_node_or_null("dart_gun")
+	var pump = inst.get_node_or_null("pump")
+	if not (body is Node3D) or not (pump is Node3D):
+		inst.free()
+		return {}
+	var root = Node3D.new()
+	inst.remove_child(body)
+	inst.remove_child(pump)
+	inst.free()
+	root.add_child(body)
+	root.add_child(pump)
+	return _finish_gun(root, pump, GUN_MODEL_ADS_Y, GUN_MODEL_AMMO_POS)
+
+# the muzzle point and the muzzle-flash light, shared by the modelled and the procedural gun
+static func _finish_gun(root: Node3D, pump: Node3D, ads_y: float, ammo_pos: Vector3) -> Dictionary:
+	var muzzle = Node3D.new()
+	muzzle.position = Vector3(0, 0.03, -0.66)
+	root.add_child(muzzle)
+	var light = OmniLight3D.new()
+	light.omni_range = 6.0
+	light.light_color = Color(1.0, 0.8, 0.5)
+	light.light_energy = 0.0
+	muzzle.add_child(light)
+	var flash = _build_muzzle_flash()
+	muzzle.add_child(flash)
+	var ammo = _build_ammo_label(ammo_pos)
+	root.add_child(ammo)
+	for ch in root.get_children():
+		if ch is MeshInstance3D:
+			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return {"root": root, "pump": pump, "muzzle": muzzle, "light": light, "flash": flash, "ammo": ammo, "ads_y": ads_y}
+
+# The ammo count on the gun: a small glowing number on the left side of the receiver, facing you (update_gun in player.gd
+# sets the text and colour). The HUD ammo display stays as it is.
+static func _build_ammo_label(pos: Vector3) -> Label3D:
+	var l = Label3D.new()
+	l.text = "6"
+	l.font_size = 72
+	l.pixel_size = 0.0007                  # 72 px = about 5 cm tall
+	l.position = pos
+	l.rotation = Vector3(0.0, -PI * 0.5 + 0.5, 0.0)   # faces -X, turned about 30 degrees back towards the player so it is not seen edge-on
+	l.outline_size = 10
+	l.outline_modulate = Color(0.04, 0.05, 0.07)
+	l.shaded = false
+	l.double_sided = false
+	l.modulate = Color(0.22, 0.91, 1.0)
+	l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return l
+
+# The muzzle flash: a hot white core, an orange cone forward and a three-armed star across the barrel, all unshaded so it
+# glows in any light. It sits on the muzzle, is hidden until a shot (update_gun in player.gd) and is a child of the gun so
+# it goes to the viewmodel layer with the rest of the gun.
+static func _build_muzzle_flash() -> Node3D:
+	var f = Node3D.new()
+	var hot = Util.unshaded(Color(1.0, 0.96, 0.75))
+	var warm = Util.unshaded(Color(1.0, 0.62, 0.16))
+	Util.sphere(f, 0.035, Vector3.ZERO, hot)
+	var cone = Util.cyl(f, 0.0, 0.03, 0.30, Vector3(0, 0, -0.15), warm)     # tip towards -Z, away from the gun
+	cone.rotation.x = -PI * 0.5
+	var core = Util.cyl(f, 0.0, 0.016, 0.20, Vector3(0, 0, -0.10), hot)
+	core.rotation.x = -PI * 0.5
+	for i in range(3):
+		var spike = Util.box(f, Vector3(0.22, 0.012, 0.012), Vector3(0, 0, -0.02), warm)
+		spike.rotation.z = float(i) * PI / 3.0
+	for ch in f.get_children():
+		if ch is MeshInstance3D:
+			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	f.visible = false
+	return f
+
+static func _build_gun_procedural() -> Dictionary:
 	var root = Node3D.new()
 	var orange = Util.mat(Color.html("#ff6a2b"), 0.5)
 	var orange_d = Util.mat(Color.html("#c24a16"), 0.5)
@@ -229,19 +327,7 @@ static func build_gun() -> Dictionary:
 	grip.rotation.x = 0.25
 	var pump = Util.box(root, Vector3(0.06, 0.055, 0.16), Vector3(0, -0.05, -0.30), blue)  # animated slide
 
-	var muzzle = Node3D.new()
-	muzzle.position = Vector3(0, 0.03, -0.66)
-	root.add_child(muzzle)
-	var light = OmniLight3D.new()
-	light.omni_range = 6.0
-	light.light_color = Color(1.0, 0.8, 0.5)
-	light.light_energy = 0.0
-	muzzle.add_child(light)
-
-	for ch in root.get_children():
-		if ch is MeshInstance3D:
-			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return {"root": root, "pump": pump, "muzzle": muzzle, "light": light}
+	return _finish_gun(root, pump, GUN_PROC_ADS_Y, GUN_PROC_AMMO_POS)
 
 # ------------------------------------------------------------------
 #  v4 additions: bosses, angry cyclist, phone, rubber, cheerleaders, pickups

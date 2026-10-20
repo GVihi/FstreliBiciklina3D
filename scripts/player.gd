@@ -6,6 +6,59 @@ const Ring = preload("res://scripts/ring.gd")
 
 var g = null
 
+# gun motion (update_gun): how far the gun lags behind turning, and the look angles of the last frame
+var sway_yaw = 0.0
+var sway_pitch = 0.0
+var look_prev = Vector2.ZERO
+var look_seen = false
+
+# recoil spring: the gun kicks back (metres), the muzzle rises (radians) and it rolls a little, then settles with a small overshoot
+var kick_back = 0.0
+var kick_back_v = 0.0
+var kick_rise = 0.0
+var kick_rise_v = 0.0
+var kick_roll = 0.0
+var kick_roll_v = 0.0
+var shots_seen = 0
+var gun_base = Vector3.ZERO     # the smoothed hip / aim position, before the recoil is added
+var kick_dip = 0.0              # the gun dips a little each time a shell goes in (metres, negative = down)
+var kick_dip_v = 0.0
+var shells_prev = -1
+var ammo_text = ""               # what the ammo label on the gun shows now, so the text is only set when it changes
+var flash_roll = 0.0            # the muzzle flash is turned a random amount for every shot
+var shell_out = false           # true once the shell of the current pump has been thrown out
+var pump_slide = 0.0            # 0 = slide forward, 1 = pulled all the way back
+var load_blend = 0.0            # 0 = normal hold, 1 = tilted for loading shells
+
+# Gun motion tuning (Milestone F2). Everything is in metres / radians and fades out while aiming down sights.
+const IDLE_SWAY = 0.0035        # breathing: how far the gun drifts up/down while standing still
+const BOB_SIDE = 0.010          # walk bob: side-to-side travel
+const BOB_UP = 0.010            # walk bob: up/down travel
+const BOB_SPRINT_MUL = 1.8      # a sprint bobs this much harder than a walk
+const BOB_LAG = 0.6             # the gun trails the camera bob by this many radians, so it feels heavy
+const LOOK_SWAY = 0.5           # how much of a turn the gun lags behind (1.0 = no follow at all)
+const LOOK_SWAY_MAX = 0.07      # largest lag in radians
+const LOOK_SWAY_RETURN = 9.0    # how fast the gun catches up again (per second)
+const ADS_CALM = 0.85           # how much of the motion aiming down sights removes
+const KICK_BACK_SPEED = 1.4     # recoil: how hard a shot shoves the gun back (m/s, about 5 cm of travel)
+const KICK_RISE_SPEED = 3.6     # recoil: how hard it flips the muzzle up (rad/s, about 7 degrees)
+const KICK_ROLL_SPEED = 0.7     # recoil: random roll, to either side (rad/s)
+const KICK_STIFFNESS = 320.0    # spring strength: higher = snappier return
+const KICK_DAMPING = 24.0       # spring damping: lower = more wobble after the kick
+const PUMP_TRAVEL = 0.12        # pump: how far the slide travels (metres)
+const PUMP_PULL = 0.4           # pump: the slide spends this share of the pump time going back (a fast pull, a slower push)
+const PUMP_JOLT_PITCH = 0.05    # pump: the muzzle dips this much (rad) when the slide is back
+const PUMP_JOLT_BACK = 0.012    # pump: and the gun is pulled this far towards you (metres)
+const LOAD_OPEN = 0.25          # reload: how far back the slide rests while shells go in (0 to 1)
+const LOAD_SHIFT = Vector3(-0.035, -0.04, 0.02)   # reload: where the gun moves to
+const LOAD_TILT = Vector2(0.22, 0.5)              # reload: pitch up and roll (rad), so the loading port faces you
+const SHELL_DIP_SPEED = 0.45    # reload: how hard each shell nudges the gun down (m/s, about 1 cm)
+const SHELL_PORT = Vector3(0.0405, 0.03, 0.0)       # the ejection port on the gun's right side
+const SHELL_EJECT_AT = 0.7      # a shell flies out when the pumped slide is this far back (0 to 1)
+const KICK_BACK_MAX = 0.09      # limits, so rapid fire stacks up but never runs away
+const KICK_RISE_MAX = 0.26
+const KICK_ADS_MUL = 0.5        # recoil is this much smaller while aiming down sights (the view carries it instead)
+
 func _init(game) -> void:
 	g = game
 
@@ -211,6 +264,51 @@ func ex_bonus() -> float:
 	# extra hit radius in metres from fat-dart upgrades and the fat-dart pickup
 	return (g.up["wide"] * 5.0 + (18.0 if g.buffs["big"] > 0.0 else 0.0)) * 0.025
 
+# one spring per recoil axis: a shot gives them a push, then they swing back to rest with a small overshoot
+func update_kick(dt: float) -> void:
+	if g.shots_fired != shots_seen:
+		if g.shots_fired > shots_seen:
+			var mul = lerpf(1.0, KICK_ADS_MUL, g.ads_t)
+			kick_back_v += KICK_BACK_SPEED * mul
+			kick_rise_v += KICK_RISE_SPEED * mul
+			kick_roll_v += randf_range(-KICK_ROLL_SPEED, KICK_ROLL_SPEED) * mul
+			flash_roll = randf() * TAU
+		shots_seen = g.shots_fired
+	var steps = clampi(ceili(dt / 0.008), 0, 8)           # small steps keep the stiff spring stable on a slow frame
+	if steps == 0:
+		return
+	var h = minf(dt, 0.064) / float(steps)
+	for _i in range(steps):
+		kick_back_v += (-KICK_STIFFNESS * kick_back - KICK_DAMPING * kick_back_v) * h
+		kick_back += kick_back_v * h
+		kick_rise_v += (-KICK_STIFFNESS * kick_rise - KICK_DAMPING * kick_rise_v) * h
+		kick_rise += kick_rise_v * h
+		kick_roll_v += (-KICK_STIFFNESS * kick_roll - KICK_DAMPING * kick_roll_v) * h
+		kick_roll += kick_roll_v * h
+		kick_dip_v += (-KICK_STIFFNESS * kick_dip - KICK_DAMPING * kick_dip_v) * h
+		kick_dip += kick_dip_v * h
+	kick_back = clampf(kick_back, -KICK_BACK_MAX, KICK_BACK_MAX)
+	kick_rise = clampf(kick_rise, -KICK_RISE_MAX, KICK_RISE_MAX)
+	kick_roll = clampf(kick_roll, -0.12, 0.12)
+	kick_dip = clampf(kick_dip, -0.03, 0.03)
+	# kick_back is a push towards +Z (towards the player), kick_rise tips the muzzle up
+
+# throws one shell out of the ejection port: out to the right, up and a little back, plus some of your own speed
+func eject_shell(gun_node: Node3D) -> void:
+	var basis = g.cam.global_transform.basis
+	var vel = basis.x * randf_range(1.5, 2.2) + basis.y * randf_range(1.0, 1.7) + basis.z * randf_range(0.2, 0.8)
+	vel += g.pvel * 0.6
+	g.fx_sys.spawn_shell(gun_node.to_global(SHELL_PORT), vel)
+
+# the slide over one pump, k from 0 to 1: a fast pull back (eased out), then a slower push forward (eased in and out)
+func pump_curve(k: float) -> float:
+	k = clampf(k, 0.0, 1.0)
+	if k < PUMP_PULL:
+		var t = k / PUMP_PULL
+		return 1.0 - (1.0 - t) * (1.0 - t)
+	var u = (k - PUMP_PULL) / (1.0 - PUMP_PULL)
+	return 1.0 - smoothstep(0.0, 1.0, u)
+
 func update_gun(dt: float) -> void:
 	var gun_node: Node3D = g.gun["root"]
 	var rb: Node3D = g.rubber["root"]
@@ -219,19 +317,103 @@ func update_gun(dt: float) -> void:
 	rb.visible = g.melee and not menu
 	var pump: Node3D = g.gun["pump"]
 	var hip = Vector3(0.24, -0.22, -0.52)
-	var ads = Vector3(0.0, -0.062, -0.42)
+	var ads = Vector3(0.0, float(g.gun.get("ads_y", -0.062)), -0.42)   # the gun's own height: its sights sit on the screen centre
 	var p = hip.lerp(ads, g.ads_t)
-	p.z += g.recoil * 0.07
-	p.y -= (0.05 if g.sprinting else 0.0) + (0.04 if g.loading else 0.0)
-	gun_node.position = gun_node.position.lerp(p, minf(1.0, dt * 18.0))
-	gun_node.rotation = Vector3(g.recoil * 0.14 + (0.18 if g.sprinting else 0.0), (1.0 - g.ads_t) * 0.06, 0.0)
-	var phase = 0.0
-	if g.pump_t > 0.0:
-		phase = sin(PI * (1.0 - g.pump_t / maxf(g.pump_dur, 0.01)))
-	if g.loading:
-		phase = maxf(phase, 0.5 * (0.5 + 0.5 * sin(g.time * 24.0)))
-	pump.position = Vector3(0.0, pump.position.y, -0.30 + 0.12 * phase)
+	p.y -= (0.05 if g.sprinting else 0.0)
+
+	# pump and reload: the slide curve, a small jolt of the whole gun, and the tilt while shells go in
+	var pumping = g.pump_t > 0.0
+	var slide_target = 0.0
+	if pumping:
+		slide_target = pump_curve(1.0 - g.pump_t / maxf(g.pump_dur, 0.01))
+		pump_slide = slide_target                          # follows the pump timing exactly
+	else:
+		if g.loading:
+			slide_target = LOAD_OPEN
+		pump_slide = lerpf(pump_slide, slide_target, minf(1.0, dt * 20.0))
+	var reloading = g.loading and not pumping
+	load_blend = move_toward(load_blend, 1.0 if reloading else 0.0, dt * 7.0)
+	var lb = smoothstep(0.0, 1.0, load_blend) * (1.0 - g.ads_t * 0.6)
+	p += LOAD_SHIFT * lb
+	var jolt = pump_slide if pumping else 0.0
+	jolt *= 1.0 - g.ads_t * 0.5
+	p.z += jolt * PUMP_JOLT_BACK
+	if shells_prev < 0:
+		shells_prev = g.shells
+	if g.shells > shells_prev and g.loading:
+		kick_dip_v -= SHELL_DIP_SPEED
+	shells_prev = g.shells
+
+	# idle sway (breathing), walk / sprint bob and look sway. They ease out while aiming down sights.
+	var calm = 1.0 - g.ads_t * ADS_CALM
+	var spd = g.pvel.length()
+	var moving = clampf(spd / g.RUN, 0.0, 1.0)
+	if g.slide_t > 0.0 or g.dash_t > 0.0:
+		moving = 0.0
+	var bob_mul = BOB_SPRINT_MUL if g.sprinting else 1.0
+	var still = 1.0 - moving
+	var step_side = sin(g.bob_t * 0.5)                    # one full sway left-right per two steps
+	var step_up = sin(g.bob_t - BOB_LAG)                  # one bounce per step, a little behind the camera
+	var off = Vector3(
+		sin(g.time * 0.85) * IDLE_SWAY * 0.7 * still + step_side * BOB_SIDE * bob_mul * moving,
+		sin(g.time * 1.7) * IDLE_SWAY * still + step_up * BOB_UP * bob_mul * moving,
+		0.0)
+	p += off * calm
+
+	# look sway: turning the view leaves the gun lagging a little, then it catches up
+	var look = Vector2(g.yaw, g.pitch)
+	if not look_seen:
+		look_prev = look
+		look_seen = true
+	var turn = Vector2(wrapf(look.x - look_prev.x, -PI, PI), look.y - look_prev.y)
+	look_prev = look
+	sway_yaw = clampf(sway_yaw - turn.x * LOOK_SWAY, -LOOK_SWAY_MAX, LOOK_SWAY_MAX)
+	sway_pitch = clampf(sway_pitch + turn.y * LOOK_SWAY, -LOOK_SWAY_MAX, LOOK_SWAY_MAX)
+	var back = minf(1.0, dt * LOOK_SWAY_RETURN)
+	sway_yaw = lerpf(sway_yaw, 0.0, back)
+	sway_pitch = lerpf(sway_pitch, 0.0, back)
+
+	var roll = (sin(g.time * 0.85) * 0.010 * still + step_side * 0.025 * bob_mul * moving) * calm
+	var tilt = step_up * 0.018 * bob_mul * moving * calm
+	update_kick(dt)
+	gun_base = gun_base.lerp(p, minf(1.0, dt * 18.0))
+	gun_node.position = gun_base + Vector3(0.0, kick_dip, kick_back)
+	gun_node.rotation = Vector3(
+		kick_rise + (0.18 if g.sprinting else 0.0) + tilt + sway_pitch * calm + LOAD_TILT.x * lb - jolt * PUMP_JOLT_PITCH,
+		(1.0 - g.ads_t) * 0.06 + sway_yaw * calm,
+		roll + kick_roll + LOAD_TILT.y * lb)
+	pump.position = Vector3(0.0, pump.position.y, -0.30 + PUMP_TRAVEL * pump_slide)
 	g.gun["light"].light_energy = 3.0 * (g.flash / 0.07) if g.flash > 0.0 else 0.0
+
+	# muzzle flash: bright for the first moments after a shot, smaller while aiming so it does not cover the sights
+	var flash_node = g.gun.get("flash")
+	if flash_node != null:
+		var fl = clampf(g.flash / 0.07, 0.0, 1.0) if g.flash > 0.0 else 0.0
+		flash_node.visible = fl > 0.0 and gun_node.visible
+		flash_node.scale = Vector3.ONE * lerpf(0.5, 1.15, fl) * (1.0 - g.ads_t * 0.5)
+		flash_node.rotation = Vector3(0.0, 0.0, flash_roll)
+
+	# ammo count on the gun: cyan, amber when nearly empty, red when empty, INF with the rapid-fire pickup
+	var ammo_label = g.gun.get("ammo")
+	if ammo_label != null:
+		var unlimited = g.buffs["rapid"] > 0.0
+		var txt = "INF" if unlimited else str(g.shells)
+		if txt != ammo_text:
+			ammo_text = txt
+			ammo_label.text = txt
+		var ac = Color(0.22, 0.91, 1.0)
+		if not unlimited and g.shells <= 0:
+			ac = Color(1.0, 0.29, 0.23)
+		elif not unlimited and g.shells <= 2:
+			ac = Color(1.0, 0.69, 0.18)
+		ammo_label.modulate = ac
+
+	# shell ejection: when the pump pulls the slide back, the spent shell flies out of the right side
+	if not pumping:
+		shell_out = false
+	elif not shell_out and pump_slide >= SHELL_EJECT_AT and gun_node.visible:
+		shell_out = true
+		eject_shell(gun_node)
 	if g.viewmodel != null:
 		g.viewmodel.update(g.ads_t)
 
