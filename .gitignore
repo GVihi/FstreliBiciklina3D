@@ -28,3 +28,5 @@ mono_crash.*.json
 # 3D model tooling
 tools/models/.venv/
 __pycache__/
+
+*.import
