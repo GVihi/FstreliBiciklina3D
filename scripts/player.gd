@@ -192,18 +192,19 @@ func perfect_dodge() -> void:
 		g.add_note("CLOSE SHAVE  +1 LIFE", g.RED)
 
 func current_spread() -> float:
-	var s = lerpf(2.2, 0.25, g.ads_t)
-	s *= 1.0 + clampf(g.pvel.length() / g.RUN, 0.0, 1.0) * 0.9
-	s *= lerpf(1.0, 0.7, g.crouch_t)
+	var w = g.WEAPONS["dart_gun"]
+	var s = lerpf(float(w["spread_hip"]), float(w["spread_aimed"]), g.ads_t)
+	s *= 1.0 + clampf(g.pvel.length() / g.RUN, 0.0, 1.0) * float(w["spread_move_extra"])
+	s *= lerpf(1.0, float(w["spread_crouch_mul"]), g.crouch_t)
 	if g.perks.has("steady"):
-		s *= 0.7
+		s *= float(w["spread_steady_mul"])
 	return s + g.bloom
 
 func cur_pump() -> float:
 	if g.buffs["rapid"] > 0.0:
-		return 0.08
+		return float(g.WEAPONS["dart_gun"]["rapid_pump"])
 	if g.hype_t > 0.0:
-		return g.pump_base * 0.65
+		return g.pump_base * float(g.WEAPONS["dart_gun"]["hype_pump_mul"])
 	return g.pump_base
 
 func ex_bonus() -> float:

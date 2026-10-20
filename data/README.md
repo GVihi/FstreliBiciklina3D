@@ -43,3 +43,36 @@ Perks (bought once per run) and the duos that two perks form together. Loaded by
 **Keep the order unless you mean to change it**, for the same Daily Run reason as above.
 
 What a perk *does* is still coded where it applies, by id (`g.perks.has("deadeye")` and so on in `combat.gd`, `player.gd`, `pickups.gd`, `bosses.gd`, `main.gd`), and duo effects are checked by name with `has_duo(...)`. A new perk or duo therefore needs code too; the table only holds its name, text, price and pairing.
+
+## `weapons.json`
+
+Tuning numbers for the two player weapons, `dart_gun` and `melee` (the gummy worm). Loaded by `scripts/weapons.gd`. A missing or non-numeric value is logged with `push_error` and replaced by a built-in fallback (listed in `weapons.gd`, same values as shipped), and unknown keys are logged and ignored, so check the Godot output panel after editing. There is no new weapon type here yet: adding one still needs code.
+
+**`dart_gun`**
+
+| key | meaning |
+|---|---|
+| `start_clip`, `max_clip`, `clip_step` | darts per clip at the start of a run, the most the Extended Clip upgrade can reach, and how many it adds per level (whole numbers) |
+| `pump_start`, `pump_min`, `pump_step` | seconds between shots at the start of a run, the fastest the Greased Slide upgrade can reach, and how much each level removes |
+| `rapid_pump` | seconds between shots during the rapid-fire buff |
+| `hype_pump_mul` | multiplier on the pump time while hype is active |
+| `reload_step`, `reload_cut_per_level`, `reload_extra` | seconds per dart reloaded, the fraction each Speedloader level cuts, and the extra delay before reloading starts |
+| `spread_hip`, `spread_aimed` | dart spread in degrees without and with aim-down-sights |
+| `spread_move_extra` | extra spread fraction at full run speed (0.9 = up to 90% wider) |
+| `spread_crouch_mul`, `spread_steady_mul` | spread multipliers while crouching and with the Steady Hands perk |
+| `bloom_per_shot`, `bloom_max` | spread added by each shot and the cap (it decays on its own, see `main.gd`) |
+| `range` | how far a dart flies before it stops, in metres |
+| `damage` | damage per dart (whole number; Last Shell doubles it) |
+
+**`melee`**
+
+| key | meaning |
+|---|---|
+| `cooldown`, `swing_time` | seconds between swings and the length of the swing animation |
+| `zone_forward`, `zone_radius` | how far in front of the player the hit zone is centred, and its radius in metres |
+| `reach_per_level` | metres added to the hit zone and the deflect range by each Melee Reach level |
+| `deflect_range` | metres within which a swing sends a thrown phone back |
+| `damage` | damage per swing to riders and bosses (whole number) |
+
+Still in code, because they are not weapon tuning or are shared with other systems: dart hit-box sizes, boss and rider hit reactions, the upgrade level caps in `shop.gd`, and everything about thrown phones.
+
