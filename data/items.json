@@ -1,0 +1,160 @@
+{
+	"upgrade_order": [
+		"clip",
+		"pump",
+		"wide",
+		"heart",
+		"rubber",
+		"hype",
+		"luck",
+		"speedload",
+		"dashcd",
+		"magnet"
+	],
+	"items": [
+		{
+			"id": "heal",
+			"kind": "heal",
+			"name": "PATCH UP",
+			"desc": "+1 life",
+			"cost": 70,
+			"min": 1,
+			"heal": 1
+		},
+		{
+			"id": "pack_rapid",
+			"kind": "pack",
+			"name": "RAPID PACK",
+			"desc": "Next round starts with 25 s of rapid fire",
+			"cost": 60,
+			"min": 1,
+			"pending": {
+				"rapid": 25
+			}
+		},
+		{
+			"id": "pack_fat",
+			"kind": "pack",
+			"name": "FAT DART PACK",
+			"desc": "Next round starts with 25 s of fat darts",
+			"cost": 55,
+			"min": 1,
+			"pending": {
+				"big": 25
+			}
+		},
+		{
+			"id": "pack_shield",
+			"kind": "pack",
+			"name": "SHIELD PACK",
+			"desc": "Next round starts with a shield",
+			"cost": 70,
+			"min": 1,
+			"pending": {
+				"shield": true
+			}
+		},
+		{
+			"id": "pack_hype",
+			"kind": "pack",
+			"name": "HYPE PACK",
+			"desc": "Next round starts with the hype bar full",
+			"cost": 65,
+			"min": 1,
+			"pending": {
+				"hype": true
+			}
+		},
+		{
+			"id": "pack_free",
+			"kind": "pack",
+			"name": "FREE DARTS",
+			"desc": "Your first 12 darts next round cost no ammo",
+			"cost": 75,
+			"min": 1,
+			"pending": {
+				"free": 12
+			}
+		},
+		{
+			"id": "clip",
+			"kind": "tier",
+			"name": "EXTENDED CLIP",
+			"desc": "+2 darts per clip",
+			"cost": 100,
+			"min": 1
+		},
+		{
+			"id": "pump",
+			"kind": "tier",
+			"name": "GREASED SLIDE",
+			"desc": "Faster pump action",
+			"cost": 90,
+			"min": 1
+		},
+		{
+			"id": "speedload",
+			"kind": "tier",
+			"name": "SPEEDLOADER",
+			"desc": "Reload 22% faster",
+			"cost": 85,
+			"min": 1
+		},
+		{
+			"id": "wide",
+			"kind": "tier",
+			"name": "FAT DARTS",
+			"desc": "Bigger dart hit area",
+			"cost": 95,
+			"min": 1
+		},
+		{
+			"id": "dashcd",
+			"kind": "tier",
+			"name": "RUNNING SHOES",
+			"desc": "Dash cooldown -0.15 s",
+			"cost": 90,
+			"min": 1
+		},
+		{
+			"id": "magnet",
+			"kind": "tier",
+			"name": "POCKET MAGNET",
+			"desc": "Drops are pulled towards you",
+			"cost": 80,
+			"min": 1
+		},
+		{
+			"id": "rubber",
+			"kind": "tier",
+			"name": "MELEE REACH",
+			"desc": "Melee reaches further",
+			"cost": 85,
+			"min": 1
+		},
+		{
+			"id": "hype",
+			"kind": "tier",
+			"name": "HYPE MACHINE",
+			"desc": "Hype fills 50% faster",
+			"cost": 90,
+			"min": 2
+		},
+		{
+			"id": "luck",
+			"kind": "tier",
+			"name": "LUCKY CHARM",
+			"desc": "More bonus drops",
+			"cost": 95,
+			"min": 2
+		},
+		{
+			"id": "heart",
+			"kind": "tier",
+			"name": "THICK SKIN",
+			"desc": "+1 max life and heal 1",
+			"cost": 170,
+			"min": 2
+		}
+	]
+}

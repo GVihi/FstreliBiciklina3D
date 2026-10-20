@@ -277,21 +277,13 @@ func buy(i: int) -> void:
 	var id = it["id"]
 	var kind = it["kind"]
 	if kind == "heal":
-		g.hearts = mini(g.MAXHEARTS, g.hearts + 1)
+		g.hearts = mini(g.MAXHEARTS, g.hearts + int(it["heal"]))
 	elif kind == "tier":
 		apply_upgrade(id)
 		g.shop_lvl[id] = int(g.shop_lvl.get(id, 0)) + 1
 	elif kind == "pack":
-		if id == "pack_rapid":
-			g.pending["rapid"] = 25.0
-		elif id == "pack_fat":
-			g.pending["big"] = 25.0
-		elif id == "pack_shield":
-			g.pending["shield"] = true
-		elif id == "pack_hype":
-			g.pending["hype"] = true
-		elif id == "pack_free":
-			g.pending["free"] = 12
+		for k in it["pending"]:       # what the pack gives next round is listed in data/items.json
+			g.pending[k] = it["pending"][k]
 		g.add_note(it["name"] + " READY", g.GOLD)
 	else:
 		g.perks[id] = true

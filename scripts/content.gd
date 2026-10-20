@@ -1,5 +1,7 @@
 extends RefCounted
-# Game content tables: round messages, rider types, themes, boss stats, drops, shop items, duos and upgrades.
+const Items = preload("res://scripts/items.gd")
+# Game content tables: round messages, rider types, themes, boss stats, drops, perks, duos and upgrades.
+# Shop items, packs and upgrade tiers live in data/items.json (loaded by items.gd).
 # Pure data, no behaviour. main.gd re-exports each table under the same name, so other scripts (hud.gd) keep reading g.NAME.
 # These are static vars, not consts, because the colour tables call Color.html().
 
@@ -45,25 +47,11 @@ static var DROP_INFO = {
 }
 # things you can buy between rounds.
 #   kind "heal" / "pack" (one-round consumable, can be bought again every shop) / "tier" (an upgrade that goes up in levels,
-#   each level costs more) / "perk" (bought once, combines with other perks into a duo, see DUOS).
+#   each level costs more) come from data/items.json (see items.gd and data/README.md).
+#   kind "perk" (bought once, combines with other perks into a duo, see DUOS) is still listed here.
 #   "min" = first round it can show up in.
-static var SHOP_POOL = [
-	{"id": "heal", "kind": "heal", "name": "PATCH UP", "desc": "+1 life", "cost": 70, "min": 1},
-	{"id": "pack_rapid", "kind": "pack", "name": "RAPID PACK", "desc": "Next round starts with 25 s of rapid fire", "cost": 60, "min": 1},
-	{"id": "pack_fat", "kind": "pack", "name": "FAT DART PACK", "desc": "Next round starts with 25 s of fat darts", "cost": 55, "min": 1},
-	{"id": "pack_shield", "kind": "pack", "name": "SHIELD PACK", "desc": "Next round starts with a shield", "cost": 70, "min": 1},
-	{"id": "pack_hype", "kind": "pack", "name": "HYPE PACK", "desc": "Next round starts with the hype bar full", "cost": 65, "min": 1},
-	{"id": "pack_free", "kind": "pack", "name": "FREE DARTS", "desc": "Your first 12 darts next round cost no ammo", "cost": 75, "min": 1},
-	{"id": "clip", "kind": "tier", "name": "EXTENDED CLIP", "desc": "+2 darts per clip", "cost": 100, "min": 1},
-	{"id": "pump", "kind": "tier", "name": "GREASED SLIDE", "desc": "Faster pump action", "cost": 90, "min": 1},
-	{"id": "speedload", "kind": "tier", "name": "SPEEDLOADER", "desc": "Reload 22% faster", "cost": 85, "min": 1},
-	{"id": "wide", "kind": "tier", "name": "FAT DARTS", "desc": "Bigger dart hit area", "cost": 95, "min": 1},
-	{"id": "dashcd", "kind": "tier", "name": "RUNNING SHOES", "desc": "Dash cooldown -0.15 s", "cost": 90, "min": 1},
-	{"id": "magnet", "kind": "tier", "name": "POCKET MAGNET", "desc": "Drops are pulled towards you", "cost": 80, "min": 1},
-	{"id": "rubber", "kind": "tier", "name": "MELEE REACH", "desc": "Melee reaches further", "cost": 85, "min": 1},
-	{"id": "hype", "kind": "tier", "name": "HYPE MACHINE", "desc": "Hype fills 50% faster", "cost": 90, "min": 2},
-	{"id": "luck", "kind": "tier", "name": "LUCKY CHARM", "desc": "More bonus drops", "cost": 95, "min": 2},
-	{"id": "heart", "kind": "tier", "name": "THICK SKIN", "desc": "+1 max life and heal 1", "cost": 170, "min": 2},
+static var ITEM_TABLE = Items.load_table()
+static var PERKS = [
 	{"id": "haggler", "kind": "perk", "name": "HAGGLER", "desc": "Everything in the shop costs 15% less", "cost": 110, "min": 1},
 	{"id": "steady", "kind": "perk", "name": "STEADY HANDS", "desc": "30% less dart spread", "cost": 105, "min": 1},
 	{"id": "salvage", "kind": "perk", "name": "SALVAGE", "desc": "Armoured riders always drop ammo", "cost": 100, "min": 1},
@@ -79,6 +67,8 @@ static var SHOP_POOL = [
 	{"id": "boomerang", "kind": "perk", "name": "BOOMERANG", "desc": "A deflected phone chains on to 2 more targets", "cost": 155, "min": 3},
 	{"id": "secondwind", "kind": "perk", "name": "SECOND WIND", "desc": "Once per round a deadly hit leaves you on 1 life", "cost": 170, "min": 3}
 ]
+# the order matters: it feeds the Daily Run shuffles, so items stay first and perks last, as before
+static var SHOP_POOL = ITEM_TABLE["items"] + PERKS
 static var DUOS = [
 	{"a": "slideshot", "b": "closeshave", "name": "MATADOR", "desc": "Perfect dodges refill 3 darts"},
 	{"a": "boomerang", "b": "bounty", "name": "BOUNTY HUNTER", "desc": "Deflect kills pay x3 cash"},
@@ -91,15 +81,4 @@ static var DUOS = [
 	{"a": "counter", "b": "boomerang", "name": "RICOCHET", "desc": "Deflected phones chain on to 4 targets"},
 	{"a": "sprinter", "b": "adrenaline", "name": "SPEEDSTER", "desc": "Dash cooldown a further -20%"}
 ]
-static var UPGRADES = [
-	{"id": "clip", "name": "EXTENDED CLIP", "desc": "+2 darts per clip"},
-	{"id": "pump", "name": "GREASED SLIDE", "desc": "Faster pump action"},
-	{"id": "wide", "name": "FAT DARTS", "desc": "Bigger dart hit area"},
-	{"id": "heart", "name": "THICK SKIN", "desc": "+1 max life and heal 1"},
-	{"id": "rubber", "name": "MELEE REACH", "desc": "Melee reaches further"},
-	{"id": "hype", "name": "HYPE MACHINE", "desc": "Hype fills 50% faster"},
-	{"id": "luck", "name": "LUCKY CHARM", "desc": "More bonus drops"},
-	{"id": "speedload", "name": "SPEEDLOADER", "desc": "Reload 22% faster"},
-	{"id": "dashcd", "name": "RUNNING SHOES", "desc": "Dash cooldown -0.15 s"},
-	{"id": "magnet", "name": "POCKET MAGNET", "desc": "Drops are pulled towards you"}
-]
+static var UPGRADES = ITEM_TABLE["upgrades"]
