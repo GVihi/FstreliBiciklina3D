@@ -215,9 +215,10 @@ const GUN_MODEL_PATH = "res://assets/models/dart_gun.glb"
 # stand 0.078 m above the root, the old procedural ones 0.062 m
 const GUN_MODEL_ADS_Y = -0.078
 const GUN_PROC_ADS_Y = -0.062
-# where the ammo number sits on the gun's left side (the side that faces you); the receiver plate / the receiver
-const GUN_MODEL_AMMO_POS = Vector3(-0.0418, -0.018, -0.10)
-const GUN_PROC_AMMO_POS = Vector3(-0.0365, 0.0, -0.05)
+# where the ammo number sits on the gun's left side (the side that faces you): just outside the left receiver plate, whose
+# face is at x = -0.045 (the number has to be in front of it, not inside it), and just outside the old receiver
+const GUN_MODEL_AMMO_POS = Vector3(-0.050, -0.018, -0.10)
+const GUN_PROC_AMMO_POS = Vector3(-0.041, 0.0, -0.05)
 
 static func build_gun() -> Dictionary:
 	if GUN_MODEL_GLB:
@@ -273,14 +274,15 @@ static func _finish_gun(root: Node3D, pump: Node3D, ads_y: float, ammo_pos: Vect
 static func _build_ammo_label(pos: Vector3) -> Label3D:
 	var l = Label3D.new()
 	l.text = "6"
-	l.font_size = 64
-	l.pixel_size = 0.0006                  # 64 px = about 3.8 cm tall
+	l.font_size = 72
+	l.pixel_size = 0.0007                  # 72 px = about 5 cm tall
 	l.position = pos
-	l.rotation = Vector3(0.0, -PI * 0.5, 0.0)   # the text faces -X, towards the player's side of the gun
+	l.rotation = Vector3(0.0, -PI * 0.5 + 0.5, 0.0)   # faces -X, turned about 30 degrees back towards the player so it is not seen edge-on
+	l.outline_size = 10
+	l.outline_modulate = Color(0.04, 0.05, 0.07)
 	l.shaded = false
 	l.double_sided = false
 	l.modulate = Color(0.22, 0.91, 1.0)
-	l.outline_size = 0
 	l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return l
 
