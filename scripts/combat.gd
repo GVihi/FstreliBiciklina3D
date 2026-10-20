@@ -141,7 +141,10 @@ func fire() -> void:
 		end_pt = org + dir * t_world
 		stick = (world_kind == "floor")
 
-	spawn_dart(g.gun["muzzle"].global_position, end_pt, stick)
+	var muzzle_pt: Vector3 = g.gun["muzzle"].global_position
+	if g.viewmodel != null:
+		muzzle_pt = g.viewmodel.muzzle_point(g.gun["muzzle"])
+	spawn_dart(muzzle_pt, end_pt, stick)
 
 	# near-miss reaction for pedestrians (not the one we hit)
 	for c3 in g.civs:

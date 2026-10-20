@@ -25,6 +25,7 @@ const InputScript = preload("res://scripts/input.gd")
 const PlayerScript = preload("res://scripts/player.gd")
 const ScoresScript = preload("res://scripts/scores.gd")
 const MetaScript = preload("res://scripts/meta.gd")
+const ViewmodelScript = preload("res://scripts/viewmodel.gd")
 const DailyScript = preload("res://scripts/daily.gd")
 
 # ------------------------------------------------------------------ tuning
@@ -46,6 +47,8 @@ const RIDER_TIME_BONUS = 1.0     # extra seconds on screen: you have to turn you
 const GRAVITY = 18.0
 const PX_TO_M = 0.05
 
+# the gun and worm get their own camera, FOV and depth buffer (viewmodel.gd); false = old single-camera look
+const VIEWMODEL_PASS = true
 const FOV_HIP = 78.0
 const FOV_ADS = 40.0
 const SENS = 0.0022
@@ -238,6 +241,7 @@ var cheerleaders = []
 var melee_ring: MeshInstance3D
 var flash_mat: Material
 var outline_quad: MeshInstance3D
+var viewmodel = null            # viewmodel.gd, null when VIEWMODEL_PASS is off
 var strip_mat: StandardMaterial3D
 var disc_mat: StandardMaterial3D
 const STRIP_COL_WARN = Color(1.0, 0.75, 0.15, 0.35)
@@ -304,6 +308,9 @@ func _ready() -> void:
 	rubber = Models.build_rubber()
 	cam.add_child(rubber["root"])
 	rubber["root"].visible = false
+	if VIEWMODEL_PASS:
+		viewmodel = ViewmodelScript.new(self)
+		viewmodel.setup(cam, [gun["root"], rubber["root"]], world["env"])
 
 	# floor ring that shows where the rubber can reach
 	melee_ring = MeshInstance3D.new()
@@ -478,6 +485,8 @@ func apply_theme(i: int) -> void:
 	var env = world["env"]
 	env.ambient_light_color = th["amb"]
 	env.ambient_light_energy = th["amb_e"]
+	if viewmodel != null:
+		viewmodel.sync_env(env)
 	for l in world["lamps"]:
 		l.visible = th["lamps"]
 	world["lamp_mat"].emission_energy_multiplier = 3.0 if th["lamps"] else 0.0
