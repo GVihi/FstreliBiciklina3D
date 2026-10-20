@@ -24,6 +24,7 @@ const EffectsScript = preload("res://scripts/effects.gd")
 const InputScript = preload("res://scripts/input.gd")
 const PlayerScript = preload("res://scripts/player.gd")
 const ScoresScript = preload("res://scripts/scores.gd")
+const DailyScript = preload("res://scripts/daily.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -89,6 +90,9 @@ var paused = false
 var round_n = 1
 var score = 0
 var hi = 0
+var daily_date = ""          # UTC date the daily seed belongs to, "YYYY-MM-DD"
+var daily_seed = 0           # same for every player on that date (daily.gd); the daily run mode will use it
+var daily_label = ""         # title-screen text for the above
 var hearts = 3
 var combo = 0
 var best_combo = 0
@@ -242,6 +246,7 @@ var confetti_mats = []
 # ================================================================== setup
 func _ready() -> void:
 	randomize()
+	refresh_daily_seed()
 	hi = settings.load_hi()
 	settings.load_settings()
 	hearts = MAXHEARTS
@@ -431,6 +436,13 @@ var scores = ScoresScript.new(self)   # scores.gd: Scores: the local Top 10 lead
 var input_sys = InputScript.new(self)   # input.gd: Input: mouse, keyboard and gamepad handling, menu clicks and weapon switching.
 var player_sys = PlayerScript.new(self)   # player.gd: Player: movement, dash and slide, perfect dodges, aim assist, spread and gun handling.
 
+# Recomputes today's daily seed (UTC date). Called at start-up and whenever the title screen opens,
+# so a game left running past midnight UTC picks up the new day's seed.
+func refresh_daily_seed() -> void:
+	daily_date = DailyScript.date_string()
+	daily_seed = DailyScript.seed_for(daily_date)
+	daily_label = "DAILY SEED %s   %s UTC" % [DailyScript.seed_text(daily_seed), daily_date]
+
 # the HUD calls these two on main, so they stay as thin wrappers
 func get_setting(id: String):
 	return settings.get_setting(id)
@@ -517,6 +529,7 @@ func go_to_title() -> void:
 	title_page = ""
 	last_rank = -1
 	name_entry = false
+	refresh_daily_seed()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 # leave a run in progress (pause menu: quit to title); the run is simply dropped
