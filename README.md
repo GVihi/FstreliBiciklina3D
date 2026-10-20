@@ -275,9 +275,13 @@ Mostly vibe coded Godot game
 - [x] Muzzle flash and shell ejection (a glowing flash on the muzzle for each shot, smaller while aiming, `_build_muzzle_flash` in `models.gd`; each pump throws a shell out of the right side that tumbles, lands and shrinks away, `eject_shell` in `player.gd` and `spawn_shell` in `effects.gd`; uses the shell model; waiting for your in-game check)
 - [x] (Optional) Ammo count shown on the gun itself (a glowing number on the left side of the receiver: cyan, amber at 2 or fewer, red at 0, INF with rapid fire; `_build_ammo_label` in `models.gd`, updated in `update_gun`; the HUD ammo stays; waiting for your in-game check, including whether it is readable)
 
-### F3. Melee (giant gummy worm)
-- [ ] Chunky worm model with a glossy gummy material
-- [ ] Swing animation
+### F3. Melee
+- [ ] Chunky worm model with a glossy rubber material
+- [ ] No alternating colors
+- [ ] More detail (like the Dart gun)
+- [ ] More rubbery look
+- [ ] No eyes
+- [ ] Rubbery wobble swing animation
 - [ ] Hit, deflect and phone-return feedback
 
 ### F4. Riders and bikes
