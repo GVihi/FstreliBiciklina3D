@@ -22,6 +22,7 @@ func _init() -> void:
 	for i in range(3):
 		await process_frame
 	var lines = _sample(main)
+	var queries_bad = _check_queries(main.arena)
 	var args = OS.get_cmdline_user_args()
 	if args.size() > 0 and args[0] == "write":
 		var f = FileAccess.open(GOLDEN, FileAccess.WRITE)
@@ -45,10 +46,59 @@ func _init() -> void:
 				printerr("line %d\n  golden: %s\n  now:    %s" % [i + 1, a, b])
 	if bad == 0:
 		print("arena_check: %d lines identical to the golden file" % lines.size())
-		quit(0)
 	else:
 		printerr("arena_check: %d of %d lines differ" % [bad, lines.size()])
-		quit(1)
+	quit(1 if bad > 0 or queries_bad > 0 else 0)
+
+
+# Checks of the world-space queries that are not in the golden file (they did not exist when it was
+# written): the answers must agree with the ground world.gd lays down. Returns the number of failures.
+func _check_queries(A) -> int:
+	var bad = 0
+	var tests = [
+		[Vector3(0.0, 0.0, -1.0), "grass"],
+		[Vector3(0.0, 0.0, -5.0), "plaza"],
+		[Vector3(0.0, 0.0, -8.4), "sidewalk"],
+		[Vector3(0.0, 0.0, -9.0), "road"],
+		[Vector3(0.0, 0.0, -13.25), "road"],
+		[Vector3(0.0, 0.0, -20.0), "sidewalk"],
+		[Vector3(0.0, 0.0, -24.5), "building"],
+		[Vector3(0.0, 0.0, 14.0), "tunnel"],
+	]
+	for t in tests:
+		var got = A.surface_at(t[0])
+		if got != t[1]:
+			bad += 1
+			printerr("surface_at %s: want %s, got %s" % [t[0], t[1], got])
+	var gs = A.gates()
+	if gs.size() != 1:
+		bad += 1
+		printerr("gates: want 1 gate, got %d" % gs.size())
+	else:
+		var gt = gs[0]
+		if A.surface_at(gt["pos"]) != "tunnel" and A.surface_at(gt["pos"]) != "road":
+			bad += 1
+			printerr("gates: the gate position %s is on %s" % [gt["pos"], A.surface_at(gt["pos"])])
+		if not A.hidden(A.to_track(gt["pos"]).x):
+			bad += 1
+			printerr("gates: the gate position %s is not inside the tunnel block" % gt["pos"])
+		if absf(float(gt["outward"].length()) - 1.0) > 0.001 or gt["outward"].z < 0.99:
+			bad += 1
+			printerr(
+				(
+					"gates: outward %s should be a unit vector pointing behind the player"
+					% gt["outward"]
+				)
+			)
+	if A.start_position().distance_to(A.tw(0.0, 6.0)) > 0.0001:
+		bad += 1
+		printerr("start_position differs from the street point (0, 6)")
+	if A.surface_at(A.start_position()) != "grass" and A.surface_at(A.start_position()) != "plaza":
+		bad += 1
+		printerr("start_position is not on the island: %s" % A.surface_at(A.start_position()))
+	if bad == 0:
+		print("arena_check: world-space queries agree with the ground")
+	return bad
 
 
 func _f(v: float) -> String:
@@ -137,6 +187,14 @@ func _sample(g) -> Array:
 		lines.append(
 			"player %s | ptx %s | ptz %s" % [_v3(g.player.position), _f(g.ptx()), _f(g.ptz())]
 		)
+	# dart blocking is a small area (fountain, planter, tunnel), so sample it densely and near the gate
+	var drng = RandomNumberGenerator.new()
+	drng.seed = 77001
+	for n in range(300):
+		var ang = drng.randf_range(-PI, PI) if n % 2 == 0 else PI + drng.randf_range(-0.7, 0.7)
+		var rad = drng.randf_range(0.0, 13.0)
+		var dp = Vector3(sin(ang) * rad, drng.randf_range(0.0, 8.0), -cos(ang) * rad)
+		lines.append("dart %s | blocked %s" % [_v3(dp), str(g.ray_blocked(dp))])
 	lines.append(
 		(
 			"consts HX %s lim %s player_lim %s rho0 %s rho_m7 %s start %s"
