@@ -35,6 +35,7 @@ var load_blend = 0.0            # 0 = normal hold, 1 = tilted for loading shells
 var jelly_tip = 0.0             # where the tip is on the swing scale (-1 to 1); it chases the swing
 var jelly_tip_v = 0.0
 var jelly_phase = 0.0           # moves the ripple that runs down the club
+var jelly_flash = 0.0           # 1 right after a hit or deflect, fades out: the club flashes bright and squashes
 
 # Jelly club wobble tuning (Milestone F3). Metres unless noted.
 const JELLY_STIFFNESS = 230.0   # spring strength: higher = the tip keeps up better and rings faster (lower = slow, floppy swings)
@@ -47,6 +48,8 @@ const JELLY_RIPPLE_MAX = 0.09
 const JELLY_RIPPLE_SPEED = 18.0 # how fast the ripple runs (rad/s)
 const JELLY_SQUASH = 0.14       # stretch along the club per unit of lag, thinning it a little
 const JELLY_SQUASH_MAX = 0.16
+const JELLY_FLASH_FADE = 5.0    # how fast the hit flash fades (per second)
+const JELLY_HIT_SQUASH = 0.12   # extra stretch at the moment of a hit, fading with the flash
 
 # Gun motion tuning (Milestone F2). Everything is in metres / radians and fades out while aiming down sights.
 const IDLE_SWAY = 0.0035        # breathing: how far the gun drifts up/down while standing still
@@ -453,6 +456,11 @@ func update_gun(dt: float) -> void:
 		g.melee_ring.position = Vector3(z["c"].x, 0.04, z["c"].z)
 		g.melee_ring.scale = Vector3(rr, 1.0, rr)
 
+# A hit shudders the club: speed (swing units per second) is added to the tip along the swing, and the flash lights it up.
+func jelly_kick(speed: float, flash: float) -> void:
+	jelly_tip_v += speed * g.swing_dir
+	jelly_flash = maxf(jelly_flash, flash)
+
 # Jelly club wobble: a spring chases the swing, and the lag between the swing and the spring bends the club.
 # sw is the swing position (-1 to 1, 0 at rest); the same number that turns the club in update_gun.
 func update_jelly(dt: float, sw: float, shown: bool) -> void:
@@ -471,9 +479,11 @@ func update_jelly(dt: float, sw: float, shown: bool) -> void:
 	var side = lag * JELLY_BEND
 	var droop = -absf(lag) * JELLY_DROOP
 	var ripple = minf(JELLY_RIPPLE_IDLE + absf(jelly_tip_v) * JELLY_RIPPLE_GAIN, JELLY_RIPPLE_MAX)
-	var squash = minf(absf(lag) * JELLY_SQUASH, JELLY_SQUASH_MAX)
+	var squash = minf(absf(lag) * JELLY_SQUASH, JELLY_SQUASH_MAX) + jelly_flash * JELLY_HIT_SQUASH
+	jelly_flash = maxf(0.0, jelly_flash - step * JELLY_FLASH_FADE)
 	for m in mats:
 		m.set_shader_parameter("wob", Vector2(side, droop))
 		m.set_shader_parameter("jelly", ripple)
 		m.set_shader_parameter("phase", jelly_phase)
 		m.set_shader_parameter("squash", squash)
+		m.set_shader_parameter("flash", jelly_flash)

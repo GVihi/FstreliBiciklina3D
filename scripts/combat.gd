@@ -236,6 +236,8 @@ func swing() -> void:
 		g.sfx.play3d("rubber", zc)
 		g.shake = 0.35
 		g.hitstop = maxf(g.hitstop, 0.06)
+		g.fx_sys.jelly_burst(zc + Vector3(0, 0.3, 0))
+		g.player_sys.jelly_kick(16.0, 0.6)             # the club shudders on impact
 
 # --- deflect: a thrown phone that is close when the rubber swings goes straight back at whoever threw it
 func deflect_range() -> float:
@@ -267,6 +269,8 @@ func deflect_phone(ph: Dictionary) -> void:
 	g.shake = 0.3
 	g.sfx.play3d("rubber", ph["pos"])
 	g.add_popup(ph["pos"] + Vector3(0, 0.6, 0), "DEFLECTED!", g.PINK, true)
+	g.fx_sys.deflect_burst(ph["pos"])
+	g.player_sys.jelly_kick(26.0, 1.0)                 # a deflect is a harder hit: bigger shudder and a white flash
 	g.shop_sys.add_style(12.0)
 
 func target_valid(t) -> bool:
@@ -325,10 +329,14 @@ func update_returning_phone(ph: Dictionary, i: int, dt: float) -> void:
 	var node: Node3D = ph["node"]
 	node.position = pos
 	node.rotation += ph["rotv"] * dt * 2.0
+	if randf() < dt * 40.0:
+		g.fx_sys.return_trail(pos)                       # a pink and gold trail shows the phone is on its way back
 
 func strike_with_phone(ph: Dictionary, i: int, tgt) -> void:
 	var tp = target_pos(tgt)
 	g.fx_sys.plastic_burst(tp)
+	g.fx_sys.deflect_burst(tp)
+	g.shake = maxf(g.shake, 0.5)
 	g.sfx.play3d("phone_smash", tp)
 	if tgt.has("ln"):
 		g.rider_sys.hit_rider(tgt, 99)

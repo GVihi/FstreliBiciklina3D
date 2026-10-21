@@ -542,6 +542,7 @@ uniform vec2 wob = vec2(0.0);        // how far the tip is pushed sideways and u
 uniform float jelly = 0.0;           // strength of the ripple that runs down the club (metres)
 uniform float phase = 0.0;           // moves the ripple and the twinkle
 uniform float squash = 0.0;          // above 0 stretches the club along its length and thins it
+uniform float flash = 0.0;           // 1 right after a hit: the whole club lights up white
 uniform float knob_z = 0.2;
 uniform float tip_z = -1.0;
 
@@ -569,6 +570,7 @@ void fragment() {
 		SPECULAR = 1.0;
 		EMISSION = albedo.rgb * 0.22 + vec3(1.0, 0.7, 0.88) * rim * 0.5;   // lifts the shadow side and rims it, so it reads as jelly
 	}
+	EMISSION += vec3(1.0, 0.85, 0.95) * flash * 0.8;
 }
 """
 

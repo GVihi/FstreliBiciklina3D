@@ -282,7 +282,7 @@ Mostly vibe coded Godot game
 - [ ] More rubbery look
 - [ ] No eyes
 - [x] Rubbery wobble swing animation (the club bends against the swing, overshoots when the swing stops and rings down, with a small ripple and a little stretch while it whips: a vertex shader on the club driven by a spring, `update_jelly` and the `JELLY_*` tuning constants in `scripts/player.gd`, `RUBBER_SHADER` in `models.gd`; `RUBBER_WOBBLE = false` in `models.gd` keeps the club rigid. Written without running Godot, only parse-checked with gdtoolkit; waiting for your in-game check: the bend, how strong the bend and ring-down feel (it now rings for about two seconds, tune the `JELLY_*` constants), and that the colours and gloss match the plain model)
-- [ ] Hit, deflect and phone-return feedback
+- [x] Hit, deflect and phone-return feedback (a hit splashes pink jelly and the club shudders, squashes and flashes; a deflect throws a white, pink and gold flash and a harder shudder; a returned phone leaves a pink and gold trail and ends in a bigger smash and shake; `jelly_burst`, `deflect_burst` and `return_trail` in `effects.gd`, `jelly_kick` in `player.gd`, hooks in `swing`, `deflect_phone`, `update_returning_phone` and `strike_with_phone` in `combat.gd`; existing sounds, hit-stop, popups and score are unchanged. Written without running Godot, only parse-checked; waiting for your in-game check, including particle counts on the minimum-spec machine)
 
 ### F4. Riders and bikes
 - [ ] Base rider and bike model ("pro") with a rig
