@@ -4,7 +4,10 @@ extends RefCounted
 # gone when the run ends, while the meta balance only ever goes up from finished runs. It will be the
 # currency for permanent unlocks, cosmetics and Heat rewards (roadmap, Milestone B).
 
+# File format: {"version": 1, "balance", "total_earned"}. Version 0 (before versioning) had no "version" field.
+const SaveUtil = preload("res://scripts/save_util.gd")
 const PATH = "user://meta.json"
+const VERSION = 1
 const SCORE_PER_COIN = 100  # tuning knob: 100 points of score = 1 meta coin
 
 var g = null
@@ -29,14 +32,19 @@ func load_meta() -> void:
 	var data = JSON.parse_string(f.get_as_text())
 	f.close()
 	if data is Dictionary:
+		SaveUtil.backup_if_newer(PATH, SaveUtil.version_of(data), VERSION)
 		balance = maxi(0, int(data.get("balance", 0)))
 		total_earned = maxi(balance, int(data.get("total_earned", 0)))
+	else:
+		SaveUtil.backup(PATH, "bad")  # unreadable: keep a copy before the next save replaces it
 
 
 func save_meta() -> void:
 	var f = FileAccess.open(PATH, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"balance": balance, "total_earned": total_earned}))
+		f.store_string(
+			JSON.stringify({"version": VERSION, "balance": balance, "total_earned": total_earned})
+		)
 		f.close()
 
 

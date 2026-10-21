@@ -1,9 +1,12 @@
 extends RefCounted
 # Local leaderboard: the best MAX_ENTRIES runs, best first, saved to user://scores.json.
-# Every entry is {"name", "score", "round", "kills", "date"}. A run is recorded once, when it ends.
+# Every entry is {"name", "score", "round", "kills", "time", "date"}. A run is recorded once, when it ends.
+# File format: {"version": 1, "entries": [...]}. Version 0 (before versioning) was the bare list of entries.
 
+const SaveUtil = preload("res://scripts/save_util.gd")
 const MAX_ENTRIES = 10
 const PATH = "user://scores.json"
+const VERSION = 1
 
 var g = null
 var entries = []
@@ -23,8 +26,18 @@ func load_scores() -> void:
 		return
 	var data = JSON.parse_string(f.get_as_text())
 	f.close()
-	if data is Array:
-		for e in data:
+	var list = null
+	if data is Array:  # version 0: the bare list written before versioning
+		list = data
+	elif data is Dictionary:
+		var found = SaveUtil.version_of(data)
+		SaveUtil.backup_if_newer(PATH, found, VERSION)
+		if data.get("entries") is Array:
+			list = data["entries"]
+	if list == null:
+		SaveUtil.backup(PATH, "bad")  # unreadable: keep a copy before the next save replaces it
+	else:
+		for e in list:
 			if e is Dictionary and e.has("score"):
 				entries.append(
 					{
@@ -44,7 +57,7 @@ func load_scores() -> void:
 func save_scores() -> void:
 	var f = FileAccess.open(PATH, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify(entries))
+		f.store_string(JSON.stringify({"version": VERSION, "entries": entries}))
 		f.close()
 
 
