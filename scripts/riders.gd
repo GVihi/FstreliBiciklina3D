@@ -3,7 +3,6 @@ extends RefCounted
 # Shared game state stays on main.gd (g); this file holds the logic.
 
 const Models = preload("res://scripts/models.gd")
-const Ring = preload("res://scripts/ring.gd")
 
 var g = null
 
@@ -107,7 +106,7 @@ func update_rider_sound(r: Dictionary) -> void:
 
 # standing on the road is dangerous: a rider that reaches you knocks you down (a dash through it is a perfect dodge)
 func rider_collide(r: Dictionary) -> void:
-	if g.state != "play" or Ring.hidden(r["x"]):
+	if g.state != "play" or g.arena.hidden(r["x"]):
 		return
 	var rp = g.rider_world(r, 0.0)
 	if Vector2(rp.x - g.player.position.x, rp.z - g.player.position.z).length() < 0.95:
@@ -139,7 +138,7 @@ func update_rider(r: Dictionary, dt: float) -> void:
 		var mul = 1.0 + r["age"] * 0.08
 		r["spd"] += (r["tgt"] * mul - r["spd"]) * minf(1.0, dt * 3.0)
 		r["x"] += r["dir"] * r["spd"] * dt
-		if not r["entered"] and not Ring.hidden(r["x"]):
+		if not r["entered"] and not g.arena.hidden(r["x"]):
 			r["entered"] = true
 		if r["entered"]:  # riders keep circling: through the tunnel and round again
 			if r["x"] > g.ARENA_HX:
@@ -157,7 +156,7 @@ func update_rider(r: Dictionary, dt: float) -> void:
 			r["wind_t"] -= dt
 			if r["wind_t"] <= 0.0:
 				g.phone_sys.launch_phone(r)
-		elif r["can_throw"] and r["entered"] and not Ring.hidden(r["x"]) and g.phones.size() < 3:
+		elif r["can_throw"] and r["entered"] and not g.arena.hidden(r["x"]) and g.phones.size() < 3:
 			r["throw_t"] -= dt
 			if r["throw_t"] <= 0.0:
 				if g.throw_cool <= 0.0 and g.state == "play":
@@ -228,7 +227,7 @@ func update_rider(r: Dictionary, dt: float) -> void:
 				if p["rest"] > 1.0:
 					p["done"] = true
 			p["vel"] = v
-			node.position = Ring.clamp_road(node.position)
+			node.position = g.arena.clamp_road(node.position)
 			if r["t"] > 4.0:
 				p["done"] = true
 			if not p["done"]:
