@@ -119,6 +119,7 @@ func _check_layout(sv: int, layout: Dictionary, rules: Dictionary) -> void:
 		_fail(sv, "ground is %d m2, allowed %s to %s" % [int(area), limits["min"], limits["max"]])
 	_check_gates(sv, layout, rules)
 	_check_start(sv, layout, rules)
+	_check_nav(sv, layout, rules)
 	for b in layout["buildings"]:
 		for z in range(int(b["z"]), int(b["z"]) + int(b["h"])):
 			for x in range(int(b["x"]), int(b["x"]) + int(b["w"])):
@@ -224,6 +225,88 @@ func _check_start(sv: int, layout: Dictionary, rules: Dictionary) -> void:
 		)
 	if layout["plazas"].is_empty() or not layout["plazas"][0]["start"]:
 		_fail(sv, "the first plaza is not the start plaza")
+
+
+# the navigation grid: blocked exactly where there is a building, clearance never zero elsewhere, the
+# start area roomy, costs that follow the speed table. The clearance itself is compared with a slow search
+# for the nearest building on every 40th seed (it costs about a million lookups per layout).
+func _check_nav(sv: int, layout: Dictionary, rules: Dictionary) -> void:
+	var n = int(rules["cells"])
+	var cap = int(rules["nav"]["max_clearance"])
+	var nav = layout["nav"]
+	if nav.size() != n:
+		_fail(sv, "nav has %d rows, expected %d" % [nav.size(), n])
+		return
+	var slow = (sv % 40) == 12345 % 40
+	for z in range(n):
+		if str(nav[z]).length() != n:
+			_fail(sv, "nav row %d has %d cells, expected %d" % [z, str(nav[z]).length(), n])
+			return
+		for x in range(n):
+			var is_building = _cell(layout, x, z) == "b"
+			var c = ArenaGen.nav_clearance(layout, x, z)
+			if is_building != (c == 0) or c > cap:
+				_fail(sv, "nav at %d,%d is %d over '%s'" % [x, z, c, _cell(layout, x, z)])
+				return
+			if slow and not is_building:
+				var best = cap
+				for dz in range(-cap, cap + 1):
+					for dx in range(-cap, cap + 1):
+						var ox = x + dx
+						var oz = z + dz
+						if (
+							ox >= 0
+							and oz >= 0
+							and ox < n
+							and oz < n
+							and _cell(layout, ox, oz) == "b"
+						):
+							best = mini(best, maxi(absi(dx), absi(dz)))
+				if best != c:
+					_fail(
+						sv,
+						(
+							"nav clearance at %d,%d is %d, the nearest building is %d away"
+							% [x, z, c, best]
+						)
+					)
+					return
+	var st = layout["start"]
+	var need = int(rules["start"]["half"]) + 1
+	if ArenaGen.nav_clearance(layout, int(st["cell"][0]), int(st["cell"][1])) < need:
+		_fail(
+			sv,
+			(
+				"the start cell has clearance %d, wants at least %d"
+				% [ArenaGen.nav_clearance(layout, int(st["cell"][0]), int(st["cell"][1])), need]
+			)
+		)
+	for gt in layout["gates"]:
+		var gx = int((float(gt["pos"][0]) / float(rules["cell"])) + float(n) / 2.0)
+		var gz = int((float(gt["pos"][1]) / float(rules["cell"])) + float(n) / 2.0)
+		if ArenaGen.nav_clearance(layout, gx, gz) == 0:
+			_fail(sv, "gate %s is blocked in the navigation grid" % gt["side"])
+	var table = rules["rider_speed"]
+	if (
+		ArenaGen.nav_cost(layout, rules, 0, 0) != INF
+		or ArenaGen.nav_cost(layout, rules, -1, 5) != INF
+	):
+		_fail(sv, "a building or a cell outside the grid has a finite cost")
+	for z in range(n):
+		for x in range(n):
+			var surface = ArenaGen.LEGEND[_cell(layout, x, z)]
+			if surface == "building":
+				continue
+			var want = 1.0 / float(table[surface])
+			if absf(ArenaGen.nav_cost(layout, rules, x, z) - want) > 0.0001:
+				_fail(
+					sv,
+					(
+						"nav cost at %d,%d is %s on %s, the table gives %s"
+						% [x, z, ArenaGen.nav_cost(layout, rules, x, z), surface, want]
+					)
+				)
+				return
 
 
 # road is fastest, then sidewalk, then grass; buildings and anything outside the grid cannot be ridden on

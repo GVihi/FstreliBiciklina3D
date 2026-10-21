@@ -8,6 +8,9 @@ extends RefCounted
 # the south. It is plain data (strings, numbers, arrays), so it can be compared, saved and printed:
 #   "rows":      Array of `cells` Strings, one per z, each `cells` characters, one per x. The characters are
 #                the keys of LEGEND: g grass, p plaza, s sidewalk, r road, b building, t tunnel.
+#   "nav":       Array of `cells` Strings like "rows", the navigation grid: '#' where nothing can go (building),
+#                otherwise a digit 1 to 9, the clearance: how many cells away the nearest building is, counting
+#                diagonals (1 = touching one, so a rider there has no room to swing), capped at nav.max_clearance
 #   "roads":     [{"dir": "ns" or "ew", "centre": cell index across the road}] (ns roads run north to south)
 #   "plazas":    [{"x", "z", "w", "h", "start": bool}] in cells; the first one holds the start area
 #   "buildings": [{"x", "z", "w", "h"}] block rectangles in cells (the border ring is not listed)
@@ -128,6 +131,7 @@ static func _attempt(run_seed: int, attempt: int, rules: Dictionary) -> Dictiona
 		"cells": n,
 		"border": border,
 		"rows": rows,
+		"nav": _nav_rows(grid, n, int(rules.get("nav", {}).get("max_clearance", 9))),
 		"roads": roads,
 		"plazas": plazas,
 		"buildings": buildings,
@@ -314,6 +318,44 @@ static func _fill(grid: PackedByteArray, n: int, x0: int, z0: int, w: int, h: in
 			grid[z * n + x] = c
 
 
+# The navigation grid: for every cell that is not a building, the distance in cells (8 directions, so a
+# square distance) to the nearest building cell, capped at `cap`. Tunnel cells count as open ground. Cells
+# are found by a breadth-first search from all the buildings at once, which is exact for this distance.
+static func _nav_rows(grid: PackedByteArray, n: int, cap: int) -> Array:
+	var dist = PackedInt32Array()
+	dist.resize(n * n)
+	dist.fill(-1)
+	var queue = []
+	for i in range(n * n):
+		if grid[i] == B:
+			dist[i] = 0
+			queue.append(i)
+	var head = 0
+	while head < queue.size():
+		var i = int(queue[head])
+		head += 1
+		var x = i % n
+		var z = i / n
+		for dz in range(-1, 2):
+			for dx in range(-1, 2):
+				var nx = x + dx
+				var nz = z + dz
+				if nx < 0 or nz < 0 or nx >= n or nz >= n:
+					continue
+				var j = nz * n + nx
+				if dist[j] < 0:
+					dist[j] = dist[i] + 1
+					queue.append(j)
+	var rows = []
+	for z in range(n):
+		var line = ""
+		for x in range(n):
+			var d = dist[z * n + x]
+			line += "#" if d == 0 else str(clampi(d, 1, cap))
+		rows.append(line)
+	return rows
+
+
 # ---------------------------------------------------------------- reading a layout
 # the surface name at world metres (x, z); anything outside the grid counts as "building"
 static func surface_at(layout: Dictionary, x: float, z: float) -> String:
@@ -330,6 +372,26 @@ static func surface_at(layout: Dictionary, x: float, z: float) -> String:
 # nothing can ride). `rules` is the arena rules, "rider_speed" the table.
 static func rider_speed_at(layout: Dictionary, rules: Dictionary, x: float, z: float) -> float:
 	return float(rules["rider_speed"].get(surface_at(layout, x, z), 0.0))
+
+
+# clearance of grid cell (cx, cz) from the navigation grid: 0 for a building or anything outside the grid,
+# else 1 or more (see "nav" above)
+static func nav_clearance(layout: Dictionary, cx: int, cz: int) -> int:
+	var n = int(layout["cells"])
+	if cx < 0 or cz < 0 or cx >= n or cz >= n:
+		return 0
+	var c = str(layout["nav"][cz])[cx]
+	return 0 if c == "#" else int(c)
+
+
+# what it costs to cross grid cell (cx, cz) for a rider: 1 / its speed share on that ground, so a path
+# search that minimises the sum finds the quickest way. INF where nothing can ride (a building).
+static func nav_cost(layout: Dictionary, rules: Dictionary, cx: int, cz: int) -> float:
+	var n = int(layout["cells"])
+	if nav_clearance(layout, cx, cz) == 0:
+		return INF
+	var share = float(rules["rider_speed"].get(LEGEND[str(layout["rows"][cz])[cx]], 0.0))
+	return 1.0 / share if share > 0.0 else INF
 
 
 # the layout as text, one line per row of cells: the LEGEND characters, north at the top
