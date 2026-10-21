@@ -11,7 +11,6 @@ const GRAY = Color(0.49, 0.48, 0.44)
 const TEXT = Color(0.96, 0.95, 0.92)
 const ACCENT = Color(1.0, 0.42, 0.17)
 const PINK = Color(1.0, 0.48, 0.72)
-const LANE_Z_H = [-5.5, -2.5, 0.5]
 
 
 func _ready() -> void:
@@ -721,7 +720,7 @@ func _draw() -> void:
 	if state == "play":
 		for r in g.riders:
 			if r["max_hp"] > 1 and (r["mode"] == "fly" or r["mode"] == "away"):
-				var wp = g.tw3(r["x"], 2.15, LANE_Z_H[r["ln"]])
+				var wp = r["pos"] + Vector3(0.0, 2.15, 0.0)
 				if g.cam.is_position_behind(wp):
 					continue
 				var s2 = g.cam.unproject_position(wp)

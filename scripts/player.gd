@@ -208,8 +208,8 @@ func apply_aim_assist(dt: float) -> void:
 	var best_ang = deg_to_rad(8.0)
 	var cands = []
 	for r in g.riders:
-		if (r["mode"] == "fly" or r["mode"] == "away") and not g.arena.hidden(r["x"]):
-			cands.append(g.tw3(r["x"], 1.2, g.LANE_Z[r["ln"]]))
+		if (r["mode"] == "fly" or r["mode"] == "away") and not r["hidden"]:
+			cands.append(r["pos"] + Vector3(0.0, 1.2, 0.0))
 	for b in g.bosses:
 		if g.boss_sys.boss_hittable(b):
 			cands.append(g.tw3(b["x"], g.boss_sys.weak_point_y(b), b["z"]))

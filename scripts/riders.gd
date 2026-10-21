@@ -37,10 +37,12 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 	var m = Models.build_rider(type, kit)
 	g.add_child(m["root"])
 	var x0 = -(g.ARENA_HX + 2.0) if dir > 0 else (g.ARENA_HX + 2.0)
-	g.place(m["root"], x0, 0.0, g.LANE_Z[lane_idx])
 	face_rider(m, dir)
 	var r = {
 		"x": x0,
+		"pos": Vector3.ZERO,  # where the rider is on the ground, in world space (see sync_world)
+		"yaw": 0.0,  # the way the rider's hit box is turned in world space
+		"hidden": true,  # inside the tunnel block: not visible, not hittable
 		"dir": dir,
 		"ln": lane_idx,
 		"base": base,
@@ -70,6 +72,8 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 	}
 	g.next_idx += 1
 	g.riders.append(r)
+	sync_world(r)
+	place_rider(r, 0.0)
 	r["snd"] = g.sfx.make_loop("loop_rider", m["root"], Vector3(0, 1.0, 0))
 	Models.pose_rider(m, 0.0, 0.0)
 	return r
@@ -93,6 +97,27 @@ func spawn_wave() -> void:
 	g.wave_miss = false
 
 
+# The rest of the game reads where a rider is from "pos", "yaw" and "hidden", which are world-space values.
+# Today they are worked out from the street position (x on the lane), here and nowhere else; when riders
+# move over open ground (README Milestone K) this is the only function that stops deriving them.
+func sync_world(r: Dictionary) -> void:
+	r["pos"] = g.arena.tw(r["x"], g.LANE_Z[r["ln"]], 0.0)
+	r["yaw"] = g.arena.yaw(r["x"])
+	r["hidden"] = g.arena.hidden(r["x"])
+
+
+# put the rider's model on the ground at its world position, turned the way its hit box is
+func place_rider(r: Dictionary, y: float) -> void:
+	var root: Node3D = r["model"]["root"]
+	root.position = r["pos"] + Vector3(0.0, y, 0.0)
+	root.rotation.y = r["yaw"]
+
+
+# where a phone thrown by this rider leaves its hand: a little ahead of it
+func phone_origin(r: Dictionary) -> Vector3:
+	return g.tw3(r["x"] + r["dir"] * 0.6, 1.4, g.LANE_Z[r["ln"]])
+
+
 func face_rider(m: Dictionary, dir: int) -> void:
 	var pv: Node3D = m["pivot"]
 	pv.rotation = Vector3(0.0, 0.0 if dir > 0 else PI, 0.0)
@@ -106,9 +131,9 @@ func update_rider_sound(r: Dictionary) -> void:
 
 # standing on the road is dangerous: a rider that reaches you knocks you down (a dash through it is a perfect dodge)
 func rider_collide(r: Dictionary) -> void:
-	if g.state != "play" or g.arena.hidden(r["x"]):
+	if g.state != "play" or r["hidden"]:
 		return
-	var rp = g.rider_world(r, 0.0)
+	var rp = r["pos"]
 	if Vector2(rp.x - g.player.position.x, rp.z - g.player.position.z).length() < 0.95:
 		g.damage_player("RUN OVER BY A CYCLIST", "run")
 
@@ -145,10 +170,11 @@ func update_rider(r: Dictionary, dt: float) -> void:
 				r["x"] -= 2.0 * g.ARENA_HX
 			elif r["x"] < -g.ARENA_HX:
 				r["x"] += 2.0 * g.ARENA_HX
+		sync_world(r)
 		r["wph"] += r["spd"] * dt / 0.34
 		r["cph"] += dt * (6.0 + 0.444 * r["spd"])
 		face_rider(m, r["dir"])
-		g.place(root, r["x"], sin(r["age"] * 10.0) * 0.015, g.LANE_Z[r["ln"]])
+		place_rider(r, sin(r["age"] * 10.0) * 0.015)
 		Models.pose_rider(m, r["cph"], r["wph"])
 		update_rider_sound(r)
 		rider_collide(r)
@@ -156,7 +182,7 @@ func update_rider(r: Dictionary, dt: float) -> void:
 			r["wind_t"] -= dt
 			if r["wind_t"] <= 0.0:
 				g.phone_sys.launch_phone(r)
-		elif r["can_throw"] and r["entered"] and not g.arena.hidden(r["x"]) and g.phones.size() < 3:
+		elif r["can_throw"] and r["entered"] and not r["hidden"] and g.phones.size() < 3:
 			r["throw_t"] -= dt
 			if r["throw_t"] <= 0.0:
 				if g.throw_cool <= 0.0 and g.state == "play":
@@ -171,9 +197,10 @@ func update_rider(r: Dictionary, dt: float) -> void:
 	elif mode == "away":
 		r["spd"] = minf(39.0, r["spd"] + 26.0 * dt)
 		r["x"] += r["dir"] * r["spd"] * dt
+		sync_world(r)
 		r["wph"] += r["spd"] * dt / 0.34
 		r["cph"] += dt * (6.0 + 0.444 * r["spd"])
-		g.place(root, r["x"], 0.0, g.LANE_Z[r["ln"]])
+		place_rider(r, 0.0)
 		Models.pose_rider(m, r["cph"], r["wph"])
 		update_rider_sound(r)
 		rider_collide(r)
@@ -238,7 +265,7 @@ func update_rider(r: Dictionary, dt: float) -> void:
 
 func hit_rider(r: Dictionary, dmg: int) -> void:
 	r["hp"] -= dmg
-	var wpos = g.tw3(r["x"], 1.0, g.LANE_Z[r["ln"]])
+	var wpos = r["pos"] + Vector3(0.0, 1.0, 0.0)
 	if r["hp"] > 0:
 		r["flash"] = 0.15
 		g.set_flash(r["model"]["root"], true)

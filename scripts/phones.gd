@@ -22,7 +22,7 @@ func start_throw(r: Dictionary) -> void:
 func launch_phone(r: Dictionary) -> void:
 	if r["mode"] != "fly":
 		return
-	throw_phone(g.tw3(r["x"] + r["dir"] * 0.6, 1.4, g.LANE_Z[r["ln"]]), r)
+	throw_phone(g.rider_sys.phone_origin(r), r)
 
 
 # src is whoever threw it (a rider or a boss): a deflected phone flies back to it

@@ -132,11 +132,11 @@ func fire() -> void:
 			best_kind = "boss"
 			best_obj = b
 	for r in g.riders:
-		if (r["mode"] != "fly" and r["mode"] != "away") or g.arena.hidden(r["x"]):
+		if (r["mode"] != "fly" and r["mode"] != "away") or r["hidden"]:
 			continue
-		var c = g.tw3(r["x"], 0.95, g.LANE_Z[r["ln"]])
+		var c = r["pos"] + Vector3(0.0, 0.95, 0.0)
 		var t = Util.ray_ellipsoid_yaw(
-			org, dir, c, Vector3(1.3 + ex, 1.0 + ex, 0.55 + ex), g.arena.yaw(r["x"])
+			org, dir, c, Vector3(1.3 + ex, 1.0 + ex, 0.55 + ex), r["yaw"]
 		)
 		if t > 0.0 and t < best_t:
 			best_t = t
@@ -265,7 +265,7 @@ func swing() -> void:
 		var r = g.riders[i]
 		if r["mode"] != "fly" and r["mode"] != "away":
 			continue
-		if not g.arena.hidden(r["x"]) and flat_dist_v(zc, g.rider_world(r, 0.0)) < zr * 0.8 + 0.9:
+		if not r["hidden"] and flat_dist_v(zc, r["pos"]) < zr * 0.8 + 0.9:
 			g.rider_sys.hit_rider(r, int(g.WEAPONS["melee"]["damage"]))
 			hit_any = true
 	if hit_any:
@@ -328,7 +328,7 @@ func target_valid(t) -> bool:
 
 func target_pos(t) -> Vector3:
 	if t.has("ln"):
-		return g.tw3(t["x"], 1.1, g.LANE_Z[t["ln"]])
+		return t["pos"] + Vector3(0.0, 1.1, 0.0)
 	return g.tw3(t["x"], float(g.BOSS_INFO[t["kind"]]["cy"]) + 0.4, t["z"])
 
 

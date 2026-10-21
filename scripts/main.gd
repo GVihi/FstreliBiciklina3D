@@ -980,7 +980,7 @@ func ptz() -> float:
 
 
 func rider_world(r: Dictionary, y: float) -> Vector3:
-	return arena.tw(r["x"], LANE_Z[r["ln"]], y)
+	return r["pos"] + Vector3(0.0, y, 0.0)
 
 
 func boss_world(b: Dictionary, y: float) -> Vector3:
@@ -1001,7 +1001,7 @@ func street_vel(x: float, vx: float, vy: float, vz: float) -> Vector3:
 func threat_list() -> Array:
 	var out = []
 	for r in riders:
-		if (r["mode"] == "fly" or r["mode"] == "away") and not arena.hidden(r["x"]):
+		if (r["mode"] == "fly" or r["mode"] == "away") and not r["hidden"]:
 			out.append(
 				{
 					"pos": rider_world(r, 1.0),
