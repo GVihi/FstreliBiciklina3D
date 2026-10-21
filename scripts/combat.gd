@@ -139,10 +139,10 @@ func fire() -> void:
 			best_kind = "rider"
 			best_obj = r
 	for c2 in g.civs:
-		if c2["state"] != "walk" or g.arena.hidden(c2["x"]):
+		if c2["state"] != "walk" or c2["hidden"]:
 			continue
 		var s = c2["scale"]
-		var ctr = g.tw3(c2["x"], 0.95 * s, c2["z"])
+		var ctr = c2["pos"] + Vector3(0.0, 0.95 * s, 0.0)
 		var t2 = Util.ray_ellipsoid(org, dir, ctr, Vector3(0.55 * s, 1.0 * s, 0.55 * s))
 		if t2 > 0.0 and t2 < best_t:
 			best_t = t2
@@ -165,17 +165,17 @@ func fire() -> void:
 
 	# near-miss reaction for pedestrians (not the one we hit)
 	for c3 in g.civs:
-		if c3["state"] != "walk" or c3 == best_obj or c3["flinch"] > 0.0 or g.arena.hidden(c3["x"]):
+		if c3["state"] != "walk" or c3 == best_obj or c3["flinch"] > 0.0 or c3["hidden"]:
 			continue
-		var to = g.tw3(c3["x"], 0.9, c3["z"]) - org
+		var to = c3["pos"] + Vector3(0.0, 0.9, 0.0) - org
 		var proj = to.dot(dir)
 		if proj > 0.0 and proj < 45.0:
 			var perp = (to - dir * proj).length()
 			if perp < 1.5:
 				c3["flinch"] = 0.6
-				var cp = g.tw3(c3["x"], 1.2, c3["z"])
+				var cp = c3["pos"] + Vector3(0.0, 1.2, 0.0)
 				g.sfx.v_gasp(cp)
-				g.add_popup(g.tw3(c3["x"], 2.0, c3["z"]), "JOJ!", g.WHITE, true)
+				g.add_popup(c3["pos"] + Vector3(0.0, 2.0, 0.0), "JOJ!", g.WHITE, true)
 
 	if target_hit:
 		if best_kind == "rider":

@@ -48,6 +48,9 @@ func spawn_civ(init_x: float = 9999.0) -> void:
 		"type": kind,
 		"x": x0,
 		"z": z,
+		"pos": Vector3.ZERO,  # where it stands on the ground, in world space (see sync_world)
+		"yaw": 0.0,  # the way the model faces in world space
+		"hidden": true,  # inside the tunnel block: not visible, not hittable
 		"dir": dir,
 		"spd": spd,
 		"ph": randf_range(0.0, 6.0),
@@ -64,12 +67,23 @@ func spawn_civ(init_x: float = 9999.0) -> void:
 	apply_civ(c)
 
 
+# The rest of the game reads where a pedestrian is from "pos", "yaw" and "hidden", which are world-space values.
+# Today they are worked out from the street position (x on the sidewalk or jogging lane), here and nowhere
+# else; when pedestrians walk over open ground (README Milestone K) this is the only function that stops
+# deriving them. apply_civ calls it, and it runs after every move.
+func sync_world(c: Dictionary) -> void:
+	c["pos"] = g.arena.tw(c["x"], c["z"], 0.0)
+	c["yaw"] = (0.0 if c["dir"] > 0 else PI) + g.arena.yaw(c["x"])
+	c["hidden"] = g.arena.hidden(c["x"])
+
+
 func apply_civ(c: Dictionary) -> void:
+	sync_world(c)
 	var m = c["model"]
 	var s = c["scale"]
 	var cr: Node3D = m["root"]
-	cr.position = g.arena.tw(c["x"], c["z"], c["hop"])
-	cr.rotation = Vector3(0.0, (0.0 if c["dir"] > 0 else PI) + g.arena.yaw(c["x"]), 0.0)
+	cr.position = c["pos"] + Vector3(0.0, c["hop"], 0.0)
+	cr.rotation = Vector3(0.0, c["yaw"], 0.0)
 	cr.scale = Vector3(s, s, s)
 	Models.pose_civ(m, c["ph"], c["photo"] > 0.0, c["type"] == "jogger" or c["state"] == "flee")
 
@@ -128,8 +142,8 @@ func hit_civ(c: Dictionary) -> void:
 	g.civs_hit += 1
 	g.hit_marker = 0.18
 	g.score = maxi(0, g.score - 1500)
-	var cp = g.tw3(c["x"], 1.2, c["z"])
-	g.add_popup(g.tw3(c["x"], 2.2, c["z"]), "ALO!", g.WHITE, true)
+	var cp = c["pos"] + Vector3(0.0, 1.2, 0.0)
+	g.add_popup(c["pos"] + Vector3(0.0, 2.2, 0.0), "ALO!", g.WHITE, true)
 	g.add_note("PEDESTRIAN HIT  -1 LIFE  -1500", g.RED)
 	g.red_flash = 0.25
 	g.sfx.play3d("thud", cp)

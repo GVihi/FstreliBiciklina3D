@@ -329,10 +329,11 @@ func _ready() -> void:
 		var m = Models.build_cheer(i)
 		add_child(m["root"])
 		var cx = (CHEER_PX[i] - 400.0) * PX_TO_M
-		m["root"].position = arena.tw(cx, CHEER_Z, 0.0)
+		# a cheerleader never moves, so its world position and facing are worked out once, here
+		m["pos"] = arena.tw(cx, CHEER_Z, 0.0)
 		var cr: Node3D = m["root"]
+		cr.position = m["pos"]
 		cr.rotation = Vector3(0.0, -PI * 0.5 + arena.yaw(cx), 0.0)
-		m["x"] = cx
 		cheerleaders.append(m)
 
 	var layer = CanvasLayer.new()
@@ -1053,15 +1054,14 @@ func update_cheerleaders(_dt: float) -> void:
 		var ph = time * (4.0 + chv * 4.0) + i * 1.1
 		var jump = absf(sin(ph)) * (0.08 + chv * 0.32)
 		var cr: Node3D = m["root"]
-		cr.position = arena.tw(m["x"], CHEER_Z, jump)
+		cr.position = m["pos"] + Vector3(0.0, jump, 0.0)
 		Models.pose_cheer(m, ph, chv)
 
 
 func cheer_say() -> void:
 	var txt = pick_one(["BRAVO!", "DAJMO!", "FSTRELI!", "YEAH!"])
 	var i = randi() % cheerleaders.size()
-	var cx = float(cheerleaders[i]["x"])
-	add_popup(tw3(cx, 2.5, CHEER_Z), txt, Color(1.0, 0.82, 0.93), true)
+	add_popup(cheerleaders[i]["pos"] + Vector3(0.0, 2.5, 0.0), txt, Color(1.0, 0.82, 0.93), true)
 
 
 # ------------------------------------------------------------------ hype
