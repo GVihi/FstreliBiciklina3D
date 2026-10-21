@@ -473,9 +473,11 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [x] The player walks through the whole arena
 - [x] Riders do not lap or follow a fixed lane: they can ride on road, sidewalk, grass, anywhere open
 - [x] One arena per run (generated once from the run seed)
-- [ ] Decide what riders do in an open arena (cross between gates, ride toward the player, patrol) and whether road, sidewalk and grass change their speed
-- [ ] Decide how map nodes use the one arena (a different district per node, or the whole arena with a different set-up)
-- [ ] Set the performance budget (triangles, lights, shadows, draw distance) on the minimum-spec machine
+- [x] Riders ride toward the player, pass if they are not shot, then turn round in a smooth arc (limited turning rate, never a sharp 180 degree switch) and ride toward the player again
+- [x] Map nodes: every node uses the whole arena with its own set-up (rider mix, gates in use, props, theme and modifiers), and the player starts each round in a clear start area (the owner left this choice to Claude, reasons in the design note)
+- [ ] Decide what happens when a rider passes the player (damage unless dash or dodge?) and how a round ends if riders keep returning (time limit, cap on passes, or riders leave through a gate)
+- [ ] Decide whether road, sidewalk and grass change rider speed
+- [ ] Set the performance budget (triangles, lights, shadows, draw distance) on the minimum-spec machine (deferred by the owner: not needed yet, but needed before the world is built)
 
 ## Foundation
 
@@ -498,11 +500,11 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 ## Gameplay on open ground
 
-- [ ] Riders on any open surface, spawning at gates and heading to their goals
+- [ ] Rider pursuit steering: ride toward the player on any open surface, pass, then turn round in a smooth arc and return; spawning at gates
 - [ ] Boss attacks (strips, slam circles, volleys) on open ground
 - [ ] Pedestrians, cheerleaders and pickups placed on generated arenas
 - [ ] Threat arrows, radar and aim assist for attacks from every direction and distance
-- [ ] Connect the arena to the run map (how nodes use it, see the decisions above)
+- [ ] Connect the arena to the run map (every node uses the whole arena with its own set-up)
 
 ## Scale, variety and polish
 
