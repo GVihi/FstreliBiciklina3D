@@ -90,6 +90,25 @@ func _check_queries(A) -> int:
 					% gt["outward"]
 				)
 			)
+	# the bounds each kind of caller gets, measured from the centre on the open side (away from the tunnel)
+	var bounds = [
+		["player", 1.0, 2.3],
+		["player", 30.0, 22.3],
+		["boss", 1.0, 2.1],
+		["boss", 30.0, 22.6],
+		["pickup", 1.0, 2.6],
+		["pickup", 30.0, 21.9],
+	]
+	for b in bounds:
+		var c = A.clamp_walk(Vector3(0.0, 0.5, -float(b[1])), b[0])
+		if absf(Vector2(c.x, c.z).length() - float(b[2])) > 0.001:
+			bad += 1
+			printerr(
+				(
+					"clamp_walk %s at radius %s: want %s, got %s"
+					% [b[0], b[1], b[2], Vector2(c.x, c.z).length()]
+				)
+			)
 	if A.start_position().distance_to(A.tw(0.0, 6.0)) > 0.0001:
 		bad += 1
 		printerr("start_position differs from the street point (0, 6)")
@@ -152,8 +171,8 @@ func _sample(g) -> Array:
 		var p = Vector3(
 			rng.randf_range(-30.0, 30.0), rng.randf_range(0.0, 8.0), rng.randf_range(-30.0, 30.0)
 		)
-		var walk = g.clamp_walk(p, 2.3, 22.3)
-		var boss_walk = g.clamp_walk(p, 2.1, 22.6)
+		var walk = g.clamp_walk(p, "player")
+		var boss_walk = g.clamp_walk(p, "boss")
 		(
 			lines
 			. append(

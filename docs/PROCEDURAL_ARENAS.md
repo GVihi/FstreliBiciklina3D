@@ -20,9 +20,9 @@ Goal: every run gets one generated arena, about four times bigger than today's r
 - The game talks to the arena through one object, `arena` in `main.gd` (interface in `scripts/arena.gd`, the roundabout in `scripts/arena_roundabout.gd`). It offers the street-coordinate functions below and the world-space queries `start_position`, `clamp_walk`, `ray_blocked`, `obstacle_at`, `surface_at` and `gates`. Only `arena_roundabout.gd` still reads `ring.gd`.
 - `scripts/ring.gd` is where the roundabout turns street coordinates into the world: `tw(x, z)`, `tangent`, `inward`, `yaw` and `to_track`. It bends the street into a circle of radius about 13 m, with the player on a central island.
 - Riders loop around the ring (`x` wraps at `ARENA_HX`, half a lap) and enter and leave through a tunnel block at the seam. Each rider has a lane with a speed multiplier (`LANE_MULT`).
-- The player is held to a ring-shaped area (`PLAYER_R_MIN`, `PLAYER_R_MAX`, `Ring.player_lim()`).
+- The player is held to a ring-shaped area by the arena itself: `clamp_walk(p, who)` in `arena_roundabout.gd` keeps a point between the fountain (2.3 m) and the buildings (22.3 m) and out of the tunnel wedge. `who` ("player", "boss" or "pickup") only picks the margin.
 - `scripts/world.gd` builds the whole roundabout once at start-up, reading its numbers from the arena object. It is the roundabout's own builder; generated arenas get one of their own (step 6).
-- Not yet generalised: riders, bosses and pedestrians still move in street coordinates (step 2), and the player's `PLAYER_R_MIN` / `PLAYER_R_MAX` radii are still passed to `clamp_walk` by `player.gd`, `pickups.gd` and `bosses.gd` (step 3).
+- Not yet generalised: riders, bosses and pedestrians still move in street coordinates (step 2).
 
 ## What the decisions mean
 

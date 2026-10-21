@@ -266,7 +266,7 @@ func lunge_speed(b: Dictionary) -> float:
 
 
 func set_boss_pos(b: Dictionary, wp: Vector3) -> void:
-	wp = g.clamp_walk(Vector3(wp.x, 0.0, wp.z), 2.1, 22.6)
+	wp = g.clamp_walk(Vector3(wp.x, 0.0, wp.z), "boss")
 	b["wp"] = wp
 	var t = g.arena.to_track(wp)  # the rest of the game reads the street coordinates
 	b["x"] = t.x

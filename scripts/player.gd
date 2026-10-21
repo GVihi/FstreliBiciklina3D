@@ -176,9 +176,7 @@ func update_player(dt: float, captured: bool) -> void:
 	else:
 		g.pvel = g.pvel.lerp(target, minf(1.0, dt * 10.0))
 
-	g.player.position = g.clamp_walk(
-		g.player.position + g.pvel * dt, g.PLAYER_R_MIN, g.PLAYER_R_MAX
-	)
+	g.player.position = g.clamp_walk(g.player.position + g.pvel * dt)
 	g.player.rotation.y = g.yaw
 
 	var spd = g.pvel.length()

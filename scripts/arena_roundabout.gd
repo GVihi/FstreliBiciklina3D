@@ -12,6 +12,8 @@ const HX = Ring.HX  # half a lap: street x runs -HX..HX, the tunnel is at both e
 const GATE_HALF = Ring.GATE_HALF
 const FACADE_RHO = Ring.FACADE_RHO
 const GATE_RHO_IN = Ring.GATE_RHO_IN
+const WALK_R_MIN = 2.3  # the player cannot get closer than this to the centre (the fountain)
+const WALK_R_MAX = 22.3  # ... or further than this (the buildings)
 
 
 func tw(x: float, z: float, y: float = 0.0) -> Vector3:
@@ -51,8 +53,17 @@ func start_position() -> Vector3:
 
 
 # keep a point on the walkable ground: outside the fountain, inside the buildings, and out of the
-# tunnel / planter wedge at the back
-func clamp_walk(p: Vector3, rmin: float, rmax: float) -> Vector3:
+# tunnel / planter wedge at the back. The ring limits (from the centre) for each kind of caller; the
+# numbers are the ones the callers used to pass in, so nothing moves.
+func clamp_walk(p: Vector3, who: String = "player") -> Vector3:
+	var rmin = WALK_R_MIN  # the fountain
+	var rmax = WALK_R_MAX  # the buildings
+	if who == "boss":
+		rmin = 2.1
+		rmax = 22.6
+	elif who == "pickup":
+		rmin = WALK_R_MIN + 0.3
+		rmax = WALK_R_MAX - 0.4
 	var r = Vector2(p.x, p.z).length()
 	if r < 0.001:
 		return Vector3(0.0, p.y, -rmin)

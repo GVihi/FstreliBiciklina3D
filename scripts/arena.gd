@@ -69,10 +69,11 @@ func start_position() -> Vector3:
 	return Vector3.ZERO
 
 
-# player bounds: keep a point on the walkable ground, sliding along an edge instead of stopping dead.
-# rmin / rmax are the radii the callers pass today (the player, bosses and pickups use slightly different
-# margins); they go away when the bounds come from the arena itself (README Milestone K, Foundation).
-func clamp_walk(p: Vector3, _rmin: float, _rmax: float) -> Vector3:
+# keep a point on the walkable ground, sliding along an edge instead of stopping dead. The arena owns the
+# bounds; "who" only picks how much room the thing needs: "player" (the walkable ground itself), "boss"
+# (a boss on foot, which may stand a little closer to the edge) or "pickup" (a landing spot, kept a little
+# inside the player's ground so it can always be reached).
+func clamp_walk(p: Vector3, _who: String = "player") -> Vector3:
 	_missing("clamp_walk")
 	return p
 

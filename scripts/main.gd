@@ -39,8 +39,6 @@ const SIDEWALK_Z = -11.2
 const JOG_Z = -8.8
 const CHEER_Z = -12.4
 const FAR_WALL_Z = -13.1
-const PLAYER_R_MIN = 2.3  # the fountain
-const PLAYER_R_MAX = 22.3  # the buildings
 
 const RIDER_SCALE = 0.05  # original pixel speeds -> metres per second
 const CIV_SCALE = 0.035
@@ -1028,8 +1026,8 @@ func threat_list() -> Array:
 
 
 # keep a point on the walkable ground (sliding along an edge, not stopping dead): the arena decides where
-func clamp_walk(p: Vector3, rmin: float, rmax: float) -> Vector3:
-	return arena.clamp_walk(p, rmin, rmax)
+func clamp_walk(p: Vector3, who: String = "player") -> Vector3:
+	return arena.clamp_walk(p, who)
 
 
 # solid for darts
