@@ -1,6 +1,6 @@
 # Map generation rules
 
-Rules for the procedural run map (README Milestone G). The numbers live in [`data/map_rules.json`](../data/map_rules.json); this page says what they mean. **Nothing in the game reads the file yet:** the generator, the map screen and the node types arrive with the next Milestone G items and Milestone D. The numbers are a first guess, to be tuned once a generator exists and real runs can be timed.
+Rules for the procedural run map (README Milestone G). The numbers live in [`data/map_rules.json`](../data/map_rules.json); this page says what they mean. The generator is `scripts/map_gen.gd`; the game builds a map from the run seed at the start of every run and prints it to the console, but **rounds do not follow the map yet** (the map screen and the node types arrive with Milestone D). The numbers are a first guess, to be tuned once real runs can be timed.
 
 ## Shape of the map
 
@@ -18,9 +18,9 @@ Node types are the Milestone D list: `normal`, `elite`, `shop`, `event`, `rest`,
 
 Each node sits in a lane (its position left to right on the floor). Edges only go from one floor to the next.
 
-1. A node has 1 or 2 outgoing edges (`max_edges_out`), to nodes on the next floor whose lane is close to its own (nearest first).
-2. Edges never cross.
-3. Every node except those on floor 1 has at least one incoming edge, and every node except the final boss has at least one outgoing edge. Where a rule needs an edge added, the nearest valid lane is used.
+1. A node has 1 or 2 outgoing edges (`max_edges_out`), to nodes on the next floor whose lane is close to its own. The one exception is a lone boss node, which connects to every node on the next floor.
+2. Edges never cross. They are built as a staircase from the left-most nodes of both floors to the right-most ones, which also guarantees rule 3.
+3. Every node except those on floor 1 has at least one incoming edge, and every node except the final boss has at least one outgoing edge.
 4. A boss floor has one node, so every node on the floor before it connects to it.
 
 ## Node types on free floors
@@ -53,6 +53,16 @@ This is the checklist for the "validate that every generated map is completable"
 - Every node can be reached from a floor 1 node, and every node can reach the final boss (no dead ends).
 - Every start-to-final-boss path crosses the mid boss and both prep floors.
 - Caps (`max_per_map`) and `no_repeat_along_edge` hold.
+
+## Checking the generator
+
+`tools/map_check.gd` generates 2,000 maps, generates each twice to prove the same seed gives the same map, and checks the list above (except "retry", which is not built yet). Run it from the project folder, optionally with a seed to print as text and a count:
+
+```
+godot --headless --path . --script res://tools/map_check.gd -- 3735928559 500
+```
+
+`MapGen.to_text` prints a map as one line per floor, final boss first: the letter is the node type (N normal, E elite, S shop, ? event, R rest, B boss) and the numbers are the lanes it connects to on the next floor.
 
 ## Open points for Milestone D and balance
 

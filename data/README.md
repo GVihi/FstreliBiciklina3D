@@ -78,4 +78,4 @@ Still in code, because they are not weapon tuning or are shared with other syste
 
 ## `map_rules.json`
 
-Numbers for the procedural run map (floors, widths, boss and prep floors, node type weights). **Not read by the game yet**: the generator comes with the next Milestone G items. What each key means is in [`docs/MAP_GENERATION.md`](../docs/MAP_GENERATION.md).
+Numbers for the procedural run map (floors, widths, boss and prep floors, node type weights). Read by `scripts/map_gen.gd` (the run map generator; rounds do not follow the map yet). What each key means is in [`docs/MAP_GENERATION.md`](../docs/MAP_GENERATION.md).
