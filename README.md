@@ -204,6 +204,8 @@ Mostly vibe coded Godot game
 
 ## New Arenas
 
+> These become arena styles of the procedural arena generator (Milestone K), chosen once per run, instead of hand-built scenes.
+
 - [ ] Bridge arena
 - [ ] Market arena
 - [ ] Tunnel arena
@@ -461,6 +463,58 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 ---
 
+# Milestone K: Procedural Arenas
+
+> Every run gets one generated arena, about four times bigger than the roundabout, that the player walks through freely and where riders can ride on roads, sidewalks, grass and anywhere open. Design, owner decisions, current-code notes and open questions: [`docs/PROCEDURAL_ARENAS.md`](docs/PROCEDURAL_ARENAS.md). Needs the seed from Milestone G; the world kit from Milestone F9 should be reused for the dressing. This replaces how riders, bosses and pedestrians move (street coordinates become world positions), so it is large: work top to bottom, and the first steps keep the roundabout playing as it does today.
+
+## Decisions
+
+- [x] Size: about 4 times the walkable area (about 6,000 m² against about 1,500 m² now)
+- [x] The player walks through the whole arena
+- [x] Riders do not lap or follow a fixed lane: they can ride on road, sidewalk, grass, anywhere open
+- [x] One arena per run (generated once from the run seed)
+- [x] Riders ride toward the player, pass if they are not shot, then turn round in a smooth arc (limited turning rate, never a sharp 180 degree switch) and ride toward the player again
+- [x] Map nodes: every node uses the whole arena with its own set-up (rider mix, gates in use, props, theme and modifiers), and the player starts each round in a clear start area (the owner left this choice to Claude, reasons in the design note)
+- [x] A rider that passes the player does damage as it does now (same dash and perfect-dodge rules); riders keep coming back until they are killed, with no cap on passes and no time limit (the melee weapon is the fallback), and a round ends when every rider is down
+- [ ] Decide whether road, sidewalk and grass change rider speed
+- [ ] Set the performance budget (triangles, lights, shadows, draw distance) on the minimum-spec machine (deferred by the owner: not needed yet, but needed before the world is built)
+
+## Foundation
+
+- [ ] Put the arena behind one `Arena` interface with world-space queries (player bounds, surface at a point, obstacles, gates), with the roundabout as its first implementation (no visible change)
+- [ ] Move rider, boss and pedestrian movement from street coordinates to world positions with steering and obstacle avoidance (the roundabout must still play the same)
+- [ ] Player bounds from the arena instead of `PLAYER_R_MIN` / `PLAYER_R_MAX`
+
+## Generation
+
+- [ ] Arena generator: seed in, terrain layout out (size, roads, plazas, grass, building blocks, gates); same seed, same arena
+- [ ] Generate the navigation grid with the layout
+- [ ] Validate every generated arena (all gates connected, no sealed areas, minimum corridor widths, a clear start area, sightlines)
+- [ ] Debug tool: enter a seed and preview the generated arena
+
+## Building the world
+
+- [ ] Ground surfaces, curbs and markings from the layout
+- [ ] Place buildings, props, lamps and gates (tunnels, alleys) from the layout (reuse the F9 kit)
+- [ ] Theme lighting and lit windows on generated arenas
+
+## Gameplay on open ground
+
+- [ ] Rider pursuit steering: ride toward the player on any open surface, pass, then turn round in a smooth arc and return; spawning at gates
+- [ ] Round clear rule for riders that cannot escape: the round ends when every rider is down; rework the round progress icons, the "N of 10 hit" count, `NEED`, the perfect-round rule and style and score rules in `main.gd` and `hud.gd`
+- [ ] Boss attacks (strips, slam circles, volleys) on open ground
+- [ ] Pedestrians, cheerleaders and pickups placed on generated arenas
+- [ ] Threat arrows, radar and aim assist for attacks from every direction and distance
+- [ ] Connect the arena to the run map (every node uses the whole arena with its own set-up)
+
+## Scale, variety and polish
+
+- [ ] Performance pass for four times the area (draw distance, culling, shadow and light counts) on the minimum-spec machine
+- [ ] Arena styles chosen by the seed: plaza, street canyon, market, bridge, tunnel, park (replaces the hand-built arenas in Milestone D)
+- [ ] Playtest and balance: rider speed, run length and sightlines on the bigger arena
+
+---
+
 # Tooling & QA
 
 - [ ] Playtest pass of everything built in Milestone A (title, pause, settings, run, win / lose, leaderboard, name entry). It was written without running the game
@@ -502,3 +556,4 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [ ] Milestone H: Run start sequence (needs the map from Milestone G to fade into)
 - [ ] Milestone I: Roguelite progression (builds on the meta currency and unlocks in Milestone B)
 - [ ] Milestone J: Manual reload (small and independent, can be done at any time)
+- [ ] Milestone K: Procedural arenas (big: replaces how riders and bosses move; start with the "Foundation" steps, which keep the roundabout playing as today)
