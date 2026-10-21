@@ -6,15 +6,26 @@ const Util = preload("res://scripts/util.gd")
 
 var g = null
 var particle_pool = []
-var shell_mesh: Mesh = null            # the shell model's mesh, taken from assets/models/shell.glb the first time it is needed
+var shell_mesh: Mesh = null  # the shell model's mesh, taken from assets/models/shell.glb the first time it is needed
 var shell_mesh_tried = false
 
 const SHELL_MODEL_PATH = "res://assets/models/shell.glb"
 
+
 func _init(game) -> void:
 	g = game
 
-func spawn_particle(pos: Vector3, vel: Vector3, life: float, m: Material, sz: Vector3, grav: float, spin: float = 0.0, custom_mesh: Mesh = null) -> void:
+
+func spawn_particle(
+	pos: Vector3,
+	vel: Vector3,
+	life: float,
+	m: Material,
+	sz: Vector3,
+	grav: float,
+	spin: float = 0.0,
+	custom_mesh: Mesh = null
+) -> void:
 	var mi: MeshInstance3D
 	if particle_pool.size() > 0:
 		mi = particle_pool.pop_back()
@@ -26,16 +37,19 @@ func spawn_particle(pos: Vector3, vel: Vector3, life: float, m: Material, sz: Ve
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		g.add_child(mi)
 	if custom_mesh != null:
-		mi.mesh = custom_mesh                  # a modelled mesh brings its own materials
+		mi.mesh = custom_mesh  # a modelled mesh brings its own materials
 		mi.material_override = null
 	else:
 		mi.mesh = Util.box_mesh(sz)
 		mi.material_override = m
 	mi.position = pos
-	g.particles.append({"node": mi, "vel": vel, "life": life, "max": life, "grav": grav, "spin": spin})
+	g.particles.append(
+		{"node": mi, "vel": vel, "life": life, "max": life, "grav": grav, "spin": spin}
+	)
 	while g.particles.size() > 300:
 		release_particle(g.particles[0]["node"])
 		g.particles.remove_at(0)
+
 
 # An empty shell thrown out of the gun (shell.glb), tumbling until it lands. Without the model it is a small red block.
 func spawn_shell(pos: Vector3, vel: Vector3) -> void:
@@ -45,6 +59,7 @@ func spawn_shell(pos: Vector3, vel: Vector3) -> void:
 	else:
 		spawn_particle(pos, vel, 1.4, null, Vector3.ONE, 9.8, 14.0, m)
 	g.particles[g.particles.size() - 1]["settle"] = true
+
 
 func get_shell_mesh() -> Mesh:
 	if shell_mesh_tried:
@@ -62,6 +77,7 @@ func get_shell_mesh() -> Mesh:
 	inst.free()
 	return shell_mesh
 
+
 func _first_mesh(n: Node) -> MeshInstance3D:
 	if n is MeshInstance3D:
 		return n
@@ -71,9 +87,11 @@ func _first_mesh(n: Node) -> MeshInstance3D:
 			return r
 	return null
 
+
 func release_particle(node: Node3D) -> void:
 	node.visible = false
 	particle_pool.append(node)
+
 
 func update_particles(dt: float) -> void:
 	for i in range(g.particles.size() - 1, -1, -1):
@@ -92,7 +110,7 @@ func update_particles(dt: float) -> void:
 			node.position = Vector3(node.position.x, 0.02, node.position.z)
 			p["vel"] = Vector3(v.x * 0.3, 0.0, v.z * 0.3)
 			if p.get("settle", false):
-				p["spin"] = 0.0                        # a shell stops tumbling when it lands, lies flat and then shrinks away
+				p["spin"] = 0.0  # a shell stops tumbling when it lands, lies flat and then shrinks away
 				p["settle"] = false
 				node.rotation = Vector3(0.0, node.rotation.y, 0.0)
 		if p["spin"] != 0.0:
@@ -101,30 +119,59 @@ func update_particles(dt: float) -> void:
 			var f = clampf(p["life"] / p["max"], 0.05, 1.0)
 			node.scale = Vector3(f, f, f)
 
-func burst(pos: Vector3, count: int, cols: Array, speed: float, life_lo: float, life_hi: float, size: float) -> void:
+
+func burst(
+	pos: Vector3, count: int, cols: Array, speed: float, life_lo: float, life_hi: float, size: float
+) -> void:
 	for i in range(count):
-		spawn_particle(pos + Vector3(randf_range(-0.3, 0.3), randf_range(-0.3, 0.3), randf_range(-0.3, 0.3)),
-			Vector3(randf_range(-speed, speed), randf_range(0.5, speed * 1.2), randf_range(-speed, speed)),
-			randf_range(life_lo, life_hi), g.col_mat(g.pick_one(cols)), Vector3(size, size, size), 10.0)
+		spawn_particle(
+			pos + Vector3(randf_range(-0.3, 0.3), randf_range(-0.3, 0.3), randf_range(-0.3, 0.3)),
+			Vector3(
+				randf_range(-speed, speed),
+				randf_range(0.5, speed * 1.2),
+				randf_range(-speed, speed)
+			),
+			randf_range(life_lo, life_hi),
+			g.col_mat(g.pick_one(cols)),
+			Vector3(size, size, size),
+			10.0
+		)
+
 
 # Melee feedback (Milestone F3): pink jelly splat on a hit, a bright pink and gold flash on a deflect, a smaller pink
 # puff along the way when a returned phone flies back.
 func jelly_burst(pos: Vector3) -> void:
 	burst(pos, 22, ["#ff4fa3", "#ff95cb", "#ffe3f1", "#ffffff"], 5.0, 0.4, 0.8, 0.09)
 
+
 func deflect_burst(pos: Vector3) -> void:
 	burst(pos, 26, ["#ffffff", "#ffe3f1", "#ff95cb", "#ffc400"], 6.5, 0.3, 0.6, 0.08)
 
+
 func return_trail(pos: Vector3) -> void:
-	spawn_particle(pos + Vector3(randf_range(-0.1, 0.1), randf_range(-0.1, 0.1), randf_range(-0.1, 0.1)),
-		Vector3(randf_range(-0.4, 0.4), randf_range(-0.2, 0.5), randf_range(-0.4, 0.4)), 0.35,
-		g.col_mat(g.pick_one(["#ff4fa3", "#ffe3f1", "#ffc400"])), Vector3(0.1, 0.1, 0.1), 0.0)
+	spawn_particle(
+		pos + Vector3(randf_range(-0.1, 0.1), randf_range(-0.1, 0.1), randf_range(-0.1, 0.1)),
+		Vector3(randf_range(-0.4, 0.4), randf_range(-0.2, 0.5), randf_range(-0.4, 0.4)),
+		0.35,
+		g.col_mat(g.pick_one(["#ff4fa3", "#ffe3f1", "#ffc400"])),
+		Vector3(0.1, 0.1, 0.1),
+		0.0
+	)
+
 
 func plastic_burst(pos: Vector3) -> void:
 	burst(pos, 14, ["#2b2f36", "#3a3f47", "#3fa0ff", "#c9ced4"], 4.0, 0.5, 0.8, 0.07)
 
+
 func confetti() -> void:
 	for i in range(70):
 		var pos = Vector3(randf_range(-12.0, 12.0), randf_range(5.0, 9.0), randf_range(-9.0, 2.0))
-		spawn_particle(pos, Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 0.5), randf_range(-1.0, 1.0)),
-			randf_range(2.5, 4.0), g.pick_one(g.confetti_mats), Vector3(0.14, 0.01, 0.09), 1.5, randf_range(-8.0, 8.0))
+		spawn_particle(
+			pos,
+			Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 0.5), randf_range(-1.0, 1.0)),
+			randf_range(2.5, 4.0),
+			g.pick_one(g.confetti_mats),
+			Vector3(0.14, 0.01, 0.09),
+			1.5,
+			randf_range(-8.0, 8.0)
+		)

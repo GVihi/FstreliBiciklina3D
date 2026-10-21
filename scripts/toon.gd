@@ -49,6 +49,7 @@ void fragment() {
 }
 """
 
+
 static func make_outline_quad() -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
 	var qm = QuadMesh.new()
@@ -61,10 +62,11 @@ static func make_outline_quad() -> MeshInstance3D:
 	sh.code = SHADER_CODE
 	var m = ShaderMaterial.new()
 	m.shader = sh
-	m.render_priority = -128          # draw before every other see-through thing, so strips, rings and fades stay on top of it
+	m.render_priority = -128  # draw before every other see-through thing, so strips, rings and fades stay on top of it
 	m.set_shader_parameter("compat", 1.0 if RenderingServer.get_rendering_device() == null else 0.0)
 	mi.material_override = m
 	return mi
+
 
 static func setup_glow(env: Environment) -> void:
 	env.glow_enabled = true

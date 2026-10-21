@@ -7,8 +7,10 @@ const Ring = preload("res://scripts/ring.gd")
 
 var g = null
 
+
 func _init(game) -> void:
 	g = game
+
 
 func spawn_civ(init_x: float = 9999.0) -> void:
 	var kind = g.pick_one(["walker", "granny", "jogger", "tourist"])
@@ -23,15 +25,19 @@ func spawn_civ(init_x: float = 9999.0) -> void:
 	else:
 		spd = randf_range(34.0, 55.0)
 	spd *= g.CIV_SCALE
-	var pants_list = [Color.html("#2d3a52"), Color.html("#4a4036"), Color.html("#2a2a2e"), Color.html("#6b7a8f")]
+	var pants_list = [
+		Color.html("#2d3a52"), Color.html("#4a4036"), Color.html("#2a2a2e"), Color.html("#6b7a8f")
+	]
 	var shirts = ["#d65a4a", "#4a90d6", "#e0b83a", "#58b36a", "#9a62c8", "#e8e8e0", "#2f3b4f"]
 	var hairs = ["#2b1d12", "#6b4a2b", "#c9a266", "#1a1a1a", "#8a8a8a"]
 	var skins = ["#f0c8a0", "#d9a273", "#a8734a", "#7a4e30"]
 	var bags = ["#c49a5a", "#5a7fa8", "#b86a6a"]
 	var pal = {
-		"shirt": Color.html(g.pick_one(shirts)), "pants": g.pick_one(pants_list),
+		"shirt": Color.html(g.pick_one(shirts)),
+		"pants": g.pick_one(pants_list),
 		"hair": Color.html("#8a8a8a" if kind == "granny" else g.pick_one(hairs)),
-		"skin": Color.html(g.pick_one(skins)), "bag": Color.html(g.pick_one(bags))
+		"skin": Color.html(g.pick_one(skins)),
+		"bag": Color.html(g.pick_one(bags))
 	}
 	var m = Models.build_civ(kind, pal)
 	g.add_child(m["root"])
@@ -40,12 +46,24 @@ func spawn_civ(init_x: float = 9999.0) -> void:
 		x0 = -(g.ARENA_HX + 1.8) if dir > 0 else (g.ARENA_HX + 1.8)
 	var z = g.JOG_Z if kind == "jogger" else g.SIDEWALK_Z + randf_range(-0.5, 0.5)
 	var c = {
-		"type": kind, "x": x0, "z": z, "dir": dir, "spd": spd, "ph": randf_range(0.0, 6.0), "t": 0.0,
-		"state": "walk", "hop": 0.0, "flinch": 0.0, "photo": 0.0, "photo_t": randf_range(1.0, 3.0),
-		"scale": m["scale"] * randf_range(0.97, 1.04), "model": m
+		"type": kind,
+		"x": x0,
+		"z": z,
+		"dir": dir,
+		"spd": spd,
+		"ph": randf_range(0.0, 6.0),
+		"t": 0.0,
+		"state": "walk",
+		"hop": 0.0,
+		"flinch": 0.0,
+		"photo": 0.0,
+		"photo_t": randf_range(1.0, 3.0),
+		"scale": m["scale"] * randf_range(0.97, 1.04),
+		"model": m
 	}
 	g.civs.append(c)
 	apply_civ(c)
+
 
 func apply_civ(c: Dictionary) -> void:
 	var m = c["model"]
@@ -55,6 +73,7 @@ func apply_civ(c: Dictionary) -> void:
 	cr.rotation = Vector3(0.0, (0.0 if c["dir"] > 0 else PI) + Ring.yaw(c["x"]), 0.0)
 	cr.scale = Vector3(s, s, s)
 	Models.pose_civ(m, c["ph"], c["photo"] > 0.0, c["type"] == "jogger" or c["state"] == "flee")
+
 
 func update_civs(dt: float) -> void:
 	g.civ_t -= dt
@@ -99,6 +118,7 @@ func update_civs(dt: float) -> void:
 			g.civs.remove_at(i)
 		else:
 			apply_civ(c)
+
 
 func hit_civ(c: Dictionary) -> void:
 	c["state"] = "startled"

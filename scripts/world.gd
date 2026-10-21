@@ -11,6 +11,7 @@ const Util = preload("res://scripts/util.gd")
 const Toon = preload("res://scripts/toon.gd")
 const Ring = preload("res://scripts/ring.gd")
 
+
 static func build(root: Node3D, _hx: float = 0.0) -> Dictionary:
 	var out = {}
 
@@ -32,7 +33,7 @@ static func build(root: Node3D, _hx: float = 0.0) -> Dictionary:
 
 	var sun = DirectionalLight3D.new()
 	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL   # 1 shadow map instead of 4 splits
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL  # 1 shadow map instead of 4 splits
 	sun.directional_shadow_max_distance = 36.0
 	root.add_child(sun)
 
@@ -69,11 +70,11 @@ static func build(root: Node3D, _hx: float = 0.0) -> Dictionary:
 	var stone = Util.mat(Color(0.5, 0.5, 0.52), 0.95)
 	var water = Util.mat(Color(0.35, 0.62, 0.85), 0.2)
 	Util.box(root, Vector3(300.0, 0.1, 300.0), Vector3(0, -0.12, 0), grass)
-	Util.slab(root, 0.0, 2.2, -0.1, 0.16, lawn)                          # island: lawn in the middle
-	Util.slab(root, 2.2, RB, -0.1, 0.0, paving)                          #         paving around it
-	Util.slab(root, RB, Ring.rho(2.0), -0.1, 0.0, walk)                  # strip between barrier and road
-	Util.slab(root, Ring.rho(2.0), Ring.rho(-7.0), -0.1, 0.0, asphalt)   # the ring road, street z -7 .. 2
-	Util.slab(root, Ring.rho(-7.0), Ring.rho(-13.0), -0.1, 0.0, walk)    # far sidewalk
+	Util.slab(root, 0.0, 2.2, -0.1, 0.16, lawn)  # island: lawn in the middle
+	Util.slab(root, 2.2, RB, -0.1, 0.0, paving)  #         paving around it
+	Util.slab(root, RB, Ring.rho(2.0), -0.1, 0.0, walk)  # strip between barrier and road
+	Util.slab(root, Ring.rho(2.0), Ring.rho(-7.0), -0.1, 0.0, asphalt)  # the ring road, street z -7 .. 2
+	Util.slab(root, Ring.rho(-7.0), Ring.rho(-13.0), -0.1, 0.0, walk)  # far sidewalk
 	Util.slab(root, Ring.rho(2.1) - 0.11, Ring.rho(2.1) + 0.11, 0.0, 0.12, curb)
 	Util.slab(root, Ring.rho(-7.1) - 0.11, Ring.rho(-7.1) + 0.11, 0.0, 0.12, curb)
 
@@ -95,7 +96,9 @@ static func build(root: Node3D, _hx: float = 0.0) -> Dictionary:
 		dm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(dm)
 	for zedge in [-6.8, 1.8]:
-		var em = Util.slab(root, Ring.rho(zedge) - 0.06, Ring.rho(zedge) + 0.06, 0.0, 0.013, paint, 0.0, TAU, false)
+		var em = Util.slab(
+			root, Ring.rho(zedge) - 0.06, Ring.rho(zedge) + 0.06, 0.0, 0.013, paint, 0.0, TAU, false
+		)
 		em.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	# ---------- the island edge is only paint now: you can walk out onto the road ----------
@@ -103,7 +106,9 @@ static func build(root: Node3D, _hx: float = 0.0) -> Dictionary:
 	edge.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	# ---------- the tunnel: a black block over the road at the back; riders appear and vanish inside it ----------
-	Util.slab(root, Ring.GATE_RHO_IN, Ring.rho(-13.0) + 1.6, 0.0, 7.5, black, PI - gate_h, PI + gate_h)
+	Util.slab(
+		root, Ring.GATE_RHO_IN, Ring.rho(-13.0) + 1.6, 0.0, 7.5, black, PI - gate_h, PI + gate_h
+	)
 
 	# planter on the island in front of the tunnel: the player cannot walk past it
 	var pl_a = Ring.player_lim() / Ring.RHO_REF + 0.06
@@ -126,7 +131,9 @@ static func build(root: Node3D, _hx: float = 0.0) -> Dictionary:
 		bx.position = Vector3(sin(ang) * 24.4, 0.0, -cos(ang) * 24.4)
 		bx.rotation.y = -ang
 		root.add_child(bx)
-		Util.box(bx, Vector3(5.4, h, 1.1), Vector3(0, h * 0.5, 0), brick if i % 3 != 1 else dark_wall)
+		Util.box(
+			bx, Vector3(5.4, h, 1.1), Vector3(0, h * 0.5, 0), brick if i % 3 != 1 else dark_wall
+		)
 		var rows = [2.6, 5.0]
 		if h > 8.4:
 			rows.append(7.4)

@@ -4,8 +4,10 @@ extends RefCounted
 
 var g = null
 
+
 func _init(game) -> void:
 	g = game
+
 
 # ================================================================== input
 func handle_input(event: InputEvent) -> void:
@@ -24,16 +26,24 @@ func handle_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			on_click()
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			if g.toggle_ads and g.state == "play" and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not g.melee:
+			if (
+				g.toggle_ads
+				and g.state == "play"
+				and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+				and not g.melee
+			):
 				g.ads_on = not g.ads_on
-		elif event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		elif (
+			event.button_index == MOUSE_BUTTON_WHEEL_UP
+			or event.button_index == MOUSE_BUTTON_WHEEL_DOWN
+		):
 			if g.state == "play":
 				toggle_weapon()
 	elif event is InputEventJoypadButton and event.pressed:
 		on_pad_button(event.button_index)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if g.state == "over" and g.name_entry:
-			name_key(event)       # typing a leaderboard name: no hotkeys
+			name_key(event)  # typing a leaderboard name: no hotkeys
 			return
 		var kc = event.keycode
 		if kc == KEY_R:
@@ -118,6 +128,7 @@ func handle_input(event: InputEvent) -> void:
 		elif kc == KEY_F11:
 			g.settings.toggle_fullscreen()
 
+
 # gamepad buttons (sticks and triggers are polled in update_player)
 func on_pad_button(btn: int) -> void:
 	if btn == JOY_BUTTON_START:
@@ -142,7 +153,11 @@ func on_pad_button(btn: int) -> void:
 			g.player_sys.try_dash()
 		elif btn == JOY_BUTTON_X:
 			g.combat_sys.start_load()
-		elif btn == JOY_BUTTON_Y or btn == JOY_BUTTON_RIGHT_SHOULDER or btn == JOY_BUTTON_LEFT_SHOULDER:
+		elif (
+			btn == JOY_BUTTON_Y
+			or btn == JOY_BUTTON_RIGHT_SHOULDER
+			or btn == JOY_BUTTON_LEFT_SHOULDER
+		):
 			toggle_weapon()
 		return
 	if btn == JOY_BUTTON_DPAD_UP:
@@ -172,11 +187,13 @@ func on_pad_button(btn: int) -> void:
 	elif btn == JOY_BUTTON_X and g.state == "shop":
 		g.shop_sys.reroll()
 
+
 func menu_move(d: int) -> void:
 	if g.state == "upgrade":
 		g.menu_sel = posmod(g.menu_sel + d, maxi(1, g.offers.size()))
 	elif g.state == "shop":
 		g.menu_sel = posmod(g.menu_sel + d, maxi(1, g.shop_items.size()))
+
 
 func menu_confirm() -> void:
 	if g.state == "title":
@@ -190,12 +207,14 @@ func menu_confirm() -> void:
 	elif g.state == "clear" and g.state_t > 0.8:
 		g.shop_sys.enter_upgrade()
 
+
 # ---- leaderboard name entry (run summary)
 const MAX_NAME = 10
 
+
 func name_key(event: InputEventKey) -> void:
 	if g.state_t < 0.8:
-		return                   # keys still held from the last second of the run must not type
+		return  # keys still held from the last second of the run must not type
 	var kc = event.keycode
 	if kc == KEY_ENTER or kc == KEY_KP_ENTER or kc == KEY_ESCAPE:
 		confirm_name()
@@ -203,9 +222,14 @@ func name_key(event: InputEventKey) -> void:
 		g.name_buf = g.name_buf.substr(0, maxi(0, g.name_buf.length() - 1))
 	elif event.unicode > 31 and g.name_buf.length() < MAX_NAME:
 		var ch = char(event.unicode).to_upper()
-		var ok = ch.to_lower() != ch.to_upper() or "0123456789-_.".contains(ch) or (ch == " " and g.name_buf != "")
+		var ok = (
+			ch.to_lower() != ch.to_upper()
+			or "0123456789-_.".contains(ch)
+			or (ch == " " and g.name_buf != "")
+		)
 		if ok:
 			g.name_buf += ch
+
 
 func confirm_name() -> void:
 	var nm = g.name_buf.strip_edges()
@@ -217,16 +241,19 @@ func confirm_name() -> void:
 	g.settings.save_settings()
 	g.sfx.play("click")
 
+
 # ---- title screen menu (entries are listed in hud.gd TITLE_ITEMS)
 func title_move(d: int) -> void:
 	if g.state == "title" and g.title_page == "":
 		g.title_sel = posmod(g.title_sel + d, g.hud.TITLE_ITEMS.size())
 		g.sfx.play("click")
 
+
 func title_back() -> void:
 	if g.state == "title" and g.title_page != "":
 		g.title_page = ""
 		g.sfx.play("click")
+
 
 func title_activate(i: int) -> void:
 	if g.title_page != "":
@@ -243,14 +270,16 @@ func title_activate(i: int) -> void:
 	elif id == "quit":
 		g.get_tree().quit()
 	else:
-		g.title_page = id        # loadout / unlocks / scores / settings
+		g.title_page = id  # loadout / unlocks / scores / settings
 		g.sfx.play("click")
+
 
 # ---- pause menu (entries are listed in hud.gd PAUSE_ITEMS)
 func pause_move(d: int) -> void:
 	if g.state == "play" and g.paused and g.pause_page == "":
 		g.pause_sel = posmod(g.pause_sel + d, g.hud.PAUSE_ITEMS.size())
 		g.sfx.play("click")
+
 
 # Esc / B: close the settings panel, or resume from the main pause menu
 func pause_back() -> void:
@@ -261,6 +290,7 @@ func pause_back() -> void:
 		g.sfx.play("click")
 	else:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
 
 func pause_activate(i: int) -> void:
 	if g.pause_page != "":
@@ -278,12 +308,16 @@ func pause_activate(i: int) -> void:
 	elif id == "title":
 		g.abandon_run()
 
+
 func on_click() -> void:
 	var captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	if g.state == "title":
 		var mp = g.get_viewport().get_mouse_position()
 		if g.title_page == "settings":
-			if not g.settings.click_setting(g.hud.setting_at(mp)) and not g.hud.panel_rect().has_point(mp):
+			if (
+				not g.settings.click_setting(g.hud.setting_at(mp))
+				and not g.hud.panel_rect().has_point(mp)
+			):
 				title_back()
 		elif g.title_page != "":
 			title_back()
@@ -315,7 +349,10 @@ func on_click() -> void:
 		if not captured:
 			var pmp = g.get_viewport().get_mouse_position()
 			if g.pause_page == "settings":
-				if not g.settings.click_setting(g.hud.setting_at(pmp)) and not g.hud.panel_rect().has_point(pmp):
+				if (
+					not g.settings.click_setting(g.hud.setting_at(pmp))
+					and not g.hud.panel_rect().has_point(pmp)
+				):
 					pause_back()
 			else:
 				var pi = g.hud.pause_at(pmp)
@@ -323,6 +360,7 @@ func on_click() -> void:
 					pause_activate(pi)
 		else:
 			g.combat_sys.fire()
+
 
 func toggle_weapon(to = null) -> void:
 	if to == null:

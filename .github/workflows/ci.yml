@@ -1,0 +1,88 @@
+name: CI
+
+# Runs on every pull request and on every push to main.
+#   lint    - gdlint on the GDScript
+#   format  - gdformat --check (run `gdformat scripts/ tools/viewer/` to fix a failure)
+#   load    - imports the project and runs it headless in Godot, fails on any script error
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # Keep in step with config/features in project.godot.
+  GODOT_VERSION: "4.7-stable"
+  # Version the lint and format jobs were set up and tested with.
+  GDTOOLKIT_VERSION: "4.5.0"
+
+jobs:
+  lint:
+    name: GDScript lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "gdtoolkit==${GDTOOLKIT_VERSION}"
+      # Rules are configured in .gdlintrc at the repository root.
+      - run: gdlint scripts/ tools/viewer/
+
+  format:
+    name: GDScript format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "gdtoolkit==${GDTOOLKIT_VERSION}"
+      - run: gdformat --check scripts/ tools/viewer/
+
+  load:
+    name: Godot headless project load
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot binary
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: godot-bin
+          key: godot-${{ env.GODOT_VERSION }}-linux-x86_64
+
+      - name: Download Godot
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p godot-bin
+          curl -fsSL -o godot.zip \
+            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip -d godot-bin
+          rm godot.zip
+
+      - name: Import assets
+        run: |
+          # Builds the .godot cache (imported models, textures and audio) that the game loads.
+          godot-bin/Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --import
+
+      - name: Load the project and run 120 frames
+        run: |
+          # Godot exits with 0 even when a script fails to parse, so the log is scanned too.
+          set +e
+          godot-bin/Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --quit-after 120 \
+            2>&1 | tee godot-load.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Godot exited with status $status"
+            exit 1
+          fi
+          if grep -E "SCRIPT ERROR|Parse Error|^ERROR:" godot-load.log; then
+            echo "::error::Godot reported script or load errors (see the log above)"
+            exit 1
+          fi

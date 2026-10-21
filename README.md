@@ -402,7 +402,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 # Tooling & QA
 
 - [ ] Playtest pass of everything built in Milestone A (title, pause, settings, run, win / lose, leaderboard, name entry). It was written without running the game
-- [ ] CI check on every pull request: GDScript lint / format (gdtoolkit) and a headless Godot project load
+- [x] CI check on every pull request: GDScript lint / format (gdtoolkit) and a headless Godot project load (`.github/workflows/ci.yml`, three jobs: `gdlint` uses the rules in `.gdlintrc`; `gdformat --check` fails if a script is not formatted (fix with `gdformat scripts/ tools/viewer/`); the Godot job imports the project and runs it headless for 120 frames, and fails on any script or load error, since Godot exits with 0 even when a script does not parse. Tested here with Godot 4.7 against a clean copy and a copy with a syntax error; the workflow itself has not run on GitHub yet)
 - [ ] Save-file safety: version the settings and score files so later changes do not break old saves
 
 ---

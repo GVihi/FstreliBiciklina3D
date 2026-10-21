@@ -5,16 +5,18 @@ extends RefCounted
 # currency for permanent unlocks, cosmetics and Heat rewards (roadmap, Milestone B).
 
 const PATH = "user://meta.json"
-const SCORE_PER_COIN = 100        # tuning knob: 100 points of score = 1 meta coin
+const SCORE_PER_COIN = 100  # tuning knob: 100 points of score = 1 meta coin
 
 var g = null
-var balance = 0                   # coins available to spend
-var total_earned = 0              # coins earned over all runs, for stats
-var awarded = false               # a run pays out once, however many end paths it passes through
+var balance = 0  # coins available to spend
+var total_earned = 0  # coins earned over all runs, for stats
+var awarded = false  # a run pays out once, however many end paths it passes through
+
 
 func _init(game) -> void:
 	g = game
 	load_meta()
+
 
 func load_meta() -> void:
 	balance = 0
@@ -30,19 +32,23 @@ func load_meta() -> void:
 		balance = maxi(0, int(data.get("balance", 0)))
 		total_earned = maxi(balance, int(data.get("total_earned", 0)))
 
+
 func save_meta() -> void:
 	var f = FileAccess.open(PATH, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify({"balance": balance, "total_earned": total_earned}))
 		f.close()
 
+
 # called when a new run starts
 func begin_run() -> void:
 	awarded = false
 	g.meta_earned = 0
 
+
 func reward_for_score(score: int) -> int:
 	return floori(float(maxi(0, score)) / float(SCORE_PER_COIN))
+
 
 # Pays out the run that just ended (once). Returns the coins earned and leaves them in g.meta_earned for the summary screen.
 func award_run() -> int:

@@ -6,8 +6,10 @@ const Models = preload("res://scripts/models.gd")
 
 var g = null
 
+
 func _init(game) -> void:
 	g = game
+
 
 func maybe_drop(pos: Vector3, chance: float) -> void:
 	if g.state != "play" or g.pickups.size() >= 6:
@@ -18,6 +20,7 @@ func maybe_drop(pos: Vector3, chance: float) -> void:
 	if t == "heart" and g.hearts >= g.MAXHEARTS:
 		t = "cash"
 	spawn_pickup(t, pos)
+
 
 # every defeated rider feeds you: usually ammo, sometimes cash or a life, now and then a power-up
 func drop_kill(pos: Vector3, tough: bool) -> void:
@@ -43,19 +46,38 @@ func drop_kill(pos: Vector3, tough: bool) -> void:
 		if g.pickups.size() < 6:
 			spawn_pickup(t, pos)
 
+
 func spawn_pickup(t: String, pos: Vector3) -> void:
 	var inf = g.DROP_INFO[t]
 	var m = Models.build_pickup(inf["col"], inf["ch"])
 	g.add_child(m["root"])
 	var T = 1.0
 	var y_land = 0.55
-	var la = randf() * TAU                            # lands a few metres from wherever the player is
+	var la = randf() * TAU  # lands a few metres from wherever the player is
 	var ld = randf_range(2.2, 4.8)
-	var land = g.clamp_walk(Vector3(g.player.position.x + sin(la) * ld, y_land, g.player.position.z - cos(la) * ld), g.PLAYER_R_MIN + 0.3, g.PLAYER_R_MAX - 0.4)
+	var land = g.clamp_walk(
+		Vector3(g.player.position.x + sin(la) * ld, y_land, g.player.position.z - cos(la) * ld),
+		g.PLAYER_R_MIN + 0.3,
+		g.PLAYER_R_MAX - 0.4
+	)
 	var vel = Vector3((land.x - pos.x) / T, 4.9 * T + (y_land - pos.y) / T, (land.z - pos.z) / T)
-	g.pickups.append({"type": t, "node": m["root"], "m": m, "start": pos, "vel0": vel, "t": 0.0, "T": T,
-		"pos": pos, "land": land, "landed": false, "rest": 0.0})
+	g.pickups.append(
+		{
+			"type": t,
+			"node": m["root"],
+			"m": m,
+			"start": pos,
+			"vel0": vel,
+			"t": 0.0,
+			"T": T,
+			"pos": pos,
+			"land": land,
+			"landed": false,
+			"rest": 0.0
+		}
+	)
 	m["root"].position = pos
+
 
 func collect_pickup(pk: Dictionary) -> void:
 	var i = g.pickups.find(pk)
@@ -86,6 +108,7 @@ func collect_pickup(pk: Dictionary) -> void:
 	g.add_hype(8.0)
 	g.cheer = maxf(g.cheer, 0.6)
 	pk["node"].queue_free()
+
 
 func update_pickups(dt: float) -> void:
 	for i in range(g.pickups.size() - 1, -1, -1):
@@ -118,7 +141,10 @@ func update_pickups(dt: float) -> void:
 		node.visible = true
 		if pk["landed"] and pk["rest"] > 6.0 and int(g.time * 10.0) % 2 == 0:
 			node.visible = false
-		if Vector2(pos.x - g.player.position.x, pos.z - g.player.position.z).length() < 1.0 and pos.y < 1.6:
+		if (
+			Vector2(pos.x - g.player.position.x, pos.z - g.player.position.z).length() < 1.0
+			and pos.y < 1.6
+		):
 			collect_pickup(pk)
 			continue
 		if pk["landed"] and pk["rest"] > 8.0:
