@@ -1,8 +1,8 @@
 name: CI
 
 # Runs on every pull request and on every push to main.
-#   lint    - gdlint on the GDScript (blocking)
-#   format  - gdformat --check (reports only, see the note on the job)
+#   lint    - gdlint on the GDScript
+#   format  - gdformat --check (run `gdformat scripts/ tools/viewer/` to fix a failure)
 #   load    - imports the project and runs it headless in Godot, fails on any script error
 
 on:
@@ -33,13 +33,8 @@ jobs:
       - run: gdlint scripts/ tools/viewer/
 
   format:
-    name: GDScript format (report only)
+    name: GDScript format
     runs-on: ubuntu-latest
-    # The existing scripts have never been through gdformat (27 files would change), so
-    # this job reports the files that need formatting but does not fail the pull request.
-    # Once the code base is formatted in one dedicated commit, delete the next line to make
-    # the check blocking.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

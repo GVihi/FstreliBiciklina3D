@@ -6,11 +6,11 @@
 # whitespace, duplicated loads and so on) stay on, so new code is held to them.
 # Turn a rule back on by deleting it from this list once the old code is cleaned up.
 disable:
-  - max-line-length # 330+ long lines; gdformat would wrap them (see the format job in ci.yml)
+  - max-line-length # 156 long lines left after gdformat (mostly comments and long strings)
   - class-definitions-order # 84 places where vars, consts and enums are not in the default order
   - class-variable-name # 32 class variables that are not snake_case
   - function-variable-name # 4 local function variables that are not snake_case
   - function-argument-name # 1 argument named in capitals
   - max-returns # 3 functions with more than 6 returns
   - max-public-methods # 3 files with more than 20 public functions
-  - max-file-lines # 1 file over 1000 lines
+  - max-file-lines # 2 files over 1000 lines
