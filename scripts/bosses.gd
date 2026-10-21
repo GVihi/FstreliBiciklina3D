@@ -3,7 +3,6 @@ extends RefCounted
 # Shared game state stays on main.gd (g); this file holds the logic.
 
 const Models = preload("res://scripts/models.gd")
-const Ring = preload("res://scripts/ring.gd")
 const Util = preload("res://scripts/util.gd")
 
 var g = null
@@ -49,7 +48,7 @@ func boss_hp(base: int) -> int:
 func make_boss_dict(
 	kind: String, nm: String, variant: int, hp: int, m: Dictionary, wp: Vector3, mode: String
 ) -> Dictionary:
-	var t = Ring.to_track(wp)
+	var t = g.arena.to_track(wp)
 	return {
 		"kind": kind,
 		"name": nm,
@@ -115,8 +114,8 @@ func spawn_boss() -> void:
 		hp = int(round(float(hp) * FINAL_HP_MUL))
 	var m = Models.build_boss(kind, variant, Models.kit_of(0))
 	g.add_child(m["root"])
-	var sx = clampf(g.ptx() + randf_range(-14.0, 14.0), -Ring.lim(), Ring.lim())
-	var b = make_boss_dict(kind, nm, variant, hp, m, Ring.tw(sx, -11.6), "charge")
+	var sx = clampf(g.ptx() + randf_range(-14.0, 14.0), -g.arena.lim(), g.arena.lim())
+	var b = make_boss_dict(kind, nm, variant, hp, m, g.arena.tw(sx, -11.6), "charge")
 	b["intro"] = 2.2
 	b["final"] = final
 	if final:
@@ -269,7 +268,7 @@ func lunge_speed(b: Dictionary) -> float:
 func set_boss_pos(b: Dictionary, wp: Vector3) -> void:
 	wp = g.clamp_walk(Vector3(wp.x, 0.0, wp.z), 2.1, 22.6)
 	b["wp"] = wp
-	var t = Ring.to_track(wp)  # the rest of the game reads the street coordinates
+	var t = g.arena.to_track(wp)  # the rest of the game reads the street coordinates
 	b["x"] = t.x
 	b["z"] = t.y
 
@@ -277,9 +276,9 @@ func set_boss_pos(b: Dictionary, wp: Vector3) -> void:
 # things a lunging boss crashes into: the fountain, the buildings, the tunnel / planter wedge
 func obstacle_at(p: Vector3) -> bool:
 	var r = Vector2(p.x, p.z).length()
-	if r < 2.3 or r > Ring.FACADE_RHO - 1.35:
+	if r < 2.3 or r > g.arena.FACADE_RHO - 1.35:
 		return true
-	return absf(Ring.to_track(p).x) > Ring.player_lim() - 0.05
+	return absf(g.arena.to_track(p).x) > g.arena.player_lim() - 0.05
 
 
 # how far a lunge from wp along d actually goes (x), and whether it ends in a crash (y = 1)
