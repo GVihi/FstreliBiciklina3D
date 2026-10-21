@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "cell": 2.0,
+  "cells": 48,
+  "border": 2,
+  "road": {"width": 3, "sidewalk": 1, "min_gap": 14, "margin": 9, "vertical": {"min": 1, "max": 2}, "horizontal": {"min": 1, "max": 2}},
+  "gates": {"min": 2, "max": 5, "depth": 2},
+  "start": {"half": 2, "plaza_min": 9, "plaza_max": 13},
+  "plazas": {"extra_min": 0, "extra_max": 2, "size_min": 6, "size_max": 11},
+  "buildings": {"tries": 500, "size_min": 4, "size_max": 9, "clearance": 2, "max_share": 0.30},
+  "walkable_m2": {"min": 5200, "max": 7000},
+  "rider_speed": {"road": 1.0, "plaza": 1.0, "tunnel": 1.0, "sidewalk": 0.9, "grass": 0.75},
+  "max_attempts": 8,
+  "streams": {"roads": "arena_roads", "plazas": "arena_plazas", "blocks": "arena_blocks", "retry": "arena_retry"}
+}
