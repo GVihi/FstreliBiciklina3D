@@ -21,7 +21,8 @@ func apply_quality() -> void:
 		g.viewmodel.set_msaa(g.get_viewport().msaa_3d)
 	var sun: DirectionalLight3D = g.world["sun"]
 	sun.shadow_enabled = g.quality < 2
-	g.outline_quad.visible = g.outlines and g.quality < 2
+	if g.outline_quad != null:
+		g.outline_quad.visible = g.outlines and g.quality < 2
 	var env: Environment = g.world["env"]
 	env.glow_enabled = g.quality < 2
 

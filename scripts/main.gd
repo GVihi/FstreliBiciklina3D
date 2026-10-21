@@ -240,7 +240,7 @@ var title_sel = 0  # highlighted title-menu entry (keyboard / gamepad)
 var cheerleaders = []
 var melee_ring: MeshInstance3D
 var flash_mat: Material
-var outline_quad: MeshInstance3D
+var outline_quad: MeshInstance3D  # null while Toon.ENABLED is false
 var viewmodel = null  # viewmodel.gd, null when VIEWMODEL_PASS is off
 var strip_mat: StandardMaterial3D
 var disc_mat: StandardMaterial3D
@@ -302,8 +302,9 @@ func _ready() -> void:
 	cam.position = Vector3(0, EYE_STAND, 0)
 	player.add_child(cam)
 	cam.make_current()
-	outline_quad = Toon.make_outline_quad()
-	cam.add_child(outline_quad)
+	if Toon.ENABLED:
+		outline_quad = Toon.make_outline_quad()
+		cam.add_child(outline_quad)
 	gun = Models.build_gun()
 	cam.add_child(gun["root"])
 	rubber = Models.build_rubber()

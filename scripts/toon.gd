@@ -2,6 +2,12 @@ extends RefCounted
 # Toon look: one full-screen depth-edge outline pass (a single quad, much cheaper than a second copy
 # of every mesh) plus a little bloom. Lit materials use Godot's built-in toon diffuse (see util.gd).
 
+# Milestone F1: the toon look is switched off. false = no outline pass and ordinary lit materials
+# (smooth diffuse and specular), the base for the new chunky low-poly look (docs/ART_DIRECTION.md).
+# true brings back the outline quad, the toon shading and the OUTLINES setting. This whole file and
+# the flag go away in F12 ("Remove toon.gd, the outline option and all leftover cartoon code").
+const ENABLED = false
+
 const SHADER_CODE = """
 shader_type spatial;
 render_mode unshaded, fog_disabled, cull_disabled, depth_test_disabled;
