@@ -12,6 +12,9 @@ PALETTE = {
     "brick":         ("#B5573C", 0.90, 0.0, False),
     "paint_white":   ("#F2F0EA", 0.60, 0.0, False),
     "rubber":        ("#2A2C31", 0.85, 0.0, False),
+    # glossy jelly rubber (the melee weapon): low roughness so the sun leaves a bright highlight on every facet
+    "jelly_pink":    ("#FF4FA3", 0.12, 0.0, False),
+    "glitter":       ("#FFE3F1", 0.30, 0.8, False),
     # metals
     "metal_dark":    ("#353A42", 0.50, 0.6, False),
     "metal_mid":     ("#747B85", 0.45, 0.7, False),

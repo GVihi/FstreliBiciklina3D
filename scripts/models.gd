@@ -491,10 +491,43 @@ static func build_phone() -> Node3D:
 	Util.sphere(root, 0.02, Vector3(0.2, 0.065, 0.12), Util.glow_shared(Color(1.0, 0.2, 0.15), 2.0))
 	return root
 
-# Melee weapon: a GIANT ribbed, rubbery pink gummy worm, held by the tail. First-person viewmodel, the tail is at
-# +Z (in your hand) and the worm reaches out along -Z with a lazy S-curve. Each rib is a flattened sphere; light and
-# dark pink alternate so the ridges read even with the toon shading.
+# Melee weapon (Milestone F3): a giant glossy, glittery pink jelly-rubber club, held by the knob. The model comes from
+# assets/models/jelly_club.glb (tools/models/models/jelly_club.py): one mesh, the knob at z = +0.2 (in your hand) and the
+# head at z = -1.0, the same reach as the old worm. RUBBER_MODEL_GLB = false brings the old procedural gummy worm back.
+const RUBBER_MODEL_GLB = true
+const RUBBER_MODEL_PATH = "res://assets/models/jelly_club.glb"
+
 static func build_rubber() -> Dictionary:
+	if RUBBER_MODEL_GLB:
+		var d = _build_rubber_from_glb()
+		if not d.is_empty():
+			return d
+		push_warning("jelly_club.glb could not be loaded, using the procedural worm")
+	return _build_rubber_procedural()
+
+static func _build_rubber_from_glb() -> Dictionary:
+	if not ResourceLoader.exists(RUBBER_MODEL_PATH):
+		return {}
+	var scene = load(RUBBER_MODEL_PATH)
+	if not (scene is PackedScene):
+		return {}
+	var inst: Node = scene.instantiate()
+	var club = inst.get_node_or_null("jelly_club")
+	if not (club is Node3D):
+		inst.free()
+		return {}
+	var root = Node3D.new()
+	inst.remove_child(club)
+	inst.free()
+	root.add_child(club)
+	for ch in root.get_children():
+		if ch is MeshInstance3D:
+			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return {"root": root, "paddle": club}
+
+# The old melee weapon: a GIANT ribbed, rubbery pink gummy worm, held by the tail. The tail is at +Z (in your hand) and
+# the worm reaches out along -Z with a lazy S-curve. Each rib is a flattened sphere; light and dark pink alternate.
+static func _build_rubber_procedural() -> Dictionary:
 	var root = Node3D.new()
 	var light = Util.mat(Color.html("#ff95cb"), 0.25)
 	var dark = Util.mat(Color.html("#ff5fae"), 0.3)

@@ -117,6 +117,73 @@ def blob(name, radius, loc, mat_name, squash=(1.0, 1.0, 1.0)):
     return _make_object(name, bm, mat_name, loc)
 
 
+def tube(name, rings, mat_name, sides=12, cap_start=True, cap_end=True):
+    """A faceted tube lofted through rings, for soft rubbery shapes (jelly clubs, tails, hoses).
+    rings = list of (centre (x, y, z), radius) in order from start to end. Each ring is a polygon of `sides` points
+    perpendicular to the path; the ends are closed with a flat cap (use a few small rings to make a dome).
+    Flat shaded like everything else in the kit, so it stays chunky."""
+    bm = bmesh.new()
+    pts = [Vector(c) for c, _ in rings]
+    up = Vector((0.0, 0.0, 1.0))
+    grid = []
+    for i, (c, r) in enumerate(rings):
+        a = pts[max(i - 1, 0)]
+        b = pts[min(i + 1, len(pts) - 1)]
+        t = (b - a).normalized()
+        n1 = t.cross(up)
+        if n1.length < 1e-6:
+            n1 = t.cross(Vector((1.0, 0.0, 0.0)))
+        n1.normalize()
+        n2 = t.cross(n1).normalized()
+        ring = []
+        for k in range(sides):
+            ang = 2.0 * math.pi * k / sides
+            ring.append(bm.verts.new(Vector(c) + (n1 * math.cos(ang) + n2 * math.sin(ang)) * r))
+        grid.append(ring)
+    for i in range(len(grid) - 1):
+        for k in range(sides):
+            k2 = (k + 1) % sides
+            bm.faces.new((grid[i][k], grid[i][k2], grid[i + 1][k2], grid[i + 1][k]))
+    if cap_start:
+        bm.faces.new(list(reversed(grid[0])))
+    if cap_end:
+        bm.faces.new(grid[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+    return _make_object(name, bm, mat_name, (0, 0, 0))
+
+
+def sparkles(name, tube_rings, mat_name, count, size=0.008, seed=1, lift=0.0015, sides=12):
+    """Tiny glitter flecks sitting just above the surface of a tube made from the same rings (and the same `sides`).
+    Each fleck is one small diamond facing outwards. Deterministic for a given seed."""
+    import random
+
+    rnd = random.Random(seed)
+    bm = bmesh.new()
+    pts = [Vector(c) for c, _ in tube_rings]
+    up = Vector((0.0, 0.0, 1.0))
+    for _ in range(count):
+        f = rnd.uniform(0.0, len(tube_rings) - 1.001)
+        i = int(f)
+        u = f - i
+        c = pts[i].lerp(pts[i + 1], u)
+        r = tube_rings[i][1] * (1.0 - u) + tube_rings[i + 1][1] * u
+        t = (pts[i + 1] - pts[i]).normalized()
+        n1 = t.cross(up)
+        if n1.length < 1e-6:
+            n1 = t.cross(Vector((1.0, 0.0, 0.0)))
+        n1.normalize()
+        n2 = t.cross(n1).normalized()
+        ang = rnd.uniform(0.0, 2.0 * math.pi)
+        out = (n1 * math.cos(ang) + n2 * math.sin(ang)).normalized()
+        side = out.cross(t).normalized()
+        s = size * rnd.uniform(0.6, 1.4)
+        base = c + out * (r * math.cos(math.pi / sides) + lift)   # the flat of the facet, not its corner
+        quad = [base + t * s, base + side * s * 0.6, base - t * s, base - side * s * 0.6]
+        bm.faces.new([bm.verts.new(p) for p in quad])
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+    return _make_object(name, bm, mat_name, (0, 0, 0))
+
+
 def poly_prism(name, pts_xz, y_front, thickness, mat_name, loc=(0, 0, 0)):
     """A flat polygon in the XZ plane (list of (x, z)), extruded into the model from y_front by `thickness`.
     Convex polygons only. Used for hazard stripes, decals and plates."""

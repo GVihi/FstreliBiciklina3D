@@ -276,7 +276,7 @@ Mostly vibe coded Godot game
 - [x] (Optional) Ammo count shown on the gun itself (a glowing number on the left side of the receiver: cyan, amber at 2 or fewer, red at 0, INF with rapid fire; `_build_ammo_label` in `models.gd`, updated in `update_gun`; the HUD ammo stays; waiting for your in-game check, including whether it is readable)
 
 ### F3. Melee
-- [ ] Chunky model with a glossy rubber material
+- [x] Chunky model with a glossy rubber material (new jelly club replaces the gummy worm: ribbed grip collar, fat knob, curved ringed shaft and a ridged head, one glossy pink material plus glitter flecks, shaped after the owner's reference photo; `tools/models/models/jelly_club.py` -> `assets/models/jelly_club.glb`, 2,600 tris, same reach and hand position as the worm, `RUBBER_MODEL_GLB = false` in `models.gd` brings the old worm back. It is one colour with no eyes, so the next checkboxes only need confirming in game. Waiting for your in-game check: open the project once so Godot imports the `.glb`, then look at the club in a run and in `tools/viewer/model_viewer.tscn`)
 - [ ] No alternating colors
 - [ ] More detail (like the Dart gun)
 - [ ] More rubbery look
