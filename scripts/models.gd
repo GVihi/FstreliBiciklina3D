@@ -523,7 +523,70 @@ static func _build_rubber_from_glb() -> Dictionary:
 	for ch in root.get_children():
 		if ch is MeshInstance3D:
 			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return {"root": root, "paddle": club}
+	var wob = _rubber_wobble_materials(club) if RUBBER_WOBBLE else []
+	return {"root": root, "paddle": club, "wobble": wob}
+
+# Wobble (Milestone F3): the club bends and ripples like jelly. The bend is done in the vertex shader, so the mesh stays one
+# object; player.gd drives the uniforms with a spring (update_gun). The shader copies colour, roughness and metallic from
+# the .glb's own materials, so the look is the same as without it. RUBBER_WOBBLE = false keeps the club rigid.
+const RUBBER_WOBBLE = true
+const RUBBER_REACH_Z = Vector2(0.2, -1.0)      # z of the knob (in your hand) and of the tip, the same as the model
+const RUBBER_SHADER = """
+shader_type spatial;
+
+uniform vec4 albedo : source_color = vec4(1.0, 0.31, 0.64, 1.0);
+uniform float roughness : hint_range(0.0, 1.0) = 0.12;
+uniform float metallic : hint_range(0.0, 1.0) = 0.0;
+uniform vec2 wob = vec2(0.0);        // how far the tip is pushed sideways and up (metres); the bend grows towards the tip
+uniform float jelly = 0.0;           // strength of the ripple that runs down the club (metres)
+uniform float phase = 0.0;           // moves the ripple
+uniform float squash = 0.0;          // above 0 stretches the club along its length and thins it
+uniform float knob_z = 0.2;
+uniform float tip_z = -1.0;
+
+void vertex() {
+	float h = clamp((knob_z - VERTEX.z) / (knob_z - tip_z), 0.0, 1.0);   // 0 at the hand, 1 at the tip
+	VERTEX.z = knob_z + (VERTEX.z - knob_z) * (1.0 + squash);
+	VERTEX.xy *= 1.0 - squash * 0.5;
+	VERTEX.x += wob.x * h * h + jelly * sin(h * 9.0 - phase) * h;
+	VERTEX.y += wob.y * h * h + jelly * 0.6 * sin(h * 7.0 - phase * 1.3 + 1.0) * h;
+}
+
+void fragment() {
+	ALBEDO = albedo.rgb;
+	ROUGHNESS = roughness;
+	METALLIC = metallic;
+}
+"""
+
+# swaps every surface of the club for a ShaderMaterial with the wobble; returns those materials (empty if it could not)
+static func _rubber_wobble_materials(club: Node) -> Array:
+	var mi: MeshInstance3D = null
+	if club is MeshInstance3D:
+		mi = club
+	else:
+		for ch in club.get_children():
+			if ch is MeshInstance3D:
+				mi = ch
+				break
+	if mi == null or mi.mesh == null:
+		return []
+	var sh = Shader.new()
+	sh.code = RUBBER_SHADER
+	var out = []
+	for i in range(mi.mesh.get_surface_count()):
+		var src = mi.mesh.surface_get_material(i)
+		var m = ShaderMaterial.new()
+		m.shader = sh
+		if src is BaseMaterial3D:
+			m.set_shader_parameter("albedo", src.albedo_color)
+			m.set_shader_parameter("roughness", src.roughness)
+			m.set_shader_parameter("metallic", src.metallic)
+		m.set_shader_parameter("knob_z", RUBBER_REACH_Z.x)
+		m.set_shader_parameter("tip_z", RUBBER_REACH_Z.y)
+		mi.set_surface_override_material(i, m)
+		out.append(m)
+	return out
 
 # The old melee weapon: a GIANT ribbed, rubbery pink gummy worm, held by the tail. The tail is at +Z (in your hand) and
 # the worm reaches out along -Z with a lazy S-curve. Each rib is a flattened sphere; light and dark pink alternate.

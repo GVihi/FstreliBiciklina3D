@@ -30,6 +30,24 @@ var shell_out = false           # true once the shell of the current pump has be
 var pump_slide = 0.0            # 0 = slide forward, 1 = pulled all the way back
 var load_blend = 0.0            # 0 = normal hold, 1 = tilted for loading shells
 
+# jelly club wobble (Milestone F3): the tip of the club trails behind the swing on a spring, so it bends against the swing,
+# overshoots when the swing stops and rings down. Fed to the club's vertex shader in update_gun.
+var jelly_tip = 0.0             # where the tip is on the swing scale (-1 to 1); it chases the swing
+var jelly_tip_v = 0.0
+var jelly_phase = 0.0           # moves the ripple that runs down the club
+
+# Jelly club wobble tuning (Milestone F3). Metres unless noted.
+const JELLY_STIFFNESS = 420.0   # spring strength: higher = the tip keeps up better and rings faster
+const JELLY_DAMPING = 9.0       # spring damping: lower = more wobble after the swing (about 4 bounces now)
+const JELLY_BEND = 0.16         # sideways bend of the tip per unit of lag (full swing lag gives about 15 cm)
+const JELLY_DROOP = 0.05        # the tip also sags this much (per unit of lag) while the club whips
+const JELLY_RIPPLE_IDLE = 0.004 # a tiny ripple that is always there
+const JELLY_RIPPLE_GAIN = 0.0025# ripple strength per unit of tip speed
+const JELLY_RIPPLE_MAX = 0.03
+const JELLY_RIPPLE_SPEED = 14.0 # how fast the ripple runs (rad/s)
+const JELLY_SQUASH = 0.05       # stretch along the club per unit of lag, thinning it a little
+const JELLY_SQUASH_MAX = 0.06
+
 # Gun motion tuning (Milestone F2). Everything is in metres / radians and fades out while aiming down sights.
 const IDLE_SWAY = 0.0035        # breathing: how far the gun drifts up/down while standing still
 const BOB_SIDE = 0.010          # walk bob: side-to-side travel
@@ -424,6 +442,7 @@ func update_gun(dt: float) -> void:
 		sw = (-1.0 + 2.0 * k) * g.swing_dir
 	rb.position = Vector3(0.3, -0.34, -0.5 + (0.0 if g.swing_t <= 0.0 else -0.12))
 	rb.rotation = Vector3(0.0, sw * 0.9, -0.15 + sw * 0.25)
+	update_jelly(dt, sw, rb.visible)
 
 	# melee reach ring on the floor
 	var show_ring = g.melee and g.state == "play" and not g.paused
@@ -433,3 +452,28 @@ func update_gun(dt: float) -> void:
 		var rr = z["r"] * 0.8
 		g.melee_ring.position = Vector3(z["c"].x, 0.04, z["c"].z)
 		g.melee_ring.scale = Vector3(rr, 1.0, rr)
+
+# Jelly club wobble: a spring chases the swing, and the lag between the swing and the spring bends the club.
+# sw is the swing position (-1 to 1, 0 at rest); the same number that turns the club in update_gun.
+func update_jelly(dt: float, sw: float, shown: bool) -> void:
+	var mats = g.rubber.get("wobble", [])
+	if mats.is_empty():
+		return
+	if not shown:
+		jelly_tip = 0.0                      # start from rest when the club comes back
+		jelly_tip_v = 0.0
+		return
+	var step = minf(dt, 1.0 / 30.0)          # a long frame must not blow the spring up
+	jelly_tip_v += (JELLY_STIFFNESS * (sw - jelly_tip) - JELLY_DAMPING * jelly_tip_v) * step
+	jelly_tip += jelly_tip_v * step
+	jelly_phase += JELLY_RIPPLE_SPEED * step
+	var lag = sw - jelly_tip                 # > 0 while the swing runs ahead of the tip
+	var side = lag * JELLY_BEND
+	var droop = -absf(lag) * JELLY_DROOP
+	var ripple = minf(JELLY_RIPPLE_IDLE + absf(jelly_tip_v) * JELLY_RIPPLE_GAIN, JELLY_RIPPLE_MAX)
+	var squash = minf(absf(lag) * JELLY_SQUASH, JELLY_SQUASH_MAX)
+	for m in mats:
+		m.set_shader_parameter("wob", Vector2(side, droop))
+		m.set_shader_parameter("jelly", ripple)
+		m.set_shader_parameter("phase", jelly_phase)
+		m.set_shader_parameter("squash", squash)
