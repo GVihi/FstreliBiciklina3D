@@ -399,6 +399,68 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 ---
 
+# Milestone G: Procedural Map Generation
+
+> Works together with the run map in Milestone D: the seed decides the map, and the map decides which encounters, shops and bosses a run contains.
+
+- [ ] Generate the run map procedurally from a seed
+  - [ ] Same seed always produces the same map
+  - [ ] Daily seed produces the same map for every player that day (builds on Daily Seed Mode in Milestone A)
+  - [ ] Random seed for normal runs, shown on the run summary so a run can be replayed
+- [ ] Define the map generation rules (number of nodes, branching, guaranteed shop / rest stop / boss placement)
+- [ ] Generate arena layouts and encounter contents from the seed
+- [ ] Validate that every generated map is completable (no dead ends, boss always reachable)
+- [ ] Debug tool: enter a seed and preview the generated map
+- [ ] Optional: let the player type in a custom seed on the title screen
+
+---
+
+# Milestone H: Run Start Sequence
+
+- [ ] Design the opening sequence (storyboard: bed, house, door, nerf gun, street)
+- [ ] Build the bedroom and house interior (small, low-poly, matches the art direction)
+- [ ] Wake-up animation: the player stands up from the bed (first-person camera)
+- [ ] Walk from the bed to the front door (scripted movement, no player control)
+- [ ] Pick up the nerf gun on the way out (the starting one-dart gun appears in the viewmodel)
+- [ ] Walk out the door onto the street
+- [ ] Screen fades out, then fades back in on the generated map
+- [ ] Allow the player to skip the sequence (button or key), and a setting to always skip it
+- [ ] Keep the sequence short (target under 15 seconds) and skip it on a restart after dying
+- [ ] Hook the sequence into Play and Daily Run, and make sure the seed is already chosen before it starts
+
+---
+
+# Milestone I: Roguelite Progression
+
+> The player starts every run with the simplest possible loadout and earns everything else across runs.
+
+- [ ] Starting loadout: a simple one-dart gun and the melee weapon, nothing else
+- [ ] Unlock and buy new weapons with meta currency (adds them to the shop pool)
+- [ ] Unlock and buy upgrades and starting perks with meta currency
+- [ ] Unlock screen replaces the "coming soon" Unlocks page (items, price, owned / locked state)
+- [ ] Loadout screen replaces the "coming soon" Loadout page (choose what you start a run with from what you own)
+- [ ] Save unlocks and purchases in the versioned save files (see `docs/SAVE_FILES.md`)
+- [ ] Show newly unlocked items on the run summary screen
+- [ ] Define the unlock list and price curve in a data table (like `data/items.json`)
+- [ ] Balance pass: the first runs with the starting loadout must be winnable but hard, and each unlock should feel meaningful
+- [ ] Reset progress option in Settings, with confirmation
+
+---
+
+# Milestone J: Manual Reload
+
+- [ ] Remove the automatic reload after a few seconds
+- [ ] Press R to reload manually
+- [ ] Automatically reload when the magazine reaches 0
+- [ ] Cannot shoot while reloading; reloading can be interrupted by dashing or switching to melee (decide the exact rule when building it)
+- [ ] Reload animation and sound hooks (builds on the pump / reload animation in F2)
+- [ ] HUD and ammo label on the gun show the reloading state
+- [ ] Add reload to the key rebinding list and the Controls page
+- [ ] Rebalance darts per magazine and reload time now that reloading is not free
+- [ ] Check how perks and items that touch ammo (rapid fire, infinite ammo, fat darts) interact with the new reload
+
+---
+
 # Tooling & QA
 
 - [ ] Playtest pass of everything built in Milestone A (title, pause, settings, run, win / lose, leaderboard, name entry). It was written without running the game
@@ -436,3 +498,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [ ] Milestone D: Run map, relics, modifiers
 - [ ] Milestone E: Polish, tutorial, music
 - [ ] Milestone F: Graphics and sound overhaul (art direction first; can start any time after Milestone A)
+- [ ] Milestone G: Procedural map generation (build together with the run map in Milestone D)
+- [ ] Milestone H: Run start sequence (needs the map from Milestone G to fade into)
+- [ ] Milestone I: Roguelite progression (builds on the meta currency and unlocks in Milestone B)
+- [ ] Milestone J: Manual reload (small and independent, can be done at any time)
