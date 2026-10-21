@@ -345,6 +345,10 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 			)
 	if g.state_t > 0.8 and blink and not g.name_entry:
 		_txt("CLICK TO CONTINUE", cx, size.y * 0.93, int(24 * k), TEXT, 1)
+	var seed_label = "RUN SEED  " + g.DailyScript.seed_text(g.run_seed)
+	if g.daily_mode:
+		seed_label = "DAILY RUN SEED  " + g.DailyScript.seed_text(g.run_seed)
+	_txt(seed_label, cx, size.y * 0.975, int(14 * k), GRAY, 1)
 
 
 # ---------------------------------------------------------------- title screen menu

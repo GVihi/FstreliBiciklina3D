@@ -406,7 +406,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [ ] Generate the run map procedurally from a seed
   - [ ] Same seed always produces the same map
   - [ ] Daily seed produces the same map for every player that day (builds on Daily Seed Mode in Milestone A)
-  - [ ] Random seed for normal runs, shown on the run summary so a run can be replayed
+  - [x] Random seed for normal runs, shown on the run summary so a run can be replayed (every normal run now gets a random 32-bit seed at the start, `random_seed` in `scripts/daily.gd`, `start_game` in `scripts/main.gd`; the run seed drives the same seeded generators the Daily Run already used (rider mix, shop and upgrade offers, starting boss and lighting theme), so `layout_*`, `offer_shuffle` and `seed_shift` (was `daily_shift`) no longer check for daily mode; the summary shows "RUN SEED xxxxxxxx" (or "DAILY RUN SEED") in small grey text at the bottom, `_draw_run_summary` in `scripts/hud.gd`; Restart Run gives a normal run a new seed and a Daily Run the same one. Behaviour change: a normal run no longer always starts on the first theme and boss, they rotate with the seed. Entering a seed to replay it needs the custom seed item below. Written without running Godot, only linted and format-checked; waiting for your in-game check: finish or lose a run and read the seed on the summary, and confirm two normal runs start on different themes sometimes while a Daily Run is unchanged)
 - [ ] Define the map generation rules (number of nodes, branching, guaranteed shop / rest stop / boss placement)
 - [ ] Generate arena layouts and encounter contents from the seed
 - [ ] Validate that every generated map is completable (no dead ends, boss always reachable)
