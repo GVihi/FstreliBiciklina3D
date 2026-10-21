@@ -516,6 +516,50 @@ func _draw_pause_menu(k: float, cx: float) -> void:
 	_txt("ESC TO RESUME", cx, size.y * 0.80, int(16 * k), GRAY, 1)
 
 
+# Restart Run and Quit to Title lose the run, so they ask first. NO is the first button and the default.
+const CONFIRM_TEXT = {
+	"restart": {"title": "RESTART RUN?", "yes": "YES, RESTART"},
+	"title": {"title": "QUIT TO TITLE?", "yes": "YES, QUIT"}
+}
+
+
+func confirm_rect(i: int) -> Rect2:
+	var k = size.y / 720.0
+	var w = 320.0 * k
+	var h = 46.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.46 + i * (h + 10.0 * k), w, h)
+
+
+func confirm_at(pos: Vector2) -> int:
+	if g == null or not g.paused or g.pause_page != "confirm":
+		return -1
+	for i in range(2):
+		if confirm_rect(i).has_point(pos):
+			return i
+	return -1
+
+
+func _draw_confirm(k: float, cx: float) -> void:
+	var text = CONFIRM_TEXT.get(g.confirm_id, CONFIRM_TEXT["restart"])
+	_txt(text["title"], cx, size.y * 0.26, int(60 * k), TEXT, 1)
+	_txt("THIS RUN WILL BE LOST - NO SCORE AND NO COINS", cx, size.y * 0.36, int(20 * k), RED, 1)
+	var labels = ["NO, GO BACK", text["yes"]]
+	for i in range(2):
+		var r = confirm_rect(i)
+		var on = g.confirm_sel == i  # the mouse updates confirm_sel in input.gd (hover_menu)
+		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
+		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
+		_txt(
+			labels[i],
+			r.position.x + r.size.x * 0.5,
+			r.position.y + 31.0 * k,
+			int(22 * k),
+			TEXT if on else GRAY,
+			1
+		)
+	_txt("ESC TO GO BACK", cx, size.y * 0.80, int(16 * k), GRAY, 1)
+
+
 # ---------------------------------------------------------------- settings panel (pause screen / title with TAB)
 const SETTING_ROWS = [
 	{"id": "fov", "label": "FIELD OF VIEW", "min": 60.0, "max": 105.0, "fmt": "%d"},
@@ -768,6 +812,9 @@ func _draw() -> void:
 			_dim(0.86)
 			_draw_settings(k)
 			_txt("ESC OR CLICK OUTSIDE TO GO BACK", cx, size.y * 0.92, int(14 * k), GRAY, 1)
+		elif g.pause_page == "confirm":
+			_dim(0.6)
+			_draw_confirm(k, cx)
 		else:
 			_dim(0.6)
 			_draw_pause_menu(k, cx)

@@ -66,21 +66,26 @@ func handle_input(event: InputEvent) -> void:
 				g.title_page = "" if g.title_page == "settings" else "settings"
 			elif g.state == "play":
 				if g.paused:
-					g.pause_page = "" if g.pause_page == "settings" else "settings"
+					if g.pause_page != "confirm":
+						g.pause_page = "" if g.pause_page == "settings" else "settings"
 				else:
 					Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		elif kc == KEY_ENTER or kc == KEY_KP_ENTER:
 			menu_confirm()
 		elif kc == KEY_LEFT:
 			menu_move(-1)
+			confirm_move()
 		elif kc == KEY_RIGHT:
 			menu_move(1)
+			confirm_move()
 		elif kc == KEY_UP or kc == KEY_W:
 			title_move(-1)
 			pause_move(-1)
+			confirm_move()
 		elif kc == KEY_DOWN or kc == KEY_S:
 			title_move(1)
 			pause_move(1)
+			confirm_move()
 		elif kc == KEY_1 or kc == KEY_KP_1:
 			if g.state == "upgrade":
 				if g.state_t > 0.35:
@@ -144,8 +149,10 @@ func on_pad_button(btn: int) -> void:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			if btn == JOY_BUTTON_DPAD_UP:
 				pause_move(-1)
+				confirm_move()
 			elif btn == JOY_BUTTON_DPAD_DOWN:
 				pause_move(1)
+				confirm_move()
 			elif btn == JOY_BUTTON_A:
 				pause_activate(g.pause_sel)
 			elif btn == JOY_BUTTON_B:
@@ -253,6 +260,9 @@ func hover_menu(pos: Vector2) -> void:
 	var pi = g.hud.pause_at(pos)
 	if pi >= 0:
 		g.pause_sel = pi
+	var ci = g.hud.confirm_at(pos)
+	if ci >= 0:
+		g.confirm_sel = ci
 
 
 # ---- title screen menu (entries are listed in hud.gd TITLE_ITEMS)
@@ -306,6 +316,9 @@ func pause_back() -> void:
 
 
 func pause_activate(i: int) -> void:
+	if g.pause_page == "confirm":
+		confirm_activate(g.confirm_sel)
+		return
 	if g.pause_page != "":
 		pause_back()
 		return
@@ -316,7 +329,31 @@ func pause_activate(i: int) -> void:
 	elif id == "settings":
 		g.pause_page = "settings"
 		g.sfx.play("click")
-	elif id == "restart":
+	elif id == "restart" or id == "title":  # both lose the run, so ask first (NO is the default)
+		g.confirm_id = id
+		g.confirm_sel = 0
+		g.confirm_t0 = g.time
+		g.pause_page = "confirm"
+		g.sfx.play("click")
+
+
+# ---- restart / quit confirmation (texts and buttons are in hud.gd CONFIRM_TEXT)
+func confirm_move() -> void:
+	if g.state == "play" and g.paused and g.pause_page == "confirm":
+		g.confirm_sel = 1 - g.confirm_sel
+		g.sfx.play("click")
+
+
+func confirm_activate(i: int) -> void:
+	if i == 0:
+		pause_back()  # NO: back to the pause menu
+		return
+	if g.time - g.confirm_t0 < 0.3:
+		return  # the second click of a double click on RESTART RUN / QUIT TO TITLE must not confirm
+	g.confirm_sel = i
+	var id = g.confirm_id
+	g.pause_page = ""
+	if id == "restart":
 		g.start_game(g.daily_mode)
 	elif id == "title":
 		g.abandon_run()
@@ -367,6 +404,10 @@ func on_click() -> void:
 					and not g.hud.panel_rect().has_point(pmp)
 				):
 					pause_back()
+			elif g.pause_page == "confirm":
+				var ci = g.hud.confirm_at(pmp)
+				if ci >= 0:
+					confirm_activate(ci)
 			else:
 				var pi = g.hud.pause_at(pmp)
 				if pi >= 0:
