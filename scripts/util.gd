@@ -9,6 +9,7 @@ extends RefCounted
 static var _mats := {}
 static var _meshes := {}
 
+
 static func mat(col: Color, rough: float = 0.9, metal: float = 0.0) -> StandardMaterial3D:
 	var key = "m%s_%.3f_%.3f" % [col.to_html(true), rough, metal]
 	if _mats.has(key):
@@ -17,10 +18,11 @@ static func mat(col: Color, rough: float = 0.9, metal: float = 0.0) -> StandardM
 	m.albedo_color = col
 	m.roughness = rough
 	m.metallic = metal
-	m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON       # hard-edged cartoon shading
+	m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON  # hard-edged cartoon shading
 	m.specular_mode = BaseMaterial3D.SPECULAR_TOON
 	_mats[key] = m
 	return m
+
 
 static func unshaded(col: Color) -> StandardMaterial3D:
 	var key = "u%s" % col.to_html(true)
@@ -32,6 +34,7 @@ static func unshaded(col: Color) -> StandardMaterial3D:
 	_mats[key] = m
 	return m
 
+
 # Shared emissive material for things that never change brightness (pickups, phone screen).
 static func glow_shared(col: Color, energy: float) -> StandardMaterial3D:
 	var key = "g%s_%.3f" % [col.to_html(true), energy]
@@ -40,6 +43,7 @@ static func glow_shared(col: Color, energy: float) -> StandardMaterial3D:
 	var m = glow(col, energy)
 	_mats[key] = m
 	return m
+
 
 # ---- shared meshes (instances still scale / rotate themselves) ----
 static func box_mesh(size: Vector3) -> BoxMesh:
@@ -50,6 +54,7 @@ static func box_mesh(size: Vector3) -> BoxMesh:
 	bm.size = size
 	_meshes[key] = bm
 	return bm
+
 
 static func sphere_mesh(r: float) -> SphereMesh:
 	var key = "s%.4f" % r
@@ -62,6 +67,7 @@ static func sphere_mesh(r: float) -> SphereMesh:
 	sm.rings = 8
 	_meshes[key] = sm
 	return sm
+
 
 static func cyl_mesh(r_top: float, r_bot: float, h: float) -> CylinderMesh:
 	var key = "c%.4f_%.4f_%.4f" % [r_top, r_bot, h]
@@ -76,6 +82,7 @@ static func cyl_mesh(r_top: float, r_bot: float, h: float) -> CylinderMesh:
 	_meshes[key] = cm
 	return cm
 
+
 static func torus_mesh(inner: float, outer: float, rings: int = 24, segs: int = 8) -> TorusMesh:
 	var key = "t%.4f_%.4f_%d_%d" % [inner, outer, rings, segs]
 	if _meshes.has(key):
@@ -88,6 +95,7 @@ static func torus_mesh(inner: float, outer: float, rings: int = 24, segs: int = 
 	_meshes[key] = tm
 	return tm
 
+
 # Tiny parts (spokes, bolts, eyes) are not worth a shadow-pass draw call each.
 static func trim_shadows(node: Node, min_size: float = 0.16) -> void:
 	if node is MeshInstance3D:
@@ -99,6 +107,7 @@ static func trim_shadows(node: Node, min_size: float = 0.16) -> void:
 	for ch in node.get_children():
 		trim_shadows(ch, min_size)
 
+
 static func glow(col: Color, energy: float) -> StandardMaterial3D:
 	var m = StandardMaterial3D.new()
 	m.albedo_color = col
@@ -106,6 +115,7 @@ static func glow(col: Color, energy: float) -> StandardMaterial3D:
 	m.emission = col
 	m.emission_energy_multiplier = energy
 	return m
+
 
 static func box(parent: Node, size: Vector3, pos: Vector3, m: Material) -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
@@ -115,7 +125,10 @@ static func box(parent: Node, size: Vector3, pos: Vector3, m: Material) -> MeshI
 	parent.add_child(mi)
 	return mi
 
-static func sphere(parent: Node, r: float, pos: Vector3, m: Material, sy: float = 1.0) -> MeshInstance3D:
+
+static func sphere(
+	parent: Node, r: float, pos: Vector3, m: Material, sy: float = 1.0
+) -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
 	mi.mesh = sphere_mesh(r)
 	mi.material_override = m
@@ -124,7 +137,10 @@ static func sphere(parent: Node, r: float, pos: Vector3, m: Material, sy: float 
 	parent.add_child(mi)
 	return mi
 
-static func cyl(parent: Node, r_top: float, r_bot: float, h: float, pos: Vector3, m: Material) -> MeshInstance3D:
+
+static func cyl(
+	parent: Node, r_top: float, r_bot: float, h: float, pos: Vector3, m: Material
+) -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
 	mi.mesh = cyl_mesh(r_top, r_bot, h)
 	mi.material_override = m
@@ -132,13 +148,17 @@ static func cyl(parent: Node, r_top: float, r_bot: float, h: float, pos: Vector3
 	parent.add_child(mi)
 	return mi
 
-static func torus(parent: Node, inner: float, outer: float, pos: Vector3, m: Material) -> MeshInstance3D:
+
+static func torus(
+	parent: Node, inner: float, outer: float, pos: Vector3, m: Material
+) -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
 	mi.mesh = torus_mesh(inner, outer)
 	mi.material_override = m
 	mi.position = pos
 	parent.add_child(mi)
 	return mi
+
 
 # A "bar" is a unit-length box we stretch between two 2D points (side view, XY plane).
 static func bar(parent: Node, th_y: float, th_z: float, z: float, m: Material) -> MeshInstance3D:
@@ -149,6 +169,7 @@ static func bar(parent: Node, th_y: float, th_z: float, z: float, m: Material) -
 	parent.add_child(mi)
 	return mi
 
+
 static func set_bar(mi: MeshInstance3D, a: Vector2, b: Vector2) -> void:
 	var d = b - a
 	mi.position.x = (a.x + b.x) * 0.5
@@ -156,10 +177,14 @@ static func set_bar(mi: MeshInstance3D, a: Vector2, b: Vector2) -> void:
 	mi.rotation.z = atan2(d.y, d.x)
 	mi.scale.x = maxf(d.length(), 0.001)
 
-static func fbar(parent: Node, a: Vector2, b: Vector2, th: float, m: Material, z: float = 0.0) -> MeshInstance3D:
+
+static func fbar(
+	parent: Node, a: Vector2, b: Vector2, th: float, m: Material, z: float = 0.0
+) -> MeshInstance3D:
 	var mi = bar(parent, th, th, z, m)
 	set_bar(mi, a, b)
 	return mi
+
 
 # Ray vs ellipsoid. Returns distance along the ray, or -1.0 for a miss.
 static func ray_ellipsoid(o: Vector3, d: Vector3, c: Vector3, r: Vector3) -> float:
@@ -180,17 +205,30 @@ static func ray_ellipsoid(o: Vector3, d: Vector3, c: Vector3, r: Vector3) -> flo
 		return t1
 	return -1.0
 
+
 # Ray vs ellipsoid whose long axis is turned by yaw (rotation about Y, like Node3D.rotation.y).
 static func ray_ellipsoid_yaw(o: Vector3, d: Vector3, c: Vector3, r: Vector3, yaw: float) -> float:
 	var inv = Basis(Vector3.UP, -yaw)
 	return ray_ellipsoid(inv * (o - c), inv * d, Vector3.ZERO, r)
+
 
 # ---- ring (circular) geometry for the roundabout ----
 # Angles use the street convention: point = (r * sin(a), y, -r * cos(a)), so a = 0 is straight ahead of the player.
 static func _rp(r: float, a: float, y: float) -> Vector3:
 	return Vector3(r * sin(a), y, -r * cos(a))
 
-static func _quad(m: Dictionary, a: Vector3, b: Vector3, c: Vector3, d: Vector3, na: Vector3, nb: Vector3, nc: Vector3, nd: Vector3) -> void:
+
+static func _quad(
+	m: Dictionary,
+	a: Vector3,
+	b: Vector3,
+	c: Vector3,
+	d: Vector3,
+	na: Vector3,
+	nb: Vector3,
+	nc: Vector3,
+	nd: Vector3
+) -> void:
 	var v: PackedVector3Array = m["v"]
 	var n: PackedVector3Array = m["n"]
 	var idx: PackedInt32Array = m["i"]
@@ -205,10 +243,11 @@ static func _quad(m: Dictionary, a: Vector3, b: Vector3, c: Vector3, d: Vector3,
 	n.append(nd)
 	var want = (na + nb + nc + nd).normalized()
 	var cr = (b - a).cross(c - a)
-	if cr.dot(want) > 0.0:                 # Godot front faces are clockwise
+	if cr.dot(want) > 0.0:  # Godot front faces are clockwise
 		idx.append_array([base, base + 2, base + 1, base, base + 3, base + 2])
 	else:
 		idx.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
+
 
 static func _mesh_of(m: Dictionary) -> ArrayMesh:
 	var arrays = []
@@ -220,12 +259,26 @@ static func _mesh_of(m: Dictionary) -> ArrayMesh:
 	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return am
 
+
 static func _new_mb() -> Dictionary:
 	return {"v": PackedVector3Array(), "n": PackedVector3Array(), "i": PackedInt32Array()}
 
+
 # A ring (or a sector of one) with thickness: top, inner wall, outer wall, end caps.
-static func slab_mesh(r0: float, r1: float, y0: float, y1: float, th0: float = 0.0, th1: float = TAU, per_circle: int = 96, sides: bool = true) -> ArrayMesh:
-	var key = "slab%.3f_%.3f_%.3f_%.3f_%.4f_%.4f_%d_%s" % [r0, r1, y0, y1, th0, th1, per_circle, str(sides)]
+static func slab_mesh(
+	r0: float,
+	r1: float,
+	y0: float,
+	y1: float,
+	th0: float = 0.0,
+	th1: float = TAU,
+	per_circle: int = 96,
+	sides: bool = true
+) -> ArrayMesh:
+	var key = (
+		"slab%.3f_%.3f_%.3f_%.3f_%.4f_%.4f_%d_%s"
+		% [r0, r1, y0, y1, th0, th1, per_circle, str(sides)]
+	)
 	if _meshes.has(key):
 		return _meshes[key]
 	var m = _new_mb()
@@ -241,27 +294,73 @@ static func slab_mesh(r0: float, r1: float, y0: float, y1: float, th0: float = 0
 			var ob = _rp(1.0, b, 0.0)
 			_quad(m, _rp(r1, a, y1), _rp(r1, a, y0), _rp(r1, b, y0), _rp(r1, b, y1), oa, oa, ob, ob)
 			if r0 > 0.001:
-				_quad(m, _rp(r0, b, y1), _rp(r0, b, y0), _rp(r0, a, y0), _rp(r0, a, y1), -ob, -ob, -oa, -oa)
+				_quad(
+					m,
+					_rp(r0, b, y1),
+					_rp(r0, b, y0),
+					_rp(r0, a, y0),
+					_rp(r0, a, y1),
+					-ob,
+					-ob,
+					-oa,
+					-oa
+				)
 	if sides and y1 - y0 > 0.001 and absf(span) < TAU - 0.001:
-		var ta = Vector3(-cos(th0), 0.0, -sin(th0))       # outward at the start of the sector
-		var tb = Vector3(cos(th1), 0.0, sin(th1))         # outward at the end
-		_quad(m, _rp(r0, th0, y1), _rp(r0, th0, y0), _rp(r1, th0, y0), _rp(r1, th0, y1), ta, ta, ta, ta)
-		_quad(m, _rp(r1, th1, y1), _rp(r1, th1, y0), _rp(r0, th1, y0), _rp(r0, th1, y1), tb, tb, tb, tb)
+		var ta = Vector3(-cos(th0), 0.0, -sin(th0))  # outward at the start of the sector
+		var tb = Vector3(cos(th1), 0.0, sin(th1))  # outward at the end
+		_quad(
+			m,
+			_rp(r0, th0, y1),
+			_rp(r0, th0, y0),
+			_rp(r1, th0, y0),
+			_rp(r1, th0, y1),
+			ta,
+			ta,
+			ta,
+			ta
+		)
+		_quad(
+			m,
+			_rp(r1, th1, y1),
+			_rp(r1, th1, y0),
+			_rp(r0, th1, y0),
+			_rp(r0, th1, y1),
+			tb,
+			tb,
+			tb,
+			tb
+		)
 	var am = _mesh_of(m)
 	_meshes[key] = am
 	return am
 
-static func slab(parent: Node, r0: float, r1: float, y0: float, y1: float, m: Material, th0: float = 0.0, th1: float = TAU, sides: bool = true) -> MeshInstance3D:
+
+static func slab(
+	parent: Node,
+	r0: float,
+	r1: float,
+	y0: float,
+	y1: float,
+	m: Material,
+	th0: float = 0.0,
+	th1: float = TAU,
+	sides: bool = true
+) -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
 	mi.mesh = slab_mesh(r0, r1, y0, y1, th0, th1, 96, sides)
 	mi.material_override = m
 	parent.add_child(mi)
 	return mi
 
+
 # Flat painted dashes laid on a circle (one mesh for all of them). Dashes whose centre falls inside
 # [skip_c - skip_half, skip_c + skip_half] are left out (the tunnel).
-static func dashes_mesh(r: float, w: float, dash_len: float, period: float, y: float, skip_c: float, skip_half: float) -> ArrayMesh:
-	var key = "dash%.3f_%.3f_%.3f_%.3f_%.4f_%.3f_%.3f" % [r, w, dash_len, period, y, skip_c, skip_half]
+static func dashes_mesh(
+	r: float, w: float, dash_len: float, period: float, y: float, skip_c: float, skip_half: float
+) -> ArrayMesh:
+	var key = (
+		"dash%.3f_%.3f_%.3f_%.3f_%.4f_%.3f_%.3f" % [r, w, dash_len, period, y, skip_c, skip_half]
+	)
 	if _meshes.has(key):
 		return _meshes[key]
 	var m = _new_mb()
@@ -275,7 +374,17 @@ static func dashes_mesh(r: float, w: float, dash_len: float, period: float, y: f
 		for s in range(3):
 			var a = ac - da + 2.0 * da * float(s) / 3.0
 			var b = ac - da + 2.0 * da * float(s + 1) / 3.0
-			_quad(m, _rp(r - w * 0.5, a, y), _rp(r + w * 0.5, a, y), _rp(r + w * 0.5, b, y), _rp(r - w * 0.5, b, y), up, up, up, up)
+			_quad(
+				m,
+				_rp(r - w * 0.5, a, y),
+				_rp(r + w * 0.5, a, y),
+				_rp(r + w * 0.5, b, y),
+				_rp(r - w * 0.5, b, y),
+				up,
+				up,
+				up,
+				up
+			)
 	var am = _mesh_of(m)
 	_meshes[key] = am
 	return am

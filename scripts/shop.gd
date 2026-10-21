@@ -4,8 +4,10 @@ extends RefCounted
 
 var g = null
 
+
 func _init(game) -> void:
 	g = game
+
 
 # ------------------------------------------------------------------ upgrades
 func upgrade_ok(id: String) -> bool:
@@ -31,11 +33,18 @@ func upgrade_ok(id: String) -> bool:
 		return g.up["magnet"] < 2
 	return false
 
+
 func apply_upgrade(id: String) -> void:
 	if id == "clip":
-		g.MAXSHELLS = mini(int(g.WEAPONS["dart_gun"]["max_clip"]), g.MAXSHELLS + int(g.WEAPONS["dart_gun"]["clip_step"]))
+		g.MAXSHELLS = mini(
+			int(g.WEAPONS["dart_gun"]["max_clip"]),
+			g.MAXSHELLS + int(g.WEAPONS["dart_gun"]["clip_step"])
+		)
 	elif id == "pump":
-		g.pump_base = maxf(float(g.WEAPONS["dart_gun"]["pump_min"]), g.pump_base - float(g.WEAPONS["dart_gun"]["pump_step"]))
+		g.pump_base = maxf(
+			float(g.WEAPONS["dart_gun"]["pump_min"]),
+			g.pump_base - float(g.WEAPONS["dart_gun"]["pump_step"])
+		)
 	elif id == "wide":
 		g.up["wide"] += 1
 	elif id == "heart":
@@ -54,11 +63,30 @@ func apply_upgrade(id: String) -> void:
 	elif id == "magnet":
 		g.up["magnet"] += 1
 
+
 func upgrade_stat(id: String) -> String:
 	if id == "clip":
-		return "DARTS %d > %d" % [g.MAXSHELLS, mini(int(g.WEAPONS["dart_gun"]["max_clip"]), g.MAXSHELLS + int(g.WEAPONS["dart_gun"]["clip_step"]))]
+		return (
+			"DARTS %d > %d"
+			% [
+				g.MAXSHELLS,
+				mini(
+					int(g.WEAPONS["dart_gun"]["max_clip"]),
+					g.MAXSHELLS + int(g.WEAPONS["dart_gun"]["clip_step"])
+				)
+			]
+		)
 	if id == "pump":
-		return "PUMP %.2fs > %.2fs" % [g.pump_base, maxf(float(g.WEAPONS["dart_gun"]["pump_min"]), g.pump_base - float(g.WEAPONS["dart_gun"]["pump_step"]))]
+		return (
+			"PUMP %.2fs > %.2fs"
+			% [
+				g.pump_base,
+				maxf(
+					float(g.WEAPONS["dart_gun"]["pump_min"]),
+					g.pump_base - float(g.WEAPONS["dart_gun"]["pump_step"])
+				)
+			]
+		)
 	if id == "wide":
 		return "LEVEL %d > %d" % [g.up["wide"], g.up["wide"] + 1]
 	if id == "heart":
@@ -70,10 +98,17 @@ func upgrade_stat(id: String) -> String:
 	if id == "speedload":
 		return "LEVEL %d > %d" % [g.up["reload"], g.up["reload"] + 1]
 	if id == "dashcd":
-		return "COOLDOWN %.2fs > %.2fs" % [g.player_sys.dash_cooldown(), maxf(0.45, g.player_sys.dash_cooldown() - 0.15)]
+		return (
+			"COOLDOWN %.2fs > %.2fs"
+			% [g.player_sys.dash_cooldown(), maxf(0.45, g.player_sys.dash_cooldown() - 0.15)]
+		)
 	if id == "magnet":
 		return "LEVEL %d > %d" % [g.up["magnet"], g.up["magnet"] + 1]
-	return "DROPS +%d%% > +%d%%" % [int(round(g.up["luck"] * 100.0)), int(round(g.up["luck"] * 100.0 + 10.0))]
+	return (
+		"DROPS +%d%% > +%d%%"
+		% [int(round(g.up["luck"] * 100.0)), int(round(g.up["luck"] * 100.0 + 10.0))]
+	)
+
 
 func enter_upgrade() -> void:
 	var pool = []
@@ -88,6 +123,7 @@ func enter_upgrade() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if g.offers.size() == 0:
 		enter_shop()
+
 
 func pick_upgrade(i: int) -> void:
 	if i < 0 or i >= g.offers.size():
@@ -107,21 +143,26 @@ func add_style(n: float) -> void:
 	g.style_idle = 1.6
 	g.best_rank = maxi(g.best_rank, style_rank())
 
+
 func style_rank() -> int:
 	return clampi(int(g.style / 20.0), 0, 4)
 
+
 func style_letter() -> String:
 	return ["D", "C", "B", "A", "S"][style_rank()]
+
 
 # higher style, bigger score: x1.0 at D up to x2.0 at S
 func style_mul() -> float:
 	return 1.0 + 0.25 * float(style_rank())
 
+
 func add_cash(n: int) -> void:
-	var v = float(n) * (1.0 + 0.08 * float(g.round_n - 1))      # pay grows a little every round, like the shop prices
+	var v = float(n) * (1.0 + 0.08 * float(g.round_n - 1))  # pay grows a little every round, like the shop prices
 	if g.perks.has("bounty"):
 		v *= 1.35
 	g.cash += int(round(v))
+
 
 func has_duo(nm: String) -> bool:
 	for d in g.DUOS:
@@ -129,17 +170,20 @@ func has_duo(nm: String) -> bool:
 			return g.perks.has(d["a"]) and g.perks.has(d["b"])
 	return false
 
+
 func perk_name(id: String) -> String:
 	for it in g.SHOP_POOL:
 		if it["id"] == id:
 			return it["name"]
 	return id
 
+
 func shop_item(id: String) -> Dictionary:
 	for it in g.SHOP_POOL:
 		if it["id"] == id:
 			return it
 	return {}
+
 
 func shop_ok(id: String) -> bool:
 	var it = shop_item(id)
@@ -154,6 +198,7 @@ func shop_ok(id: String) -> bool:
 		return true
 	return not g.perks.has(id)
 
+
 func shop_tag(id: String) -> String:
 	for d in g.DUOS:
 		if d["a"] == id or d["b"] == id:
@@ -166,19 +211,24 @@ func shop_tag(id: String) -> String:
 			return "PAIRS WITH " + perk_name(other2)
 	return ""
 
+
 func shop_price(it: Dictionary) -> int:
-	var v = float(it["cost"]) * (1.0 + 0.12 * float(g.round_n - 1)) * (1.0 + 0.06 * float(g.shop_buys))
+	var v = (
+		float(it["cost"]) * (1.0 + 0.12 * float(g.round_n - 1)) * (1.0 + 0.06 * float(g.shop_buys))
+	)
 	if it["kind"] == "tier":
 		v *= 1.0 + 0.45 * float(g.shop_lvl.get(it["id"], 0))
 	if g.perks.has("haggler"):
 		v *= 0.85
 	return maxi(5, int(round(v / 5.0)) * 5)
 
+
 func reroll_cost() -> int:
 	var v = 20 + 15 * g.shop_rerolls
 	if g.perks.has("haggler"):
 		v = int(v * 0.5)
 	return v
+
 
 func build_shop() -> void:
 	var pool = []
@@ -231,6 +281,7 @@ func build_shop() -> void:
 			g.shop_items.append(c)
 	g.offer_shuffle(g.shop_items, "shopfinal%d" % g.shop_rerolls)
 
+
 func reroll() -> void:
 	if g.state != "shop":
 		return
@@ -245,6 +296,7 @@ func reroll() -> void:
 	g.menu_sel = 0
 	g.sfx.play("pickup")
 
+
 func enter_shop() -> void:
 	g.shop_rerolls = 0
 	build_shop()
@@ -254,11 +306,13 @@ func enter_shop() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	g.sfx.say("shop")
 
+
 func leave_shop() -> void:
 	if g.state != "shop":
 		return
 	g.round_n += 1
 	g.start_round()
+
 
 func buy(i: int) -> void:
 	if g.state != "shop" or i < 0 or i >= g.shop_items.size():
@@ -282,7 +336,7 @@ func buy(i: int) -> void:
 		apply_upgrade(id)
 		g.shop_lvl[id] = int(g.shop_lvl.get(id, 0)) + 1
 	elif kind == "pack":
-		for k in it["pending"]:       # what the pack gives next round is listed in data/items.json
+		for k in it["pending"]:  # what the pack gives next round is listed in data/items.json
 			g.pending[k] = it["pending"][k]
 		g.add_note(it["name"] + " READY", g.GOLD)
 	else:

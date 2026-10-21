@@ -10,8 +10,10 @@ var _muted = false
 var _voices = true
 var _fullscreen = false
 
+
 func _init(game) -> void:
 	g = game
+
 
 func apply_quality() -> void:
 	g.get_viewport().msaa_3d = Viewport.MSAA_2X if g.quality == 0 else Viewport.MSAA_DISABLED
@@ -23,22 +25,31 @@ func apply_quality() -> void:
 	var env: Environment = g.world["env"]
 	env.glow_enabled = g.quality < 2
 
+
 func cycle_quality() -> void:
 	g.quality = (g.quality + 1) % 3
 	apply_quality()
-	var names = ["GRAPHICS: HIGH", "GRAPHICS: MEDIUM (NO MSAA)", "GRAPHICS: LOW (NO MSAA, NO SHADOWS)"]
+	var names = [
+		"GRAPHICS: HIGH", "GRAPHICS: MEDIUM (NO MSAA)", "GRAPHICS: LOW (NO MSAA, NO SHADOWS)"
+	]
 	g.add_note(names[g.quality], GOLD)
 	save_settings()
+
 
 func is_fullscreen() -> bool:
 	return DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
 
+
 func set_fullscreen(on: bool) -> void:
-	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if on else DisplayServer.WINDOW_MODE_WINDOWED)
+	DisplayServer.window_set_mode(
+		DisplayServer.WINDOW_MODE_FULLSCREEN if on else DisplayServer.WINDOW_MODE_WINDOWED
+	)
+
 
 func toggle_fullscreen() -> void:
 	set_fullscreen(not is_fullscreen())
 	save_settings()
+
 
 # call once the sound system exists: applies the saved sound and window settings
 func apply_loaded() -> void:
@@ -46,6 +57,7 @@ func apply_loaded() -> void:
 	g.sfx.voices_on = _voices
 	if _fullscreen:
 		set_fullscreen(true)
+
 
 func load_settings() -> void:
 	var cf = ConfigFile.new()
@@ -63,6 +75,7 @@ func load_settings() -> void:
 	_fullscreen = bool(cf.get_value("game", "fullscreen", _fullscreen))
 	g.player_name = str(cf.get_value("game", "player_name", g.player_name))
 
+
 func save_settings() -> void:
 	var cf = ConfigFile.new()
 	cf.set_value("game", "fov", g.fov_hip)
@@ -77,6 +90,7 @@ func save_settings() -> void:
 	cf.set_value("game", "fullscreen", is_fullscreen())
 	cf.set_value("game", "player_name", g.player_name)
 	cf.save("user://settings.cfg")
+
 
 func get_setting(id: String):
 	if id == "fov":
@@ -100,6 +114,7 @@ func get_setting(id: String):
 	if id == "fullscreen":
 		return is_fullscreen()
 	return null
+
 
 func set_setting(id: String, v) -> void:
 	if id == "fov":
@@ -130,11 +145,13 @@ func set_setting(id: String, v) -> void:
 		set_fullscreen(bool(v))
 	save_settings()
 
+
 # the value a click on a toggle / choice row switches to
 func next_value(id: String):
 	if id == "quality":
 		return (g.quality + 1) % 3
 	return not get_setting(id)
+
 
 # a click on the settings panel: toggles flip, sliders start a drag. Returns true when the click was used.
 func click_setting(sid: String) -> bool:
@@ -147,6 +164,7 @@ func click_setting(sid: String) -> bool:
 		g.hud.apply_slider(sid, g.get_viewport().get_mouse_position())
 	return true
 
+
 func load_hi() -> int:
 	if FileAccess.file_exists("user://hi.dat"):
 		var f = FileAccess.open("user://hi.dat", FileAccess.READ)
@@ -155,6 +173,7 @@ func load_hi() -> int:
 			f.close()
 			return v
 	return 0
+
 
 func save_hi(v: int) -> void:
 	var f = FileAccess.open("user://hi.dat", FileAccess.WRITE)

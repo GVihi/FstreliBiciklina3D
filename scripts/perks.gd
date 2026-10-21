@@ -5,15 +5,23 @@ extends RefCounted
 
 const PATH = "res://data/perks.json"
 
+
 # returns {"perks": Array of shop entries (kind "perk"), "duos": Array of {a, b, name, desc}}, both in file order
 static func load_table() -> Dictionary:
 	var out = {"perks": [], "duos": []}
 	if not FileAccess.file_exists(PATH):
-		push_error("perks: %s is missing, there will be no perks. Check the export include filter (data/*.json)." % PATH)
+		push_error(
+			(
+				"perks: %s is missing, there will be no perks. Check the export include filter (data/*.json)."
+				% PATH
+			)
+		)
 		return out
 	var data = JSON.parse_string(FileAccess.get_file_as_string(PATH))
 	if typeof(data) != TYPE_DICTIONARY:
-		push_error("perks: %s is not valid, expected an object with \"perks\" and \"duos\" arrays" % PATH)
+		push_error(
+			'perks: %s is not valid, expected an object with "perks" and "duos" arrays' % PATH
+		)
 		return out
 	var ids = {}
 	for raw in data.get("perks", []):
@@ -29,6 +37,7 @@ static func load_table() -> Dictionary:
 			out["duos"].append(d)
 	return out
 
+
 # a perk is a shop entry: same fields as an item, with kind fixed to "perk"
 static func _clean_perk(raw, ids: Dictionary) -> Dictionary:
 	if typeof(raw) != TYPE_DICTIONARY:
@@ -36,17 +45,24 @@ static func _clean_perk(raw, ids: Dictionary) -> Dictionary:
 		return {}
 	for key in ["id", "name", "desc"]:
 		if typeof(raw.get(key)) != TYPE_STRING:
-			push_error("perks: entry %s needs a text \"%s\"" % [str(raw.get("id", "?")), key])
+			push_error('perks: entry %s needs a text "%s"' % [str(raw.get("id", "?")), key])
 			return {}
 	for key in ["cost", "min"]:
 		if typeof(raw.get(key)) != TYPE_FLOAT and typeof(raw.get(key)) != TYPE_INT:
-			push_error("perks: %s needs a number \"%s\"" % [raw["id"], key])
+			push_error('perks: %s needs a number "%s"' % [raw["id"], key])
 			return {}
 	if ids.has(raw["id"]):
-		push_error("perks: duplicate id \"%s\"" % raw["id"])
+		push_error('perks: duplicate id "%s"' % raw["id"])
 		return {}
-	return {"id": raw["id"], "kind": "perk", "name": raw["name"], "desc": raw["desc"],
-		"cost": int(raw["cost"]), "min": int(raw["min"])}
+	return {
+		"id": raw["id"],
+		"kind": "perk",
+		"name": raw["name"],
+		"desc": raw["desc"],
+		"cost": int(raw["cost"]),
+		"min": int(raw["min"])
+	}
+
 
 # a duo needs two different perks that exist, and a unique name (the name is how the game looks a duo up)
 static func _clean_duo(raw, ids: Dictionary, seen_names: Dictionary) -> Dictionary:
@@ -55,12 +71,17 @@ static func _clean_duo(raw, ids: Dictionary, seen_names: Dictionary) -> Dictiona
 		return {}
 	for key in ["a", "b", "name", "desc"]:
 		if typeof(raw.get(key)) != TYPE_STRING:
-			push_error("perks: duo %s needs a text \"%s\"" % [str(raw.get("name", "?")), key])
+			push_error('perks: duo %s needs a text "%s"' % [str(raw.get("name", "?")), key])
 			return {}
 	if raw["a"] == raw["b"] or not ids.has(raw["a"]) or not ids.has(raw["b"]):
-		push_error("perks: duo %s needs two different existing perks, got \"%s\" and \"%s\"" % [raw["name"], raw["a"], raw["b"]])
+		push_error(
+			(
+				'perks: duo %s needs two different existing perks, got "%s" and "%s"'
+				% [raw["name"], raw["a"], raw["b"]]
+			)
+		)
 		return {}
 	if seen_names.has(raw["name"]):
-		push_error("perks: duplicate duo name \"%s\"" % raw["name"])
+		push_error('perks: duplicate duo name "%s"' % raw["name"])
 		return {}
 	return {"a": raw["a"], "b": raw["b"], "name": raw["name"], "desc": raw["desc"]}

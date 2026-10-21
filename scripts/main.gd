@@ -32,18 +32,18 @@ const DailyScript = preload("res://scripts/daily.gd")
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
 # z across it. ARENA_HX is half a lap: x runs -HX..HX and the tunnel sits at the seam.
 const ARENA_HX = Ring.HX
-const LANE_Z = [-5.5, -2.5, 0.5] # far, middle, near lane
+const LANE_Z = [-5.5, -2.5, 0.5]  # far, middle, near lane
 const LANE_MULT = [1.5, 1.2, 1.0]
 const SIDEWALK_Z = -11.2
 const JOG_Z = -8.8
 const CHEER_Z = -12.4
 const FAR_WALL_Z = -13.1
-const PLAYER_R_MIN = 2.3         # the fountain
-const PLAYER_R_MAX = 22.3        # the buildings
+const PLAYER_R_MIN = 2.3  # the fountain
+const PLAYER_R_MAX = 22.3  # the buildings
 
-const RIDER_SCALE = 0.05         # original pixel speeds -> metres per second
+const RIDER_SCALE = 0.05  # original pixel speeds -> metres per second
 const CIV_SCALE = 0.035
-const RIDER_TIME_BONUS = 1.0     # extra seconds on screen: you have to turn your head now
+const RIDER_TIME_BONUS = 1.0  # extra seconds on screen: you have to turn your head now
 const GRAVITY = 18.0
 const PX_TO_M = 0.05
 
@@ -71,7 +71,7 @@ const ACCENT = Color(1.0, 0.42, 0.17)
 
 # values the HUD reads (vars so they are reachable from another script)
 var PER_ROUND = 10
-var MAX_ROUNDS = 10           # a run is this many rounds; clearing the last one wins the run
+var MAX_ROUNDS = 10  # a run is this many rounds; clearing the last one wins the run
 var NEED = 6
 var MAXSHELLS = int(Content.WEAPONS["dart_gun"]["start_clip"])
 var MAXHEARTS = 3
@@ -90,35 +90,35 @@ var UPGRADES = Content.UPGRADES
 var WEAPONS = Content.WEAPONS
 
 # ------------------------------------------------------------------ state
-var state = "title"          # title / play / clear / upgrade / over
+var state = "title"  # title / play / clear / upgrade / over
 var paused = false
 var round_n = 1
 var score = 0
 var hi = 0
-var daily_date = ""          # UTC date the daily seed belongs to, "YYYY-MM-DD"
-var daily_seed = 0           # same for every player on that date (daily.gd); the daily run mode will use it
-var daily_label = ""         # title-screen text for the above
-var daily_mode = false       # true while a Daily Run is in progress; normal runs never touch the seeded generators
-var run_seed = 0             # the daily seed this run started with (daily_seed can roll over to a new day mid-run)
-var rider_rng = RandomNumberGenerator.new()   # daily mode: which riders spawn, reseeded at the start of every round
+var daily_date = ""  # UTC date the daily seed belongs to, "YYYY-MM-DD"
+var daily_seed = 0  # same for every player on that date (daily.gd); the daily run mode will use it
+var daily_label = ""  # title-screen text for the above
+var daily_mode = false  # true while a Daily Run is in progress; normal runs never touch the seeded generators
+var run_seed = 0  # the daily seed this run started with (daily_seed can roll over to a new day mid-run)
+var rider_rng = RandomNumberGenerator.new()  # daily mode: which riders spawn, reseeded at the start of every round
 var hearts = 3
 var combo = 0
 var best_combo = 0
 # run timer, to tune the run length (README target: 20-30 minutes). Paused and menu time is not counted.
-var play_time = 0.0          # seconds spent fighting this run
-var shop_time = 0.0          # seconds on the clear / upgrade / shop screens this run
-var round_t = 0.0            # fighting seconds in the current round
-var round_times = []         # fighting seconds of each finished round (also printed to the console)
+var play_time = 0.0  # seconds spent fighting this run
+var shop_time = 0.0  # seconds on the clear / upgrade / shop screens this run
+var round_t = 0.0  # fighting seconds in the current round
+var round_times = []  # fighting seconds of each finished round (also printed to the console)
 var final_boss_dead = false  # the last round's final boss was defeated (needed to win the run)
-var run_won = false          # the run ended by clearing the last round
-var kills = 0                # riders and bosses taken down this run
-var best_rank = 0            # highest style rank reached this run (0 = D .. 4 = S)
-var last_rank = -1           # leaderboard place of the run that just ended (0 = first), -1 = not on the list
-var player_name = "PLAYER"   # last name typed on the leaderboard (saved), offered again next time
-var name_entry = false       # true on the run summary while the player is typing a name for a new leaderboard entry
+var run_won = false  # the run ended by clearing the last round
+var kills = 0  # riders and bosses taken down this run
+var best_rank = 0  # highest style rank reached this run (0 = D .. 4 = S)
+var last_rank = -1  # leaderboard place of the run that just ended (0 = first), -1 = not on the list
+var player_name = "PLAYER"  # last name typed on the leaderboard (saved), offered again next time
+var name_entry = false  # true on the run summary while the player is typing a name for a new leaderboard entry
 var name_buf = ""
-var new_unlocks = []         # names of items unlocked by this run (filled once the unlock system exists)
-var meta_earned = 0          # meta coins this run paid out (shown on the run summary); run cash is the separate `cash`
+var new_unlocks = []  # names of items unlocked by this run (filled once the unlock system exists)
+var meta_earned = 0  # meta coins this run paid out (shown on the run summary); run cash is the separate `cash`
 var shots_fired = 0
 var shots_hit = 0
 var civs_hit = 0
@@ -165,11 +165,11 @@ var cheer = 0.0
 var shout_t = 0.0
 var buffs = {"rapid": 0.0, "big": 0.0, "slow": 0.0, "shield": 0.0}
 var up = {"wide": 0, "rubber": 0, "luck": 0.0, "reload": 0, "dashcd": 0, "magnet": 0}
-var wind_used = false     # SECOND WIND perk: once per round
-var shop_lvl = {}         # how many times each tiered upgrade was bought in the shop (each level costs more)
-var shop_buys = 0         # purchases this run: every one makes the next ones dearer
-var shop_rerolls = 0      # rerolls in the current shop
-var pending = {"rapid": 0.0, "big": 0.0, "shield": false, "hype": false, "free": 0}   # packs, used up at the start of the next round
+var wind_used = false  # SECOND WIND perk: once per round
+var shop_lvl = {}  # how many times each tiered upgrade was bought in the shop (each level costs more)
+var shop_buys = 0  # purchases this run: every one makes the next ones dearer
+var shop_rerolls = 0  # rerolls in the current shop
+var pending = {"rapid": 0.0, "big": 0.0, "shield": false, "hype": false, "free": 0}  # packs, used up at the start of the next round
 var pump_base = float(Content.WEAPONS["dart_gun"]["pump_start"])
 var pump_dur = 0.2
 
@@ -201,18 +201,18 @@ var sprinting = false
 
 # v6: movement
 var dash_cd = 0.0
-var dash_t = 0.0          # > 0 while dashing
-var dash_inv = 0.0        # > 0 while the dash makes you untouchable
+var dash_t = 0.0  # > 0 while dashing
+var dash_inv = 0.0  # > 0 while the dash makes you untouchable
 var dash_dir = Vector3.ZERO
 var slide_t = 0.0
 var slide_cd = 0.0
 var slide_dir = Vector3.ZERO
 var was_sprint = false
 var crouch_prev = false
-var free_shots = 0        # darts that cost no ammo (SLIDE SHOT perk)
+var free_shots = 0  # darts that cost no ammo (SLIDE SHOT perk)
 var dodge_cd = 0.0
 var perfect_dodges = 0
-var hitstop = 0.0         # brief freeze-frame on big hits
+var hitstop = 0.0  # brief freeze-frame on big hits
 
 # v6: economy + style
 var cash = 0
@@ -232,16 +232,16 @@ var aim_assist = 0.6
 var volume = 1.0
 var outlines = true
 var drag_id = ""
-var title_page = ""          # "" = main menu, otherwise settings / loadout / unlocks / scores
-var pause_page = ""          # "" = pause menu, "settings" = settings panel
-var pause_sel = 0            # highlighted pause-menu entry (keyboard / gamepad)
-var title_sel = 0            # highlighted title-menu entry (keyboard / gamepad)
+var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / scores
+var pause_page = ""  # "" = pause menu, "settings" = settings panel
+var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
+var title_sel = 0  # highlighted title-menu entry (keyboard / gamepad)
 
 var cheerleaders = []
 var melee_ring: MeshInstance3D
 var flash_mat: Material
 var outline_quad: MeshInstance3D
-var viewmodel = null            # viewmodel.gd, null when VIEWMODEL_PASS is off
+var viewmodel = null  # viewmodel.gd, null when VIEWMODEL_PASS is off
 var strip_mat: StandardMaterial3D
 var disc_mat: StandardMaterial3D
 const STRIP_COL_WARN = Color(1.0, 0.75, 0.15, 0.35)
@@ -252,6 +252,7 @@ var mat_dust: Material
 var mat_dart: Material
 var mat_tip: Material
 var confetti_mats = []
+
 
 # ================================================================== setup
 func _ready() -> void:
@@ -348,6 +349,7 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_warm_up()
 
+
 # Godot compiles a shader the first time something new is drawn, and uploads a mesh the first time it is seen.
 # Done mid-game that is a hitch. So we show one of everything for a few frames behind a black cover at start-up.
 func _warm_up() -> void:
@@ -362,22 +364,27 @@ func _warm_up() -> void:
 
 	var holder = Node3D.new()
 	add_child(holder)
-	var shift = Vector3(0.0, 0.0, player.position.z - 10.0)    # the old street warm-up spot was 4 m in front of the player
+	var shift = Vector3(0.0, 0.0, player.position.z - 10.0)  # the old street warm-up spot was 4 m in front of the player
 	holder.position = shift
 	var x = -7.5
 	var first = true
-	for k in range(6):                                   # every rider kit (kit 0 is the courier with the box)
+	for k in range(6):  # every rider kit (kit 0 is the courier with the box)
 		var m = Models.build_rider("courier" if k == 0 else "pro", Models.kit_of(k))
 		holder.add_child(m["root"])
 		m["root"].position = Vector3(x, 0.0, 0.0)
 		Models.pose_rider(m, 0.0, 0.0)
 		if first:
-			set_flash(m["root"], true)                    # compiles the hit-flash overlay
+			set_flash(m["root"], true)  # compiles the hit-flash overlay
 			first = false
 		x += 2.0
 	x = -7.5
-	var pal = {"shirt": Color.html("#d65a4a"), "pants": Color.html("#2d3a52"), "hair": Color.html("#2b1d12"),
-		"skin": Color.html("#f0c8a0"), "bag": Color.html("#c49a5a")}
+	var pal = {
+		"shirt": Color.html("#d65a4a"),
+		"pants": Color.html("#2d3a52"),
+		"hair": Color.html("#2b1d12"),
+		"skin": Color.html("#f0c8a0"),
+		"bag": Color.html("#c49a5a")
+	}
 	for kind in ["walker", "granny", "jogger", "tourist"]:
 		var c = Models.build_civ(kind, pal)
 		holder.add_child(c["root"])
@@ -404,7 +411,7 @@ func _warm_up() -> void:
 	var ph = Models.build_phone()
 	holder.add_child(ph)
 	ph.position = Vector3(-1.0, 1.0, 3.5)
-	var ring = MeshInstance3D.new()                       # the see-through warning ring under a thrown phone
+	var ring = MeshInstance3D.new()  # the see-through warning ring under a thrown phone
 	ring.mesh = Util.torus_mesh(1.0, 1.12, 24, 4)
 	var rmat = StandardMaterial3D.new()
 	rmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -420,11 +427,33 @@ func _warm_up() -> void:
 	melee_ring.visible = true
 	melee_ring.position = Vector3(3.0, 0.04, 3.5) + shift
 	rubber["root"].visible = true
-	for i in range(8):                                    # fills the dart / particle pools too
-		combat_sys.spawn_dart(Vector3(i * 0.3 - 1.0, 1.0, 4.0) + shift, Vector3(i * 0.3 - 1.0, 1.0, 3.0) + shift, false)
-	fx_sys.burst(Vector3(0.0, 1.0, 4.0) + shift, 60, ["#2b2f36", "#ff9a3a", "#3fa0ff", "#c9ced4"], 0.5, 0.25, 0.35, 0.07)
-	fx_sys.spawn_particle(Vector3(0.5, 1.0, 4.0) + shift, Vector3.ZERO, 0.3, mat_dust, Vector3(0.1, 0.1, 0.1), 0.0)
-	fx_sys.spawn_particle(Vector3(0.7, 1.0, 4.0) + shift, Vector3.ZERO, 0.3, confetti_mats[0], Vector3(0.14, 0.01, 0.09), 0.0, 3.0)
+	for i in range(8):  # fills the dart / particle pools too
+		combat_sys.spawn_dart(
+			Vector3(i * 0.3 - 1.0, 1.0, 4.0) + shift,
+			Vector3(i * 0.3 - 1.0, 1.0, 3.0) + shift,
+			false
+		)
+	fx_sys.burst(
+		Vector3(0.0, 1.0, 4.0) + shift,
+		60,
+		["#2b2f36", "#ff9a3a", "#3fa0ff", "#c9ced4"],
+		0.5,
+		0.25,
+		0.35,
+		0.07
+	)
+	fx_sys.spawn_particle(
+		Vector3(0.5, 1.0, 4.0) + shift, Vector3.ZERO, 0.3, mat_dust, Vector3(0.1, 0.1, 0.1), 0.0
+	)
+	fx_sys.spawn_particle(
+		Vector3(0.7, 1.0, 4.0) + shift,
+		Vector3.ZERO,
+		0.3,
+		confetti_mats[0],
+		Vector3(0.14, 0.01, 0.09),
+		0.0,
+		3.0
+	)
 
 	for i in range(4):
 		await get_tree().process_frame
@@ -434,21 +463,23 @@ func _warm_up() -> void:
 	rubber["root"].visible = false
 	cover_layer.queue_free()
 
+
 # ------------------------------------------------------------------ graphics quality (F9)
-var quality = 0     # 0 = shadows + 2x MSAA, 1 = no MSAA, 2 = no MSAA and no sun shadows
-var settings = SettingsScript.new(self)   # settings.gd: saved settings, graphics quality, high score file
-var phone_sys = PhonesScript.new(self)   # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
-var pickup_sys = PickupsScript.new(self)   # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
-var civ_sys = PedestriansScript.new(self)   # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
-var boss_sys = BossesScript.new(self)   # bosses.gd: Bosses: spawning, telegraphed attacks, weak points, phases and defeat.
-var rider_sys = RidersScript.new(self)   # riders.gd: Riders: spawning waves, movement and sound, collisions, hits and losing parts.
-var shop_sys = ShopScript.new(self)   # shop.gd: Shop: between-round upgrades, the shop and its prices, perks and duos, plus style meter and cash.
-var combat_sys = CombatScript.new(self)   # combat.gd: Combat: shotgun and reload, melee swing, deflecting phones and the dart projectiles.
-var fx_sys = EffectsScript.new(self)   # effects.gd: Effects: pooled particles, bursts, plastic debris and confetti.
-var scores = ScoresScript.new(self)   # scores.gd: Scores: the local Top 10 leaderboard saved to user://scores.json.
-var meta = MetaScript.new(self)   # meta.gd: Meta currency: earned from finished runs, saved to user://meta.json, separate from run cash.
-var input_sys = InputScript.new(self)   # input.gd: Input: mouse, keyboard and gamepad handling, menu clicks and weapon switching.
-var player_sys = PlayerScript.new(self)   # player.gd: Player: movement, dash and slide, perfect dodges, aim assist, spread and gun handling.
+var quality = 0  # 0 = shadows + 2x MSAA, 1 = no MSAA, 2 = no MSAA and no sun shadows
+var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics quality, high score file
+var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
+var pickup_sys = PickupsScript.new(self)  # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
+var civ_sys = PedestriansScript.new(self)  # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
+var boss_sys = BossesScript.new(self)  # bosses.gd: Bosses: spawning, telegraphed attacks, weak points, phases and defeat.
+var rider_sys = RidersScript.new(self)  # riders.gd: Riders: spawning waves, movement and sound, collisions, hits and losing parts.
+var shop_sys = ShopScript.new(self)  # shop.gd: Shop: between-round upgrades, the shop and its prices, perks and duos, plus style meter and cash.
+var combat_sys = CombatScript.new(self)  # combat.gd: Combat: shotgun and reload, melee swing, deflecting phones and the dart projectiles.
+var fx_sys = EffectsScript.new(self)  # effects.gd: Effects: pooled particles, bursts, plastic debris and confetti.
+var scores = ScoresScript.new(self)  # scores.gd: Scores: the local Top 10 leaderboard saved to user://scores.json.
+var meta = MetaScript.new(self)  # meta.gd: Meta currency: earned from finished runs, saved to user://meta.json, separate from run cash.
+var input_sys = InputScript.new(self)  # input.gd: Input: mouse, keyboard and gamepad handling, menu clicks and weapon switching.
+var player_sys = PlayerScript.new(self)  # player.gd: Player: movement, dash and slide, perfect dodges, aim assist, spread and gun handling.
+
 
 # Recomputes today's daily seed (UTC date). Called at start-up and whenever the title screen opens,
 # so a game left running past midnight UTC picks up the new day's seed.
@@ -457,19 +488,23 @@ func refresh_daily_seed() -> void:
 	daily_seed = DailyScript.seed_for(daily_date)
 	daily_label = "DAILY SEED %s   %s UTC" % [DailyScript.seed_text(daily_seed), daily_date]
 
+
 # the HUD calls these two on main, so they stay as thin wrappers
 func get_setting(id: String):
 	return settings.get_setting(id)
 
+
 func set_setting(id: String, v) -> void:
 	settings.set_setting(id, v)
 
+
 func hi_check() -> void:
-	if daily_mode:                       # daily runs get their own scoreboard (not built yet), not the normal high score
+	if daily_mode:  # daily runs get their own scoreboard (not built yet), not the normal high score
 		return
 	if score > hi:
 		hi = score
 		settings.save_hi(hi)
+
 
 func apply_theme(i: int) -> void:
 	var th = THEMES[i]
@@ -492,10 +527,12 @@ func apply_theme(i: int) -> void:
 	world["lamp_mat"].emission_energy_multiplier = 3.0 if th["lamps"] else 0.0
 	world["win_mat"].emission_energy_multiplier = th["lit"]
 
+
 func col_mat(hex: String) -> Material:
 	if not mat_cache.has(hex):
 		mat_cache[hex] = Util.unshaded(Color.html(hex))
 	return mat_cache[hex]
+
 
 func set_flash(node: Node, on: bool) -> void:
 	if node is MeshInstance3D:
@@ -503,8 +540,10 @@ func set_flash(node: Node, on: bool) -> void:
 	for ch in node.get_children():
 		set_flash(ch, on)
 
+
 func pick_one(arr: Array):
 	return arr[randi() % arr.size()]
+
 
 # ---- run layout randomness. Normal runs use the global generator exactly as before; a Daily Run draws the
 # parts that shape the run (rider mix, shop and upgrade offers) from generators seeded by the daily seed, so
@@ -512,14 +551,17 @@ func pick_one(arr: Array):
 func layout_f() -> float:
 	return rider_rng.randf() if daily_mode else randf()
 
+
 func layout_i(n: int) -> int:
 	return (rider_rng.randi() % n) if daily_mode else (randi() % n)
+
 
 func layout_shuffle(arr: Array) -> void:
 	if daily_mode:
 		DailyScript.shuffle_with(arr, rider_rng)
 	else:
 		arr.shuffle()
+
 
 # shuffles an offer list; in a Daily Run the order depends only on the seed, the round and `part`
 func offer_shuffle(arr: Array, part: String) -> void:
@@ -530,13 +572,16 @@ func offer_shuffle(arr: Array, part: String) -> void:
 	else:
 		arr.shuffle()
 
+
 # daily mode rotates which boss comes first and which lighting theme starts, so each day feels different
 func daily_shift(n: int) -> int:
 	return (run_seed % n) if daily_mode else 0
 
+
 # engine callback: the logic lives in input.gd
 func _input(event: InputEvent) -> void:
 	input_sys.handle_input(event)
+
 
 # ================================================================== game flow
 func reset_run() -> void:
@@ -569,6 +614,7 @@ func reset_run() -> void:
 	shop_rerolls = 0
 	pending = {"rapid": 0.0, "big": 0.0, "shield": false, "hype": false, "free": 0}
 
+
 func go_to_title() -> void:
 	state = "title"
 	state_t = 0.0
@@ -578,6 +624,7 @@ func go_to_title() -> void:
 	refresh_daily_seed()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
+
 # leave a run in progress (pause menu: quit to title); the run is simply dropped
 func abandon_run() -> void:
 	clear_riders()
@@ -585,6 +632,7 @@ func abandon_run() -> void:
 	clear_phones()
 	clear_pickups()
 	go_to_title()
+
 
 func start_game(daily: bool = false) -> void:
 	reset_run()
@@ -617,10 +665,12 @@ func start_game(daily: bool = false) -> void:
 	pvel = Vector3.ZERO
 	start_round()
 
+
 func clear_riders() -> void:
 	for r in riders:
 		free_rider(r)
 	riders.clear()
+
 
 func free_rider(r: Dictionary) -> void:
 	r["gone"] = true
@@ -630,10 +680,12 @@ func free_rider(r: Dictionary) -> void:
 	for p in r["parts"]:
 		p["node"].queue_free()
 
+
 func clear_bosses() -> void:
 	for b in bosses:
 		free_boss(b)
 	bosses.clear()
+
 
 func free_boss(b: Dictionary) -> void:
 	b["gone"] = true
@@ -645,19 +697,23 @@ func free_boss(b: Dictionary) -> void:
 	var disc: Node = b["disc"]
 	disc.queue_free()
 
+
 func clear_phones() -> void:
 	for ph in phones:
 		free_phone(ph)
 	phones.clear()
 
+
 func free_phone(ph: Dictionary) -> void:
 	ph["node"].queue_free()
 	ph["ring"].queue_free()
+
 
 func clear_pickups() -> void:
 	for pk in pickups:
 		pk["node"].queue_free()
 	pickups.clear()
+
 
 func start_round() -> void:
 	clear_riders()
@@ -703,6 +759,7 @@ func start_round() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	sfx.say("round_start")
 
+
 func count_hits() -> int:
 	var n = 0
 	for h in hits:
@@ -710,12 +767,15 @@ func count_hits() -> int:
 			n += 1
 	return n
 
+
 func fmt_time(sec: float) -> String:
 	var s = int(sec)
 	return "%d:%02d" % [int(sec / 60.0), s % 60]
 
+
 func is_final_round() -> bool:
 	return round_n >= MAX_ROUNDS
+
 
 func need_boss() -> bool:
 	if round_n < 2 or bosses.size() > 0 or pending_boss:
@@ -728,6 +788,7 @@ func need_boss() -> bool:
 	if boss_count == 1 and round_n >= 3 and next_idx >= PER_ROUND:
 		return true
 	return false
+
 
 func after_wave() -> void:
 	if state != "play" or riders.size() > 0 or bosses.size() > 0:
@@ -743,11 +804,17 @@ func after_wave() -> void:
 		wait = 0.75
 		wait_msg = "GOT AWAY" if wave_miss else ""
 
+
 func end_round() -> void:
 	var n = count_hits()
 	round_times.append(round_t)
-	print("[run timer] round %d: %s fighting, run so far %s (+%s in shops)" % [round_n, fmt_time(round_t), fmt_time(play_time), fmt_time(shop_time)])
-	var perfect = (n == PER_ROUND)
+	print(
+		(
+			"[run timer] round %d: %s fighting, run so far %s (+%s in shops)"
+			% [round_n, fmt_time(round_t), fmt_time(play_time), fmt_time(shop_time)]
+		)
+	)
+	var perfect = n == PER_ROUND
 	clear_phones()
 	if perfect:
 		score += 5000
@@ -772,6 +839,7 @@ func end_round() -> void:
 		sfx.v_groan()
 		sfx.say("game_over")
 
+
 # the last round was cleared: the run is won. It ends on the same summary screen as a loss.
 func win_run() -> void:
 	run_won = true
@@ -783,6 +851,7 @@ func win_run() -> void:
 	sfx.play("clear")
 	sfx.v_cheer()
 	sfx.say("round_clear")
+
 
 func game_over(reason: String) -> void:
 	clear_riders()
@@ -801,6 +870,7 @@ func game_over(reason: String) -> void:
 	else:
 		sfx.v_groan()
 		sfx.say("game_over")
+
 
 func damage_player(label: String, reason: String) -> void:
 	if state != "play":
@@ -836,11 +906,14 @@ func damage_player(label: String, reason: String) -> void:
 	if hearts <= 0:
 		game_over(reason)
 
+
 func add_popup(pos: Vector3, txt: String, col: Color, sm: bool = false) -> void:
 	popups.append({"pos": pos, "txt": txt, "col": col, "sm": sm, "t": 0.0})
 
+
 func add_note(txt: String, col: Color) -> void:
 	notes.append({"txt": txt, "col": col, "t": 0.0})
+
 
 # ================================================================== frame loop
 func _process(delta: float) -> void:
@@ -861,14 +934,17 @@ func _process(delta: float) -> void:
 	update_cheerleaders(dt)
 	sfx.set_ambient((state == "play" or state == "title") and not paused)
 
+
 func pad_on() -> bool:
 	return Input.get_connected_joypads().size() > 0
+
 
 func stick(ax_x: int, ax_y: int) -> Vector2:
 	var v = Vector2(Input.get_joy_axis(0, ax_x), Input.get_joy_axis(0, ax_y))
 	if v.length() < 0.2:
 		return Vector2.ZERO
 	return v
+
 
 # keyboard + left stick, x = right, y = forward
 func read_move() -> Vector2:
@@ -886,36 +962,50 @@ func read_move() -> Vector2:
 		mv += Vector2(ls.x, -ls.y)
 	return mv
 
+
 # ------------------------------------------------------------------ roundabout helpers (see ring.gd)
 func tw3(x: float, y: float, z: float) -> Vector3:
 	return Ring.tw(x, z, y)
 
+
 func ptx() -> float:
 	return Ring.to_track(player.position).x
+
 
 func ptz() -> float:
 	return Ring.to_track(player.position).y
 
+
 func rider_world(r: Dictionary, y: float) -> Vector3:
 	return Ring.tw(r["x"], LANE_Z[r["ln"]], y)
 
+
 func boss_world(b: Dictionary, y: float) -> Vector3:
 	return Ring.tw(b["x"], b["z"], y)
+
 
 # put a street-aligned node on the ring and turn it along the road
 func place(node: Node3D, x: float, y: float, z: float) -> void:
 	node.position = Ring.tw(x, z, y)
 	node.rotation.y = Ring.yaw(x)
 
+
 func street_vel(x: float, vx: float, vy: float, vz: float) -> Vector3:
 	return Ring.tangent(x) * vx + Vector3(0.0, vy, 0.0) + Ring.inward(x) * vz
+
 
 # things that can hurt you or that you can shoot: the edge arrows and the radar read this
 func threat_list() -> Array:
 	var out = []
 	for r in riders:
 		if (r["mode"] == "fly" or r["mode"] == "away") and not Ring.hidden(r["x"]):
-			out.append({"pos": rider_world(r, 1.0), "kind": "rider", "urg": 0.45 if r["can_throw"] else 0.3})
+			out.append(
+				{
+					"pos": rider_world(r, 1.0),
+					"kind": "rider",
+					"urg": 0.45 if r["can_throw"] else 0.3
+				}
+			)
 	for b in bosses:
 		if boss_sys.boss_hittable(b):
 			var urg = 0.6
@@ -926,8 +1016,11 @@ func threat_list() -> Array:
 			out.append({"pos": boss_world(b, 1.0), "kind": "boss", "urg": urg})
 	for ph in phones:
 		if not ph["ret"]:
-			out.append({"pos": ph["pos"], "kind": "phone", "urg": 0.55 + 0.45 * clampf(ph["p"], 0.0, 1.0)})
+			out.append(
+				{"pos": ph["pos"], "kind": "phone", "urg": 0.55 + 0.45 * clampf(ph["p"], 0.0, 1.0)}
+			)
 	return out
+
 
 # keep a point on the walkable ground: outside the fountain, inside the buildings, and out of the
 # tunnel / planter wedge at the back. Sliding along the edge, not stopping dead.
@@ -945,6 +1038,7 @@ func clamp_walk(p: Vector3, rmin: float, rmax: float) -> Vector3:
 		p = Ring.tw(tr.x, tr.y, p.y)
 	return p
 
+
 # solid for darts: the fountain, the planter and the tunnel block
 func ray_blocked(p: Vector3) -> bool:
 	var r = Vector2(p.x, p.z).length()
@@ -953,11 +1047,17 @@ func ray_blocked(p: Vector3) -> bool:
 	if r < 0.3 and p.y < 2.4:
 		return true
 	var a = absf(wrapf(atan2(p.x, -p.z) - PI, -PI, PI))
-	if r >= 1.0 and r < Ring.GATE_RHO_IN and a < PI - (Ring.player_lim() / Ring.RHO_REF + 0.06) and p.y < 1.18:
+	if (
+		r >= 1.0
+		and r < Ring.GATE_RHO_IN
+		and a < PI - (Ring.player_lim() / Ring.RHO_REF + 0.06)
+		and p.y < 1.18
+	):
 		return true
 	if r >= Ring.GATE_RHO_IN and a < Ring.GATE_HALF / Ring.RHO_REF and p.y < 7.5:
 		return true
 	return false
+
 
 func move_world(mv: Vector2) -> Vector3:
 	var b = player.global_transform.basis
@@ -969,6 +1069,7 @@ func move_world(mv: Vector2) -> Vector3:
 	right = right.normalized()
 	return fwd * mv.y + right * mv.x
 
+
 func update_cheerleaders(_dt: float) -> void:
 	var chv = maxf(cheer, 1.0) if hype_t > 0.0 else cheer
 	for i in range(cheerleaders.size()):
@@ -979,11 +1080,13 @@ func update_cheerleaders(_dt: float) -> void:
 		cr.position = Ring.tw(m["x"], CHEER_Z, jump)
 		Models.pose_cheer(m, ph, chv)
 
+
 func cheer_say() -> void:
 	var txt = pick_one(["BRAVO!", "DAJMO!", "FSTRELI!", "YEAH!"])
 	var i = randi() % cheerleaders.size()
 	var cx = float(cheerleaders[i]["x"])
 	add_popup(tw3(cx, 2.5, CHEER_Z), txt, Color(1.0, 0.82, 0.93), true)
+
 
 # ------------------------------------------------------------------ hype
 func add_hype(n: float) -> void:
@@ -998,6 +1101,7 @@ func add_hype(n: float) -> void:
 		sfx.v_cheer()
 		sfx.say("hype")
 		cheer_say()
+
 
 func combo_shout() -> void:
 	if shout_t > 0.0:
@@ -1014,6 +1118,7 @@ func combo_shout() -> void:
 		cheer_say()
 		cheer = maxf(cheer, 1.5)
 		shout_t = 1.2
+
 
 # ================================================================== update
 func update_game(dt: float) -> void:
@@ -1097,7 +1202,13 @@ func update_game(dt: float) -> void:
 	if state == "play":
 		if shells == 0 and not loading and pump_t <= 0.15:
 			combat_sys.start_load()
-		if riders.size() == 0 and bosses.size() == 0 and wait > 0.0 and shells < MAXSHELLS and not loading:
+		if (
+			riders.size() == 0
+			and bosses.size() == 0
+			and wait > 0.0
+			and shells < MAXSHELLS
+			and not loading
+		):
 			combat_sys.start_load()
 	if loading and pump_t <= 0.0:
 		load_t -= dt

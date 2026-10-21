@@ -8,8 +8,10 @@ const Util = preload("res://scripts/util.gd")
 
 var g = null
 
+
 func _init(game) -> void:
 	g = game
+
 
 # ================================================================== bosses
 func make_strip() -> MeshInstance3D:
@@ -20,6 +22,7 @@ func make_strip() -> MeshInstance3D:
 	mi.visible = false
 	g.add_child(mi)
 	return mi
+
 
 # the red circle on the ground that shows how far a slam reaches
 func make_disc() -> MeshInstance3D:
@@ -37,32 +40,71 @@ func make_disc() -> MeshInstance3D:
 	g.add_child(mi)
 	return mi
 
+
 # bosses get tougher every round: 32% more health per round after the second
 func boss_hp(base: int) -> int:
 	return int(round(float(base) * (1.0 + 0.32 * float(maxi(0, g.round_n - 2)))))
 
-func make_boss_dict(kind: String, nm: String, variant: int, hp: int, m: Dictionary, wp: Vector3, mode: String) -> Dictionary:
+
+func make_boss_dict(
+	kind: String, nm: String, variant: int, hp: int, m: Dictionary, wp: Vector3, mode: String
+) -> Dictionary:
 	var t = Ring.to_track(wp)
 	return {
-		"kind": kind, "name": nm, "variant": variant, "hp": hp, "max_hp": hp, "p": 0.7,
-		"wp": wp, "x": t.x, "z": t.y, "wyaw": 0.0, "mode": mode, "flash": 0.0, "t": 0.0, "ph": 0.0,
-		"snd": null, "step_t": 0.0, "intro": 0.0, "die_t": 0.0, "model": m,
-		"gone": false, "phase": 1, "stagger": 0.0, "stagger_t": 0.0, "crashed": false,
-		"tele_t": 0.0, "tele_total": 1.0, "lock": wp, "ldir": Vector3(0, 0, 1), "llen": 0.0, "lgo": 0.0,
-		"lcrash": false, "lhit": false, "chase_t": 0.0, "throw_t": 2.0,
-		"pat": "lunge", "combo": 0, "slam_r": 4.5, "disc": make_disc(),
+		"kind": kind,
+		"name": nm,
+		"variant": variant,
+		"hp": hp,
+		"max_hp": hp,
+		"p": 0.7,
+		"wp": wp,
+		"x": t.x,
+		"z": t.y,
+		"wyaw": 0.0,
+		"mode": mode,
+		"flash": 0.0,
+		"t": 0.0,
+		"ph": 0.0,
+		"snd": null,
+		"step_t": 0.0,
+		"intro": 0.0,
+		"die_t": 0.0,
+		"model": m,
+		"gone": false,
+		"phase": 1,
+		"stagger": 0.0,
+		"stagger_t": 0.0,
+		"crashed": false,
+		"tele_t": 0.0,
+		"tele_total": 1.0,
+		"lock": wp,
+		"ldir": Vector3(0, 0, 1),
+		"llen": 0.0,
+		"lgo": 0.0,
+		"lcrash": false,
+		"lhit": false,
+		"chase_t": 0.0,
+		"throw_t": 2.0,
+		"pat": "lunge",
+		"combo": 0,
+		"slam_r": 4.5,
+		"disc": make_disc(),
 		"strip": make_strip()
 	}
+
 
 # extra health of the final boss on top of the normal per-round growth
 const FINAL_HP_MUL = 1.3
 
+
 func spawn_boss() -> void:
 	var final = g.is_final_round()
-	var kind = g.BOSS_KINDS[(g.round_n + g.boss_count + g.daily_shift(g.BOSS_KINDS.size())) % g.BOSS_KINDS.size()]
+	var kind = g.BOSS_KINDS[
+		(g.round_n + g.boss_count + g.daily_shift(g.BOSS_KINDS.size())) % g.BOSS_KINDS.size()
+	]
 	var variant = (g.round_n + g.boss_count) % 2
 	if final:
-		kind = "minister"       # the golden president is the final boss
+		kind = "minister"  # the golden president is the final boss
 		variant = 1
 	var info = g.BOSS_INFO[kind]
 	var nm = info["name"]
@@ -88,6 +130,7 @@ func spawn_boss() -> void:
 	g.sfx.say(info["voice"])
 	pose_boss(b, 0.0)
 
+
 func spawn_runner(r: Dictionary) -> void:
 	var hp = (3 if r["max_hp"] > 2 else 2) + int(floor(float(maxi(0, g.round_n - 2)) / 2.0))
 	var m = Models.build_boss("runner", 0, r["kit"])
@@ -99,12 +142,14 @@ func spawn_runner(r: Dictionary) -> void:
 	g.sfx.say("boss_revenge")
 	pose_boss(b, 0.0)
 
+
 func start_boss_sound(b: Dictionary) -> void:
 	var root: Node3D = b["model"]["root"]
 	if b["kind"] == "mower":
 		b["snd"] = g.sfx.make_loop("loop_mower", root, Vector3(0, 0.5, 0))
 	elif b["kind"] == "wifi":
 		b["snd"] = g.sfx.make_loop("loop_wifi", root, Vector3(0, 1.0, 0))
+
 
 func update_boss_sound(b: Dictionary) -> void:
 	if b["snd"] == null:
@@ -115,17 +160,21 @@ func update_boss_sound(b: Dictionary) -> void:
 	else:
 		g.sfx.set_loop(b["snd"], (0.012 + 0.05 * k) * 1.6, (700.0 + 500.0 * k) / 880.0)
 
+
 func stop_boss_sound(b: Dictionary) -> void:
 	g.sfx.stop_loop(b["snd"])
 	b["snd"] = null
+
 
 func boss_hover(b: Dictionary) -> float:
 	if b["kind"] == "wifi":
 		return 0.3 + sin(b["ph"] * 0.6) * 0.12
 	return 0.0
 
+
 func weak_point_y(b: Dictionary) -> float:
 	return float(g.BOSS_INFO[b["kind"]]["wk"]) + boss_hover(b)
+
 
 # the weak spot only does double damage while the boss is winding up an attack or dizzy; otherwise it is armour
 func weak_open(b: Dictionary) -> bool:
@@ -133,8 +182,10 @@ func weak_open(b: Dictionary) -> bool:
 		return true
 	return b["mode"] == "stagger" or b["mode"] == "tele"
 
+
 func boss_hittable(b: Dictionary) -> bool:
 	return not b["gone"] and b["mode"] != "dying"
+
 
 func pose_boss(b: Dictionary, dt: float) -> void:
 	var m = b["model"]
@@ -169,11 +220,13 @@ func pose_boss(b: Dictionary, dt: float) -> void:
 		var em2: StandardMaterial3D = m["eyes"]
 		em2.emission_energy_multiplier = 1.5 + 1.5 * sin(b["ph"] * 2.0)
 
+
 func remove_boss(b: Dictionary) -> void:
 	var i = g.bosses.find(b)
 	if i >= 0:
 		g.bosses.remove_at(i)
 	g.free_boss(b)
+
 
 func boss_phase(b: Dictionary) -> int:
 	var f = float(b["hp"]) / float(b["max_hp"])
@@ -182,6 +235,7 @@ func boss_phase(b: Dictionary) -> int:
 	if f <= 0.67:
 		return 2
 	return 1
+
 
 # how long a boss chases before it commits to a lunge
 func tele_wait(b: Dictionary) -> float:
@@ -192,21 +246,33 @@ func tele_wait(b: Dictionary) -> float:
 		w *= 0.85
 	return w * clampf(1.0 - 0.04 * float(g.round_n - 2), 0.65, 1.0)
 
+
 func boss_speed(b: Dictionary) -> float:
-	var v = float(g.BOSS_INFO[b["kind"]]["speed"]) * (1.0 + 0.10 * float(b["phase"] - 1)) * (1.0 + 0.03 * float(g.round_n - 1))
+	var v = (
+		float(g.BOSS_INFO[b["kind"]]["speed"])
+		* (1.0 + 0.10 * float(b["phase"] - 1))
+		* (1.0 + 0.03 * float(g.round_n - 1))
+	)
 	if b["intro"] > 0.0:
 		v *= 0.5
-	return minf(v, 6.2 if b["kind"] == "runner" else 5.5)       # never faster than your sprint (5.8): running away always works
+	return minf(v, 6.2 if b["kind"] == "runner" else 5.5)  # never faster than your sprint (5.8): running away always works
+
 
 func lunge_speed(b: Dictionary) -> float:
-	return (13.0 if b["kind"] == "runner" else 15.0) * (1.0 + 0.12 * float(b["phase"] - 1)) * (1.0 + 0.03 * float(maxi(0, g.round_n - 2)))
+	return (
+		(13.0 if b["kind"] == "runner" else 15.0)
+		* (1.0 + 0.12 * float(b["phase"] - 1))
+		* (1.0 + 0.03 * float(maxi(0, g.round_n - 2)))
+	)
+
 
 func set_boss_pos(b: Dictionary, wp: Vector3) -> void:
 	wp = g.clamp_walk(Vector3(wp.x, 0.0, wp.z), 2.1, 22.6)
 	b["wp"] = wp
-	var t = Ring.to_track(wp)                 # the rest of the game reads the street coordinates
+	var t = Ring.to_track(wp)  # the rest of the game reads the street coordinates
 	b["x"] = t.x
 	b["z"] = t.y
+
 
 # things a lunging boss crashes into: the fountain, the buildings, the tunnel / planter wedge
 func obstacle_at(p: Vector3) -> bool:
@@ -214,6 +280,7 @@ func obstacle_at(p: Vector3) -> bool:
 	if r < 2.3 or r > Ring.FACADE_RHO - 1.35:
 		return true
 	return absf(Ring.to_track(p).x) > Ring.player_lim() - 0.05
+
 
 # how far a lunge from wp along d actually goes (x), and whether it ends in a crash (y = 1)
 func lunge_probe(wp: Vector3, d: Vector3, want: float) -> Vector2:
@@ -223,6 +290,7 @@ func lunge_probe(wp: Vector3, d: Vector3, want: float) -> Vector2:
 		if obstacle_at(wp + d * l):
 			return Vector2(l, 1.0)
 	return Vector2(want, 0.0)
+
 
 func lunge_dir(b: Dictionary) -> Vector3:
 	var wp: Vector3 = b["wp"]
@@ -234,11 +302,13 @@ func lunge_dir(b: Dictionary) -> Vector3:
 		return Vector3(0, 0, 1)
 	return d.normalized()
 
+
 func hide_strip(b: Dictionary) -> void:
 	var strip: MeshInstance3D = b["strip"]
 	strip.visible = false
 	var disc: MeshInstance3D = b["disc"]
 	disc.visible = false
+
 
 # the red lane on the ground that shows where the lunge will go
 func update_strip(b: Dictionary, locked: bool) -> void:
@@ -270,12 +340,15 @@ func update_strip(b: Dictionary, locked: bool) -> void:
 	c.a = c.a * (0.7 + 0.3 * sin(g.time * 24.0)) if locked else c.a
 	g.strip_mat.albedo_color = c
 
+
 func boss_flat_dist(b: Dictionary) -> float:
 	var wp: Vector3 = b["wp"]
 	return Vector2(g.player.position.x - wp.x, g.player.position.z - wp.z).length()
 
+
 func slam_radius(b: Dictionary) -> float:
 	return clampf(4.2 + 0.2 * float(g.round_n), 4.4, 5.6) + (0.4 if b["phase"] >= 3 else 0.0)
+
 
 # what the boss does next. Later phases and later rounds unlock more:
 #   lunge  - the straight dash you already know
@@ -308,6 +381,7 @@ func boss_pick_pattern(b: Dictionary) -> String:
 			return key
 	return "lunge"
 
+
 func start_tele(b: Dictionary, quick: bool = false) -> void:
 	var runner = b["kind"] == "runner"
 	b["mode"] = "tele"
@@ -316,7 +390,9 @@ func start_tele(b: Dictionary, quick: bool = false) -> void:
 		pat = boss_pick_pattern(b)
 		if pat == "combo":
 			pat = "lunge"
-			b["combo"] = 1 + (1 if (b["phase"] >= 3 or g.round_n >= 5 or (runner and g.round_n >= 6)) else 0)
+			b["combo"] = (
+				1 + (1 if (b["phase"] >= 3 or g.round_n >= 5 or (runner and g.round_n >= 6)) else 0)
+			)
 			g.add_popup(g.tw3(b["x"], 2.2, b["z"]), "COMBO!", g.RED)
 		else:
 			b["combo"] = 0
@@ -334,10 +410,11 @@ func start_tele(b: Dictionary, quick: bool = false) -> void:
 	b["lock"] = g.player.position
 	g.sfx.play3d("ring", g.tw3(b["x"], 1.0, b["z"]), -3.0)
 
+
 func start_stagger(b: Dictionary, t: float, crashed: bool) -> void:
 	hide_strip(b)
 	if b["kind"] != "runner":
-		t *= clampf(1.0 - 0.06 * float(g.round_n - 2), 0.6, 1.0)     # the dizzy window shrinks every round
+		t *= clampf(1.0 - 0.06 * float(g.round_n - 2), 0.6, 1.0)  # the dizzy window shrinks every round
 	b["combo"] = 0
 	b["pat"] = "lunge"
 	b["mode"] = "stagger"
@@ -345,6 +422,7 @@ func start_stagger(b: Dictionary, t: float, crashed: bool) -> void:
 	b["stagger"] = 0.0
 	b["crashed"] = crashed
 	g.sfx.set_loop(b["snd"], 0.0, 1.0)
+
 
 func boss_steps(b: Dictionary, dt: float) -> void:
 	if b["kind"] != "minister" and b["kind"] != "runner":
@@ -355,6 +433,7 @@ func boss_steps(b: Dictionary, dt: float) -> void:
 		var sv = 0.1 + 0.25 * minf(1.0, b["p"])
 		g.sfx.play3d("step", g.tw3(b["x"], 0.0, b["z"]), linear_to_db(sv / 0.3))
 
+
 # later phases: the wifi node and the minister throw phones, which you can deflect straight back at them
 func boss_throws(b: Dictionary, dt: float) -> void:
 	if b["phase"] < 2 or b["kind"] == "mower" or b["kind"] == "runner":
@@ -363,6 +442,7 @@ func boss_throws(b: Dictionary, dt: float) -> void:
 	if b["throw_t"] <= 0.0 and g.phones.size() < 3 and g.state == "play":
 		b["throw_t"] = 3.4 if b["phase"] == 2 else 2.4
 		g.phone_sys.throw_phone(g.tw3(b["x"], float(g.BOSS_INFO[b["kind"]]["cy"]) + 0.7, b["z"]), b)
+
 
 func update_bosses(dt: float) -> void:
 	for i in range(g.bosses.size() - 1, -1, -1):
@@ -386,6 +466,7 @@ func update_bosses(dt: float) -> void:
 			continue
 		pose_boss(b, dt)
 
+
 # returns true when the boss was removed this frame
 # Bosses never leave: they chase you across the whole roundabout, commit to a lunge, overshoot (or crash into the
 # fountain / a wall), recover, and come again until one of you is down.
@@ -400,7 +481,7 @@ func update_boss(b: Dictionary, dt: float) -> bool:
 	if mode == "charge":
 		b["chase_t"] += dt
 		var aim = Vector3(pp.x, 0.0, pp.z)
-		if b["kind"] == "wifi":                                       # the wifi node weaves about while it comes
+		if b["kind"] == "wifi":  # the wifi node weaves about while it comes
 			aim += Vector3(-dir.z, 0.0, dir.x) * sin(b["t"] * 1.7) * 3.5
 		var dv = aim - wp
 		dv.y = 0.0
@@ -430,7 +511,7 @@ func update_boss(b: Dictionary, dt: float) -> bool:
 	elif mode == "tele":
 		b["tele_t"] -= dt
 		var lk: Vector3 = b["lock"]
-		if b["tele_t"] > 0.22:                                        # the red lane still follows you, then locks
+		if b["tele_t"] > 0.22:  # the red lane still follows you, then locks
 			b["lock"] = lk.lerp(pp, minf(1.0, dt * 7.0))
 		var ld = lunge_dir(b)
 		b["wyaw"] = atan2(ld.x, ld.z)
@@ -439,7 +520,7 @@ func update_boss(b: Dictionary, dt: float) -> bool:
 			var d = lunge_dir(b)
 			b["ldir"] = d
 			var lk2: Vector3 = b["lock"]
-			var want = Vector2(lk2.x - wp.x, lk2.z - wp.z).length() + 6.0     # a miss carries on past you
+			var want = Vector2(lk2.x - wp.x, lk2.z - wp.z).length() + 6.0  # a miss carries on past you
 			var pr = lunge_probe(wp, d, want)
 			b["llen"] = pr.x
 			b["lcrash"] = pr.y > 0.5
@@ -482,6 +563,7 @@ func update_boss(b: Dictionary, dt: float) -> bool:
 			return true
 	return false
 
+
 func update_disc(b: Dictionary) -> void:
 	var disc: MeshInstance3D = b["disc"]
 	var wp: Vector3 = b["wp"]
@@ -494,6 +576,7 @@ func update_disc(b: Dictionary) -> void:
 	if b["tele_t"] < 0.25:
 		c.a *= 0.75 + 0.25 * sin(g.time * 30.0)
 	g.disc_mat.albedo_color = c
+
 
 func do_slam(b: Dictionary) -> void:
 	hide_strip(b)
@@ -512,6 +595,7 @@ func do_slam(b: Dictionary) -> void:
 		g.add_popup(pos + Vector3(0, 1.6, 0), "SLAM DODGED", g.ACCENT, true)
 	start_stagger(b, 1.2, false)
 
+
 func do_volley(b: Dictionary) -> void:
 	var wp: Vector3 = b["wp"]
 	var fwd = Vector3(g.player.position.x - wp.x, 0.0, g.player.position.z - wp.z)
@@ -529,6 +613,7 @@ func do_volley(b: Dictionary) -> void:
 	b["pat"] = "lunge"
 	b["chase_t"] = tele_wait(b) * 0.4
 
+
 # it caught you while chasing: it hurts, then the boss reels for a moment
 func boss_tackle(b: Dictionary) -> void:
 	g.damage_player("CYCLIST TACKLED YOU" if b["kind"] == "runner" else "BOSS REACHED YOU", "boss")
@@ -536,6 +621,7 @@ func boss_tackle(b: Dictionary) -> void:
 		return
 	g.shake = maxf(g.shake, 0.5)
 	start_stagger(b, 0.9, false)
+
 
 # the lunge ran out: either it slammed into something solid (dizzy, and you are rewarded) or it just overshot
 func resolve_lunge(b: Dictionary) -> void:
@@ -567,6 +653,7 @@ func resolve_lunge(b: Dictionary) -> void:
 	g.add_note("DIZZY: HIT IT NOW", g.ACCENT)
 	start_stagger(b, 2.0 if runner else 2.4, true)
 
+
 func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -> void:
 	if not boss_hittable(b):
 		return
@@ -578,7 +665,7 @@ func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -
 	if armoured:
 		weak = false
 	if k != "runner":
-		stag = stag / (1.0 + 0.12 * float(maxi(0, g.round_n - 2)))     # harder to stagger later on
+		stag = stag / (1.0 + 0.12 * float(maxi(0, g.round_n - 2)))  # harder to stagger later on
 	var total = dmg * (2 if weak else 1)
 	if stunned:
 		total += 1
@@ -609,7 +696,12 @@ func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -
 	elif stunned:
 		lbl = "DIZZY  +1"
 	g.shop_sys.add_style(4.0)
-	g.add_popup(c + Vector3(0, 1.0, 0), lbl, g.ACCENT if weak else (Color(0.65, 0.68, 0.72) if armoured else g.WHITE), true)
+	g.add_popup(
+		c + Vector3(0, 1.0, 0),
+		lbl,
+		g.ACCENT if weak else (Color(0.65, 0.68, 0.72) if armoured else g.WHITE),
+		true
+	)
 	if b["hp"] <= 0:
 		kill_boss(b)
 		return
@@ -628,6 +720,7 @@ func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -
 			g.shake = 0.6
 	if k == "minister" and randf() < 0.3:
 		g.sfx.say("minister_hit")
+
 
 func kill_boss(b: Dictionary) -> void:
 	g.kills += 1
@@ -681,7 +774,16 @@ func kill_boss(b: Dictionary) -> void:
 	g.fx_sys.burst(bpos, 40, cols, 6.0, 0.6, 1.1, 0.09)
 	if b["kind"] == "minister":
 		for i in range(26):
-			g.fx_sys.spawn_particle(bpos + Vector3(randf_range(-0.6, 0.6), randf_range(0.3, 1.5), randf_range(-0.6, 0.6)),
+			g.fx_sys.spawn_particle(
+				(
+					bpos
+					+ Vector3(randf_range(-0.6, 0.6), randf_range(0.3, 1.5), randf_range(-0.6, 0.6))
+				),
 				Vector3(randf_range(-2.5, 2.5), randf_range(1.0, 4.0), randf_range(-2.5, 2.5)),
-				randf_range(1.5, 2.5), g.pick_one(g.confetti_mats), Vector3(0.12, 0.01, 0.08), 3.0, randf_range(-8.0, 8.0))
+				randf_range(1.5, 2.5),
+				g.pick_one(g.confetti_mats),
+				Vector3(0.12, 0.01, 0.08),
+				3.0,
+				randf_range(-8.0, 8.0)
+			)
 		g.sfx.say("minister_out")

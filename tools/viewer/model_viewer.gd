@@ -25,13 +25,18 @@ var dist = 4.0
 var focus = Vector3(0.0, 0.5, 0.0)
 var wire = false
 
+
 func _ready() -> void:
 	_build_scene()
 	_find_models()
 	if paths.is_empty():
-		label.text = "No .glb files found in %s\nBuild one with: python tools/models/build.py test_crate" % MODEL_DIR
+		label.text = (
+			"No .glb files found in %s\nBuild one with: python tools/models/build.py test_crate"
+			% MODEL_DIR
+		)
 		return
 	_show(0)
+
 
 func _build_scene() -> void:
 	var sky_mat = ProceduralSkyMaterial.new()
@@ -94,6 +99,7 @@ func _build_scene() -> void:
 	label.add_theme_constant_override("outline_size", 6)
 	layer.add_child(label)
 
+
 func _find_models() -> void:
 	paths.clear()
 	var dir = DirAccess.open(MODEL_DIR)
@@ -104,11 +110,13 @@ func _find_models() -> void:
 			paths.append(MODEL_DIR + "/" + f)
 	paths.sort()
 
+
 func _collect_meshes(node: Node, out: Array) -> void:
 	if node is MeshInstance3D:
 		out.append(node)
 	for c in node.get_children():
 		_collect_meshes(c, out)
+
 
 func _show(i: int) -> void:
 	index = posmod(i, paths.size())
@@ -148,14 +156,27 @@ func _show(i: int) -> void:
 			box = box.merge(bb)
 	focus = box.get_center()
 	dist = maxf(box.size.length() * 1.3, 1.0)
-	label.text = "%s   (%d / %d)\n%d triangles   %d surfaces   size %.2f x %.2f x %.2f m (x, y, z)\nLeft/Right: model   drag: orbit   wheel: zoom   W: wireframe   R: reset" % [
-		paths[index].get_file(), index + 1, paths.size(), tris, surfaces, box.size.x, box.size.y, box.size.z]
+	label.text = (
+		"%s   (%d / %d)\n%d triangles   %d surfaces   size %.2f x %.2f x %.2f m (x, y, z)\nLeft/Right: model   drag: orbit   wheel: zoom   W: wireframe   R: reset"
+		% [
+			paths[index].get_file(),
+			index + 1,
+			paths.size(),
+			tris,
+			surfaces,
+			box.size.x,
+			box.size.y,
+			box.size.z
+		]
+	)
 	_place_camera()
+
 
 func _place_camera() -> void:
 	var dir = Vector3(sin(yaw) * cos(pitch), -sin(pitch), cos(yaw) * cos(pitch))
 	cam.position = focus + dir * dist
 	cam.look_at(focus, Vector3.UP)
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and (event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
@@ -176,7 +197,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			_show(index - 1)
 		elif event.keycode == KEY_W:
 			wire = not wire
-			get_viewport().debug_draw = Viewport.DEBUG_DRAW_WIREFRAME if wire else Viewport.DEBUG_DRAW_DISABLED
+			get_viewport().debug_draw = (
+				Viewport.DEBUG_DRAW_WIREFRAME if wire else Viewport.DEBUG_DRAW_DISABLED
+			)
 		elif event.keycode == KEY_R and not paths.is_empty():
 			yaw = 0.6
 			pitch = -0.3

@@ -7,18 +7,23 @@ const Util = preload("res://scripts/util.gd")
 
 var g = null
 var dart_pool = []
-var dart_scene = null          # the dart model, loaded the first time a dart is made
+var dart_scene = null  # the dart model, loaded the first time a dart is made
 
-const DART_MODEL_GLB = true    # Milestone F2: darts use assets/models/dart.glb; false = the old box and ball
+const DART_MODEL_GLB = true  # Milestone F2: darts use assets/models/dart.glb; false = the old box and ball
 const DART_MODEL_PATH = "res://assets/models/dart.glb"
+
 
 func _init(game) -> void:
 	g = game
 
+
 # ================================================================== shotgun + melee
 func reload_step() -> float:
 	var w = g.WEAPONS["dart_gun"]
-	return float(w["reload_step"]) * (1.0 - float(w["reload_cut_per_level"]) * float(g.up["reload"]))
+	return (
+		float(w["reload_step"]) * (1.0 - float(w["reload_cut_per_level"]) * float(g.up["reload"]))
+	)
+
 
 func start_load() -> void:
 	if g.state != "play" or g.loading or g.shells >= g.MAXSHELLS:
@@ -26,12 +31,14 @@ func start_load() -> void:
 	g.loading = true
 	g.load_t = reload_step() + float(g.WEAPONS["dart_gun"]["reload_extra"])
 
+
 func ray_dir_with_spread() -> Vector3:
 	var sp = deg_to_rad(g.spread_deg)
 	var a = randf() * TAU
 	var rr = sqrt(randf()) * sp
 	var local = Vector3(sin(rr) * cos(a), sin(rr) * sin(a), -cos(rr))
 	return (g.cam.global_transform.basis * local).normalized()
+
 
 func fire() -> void:
 	if g.state != "play" or g.paused:
@@ -65,7 +72,10 @@ func fire() -> void:
 
 	var dir = ray_dir_with_spread()
 	var org = g.cam.global_position
-	g.bloom = minf(g.bloom + float(g.WEAPONS["dart_gun"]["bloom_per_shot"]), float(g.WEAPONS["dart_gun"]["bloom_max"]))
+	g.bloom = minf(
+		g.bloom + float(g.WEAPONS["dart_gun"]["bloom_per_shot"]),
+		float(g.WEAPONS["dart_gun"]["bloom_max"])
+	)
 	var ex = g.player_sys.ex_bonus()
 
 	# how far can the dart travel before hitting the world?
@@ -76,14 +86,14 @@ func fire() -> void:
 		if tf > 0.0 and tf < t_world:
 			t_world = tf
 			world_kind = "floor"
-	var ts = 0.5                                                      # fountain, planter and tunnel block
+	var ts = 0.5  # fountain, planter and tunnel block
 	while ts < t_world:
 		if g.ray_blocked(org + dir * ts):
 			t_world = ts
 			world_kind = "wall"
 			break
 		ts += 0.5
-	var tfac = Ring.ray_exit_circle(org, dir, Ring.FACADE_RHO)       # buildings all around
+	var tfac = Ring.ray_exit_circle(org, dir, Ring.FACADE_RHO)  # buildings all around
 	if tfac > 0.0 and tfac < t_world:
 		t_world = tfac
 		world_kind = "wall"
@@ -111,7 +121,9 @@ func fire() -> void:
 			continue
 		var inf = g.BOSS_INFO[b["kind"]]
 		var br: Vector3 = inf["r"]
-		var tb2 = Util.ray_ellipsoid_yaw(org, dir, g.tw3(b["x"], inf["cy"], b["z"]), br + Vector3(ex, ex, ex), Ring.yaw(b["x"]))
+		var tb2 = Util.ray_ellipsoid_yaw(
+			org, dir, g.tw3(b["x"], inf["cy"], b["z"]), br + Vector3(ex, ex, ex), Ring.yaw(b["x"])
+		)
 		if tb2 > 0.0 and tb2 < best_t:
 			best_t = tb2
 			best_kind = "boss"
@@ -120,7 +132,9 @@ func fire() -> void:
 		if (r["mode"] != "fly" and r["mode"] != "away") or Ring.hidden(r["x"]):
 			continue
 		var c = g.tw3(r["x"], 0.95, g.LANE_Z[r["ln"]])
-		var t = Util.ray_ellipsoid_yaw(org, dir, c, Vector3(1.3 + ex, 1.0 + ex, 0.55 + ex), Ring.yaw(r["x"]))
+		var t = Util.ray_ellipsoid_yaw(
+			org, dir, c, Vector3(1.3 + ex, 1.0 + ex, 0.55 + ex), Ring.yaw(r["x"])
+		)
 		if t > 0.0 and t < best_t:
 			best_t = t
 			best_kind = "rider"
@@ -172,8 +186,12 @@ func fire() -> void:
 		elif best_kind == "boss":
 			var hit_y = (org + dir * best_t).y
 			var bo = best_obj
-			var is_weak = hit_y >= float(g.BOSS_INFO[bo["kind"]]["weak_y"]) + g.boss_sys.boss_hover(bo)
-			g.boss_sys.hit_boss(bo, dart_dmg * (2 if lastshot else 1), is_weak, 30.0 if is_weak else 14.0)
+			var is_weak = (
+				hit_y >= float(g.BOSS_INFO[bo["kind"]]["weak_y"]) + g.boss_sys.boss_hover(bo)
+			)
+			g.boss_sys.hit_boss(
+				bo, dart_dmg * (2 if lastshot else 1), is_weak, 30.0 if is_weak else 14.0
+			)
 		elif best_kind == "phone":
 			g.phone_sys.shoot_phone(best_obj)
 		elif best_kind == "pickup":
@@ -181,12 +199,25 @@ func fire() -> void:
 	else:
 		if world_kind == "floor":
 			for i in range(3):
-				g.fx_sys.spawn_particle(end_pt, Vector3(randf_range(-0.8, 0.8), randf_range(0.6, 1.6), randf_range(-0.8, 0.8)),
-					0.4, g.mat_dust, Vector3(0.05, 0.05, 0.05), 4.0)
+				g.fx_sys.spawn_particle(
+					end_pt,
+					Vector3(randf_range(-0.8, 0.8), randf_range(0.6, 1.6), randf_range(-0.8, 0.8)),
+					0.4,
+					g.mat_dust,
+					Vector3(0.05, 0.05, 0.05),
+					4.0
+				)
 		elif world_kind == "wall":
 			for i in range(5):
-				g.fx_sys.spawn_particle(end_pt, Vector3(randf_range(-2.0, 2.0), randf_range(0.5, 2.5), randf_range(-2.0, 2.0)),
-					0.3, g.mat_spark, Vector3(0.04, 0.04, 0.04), 8.0)
+				g.fx_sys.spawn_particle(
+					end_pt,
+					Vector3(randf_range(-2.0, 2.0), randf_range(0.5, 2.5), randf_range(-2.0, 2.0)),
+					0.3,
+					g.mat_spark,
+					Vector3(0.04, 0.04, 0.04),
+					8.0
+				)
+
 
 # --- melee: a giant gummy worm swung at whatever is close to the player
 func swing_zone() -> Dictionary:
@@ -198,8 +229,10 @@ func swing_zone() -> Dictionary:
 	var c = Vector3(g.player.position.x + f.x * fwd, 1.0, g.player.position.z + f.z * fwd)
 	return {"c": c, "r": float(m["zone_radius"]) + g.up["rubber"] * float(m["reach_per_level"])}
 
+
 func flat_dist(a: Vector3, bx: float, bz: float) -> float:
 	return Vector2(a.x - bx, a.z - bz).length()
+
 
 func swing() -> void:
 	if g.swing_cd > 0.0:
@@ -237,11 +270,16 @@ func swing() -> void:
 		g.shake = 0.35
 		g.hitstop = maxf(g.hitstop, 0.06)
 		g.fx_sys.jelly_burst(zc + Vector3(0, 0.3, 0))
-		g.player_sys.jelly_kick(16.0, 0.6)             # the club shudders on impact
+		g.player_sys.jelly_kick(16.0, 0.6)  # the club shudders on impact
+
 
 # --- deflect: a thrown phone that is close when the rubber swings goes straight back at whoever threw it
 func deflect_range() -> float:
-	return float(g.WEAPONS["melee"]["deflect_range"]) + g.up["rubber"] * float(g.WEAPONS["melee"]["reach_per_level"])
+	return (
+		float(g.WEAPONS["melee"]["deflect_range"])
+		+ g.up["rubber"] * float(g.WEAPONS["melee"]["reach_per_level"])
+	)
+
 
 func deflect_scan() -> bool:
 	var any = false
@@ -254,6 +292,7 @@ func deflect_scan() -> bool:
 			deflect_phone(ph)
 			any = true
 	return any
+
 
 func deflect_phone(ph: Dictionary) -> void:
 	ph["ret"] = true
@@ -270,8 +309,9 @@ func deflect_phone(ph: Dictionary) -> void:
 	g.sfx.play3d("rubber", ph["pos"])
 	g.add_popup(ph["pos"] + Vector3(0, 0.6, 0), "DEFLECTED!", g.PINK, true)
 	g.fx_sys.deflect_burst(ph["pos"])
-	g.player_sys.jelly_kick(26.0, 1.0)                 # a deflect is a harder hit: bigger shudder and a white flash
+	g.player_sys.jelly_kick(26.0, 1.0)  # a deflect is a harder hit: bigger shudder and a white flash
 	g.shop_sys.add_style(12.0)
+
 
 func target_valid(t) -> bool:
 	if t == null:
@@ -282,10 +322,12 @@ func target_valid(t) -> bool:
 		return t["mode"] == "fly" or t["mode"] == "away"
 	return g.boss_sys.boss_hittable(t)
 
+
 func target_pos(t) -> Vector3:
 	if t.has("ln"):
 		return g.tw3(t["x"], 1.1, g.LANE_Z[t["ln"]])
 	return g.tw3(t["x"], float(g.BOSS_INFO[t["kind"]]["cy"]) + 0.4, t["z"])
+
 
 func nearest_target(from: Vector3, skip):
 	var best = null
@@ -303,6 +345,7 @@ func nearest_target(from: Vector3, skip):
 				bd = d2
 				best = b
 	return best
+
 
 func update_returning_phone(ph: Dictionary, i: int, dt: float) -> void:
 	var tgt = ph["src"]
@@ -330,7 +373,8 @@ func update_returning_phone(ph: Dictionary, i: int, dt: float) -> void:
 	node.position = pos
 	node.rotation += ph["rotv"] * dt * 2.0
 	if randf() < dt * 40.0:
-		g.fx_sys.return_trail(pos)                       # a pink and gold trail shows the phone is on its way back
+		g.fx_sys.return_trail(pos)  # a pink and gold trail shows the phone is on its way back
+
 
 func strike_with_phone(ph: Dictionary, i: int, tgt) -> void:
 	var tp = target_pos(tgt)
@@ -359,15 +403,19 @@ func strike_with_phone(ph: Dictionary, i: int, tgt) -> void:
 	g.phones.remove_at(i)
 	g.free_phone(ph)
 
+
 func flat_dist_v(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
+
 
 # ================================================================== darts + particles
 # Darts and particles are recycled instead of created and freed, so a shot or a burst costs no allocations.
 
+
 func release_dart(node: Node3D) -> void:
 	node.visible = false
 	dart_pool.append(node)
+
 
 # a fresh copy of the modelled dart, or null when the model is switched off or missing
 func dart_model() -> Node3D:
@@ -381,6 +429,7 @@ func dart_model() -> Node3D:
 		return null
 	return dart_scene.instantiate() as Node3D
 
+
 func spawn_dart(a: Vector3, b: Vector3, stick: bool) -> void:
 	var node: Node3D
 	if dart_pool.size() > 0:
@@ -391,7 +440,7 @@ func spawn_dart(a: Vector3, b: Vector3, stick: bool) -> void:
 		node = Node3D.new()
 		var model = dart_model()
 		if model != null:
-			node.add_child(model)                           # the model's tip points to -Z, the way look_at aims
+			node.add_child(model)  # the model's tip points to -Z, the way look_at aims
 		else:
 			Util.box(node, Vector3(0.025, 0.025, 0.16), Vector3.ZERO, g.mat_dart)
 			Util.sphere(node, 0.022, Vector3(0, 0, -0.09), g.mat_tip)
@@ -409,6 +458,7 @@ func spawn_dart(a: Vector3, b: Vector3, stick: bool) -> void:
 	while g.darts.size() > 80:
 		release_dart(g.darts[0]["node"])
 		g.darts.remove_at(0)
+
 
 func update_darts(dt: float) -> void:
 	for i in range(g.darts.size() - 1, -1, -1):

@@ -13,17 +13,21 @@ const ACCENT = Color(1.0, 0.42, 0.17)
 const PINK = Color(1.0, 0.48, 0.72)
 const LANE_Z_H = [-5.5, -2.5, 0.5]
 
+
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	font = get_theme_default_font()
 
+
 func _process(_d: float) -> void:
 	queue_redraw()
+
 
 # ---------------------------------------------------------------- helpers
 # draw_string() re-shapes the text every call, and we draw every string twice (outline + fill) every frame.
 # A TextLine keeps the shaped text, so each distinct string is shaped once and just re-drawn afterwards.
 var _lines := {}
+
 
 func _line(s: String, fs: int, w: float, ha: int) -> TextLine:
 	var key = "%d|%d|%d|%s" % [fs, int(w), ha, s]
@@ -38,6 +42,7 @@ func _line(s: String, fs: int, w: float, ha: int) -> TextLine:
 		tl.alignment = ha
 	_lines[key] = tl
 	return tl
+
 
 func _txt(s: String, x: float, y: float, fs: int, col: Color, align: int = 0) -> void:
 	var W = 2000.0
@@ -55,29 +60,48 @@ func _txt(s: String, x: float, y: float, fs: int, col: Color, align: int = 0) ->
 	if fs <= 0:
 		return
 	var tl = _line(s, fs, w, ha)
-	var pos = Vector2(px, y - tl.get_line_ascent())          # TextLine draws from the top, draw_string from the baseline
+	var pos = Vector2(px, y - tl.get_line_ascent())  # TextLine draws from the top, draw_string from the baseline
 	var rid = get_canvas_item()
 	tl.draw_outline(rid, pos, int(fs * 0.14) + 1, Color(0.04, 0.04, 0.06, 0.9))
 	tl.draw(rid, pos, col)
 
+
 func _heart(cx: float, cy: float, sz: float, col: Color) -> void:
 	draw_circle(Vector2(cx - sz * 0.25, cy - sz * 0.15), sz * 0.29, col)
 	draw_circle(Vector2(cx + sz * 0.25, cy - sz * 0.15), sz * 0.29, col)
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(cx - sz * 0.52, cy - sz * 0.02),
-		Vector2(cx + sz * 0.52, cy - sz * 0.02),
-		Vector2(cx, cy + sz * 0.5)]), col)
+	draw_colored_polygon(
+		PackedVector2Array(
+			[
+				Vector2(cx - sz * 0.52, cy - sz * 0.02),
+				Vector2(cx + sz * 0.52, cy - sz * 0.02),
+				Vector2(cx, cy + sz * 0.5)
+			]
+		),
+		col
+	)
+
 
 func _bike_icon(cx: float, cy: float, k: float, col: Color) -> void:
 	var w = 2.0 * k
 	draw_arc(Vector2(cx - 8.0 * k, cy + 3.0 * k), 5.0 * k, 0.0, TAU, 14, col, w)
 	draw_arc(Vector2(cx + 8.0 * k, cy + 3.0 * k), 5.0 * k, 0.0, TAU, 14, col, w)
-	draw_polyline(PackedVector2Array([
-		Vector2(cx - 8.0 * k, cy + 3.0 * k), Vector2(cx - 2.0 * k, cy - 5.0 * k),
-		Vector2(cx + 6.0 * k, cy - 5.0 * k), Vector2(cx + 8.0 * k, cy + 3.0 * k)]), col, w)
+	draw_polyline(
+		PackedVector2Array(
+			[
+				Vector2(cx - 8.0 * k, cy + 3.0 * k),
+				Vector2(cx - 2.0 * k, cy - 5.0 * k),
+				Vector2(cx + 6.0 * k, cy - 5.0 * k),
+				Vector2(cx + 8.0 * k, cy + 3.0 * k)
+			]
+		),
+		col,
+		w
+	)
+
 
 func _dim(a: float) -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.04, 0.04, 0.05, a))
+
 
 func _wrap(s: String, max_w: float, fs: int) -> Array:
 	var words = s.split(" ")
@@ -94,6 +118,7 @@ func _wrap(s: String, max_w: float, fs: int) -> Array:
 		lines.append(cur)
 	return lines
 
+
 # ---------------------------------------------------------------- upgrade cards
 func card_rect(i: int, n: int) -> Rect2:
 	var k = size.y / 720.0
@@ -103,6 +128,7 @@ func card_rect(i: int, n: int) -> Rect2:
 	var x0 = (size.x - (n * w + (n - 1) * gap)) * 0.5
 	return Rect2(x0 + i * (w + gap), size.y * 0.24, w, h)
 
+
 func card_at(pos: Vector2) -> int:
 	if g == null:
 		return -1
@@ -111,6 +137,7 @@ func card_at(pos: Vector2) -> int:
 		if card_rect(i, n).has_point(pos):
 			return i
 	return -1
+
 
 func _draw_upgrade(k: float) -> void:
 	_dim(0.78)
@@ -134,18 +161,28 @@ func _draw_upgrade(k: float) -> void:
 		for ln2 in _wrap(u["desc"], r.size.x - 36.0 * k, int(15 * k)):
 			_txt(ln2, r.position.x + r.size.x * 0.5, dy, int(15 * k), Color(0.79, 0.81, 0.83), 1)
 			dy += 24.0 * k
-		_txt(g.shop_sys.upgrade_stat(u["id"]), r.position.x + r.size.x * 0.5, r.position.y + r.size.y - 30.0 * k, int(14 * k), ACCENT, 1)
+		_txt(
+			g.shop_sys.upgrade_stat(u["id"]),
+			r.position.x + r.size.x * 0.5,
+			r.position.y + r.size.y - 30.0 * k,
+			int(14 * k),
+			ACCENT,
+			1
+		)
 	if int(g.time * 2.0) % 2 == 0:
 		_txt("CLICK A CARD OR PRESS 1 2 3", cx, size.y * 0.8, int(20 * k), TEXT, 1)
+
 
 # ---------------------------------------------------------------- shop
 func continue_rect() -> Rect2:
 	var k = size.y / 720.0
 	return Rect2(size.x * 0.5 - 150.0 * k, size.y * 0.8, 300.0 * k, 48.0 * k)
 
+
 func reroll_rect() -> Rect2:
 	var k = size.y / 720.0
 	return Rect2(size.x * 0.5 + 170.0 * k, size.y * 0.8, 250.0 * k, 48.0 * k)
+
 
 func _draw_shop(k: float) -> void:
 	_dim(0.84)
@@ -164,7 +201,14 @@ func _draw_shop(k: float) -> void:
 		draw_rect(r, (ACCENT if afford else RED) if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
 		_txt(str(i + 1), r.position.x + 24.0 * k, r.position.y + 34.0 * k, int(22 * k), GOLD)
 		if it["label"] != "":
-			_txt(it["label"], r.position.x + r.size.x - 18.0 * k, r.position.y + 34.0 * k, int(14 * k), PINK if it["perk"] else Color(0.55, 0.78, 0.95), 2)
+			_txt(
+				it["label"],
+				r.position.x + r.size.x - 18.0 * k,
+				r.position.y + 34.0 * k,
+				int(14 * k),
+				PINK if it["perk"] else Color(0.55, 0.78, 0.95),
+				2
+			)
 		var ly = r.position.y + 92.0 * k
 		for ln in _wrap(it["name"], r.size.x - 30.0 * k, int(22 * k)):
 			_txt(ln, r.position.x + r.size.x * 0.5, ly, int(22 * k), TEXT, 1)
@@ -178,9 +222,23 @@ func _draw_shop(k: float) -> void:
 			_txt(ln3, r.position.x + r.size.x * 0.5, ty, int(13 * k), PINK, 1)
 			ty += 19.0 * k
 		if it["sold"]:
-			_txt("SOLD", r.position.x + r.size.x * 0.5, r.position.y + r.size.y - 26.0 * k, int(24 * k), GRAY, 1)
+			_txt(
+				"SOLD",
+				r.position.x + r.size.x * 0.5,
+				r.position.y + r.size.y - 26.0 * k,
+				int(24 * k),
+				GRAY,
+				1
+			)
 		else:
-			_txt("$%d" % it["cost"], r.position.x + r.size.x * 0.5, r.position.y + r.size.y - 26.0 * k, int(26 * k), GOLD if afford else RED, 1)
+			_txt(
+				"$%d" % it["cost"],
+				r.position.x + r.size.x * 0.5,
+				r.position.y + r.size.y - 26.0 * k,
+				int(26 * k),
+				GOLD if afford else RED,
+				1
+			)
 	# what you own
 	var owned = []
 	for id in g.perks.keys():
@@ -204,8 +262,16 @@ func _draw_shop(k: float) -> void:
 	var rok = g.cash >= rc
 	draw_rect(rr, Color(0.176, 0.196, 0.22) if rhov else Color(0.13, 0.14, 0.16))
 	draw_rect(rr, (ACCENT if rok else RED) if rhov else Color(0.29, 0.31, 0.33), false, 3.0 * k)
-	_txt("REROLL  [R]  $%d" % rc, rr.position.x + rr.size.x * 0.5, rr.position.y + 32.0 * k, int(20 * k), GOLD if rok else RED, 1)
+	_txt(
+		"REROLL  [R]  $%d" % rc,
+		rr.position.x + rr.size.x * 0.5,
+		rr.position.y + 32.0 * k,
+		int(20 * k),
+		GOLD if rok else RED,
+		1
+	)
 	_txt("CLICK OR PRESS 1-4 TO BUY", cx, size.y * 0.93, int(14 * k), GRAY, 1)
+
 
 # ---------------------------------------------------------------- run summary (game over)
 func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
@@ -254,7 +320,9 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 			draw_rect(br, ACCENT, false, 3.0 * k)
 			_txt(g.name_buf, cx, uy + 36.0 * k, int(22 * k), TEXT, 1)
 			if blink:
-				var tw = _line(g.name_buf, int(22 * k), -1.0, HORIZONTAL_ALIGNMENT_LEFT).get_line_width()
+				var tw = (
+					_line(g.name_buf, int(22 * k), -1.0, HORIZONTAL_ALIGNMENT_LEFT).get_line_width()
+				)
 				draw_rect(Rect2(cx + tw * 0.5 + 4.0 * k, uy + 14.0 * k, 3.0 * k, 24.0 * k), TEXT)
 		else:
 			_txt("SAVED AS  " + g.player_name, cx, uy + 30.0 * k, int(20 * k), TEXT, 1)
@@ -264,9 +332,17 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		_txt("NOTHING THIS RUN", cx, uy + 26.0 * k, int(18 * k), GRAY, 1)
 	else:
 		for i in range(g.new_unlocks.size()):
-			_txt(str(g.new_unlocks[i]).to_upper(), cx, uy + 26.0 * k + i * 24.0 * k, int(18 * k), GOLD, 1)
+			_txt(
+				str(g.new_unlocks[i]).to_upper(),
+				cx,
+				uy + 26.0 * k + i * 24.0 * k,
+				int(18 * k),
+				GOLD,
+				1
+			)
 	if g.state_t > 0.8 and blink and not g.name_entry:
 		_txt("CLICK TO CONTINUE", cx, size.y * 0.93, int(24 * k), TEXT, 1)
+
 
 # ---------------------------------------------------------------- title screen menu
 const TITLE_ITEMS = [
@@ -283,11 +359,13 @@ const TITLE_PAGES = {
 	"unlocks": ["UNLOCKS", "SPEND WHAT YOU EARN ON PERMANENT UNLOCKS BETWEEN RUNS."]
 }
 
+
 func title_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var w = 320.0 * k
 	var h = 42.0 * k
 	return Rect2((size.x - w) * 0.5, size.y * 0.35 + i * (h + 8.0 * k), w, h)
+
 
 func title_at(pos: Vector2) -> int:
 	if g == null or g.state != "title" or g.title_page != "":
@@ -296,6 +374,7 @@ func title_at(pos: Vector2) -> int:
 		if title_rect(i).has_point(pos):
 			return i
 	return -1
+
 
 func _draw_title_menu(k: float, cx: float) -> void:
 	_txt("FSTRELI", cx, size.y * 0.17, int(76 * k), ACCENT, 1)
@@ -308,15 +387,32 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
 		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
 		var base = r.position.y + 29.0 * k
-		_txt(item["label"], r.position.x + r.size.x * 0.5, base, int(22 * k), TEXT if on else GRAY, 1)
+		_txt(
+			item["label"], r.position.x + r.size.x * 0.5, base, int(22 * k), TEXT if on else GRAY, 1
+		)
 		if item.get("soon", false):
 			_txt("SOON", r.position.x + r.size.x - 12.0 * k, base - 2.0 * k, int(12 * k), GRAY, 2)
 	_txt("META COINS %d" % g.meta.balance, 18.0 * k, 30.0 * k, int(14 * k), GOLD)
 	_txt(g.daily_label, size.x - 18.0 * k, 30.0 * k, int(14 * k), GRAY, 2)
 	if g.hi > 0:
 		_txt("HIGH SCORE " + str(g.hi).pad_zeros(6), cx, size.y * 0.885, int(20 * k), GOLD, 1)
-	_txt("WASD MOVE   SHIFT RUN   SPACE DASH   MOUSE AIM   CLICK SHOOT   R RELOAD   Q MELEE", cx, size.y * 0.93, int(14 * k), GRAY, 1)
-	_txt("GAMEPAD: STICKS MOVE + AIM   RT SHOOT   LT AIM   A DASH   X RELOAD   Y SWITCH   START PAUSE", cx, size.y * 0.965, int(14 * k), GRAY, 1)
+	_txt(
+		"WASD MOVE   SHIFT RUN   SPACE DASH   MOUSE AIM   CLICK SHOOT   R RELOAD   Q MELEE",
+		cx,
+		size.y * 0.93,
+		int(14 * k),
+		GRAY,
+		1
+	)
+	_txt(
+		"GAMEPAD: STICKS MOVE + AIM   RT SHOOT   LT AIM   A DASH   X RELOAD   Y SWITCH   START PAUSE",
+		cx,
+		size.y * 0.965,
+		int(14 * k),
+		GRAY,
+		1
+	)
+
 
 func _draw_scores_page(k: float, cx: float) -> void:
 	_txt("HIGH SCORES", cx, size.y * 0.14, int(56 * k), GOLD, 1)
@@ -335,13 +431,23 @@ func _draw_scores_page(k: float, cx: float) -> void:
 	_txt("DATE", c_date, y0, int(14 * k), GRAY, 2)
 	var list = g.scores.entries
 	if list.is_empty():
-		_txt("NO SCORES YET - FINISH A RUN TO GET ON THE LIST", cx, size.y * 0.5, int(22 * k), GRAY, 1)
+		_txt(
+			"NO SCORES YET - FINISH A RUN TO GET ON THE LIST",
+			cx,
+			size.y * 0.5,
+			int(22 * k),
+			GRAY,
+			1
+		)
 	for i in range(list.size()):
 		var e = list[i]
 		var y = y0 + (i + 1) * 34.0 * k
 		var mine = i == g.last_rank
 		if mine:
-			draw_rect(Rect2(c_rank - 12.0 * k, y - 24.0 * k, (c_date - c_rank) + 24.0 * k, 32.0 * k), Color(0.95, 0.71, 0.19, 0.14))
+			draw_rect(
+				Rect2(c_rank - 12.0 * k, y - 24.0 * k, (c_date - c_rank) + 24.0 * k, 32.0 * k),
+				Color(0.95, 0.71, 0.19, 0.14)
+			)
 		var col = GOLD if mine else TEXT
 		_txt(str(i + 1), c_rank, y, int(20 * k), col)
 		var nm = str(e.get("name", ""))
@@ -351,6 +457,7 @@ func _draw_scores_page(k: float, cx: float) -> void:
 		_txt(str(e["kills"]), c_kills, y, int(20 * k), col, 2)
 		_txt(str(e["date"]), c_date, y, int(16 * k), GRAY, 2)
 	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
+
 
 # placeholder pages for the screens that are still on the roadmap
 func _draw_title_page(k: float, cx: float) -> void:
@@ -363,6 +470,7 @@ func _draw_title_page(k: float, cx: float) -> void:
 	_txt("COMING SOON", cx, size.y * 0.56, int(32 * k), ACCENT, 1)
 	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.78, int(18 * k), GRAY, 1)
 
+
 # ---------------------------------------------------------------- pause menu
 const PAUSE_ITEMS = [
 	{"id": "resume", "label": "RESUME"},
@@ -371,11 +479,13 @@ const PAUSE_ITEMS = [
 	{"id": "title", "label": "QUIT TO TITLE"}
 ]
 
+
 func pause_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var w = 320.0 * k
 	var h = 46.0 * k
 	return Rect2((size.x - w) * 0.5, size.y * 0.36 + i * (h + 10.0 * k), w, h)
+
 
 func pause_at(pos: Vector2) -> int:
 	if g == null or not g.paused or g.pause_page != "":
@@ -385,6 +495,7 @@ func pause_at(pos: Vector2) -> int:
 			return i
 	return -1
 
+
 func _draw_pause_menu(k: float, cx: float) -> void:
 	_txt("PAUSED", cx, size.y * 0.26, int(60 * k), TEXT, 1)
 	var hov = pause_at(get_viewport().get_mouse_position())
@@ -393,8 +504,16 @@ func _draw_pause_menu(k: float, cx: float) -> void:
 		var on = hov == i or (hov < 0 and g.pause_sel == i)
 		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
 		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
-		_txt(PAUSE_ITEMS[i]["label"], r.position.x + r.size.x * 0.5, r.position.y + 31.0 * k, int(22 * k), TEXT if on else GRAY, 1)
+		_txt(
+			PAUSE_ITEMS[i]["label"],
+			r.position.x + r.size.x * 0.5,
+			r.position.y + 31.0 * k,
+			int(22 * k),
+			TEXT if on else GRAY,
+			1
+		)
 	_txt("ESC TO RESUME", cx, size.y * 0.80, int(16 * k), GRAY, 1)
+
 
 # ---------------------------------------------------------------- settings panel (pause screen / title with TAB)
 const SETTING_ROWS = [
@@ -410,8 +529,16 @@ const SETTING_ROWS = [
 	{"id": "voices", "label": "VOICES", "toggle": true}
 ]
 
+
 func settings_visible() -> bool:
-	return g != null and ((g.paused and g.pause_page == "settings") or (g.state == "title" and g.title_page == "settings"))
+	return (
+		g != null
+		and (
+			(g.paused and g.pause_page == "settings")
+			or (g.state == "title" and g.title_page == "settings")
+		)
+	)
+
 
 func panel_rect() -> Rect2:
 	var k = size.y / 720.0
@@ -419,15 +546,23 @@ func panel_rect() -> Rect2:
 	var h = (44.0 + SETTING_ROWS.size() * 34.0 + 12.0) * k
 	return Rect2((size.x - w) * 0.5, (size.y - h) * 0.5, w, h)
 
+
 func row_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var pr = panel_rect()
-	return Rect2(pr.position.x + 16.0 * k, pr.position.y + 44.0 * k + i * 34.0 * k, pr.size.x - 32.0 * k, 30.0 * k)
+	return Rect2(
+		pr.position.x + 16.0 * k,
+		pr.position.y + 44.0 * k + i * 34.0 * k,
+		pr.size.x - 32.0 * k,
+		30.0 * k
+	)
+
 
 func track_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var r = row_rect(i)
 	return Rect2(r.position.x + r.size.x * 0.46, r.position.y + 10.0 * k, r.size.x * 0.38, 10.0 * k)
+
 
 func setting_at(pos: Vector2) -> String:
 	if not settings_visible():
@@ -437,11 +572,13 @@ func setting_at(pos: Vector2) -> String:
 			return SETTING_ROWS[i]["id"]
 	return ""
 
+
 func is_toggle(id: String) -> bool:
 	for row in SETTING_ROWS:
 		if row["id"] == id:
 			return row.get("toggle", false) or row.has("choices")
 	return false
+
 
 func apply_slider(id: String, pos: Vector2) -> void:
 	for i in range(SETTING_ROWS.size()):
@@ -451,11 +588,14 @@ func apply_slider(id: String, pos: Vector2) -> void:
 			var t = clampf((pos.x - tr.position.x) / tr.size.x, 0.0, 1.0)
 			g.set_setting(id, lerpf(float(row["min"]), float(row["max"]), t))
 
+
 func _draw_settings(k: float) -> void:
 	var pr = panel_rect()
 	draw_rect(pr, Color(0.07, 0.075, 0.09, 0.95))
 	draw_rect(pr, Color(0.29, 0.31, 0.33), false, 2.0 * k)
-	_txt("SETTINGS", pr.position.x + pr.size.x * 0.5, pr.position.y + 30.0 * k, int(20 * k), GOLD, 1)
+	_txt(
+		"SETTINGS", pr.position.x + pr.size.x * 0.5, pr.position.y + 30.0 * k, int(20 * k), GOLD, 1
+	)
 	var mp = get_viewport().get_mouse_position()
 	for i in range(SETTING_ROWS.size()):
 		var row = SETTING_ROWS[i]
@@ -469,20 +609,34 @@ func _draw_settings(k: float) -> void:
 			_txt(row["choices"][ch], r.position.x + r.size.x - 10.0 * k, ty, int(14 * k), ACCENT, 2)
 		elif row.get("toggle", false):
 			var on = bool(g.get_setting(row["id"]))
-			_txt("ON" if on else "OFF", r.position.x + r.size.x - 10.0 * k, ty, int(14 * k), ACCENT if on else GRAY, 2)
+			_txt(
+				"ON" if on else "OFF",
+				r.position.x + r.size.x - 10.0 * k,
+				ty,
+				int(14 * k),
+				ACCENT if on else GRAY,
+				2
+			)
 		else:
 			var tr = track_rect(i)
 			var v = float(g.get_setting(row["id"]))
-			var t = clampf((v - float(row["min"])) / (float(row["max"]) - float(row["min"])), 0.0, 1.0)
+			var t = clampf(
+				(v - float(row["min"])) / (float(row["max"]) - float(row["min"])), 0.0, 1.0
+			)
 			draw_rect(tr, Color(0.23, 0.16, 0.07))
 			draw_rect(Rect2(tr.position, Vector2(tr.size.x * t, tr.size.y)), ACCENT)
-			draw_circle(Vector2(tr.position.x + tr.size.x * t, tr.position.y + tr.size.y * 0.5), 8.0 * k, TEXT)
+			draw_circle(
+				Vector2(tr.position.x + tr.size.x * t, tr.position.y + tr.size.y * 0.5),
+				8.0 * k,
+				TEXT
+			)
 			var txt = ""
 			if row["fmt"] == "pct":
 				txt = "%d%%" % int(round(v * 100.0))
 			else:
 				txt = row["fmt"] % v
 			_txt(txt, r.position.x + r.size.x - 10.0 * k, ty, int(14 * k), TEXT, 2)
+
 
 # ---------------------------------------------------------------- main draw
 func _draw() -> void:
@@ -525,8 +679,10 @@ func _draw() -> void:
 				var pw = 12.0 * k
 				var x0 = s2.x - r["max_hp"] * pw * 0.5
 				for i in range(r["max_hp"]):
-					draw_rect(Rect2(x0 + i * pw + 1.0, s2.y, pw - 2.0, 6.0 * k),
-						Color(0.95, 0.71, 0.19) if i < r["hp"] else Color(0.23, 0.18, 0.17))
+					draw_rect(
+						Rect2(x0 + i * pw + 1.0, s2.y, pw - 2.0, 6.0 * k),
+						Color(0.95, 0.71, 0.19) if i < r["hp"] else Color(0.23, 0.18, 0.17)
+					)
 
 	_draw_top_bar(k)
 
@@ -539,7 +695,15 @@ func _draw() -> void:
 		if g.riders.size() == 0 and g.bosses.size() == 0 and g.wait > 0.0 and g.wait_msg != "":
 			_txt(g.wait_msg, cx, size.y * 0.30, int(46 * k), TEXT, 1)
 		if g.buffs["shield"] > 0.0:
-			draw_arc(Vector2(cx, size.y + 230.0 * k), 360.0 * k, PI * 1.2, PI * 1.8, 48, Color(0.75, 0.59, 0.94, 0.8), 4.0 * k)
+			draw_arc(
+				Vector2(cx, size.y + 230.0 * k),
+				360.0 * k,
+				PI * 1.2,
+				PI * 1.8,
+				48,
+				Color(0.75, 0.59, 0.94, 0.8),
+				4.0 * k
+			)
 
 	# centre notes (PERFECT, PEDESTRIAN HIT ...)
 	var ny = size.y * 0.38
@@ -580,7 +744,14 @@ func _draw() -> void:
 		var acc = 0
 		if g.shots_fired > 0:
 			acc = int(round(100.0 * g.shots_hit / g.shots_fired))
-		_txt("ACCURACY %d%%   BEST COMBO x%d" % [acc, g.best_combo], cx, size.y * 0.52, int(20 * k), TEXT, 1)
+		_txt(
+			"ACCURACY %d%%   BEST COMBO x%d" % [acc, g.best_combo],
+			cx,
+			size.y * 0.52,
+			int(20 * k),
+			TEXT,
+			1
+		)
 		if g.score > 0 and g.score >= g.hi and not g.daily_mode:
 			_txt("NEW HIGH SCORE", cx, size.y * 0.58, int(24 * k), GOLD, 1)
 		if g.state_t > 0.8 and blink:
@@ -602,6 +773,7 @@ func _draw() -> void:
 		_draw_settings(k)
 		_txt("ESC OR CLICK OUTSIDE TO GO BACK", cx, size.y * 0.92, int(14 * k), GRAY, 1)
 
+
 # ---------------------------------------------------------------- pieces
 func _draw_top_bar(k: float) -> void:
 	var bar_h = 58.0 * k
@@ -614,13 +786,24 @@ func _draw_top_bar(k: float) -> void:
 	for i in range(g.MAXSHELLS):
 		var sx = (14.0 + i * 10.0) * k
 		var on = i < g.shells or g.buffs["rapid"] > 0.0
-		draw_rect(Rect2(sx, 29.0 * k, 7.0 * k, 15.0 * k), Color(1.0, 0.48, 0.1) if on else Color(0.21, 0.19, 0.16))
-		draw_rect(Rect2(sx, 25.0 * k, 7.0 * k, 5.0 * k), Color(0.11, 0.39, 0.78) if on else Color(0.29, 0.26, 0.22))
+		draw_rect(
+			Rect2(sx, 29.0 * k, 7.0 * k, 15.0 * k),
+			Color(1.0, 0.48, 0.1) if on else Color(0.21, 0.19, 0.16)
+		)
+		draw_rect(
+			Rect2(sx, 25.0 * k, 7.0 * k, 5.0 * k),
+			Color(0.11, 0.39, 0.78) if on else Color(0.29, 0.26, 0.22)
+		)
 
 	# lives
 	_txt("LIVES", 160.0 * k, 17.0 * k, fs, GOLD)
 	for i in range(g.MAXHEARTS):
-		_heart((172.0 + i * 26.0) * k, 36.0 * k, 16.0 * k, RED if i < g.hearts else Color(0.23, 0.18, 0.17))
+		_heart(
+			(172.0 + i * 26.0) * k,
+			36.0 * k,
+			16.0 * k,
+			RED if i < g.hearts else Color(0.23, 0.18, 0.17)
+		)
 
 	# round + progress
 	var round_label = "ROUND %d/%d  %s" % [g.round_n, g.MAX_ROUNDS, g.THEMES[g.theme_idx]["name"]]
@@ -648,6 +831,7 @@ func _draw_top_bar(k: float) -> void:
 	if g.combo > 1:
 		_txt("x%d" % g.combo, size.x - 150.0 * k, 44.0 * k, int(20 * k), ACCENT, 2)
 
+
 func _draw_bottom(k: float) -> void:
 	# hype bar + active pickups, bottom left
 	var bx = 14.0 * k
@@ -666,8 +850,12 @@ func _draw_bottom(k: float) -> void:
 	var frac = (g.hype_t / 8.0) if on else (g.hype / 100.0)
 	draw_rect(Rect2(bx, by, bw * clampf(frac, 0.0, 1.0), 10.0 * k), fcol)
 	var y2 = by - 34.0 * k
-	var items = [["RAPID FIRE", g.buffs["rapid"], Color(1.0, 0.48, 0.1), true], ["FAT DARTS", g.buffs["big"], Color(0.35, 0.7, 0.42), true],
-		["SLOW MO", g.buffs["slow"], Color(0.29, 0.56, 0.84), true], ["SHIELD", g.buffs["shield"], Color(0.79, 0.66, 0.93), false]]
+	var items = [
+		["RAPID FIRE", g.buffs["rapid"], Color(1.0, 0.48, 0.1), true],
+		["FAT DARTS", g.buffs["big"], Color(0.35, 0.7, 0.42), true],
+		["SLOW MO", g.buffs["slow"], Color(0.29, 0.56, 0.84), true],
+		["SHIELD", g.buffs["shield"], Color(0.79, 0.66, 0.93), false]
+	]
 	for it in items:
 		if it[1] > 0.0:
 			var t = it[0]
@@ -677,28 +865,68 @@ func _draw_bottom(k: float) -> void:
 			y2 -= 18.0 * k
 	# weapon + sound status, bottom right
 	var wcol = PINK if g.melee else TEXT
-	_txt(("MELEE" if g.melee else "DARTS") + "  [Q] SWITCH", size.x - 12.0 * k, size.y - 14.0 * k, int(13 * k), wcol, 2)
-	var snd = "SOUND %s   VOICES %s" % ["OFF" if g.sfx.muted else "ON", "OFF" if not g.sfx.voices_on else "ON"]
+	_txt(
+		("MELEE" if g.melee else "DARTS") + "  [Q] SWITCH",
+		size.x - 12.0 * k,
+		size.y - 14.0 * k,
+		int(13 * k),
+		wcol,
+		2
+	)
+	var snd = (
+		"SOUND %s   VOICES %s"
+		% ["OFF" if g.sfx.muted else "ON", "OFF" if not g.sfx.voices_on else "ON"]
+	)
 	_txt("[M] / [V]  " + snd, size.x - 12.0 * k, size.y - 34.0 * k, int(11 * k), GRAY, 2)
 
 	# dash cooldown + style rank, bottom centre
 	var mx = size.x * 0.5
 	var dw = 130.0 * k
 	var ready = g.dash_cd <= 0.0
-	_txt("DASH [SPACE]" if ready else "DASH", mx, size.y - 62.0 * k, int(12 * k), ACCENT if ready else GRAY, 1)
-	draw_rect(Rect2(mx - dw * 0.5 - 2.0, size.y - 56.0 * k, dw + 4.0, 10.0 * k), Color(0.05, 0.05, 0.055, 0.8))
+	_txt(
+		"DASH [SPACE]" if ready else "DASH",
+		mx,
+		size.y - 62.0 * k,
+		int(12 * k),
+		ACCENT if ready else GRAY,
+		1
+	)
+	draw_rect(
+		Rect2(mx - dw * 0.5 - 2.0, size.y - 56.0 * k, dw + 4.0, 10.0 * k),
+		Color(0.05, 0.05, 0.055, 0.8)
+	)
 	var df = 1.0 if ready else clampf(1.0 - g.dash_cd / 0.9, 0.0, 1.0)
-	draw_rect(Rect2(mx - dw * 0.5, size.y - 54.0 * k, dw * df, 6.0 * k), Color(1.0, 0.82, 0.25) if ready else Color(0.5, 0.42, 0.2))
+	draw_rect(
+		Rect2(mx - dw * 0.5, size.y - 54.0 * k, dw * df, 6.0 * k),
+		Color(1.0, 0.82, 0.25) if ready else Color(0.5, 0.42, 0.2)
+	)
 	var rank = g.shop_sys.style_rank()
 	var rcols = [GRAY, TEXT, Color(0.35, 0.7, 0.42), GOLD, ACCENT]
 	_txt("STYLE", mx - 40.0 * k, size.y - 18.0 * k, int(12 * k), GRAY, 2)
 	_txt(g.shop_sys.style_letter(), mx - 28.0 * k, size.y - 12.0 * k, int(34 * k), rcols[rank])
-	draw_rect(Rect2(mx + 6.0 * k, size.y - 24.0 * k, dw * 0.6, 8.0 * k), Color(0.05, 0.05, 0.055, 0.8))
-	draw_rect(Rect2(mx + 7.0 * k, size.y - 23.0 * k, (dw * 0.6 - 2.0) * clampf(fmod(g.style, 20.0) / 20.0 if rank < 4 else 1.0, 0.0, 1.0), 6.0 * k), rcols[rank])
+	draw_rect(
+		Rect2(mx + 6.0 * k, size.y - 24.0 * k, dw * 0.6, 8.0 * k), Color(0.05, 0.05, 0.055, 0.8)
+	)
+	draw_rect(
+		Rect2(
+			mx + 7.0 * k,
+			size.y - 23.0 * k,
+			(dw * 0.6 - 2.0) * clampf(fmod(g.style, 20.0) / 20.0 if rank < 4 else 1.0, 0.0, 1.0),
+			6.0 * k
+		),
+		rcols[rank]
+	)
 	if rank > 0:
-		_txt("x%.2f SCORE" % g.shop_sys.style_mul(), mx + 6.0 * k, size.y - 30.0 * k, int(11 * k), rcols[rank])
+		_txt(
+			"x%.2f SCORE" % g.shop_sys.style_mul(),
+			mx + 6.0 * k,
+			size.y - 30.0 * k,
+			int(11 * k),
+			rcols[rank]
+		)
 	if g.free_shots > 0:
 		_txt("FREE DARTS %d" % g.free_shots, mx, size.y - 84.0 * k, int(13 * k), GOLD, 1)
+
 
 func _draw_boss_ui(k: float) -> void:
 	var cx = size.x * 0.5
@@ -715,22 +943,45 @@ func _draw_boss_ui(k: float) -> void:
 			if b.get("final", false):
 				title = "FINAL BOSS   " + title
 			_txt(title, cx, by - 4.0 * k, int(16 * k), TEXT, 1)
-			draw_rect(Rect2(bx - 3.0, by + 6.0 * k, bw + 6.0, 16.0 * k), Color(0.05, 0.05, 0.055, 0.8))
+			draw_rect(
+				Rect2(bx - 3.0, by + 6.0 * k, bw + 6.0, 16.0 * k), Color(0.05, 0.05, 0.055, 0.8)
+			)
 			draw_rect(Rect2(bx, by + 9.0 * k, bw, 10.0 * k), Color(0.23, 0.1, 0.09))
-			draw_rect(Rect2(bx, by + 9.0 * k, bw * maxf(0.0, float(b["hp"])) / float(b["max_hp"]), 10.0 * k), RED)
+			draw_rect(
+				Rect2(
+					bx, by + 9.0 * k, bw * maxf(0.0, float(b["hp"])) / float(b["max_hp"]), 10.0 * k
+				),
+				RED
+			)
 			if b["kind"] != "runner":
 				# stagger meter: fill it (weak spots, rubber, deflects) and the boss gets dizzy
 				draw_rect(Rect2(bx, by + 24.0 * k, bw, 6.0 * k), Color(0.2, 0.17, 0.08))
 				var sf = 1.0 if mode == "stagger" else clampf(b["stagger"] / 100.0, 0.0, 1.0)
-				draw_rect(Rect2(bx, by + 24.0 * k, bw * sf, 6.0 * k), Color(1.0, 0.82, 0.25) if mode != "stagger" or int(g.time * 10.0) % 2 == 0 else Color(1, 1, 1))
+				draw_rect(
+					Rect2(bx, by + 24.0 * k, bw * sf, 6.0 * k),
+					(
+						Color(1.0, 0.82, 0.25)
+						if mode != "stagger" or int(g.time * 10.0) % 2 == 0
+						else Color(1, 1, 1)
+					)
+				)
 				_txt("STAGGER", bx + bw + 8.0 * k, by + 31.0 * k, int(10 * k), GRAY)
 			if b["intro"] > 0.0:
-				_txt("FINAL BOSS" if b.get("final", false) else "BOSS FIGHT", cx, size.y * 0.27, int(30 * k), RED, 1)
+				_txt(
+					"FINAL BOSS" if b.get("final", false) else "BOSS FIGHT",
+					cx,
+					size.y * 0.27,
+					int(30 * k),
+					RED,
+					1
+				)
 				_txt(b["name"], cx, size.y * 0.33, int(36 * k), TEXT, 1)
 			if mode == "tele" or mode == "lunge":
 				var pulse = 0.12 + 0.12 * absf(sin(g.time * 12.0))
 				draw_rect(Rect2(0, 0, 16.0 * k, size.y), Color(1.0, 0.16, 0.12, pulse))
-				draw_rect(Rect2(size.x - 16.0 * k, 0, 16.0 * k, size.y), Color(1.0, 0.16, 0.12, pulse))
+				draw_rect(
+					Rect2(size.x - 16.0 * k, 0, 16.0 * k, size.y), Color(1.0, 0.16, 0.12, pulse)
+				)
 				if int(g.time * 8.0) % 2 == 0:
 					var warn = "GET OFF THE RED LANE!  DASH [SPACE]"
 					if mode == "tele" and b["pat"] == "slam":
@@ -753,24 +1004,54 @@ func _draw_boss_ui(k: float) -> void:
 				var rr = clampf(120.0 * k / dist * (78.0 / g.cam.fov), 7.0 * k, 26.0 * k)
 				var pul = 0.6 + 0.4 * sin(g.time * 9.0)
 				if g.boss_sys.weak_open(b):
-					draw_arc(sp, rr * (1.0 + 0.15 * pul), 0.0, TAU, 24, Color(1.0, 0.42, 0.17, 0.9), 2.0 * k)
+					draw_arc(
+						sp,
+						rr * (1.0 + 0.15 * pul),
+						0.0,
+						TAU,
+						24,
+						Color(1.0, 0.42, 0.17, 0.9),
+						2.0 * k
+					)
 					draw_circle(sp, 2.0 * k, Color(1.0, 0.42, 0.17, 0.9))
-				else:                                                  # armoured: a crossed-out grey ring
+				else:  # armoured: a crossed-out grey ring
 					draw_arc(sp, rr, 0.0, TAU, 24, Color(0.62, 0.65, 0.7, 0.55), 1.5 * k)
-					draw_line(sp + Vector2(-rr, -rr) * 0.6, sp + Vector2(rr, rr) * 0.6, Color(0.62, 0.65, 0.7, 0.55), 1.5 * k)
-					draw_line(sp + Vector2(-rr, rr) * 0.6, sp + Vector2(rr, -rr) * 0.6, Color(0.62, 0.65, 0.7, 0.55), 1.5 * k)
+					draw_line(
+						sp + Vector2(-rr, -rr) * 0.6,
+						sp + Vector2(rr, rr) * 0.6,
+						Color(0.62, 0.65, 0.7, 0.55),
+						1.5 * k
+					)
+					draw_line(
+						sp + Vector2(-rr, rr) * 0.6,
+						sp + Vector2(rr, -rr) * 0.6,
+						Color(0.62, 0.65, 0.7, 0.55),
+						1.5 * k
+					)
 	for ph in g.phones:
 		if not ph["ret"] and ph["p"] < 0.85 and int(g.time * 8.0) % 2 == 0:
-			_txt("INCOMING CALL!  DASH, OR SWING YOUR MELEE AT THE LAST MOMENT", cx, size.y * 0.2, int(20 * k), ACCENT, 1)
+			_txt(
+				"INCOMING CALL!  DASH, OR SWING YOUR MELEE AT THE LAST MOMENT",
+				cx,
+				size.y * 0.2,
+				int(20 * k),
+				ACCENT,
+				1
+			)
 			break
 
+
 # ---- 360 degree awareness: arrows at the screen edge for anything off screen, and a small radar ----
-const THREAT_COL = {"rider": Color(1.0, 0.92, 0.75), "boss": Color(1.0, 0.25, 0.2), "phone": Color(1.0, 0.82, 0.2)}
+const THREAT_COL = {
+	"rider": Color(1.0, 0.92, 0.75), "boss": Color(1.0, 0.25, 0.2), "phone": Color(1.0, 0.82, 0.2)
+}
+
 
 # angle of a world point relative to where the camera looks: 0 ahead, + to the right, +-PI behind
 func _rel_angle(world_pos: Vector3) -> float:
 	var lp = g.cam.global_transform.affine_inverse() * world_pos
 	return atan2(lp.x, -lp.z)
+
 
 func _draw_threats(k: float) -> void:
 	var list = g.threat_list()
@@ -780,12 +1061,12 @@ func _draw_threats(k: float) -> void:
 	var c = size * 0.5
 	var rx = size.x * 0.5 - 30.0 * k
 	var ry = size.y * 0.5 - 80.0 * k
-	var half_h = atan(tan(deg_to_rad(g.cam.fov * 0.5)) * size.x / size.y)     # horizontal half field of view
+	var half_h = atan(tan(deg_to_rad(g.cam.fov * 0.5)) * size.x / size.y)  # horizontal half field of view
 	var drawn = 0
 	for t in list:
 		var rel = _rel_angle(t["pos"])
 		if absf(rel) < half_h * 0.9:
-			continue                                  # on screen: you can see it
+			continue  # on screen: you can see it
 		if drawn >= 8:
 			break
 		drawn += 1
@@ -801,8 +1082,12 @@ func _draw_threats(k: float) -> void:
 		var tip = pos + out * sz
 		var b1 = pos - out * sz * 0.4 + side * sz * 0.8
 		var b2 = pos - out * sz * 0.4 - side * sz * 0.8
-		draw_colored_polygon(PackedVector2Array([tip + out * 2.0 * k, b1 - side * 2.0 * k, b2 + side * 2.0 * k]), Color(0, 0, 0, 0.55 * col.a))
+		draw_colored_polygon(
+			PackedVector2Array([tip + out * 2.0 * k, b1 - side * 2.0 * k, b2 + side * 2.0 * k]),
+			Color(0, 0, 0, 0.55 * col.a)
+		)
 		draw_colored_polygon(PackedVector2Array([tip, b1, b2]), col)
+
 
 func _draw_radar(k: float) -> void:
 	var R = 46.0 * k
@@ -812,7 +1097,9 @@ func _draw_radar(k: float) -> void:
 	draw_arc(c, R * 0.5, 0.0, TAU, 28, Color(1, 1, 1, 0.12), 1.0 * k)
 	var half_h = atan(tan(deg_to_rad(g.cam.fov * 0.5)) * size.x / size.y)
 	for sgn in [-1.0, 1.0]:
-		draw_line(c, c + Vector2(sin(sgn * half_h), -cos(sgn * half_h)) * R, Color(1, 1, 1, 0.22), 1.0 * k)
+		draw_line(
+			c, c + Vector2(sin(sgn * half_h), -cos(sgn * half_h)) * R, Color(1, 1, 1, 0.22), 1.0 * k
+		)
 	var me = g.player.position
 	for t in g.threat_list():
 		var d: Vector3 = t["pos"] - me
@@ -823,6 +1110,7 @@ func _draw_radar(k: float) -> void:
 		var col: Color = THREAT_COL[t["kind"]]
 		draw_circle(dot, (2.4 + 1.8 * t["urg"]) * k, col)
 	draw_circle(c, 2.5 * k, Color(1, 1, 1, 0.9))
+
 
 func _draw_crosshair(k: float) -> void:
 	var c = size * 0.5
