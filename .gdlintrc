@@ -1,0 +1,16 @@
+# gdlint configuration (gdtoolkit). Used by the CI workflow in .github/workflows/ci.yml.
+#
+# The code base was written before any linter ran on it, so these rules are switched
+# off for now. Together they account for every problem gdlint reports today. All other
+# rules (naming of functions, constants, signals and enums, unused arguments, trailing
+# whitespace, duplicated loads and so on) stay on, so new code is held to them.
+# Turn a rule back on by deleting it from this list once the old code is cleaned up.
+disable:
+  - max-line-length # 330+ long lines; gdformat would wrap them (see the format job in ci.yml)
+  - class-definitions-order # 84 places where vars, consts and enums are not in the default order
+  - class-variable-name # 32 class variables that are not snake_case
+  - function-variable-name # 4 local function variables that are not snake_case
+  - function-argument-name # 1 argument named in capitals
+  - max-returns # 3 functions with more than 6 returns
+  - max-public-methods # 3 files with more than 20 public functions
+  - max-file-lines # 1 file over 1000 lines
