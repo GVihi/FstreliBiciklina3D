@@ -212,7 +212,7 @@ func apply_aim_assist(dt: float) -> void:
 			cands.append(r["pos"] + Vector3(0.0, 1.2, 0.0))
 	for b in g.bosses:
 		if g.boss_sys.boss_hittable(b):
-			cands.append(g.tw3(b["x"], g.boss_sys.weak_point_y(b), b["z"]))
+			cands.append(g.boss_world(b, g.boss_sys.weak_point_y(b)))
 	for ph in g.phones:
 		if not ph["ret"]:
 			cands.append(ph["pos"])

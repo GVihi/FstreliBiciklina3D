@@ -984,7 +984,7 @@ func rider_world(r: Dictionary, y: float) -> Vector3:
 
 
 func boss_world(b: Dictionary, y: float) -> Vector3:
-	return arena.tw(b["x"], b["z"], y)
+	return b["wp"] + Vector3(0.0, y, 0.0)
 
 
 # put a street-aligned node on the ring and turn it along the road

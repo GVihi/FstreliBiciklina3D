@@ -22,7 +22,7 @@ Goal: every run gets one generated arena, about four times bigger than today's r
 - Riders loop around the ring (`x` wraps at `ARENA_HX`, half a lap) and enter and leave through a tunnel block at the seam. Each rider has a lane with a speed multiplier (`LANE_MULT`).
 - The player is held to a ring-shaped area by the arena itself: `clamp_walk(p, who)` in `arena_roundabout.gd` keeps a point between the fountain (2.3 m) and the buildings (22.3 m) and out of the tunnel wedge. `who` ("player", "boss" or "pickup") only picks the margin.
 - `scripts/world.gd` builds the whole roundabout once at start-up, reading its numbers from the arena object. It is the roundabout's own builder; generated arenas get one of their own (step 6).
-- Not yet generalised: riders, bosses and pedestrians still move in street coordinates (step 2). Riders already publish their world position, yaw and hidden flag (`pos`, `yaw`, `hidden`, set by `sync_world` in `riders.gd`) and the rest of the game reads those; bosses and pedestrians do not yet.
+- Not yet generalised: riders, bosses and pedestrians still move in street coordinates (step 2). Riders already publish their world position, yaw and hidden flag (`pos`, `yaw`, `hidden`, set by `sync_world` in `riders.gd`) and the rest of the game reads those; bosses already did (their `wp` is the position and `yaw` the hit box turn; the street `x` and `z` are gone, though boss attacks are still drawn in street space); pedestrians do not yet.
 
 ## What the decisions mean
 

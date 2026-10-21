@@ -121,11 +121,7 @@ func fire() -> void:
 		var inf = g.BOSS_INFO[b["kind"]]
 		var br: Vector3 = inf["r"]
 		var tb2 = Util.ray_ellipsoid_yaw(
-			org,
-			dir,
-			g.tw3(b["x"], inf["cy"], b["z"]),
-			br + Vector3(ex, ex, ex),
-			g.arena.yaw(b["x"])
+			org, dir, g.boss_world(b, inf["cy"]), br + Vector3(ex, ex, ex), b["yaw"]
 		)
 		if tb2 > 0.0 and tb2 < best_t:
 			best_t = tb2
@@ -329,7 +325,7 @@ func target_valid(t) -> bool:
 func target_pos(t) -> Vector3:
 	if t.has("ln"):
 		return t["pos"] + Vector3(0.0, 1.1, 0.0)
-	return g.tw3(t["x"], float(g.BOSS_INFO[t["kind"]]["cy"]) + 0.4, t["z"])
+	return g.boss_world(t, float(g.BOSS_INFO[t["kind"]]["cy"]) + 0.4)
 
 
 func nearest_target(from: Vector3, skip):
