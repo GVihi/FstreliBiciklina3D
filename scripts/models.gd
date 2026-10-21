@@ -491,10 +491,121 @@ static func build_phone() -> Node3D:
 	Util.sphere(root, 0.02, Vector3(0.2, 0.065, 0.12), Util.glow_shared(Color(1.0, 0.2, 0.15), 2.0))
 	return root
 
-# Melee weapon: a GIANT ribbed, rubbery pink gummy worm, held by the tail. First-person viewmodel, the tail is at
-# +Z (in your hand) and the worm reaches out along -Z with a lazy S-curve. Each rib is a flattened sphere; light and
-# dark pink alternate so the ridges read even with the toon shading.
+# Melee weapon (Milestone F3): a giant glossy, glittery pink jelly-rubber club, held by the knob. The model comes from
+# assets/models/jelly_club.glb (tools/models/models/jelly_club.py): one mesh, the knob at z = +0.2 (in your hand) and the
+# head at z = -1.0, the same reach as the old worm. RUBBER_MODEL_GLB = false brings the old procedural gummy worm back.
+const RUBBER_MODEL_GLB = true
+const RUBBER_MODEL_PATH = "res://assets/models/jelly_club.glb"
+
 static func build_rubber() -> Dictionary:
+	if RUBBER_MODEL_GLB:
+		var d = _build_rubber_from_glb()
+		if not d.is_empty():
+			return d
+		push_warning("jelly_club.glb could not be loaded, using the procedural worm")
+	return _build_rubber_procedural()
+
+static func _build_rubber_from_glb() -> Dictionary:
+	if not ResourceLoader.exists(RUBBER_MODEL_PATH):
+		return {}
+	var scene = load(RUBBER_MODEL_PATH)
+	if not (scene is PackedScene):
+		return {}
+	var inst: Node = scene.instantiate()
+	var club = inst.get_node_or_null("jelly_club")
+	if not (club is Node3D):
+		inst.free()
+		return {}
+	var root = Node3D.new()
+	inst.remove_child(club)
+	inst.free()
+	root.add_child(club)
+	for ch in root.get_children():
+		if ch is MeshInstance3D:
+			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var wob = _rubber_wobble_materials(club) if RUBBER_WOBBLE else []
+	return {"root": root, "paddle": club, "wobble": wob}
+
+# Wobble (Milestone F3): the club bends and ripples like jelly. The bend is done in the vertex shader, so the mesh stays one
+# object; player.gd drives the uniforms with a spring (update_gun). The shader copies colour and roughness from
+# the .glb's own materials, so the look is the same as without it. RUBBER_WOBBLE = false keeps the club rigid.
+const RUBBER_WOBBLE = true
+const RUBBER_REACH_Z = Vector2(0.2, -1.0)      # z of the knob (in your hand) and of the tip, the same as the model
+const RUBBER_SHADER = """
+shader_type spatial;
+render_mode diffuse_toon, specular_toon;     // the same hard-edged lighting as every other material in the game
+
+uniform vec4 albedo : source_color = vec4(1.0, 0.31, 0.64, 1.0);
+uniform float roughness : hint_range(0.0, 1.0) = 0.12;
+uniform float glitter = 0.0;         // 1 for the glitter flecks: bright and twinkling instead of lit
+uniform vec2 wob = vec2(0.0);        // how far the tip is pushed sideways and up (metres); the bend grows towards the tip
+uniform float jelly = 0.0;           // strength of the ripple that runs down the club (metres)
+uniform float phase = 0.0;           // moves the ripple and the twinkle
+uniform float squash = 0.0;          // above 0 stretches the club along its length and thins it
+uniform float flash = 0.0;           // 1 right after a hit: the whole club lights up white
+uniform float knob_z = 0.2;
+uniform float tip_z = -1.0;
+
+varying vec3 rest_pos;
+
+void vertex() {
+	rest_pos = VERTEX;
+	float h = clamp((knob_z - VERTEX.z) / (knob_z - tip_z), 0.0, 1.0);   // 0 at the hand, 1 at the tip
+	VERTEX.z = knob_z + (VERTEX.z - knob_z) * (1.0 + squash);
+	VERTEX.xy *= 1.0 - squash * 0.5;
+	VERTEX.x += wob.x * h * h + jelly * sin(h * 9.0 - phase) * h;
+	VERTEX.y += wob.y * h * h + jelly * 0.6 * sin(h * 7.0 - phase * 1.3 + 1.0) * h;
+}
+
+void fragment() {
+	float rim = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 2.0);
+	if (glitter > 0.5) {
+		float tw = 0.65 + 0.35 * sin(phase * 0.6 + dot(rest_pos, vec3(97.0, 57.0, 31.0)));
+		ALBEDO = vec3(1.0, 0.9, 0.96);
+		ROUGHNESS = 0.4;
+		EMISSION = vec3(1.0, 0.85, 0.94) * tw * 0.9;
+	} else {
+		ALBEDO = albedo.rgb;
+		ROUGHNESS = roughness;
+		SPECULAR = 1.0;
+		EMISSION = albedo.rgb * 0.22 + vec3(1.0, 0.7, 0.88) * rim * 0.5;   // lifts the shadow side and rims it, so it reads as jelly
+	}
+	EMISSION += vec3(1.0, 0.85, 0.95) * flash * 0.8;
+}
+"""
+
+# swaps every surface of the club for a ShaderMaterial with the wobble; returns those materials (empty if it could not)
+static func _rubber_wobble_materials(club: Node) -> Array:
+	var mi: MeshInstance3D = null
+	if club is MeshInstance3D:
+		mi = club
+	else:
+		for ch in club.get_children():
+			if ch is MeshInstance3D:
+				mi = ch
+				break
+	if mi == null or mi.mesh == null:
+		return []
+	var sh = Shader.new()
+	sh.code = RUBBER_SHADER
+	var out = []
+	for i in range(mi.mesh.get_surface_count()):
+		var src = mi.mesh.surface_get_material(i)
+		var m = ShaderMaterial.new()
+		m.shader = sh
+		if src is BaseMaterial3D:
+			m.set_shader_parameter("albedo", src.albedo_color)
+			m.set_shader_parameter("roughness", src.roughness)
+			m.set_shader_parameter("glitter", 1.0 if src.metallic > 0.5 else 0.0)   # the glitter surface is the metallic one
+		m.set_shader_parameter("knob_z", RUBBER_REACH_Z.x)
+		m.set_shader_parameter("tip_z", RUBBER_REACH_Z.y)
+		mi.set_surface_override_material(i, m)
+		out.append(m)
+	return out
+
+# The old melee weapon: a GIANT ribbed, rubbery pink gummy worm, held by the tail. The tail is at +Z (in your hand) and
+# the worm reaches out along -Z with a lazy S-curve. Each rib is a flattened sphere; light and dark pink alternate.
+static func _build_rubber_procedural() -> Dictionary:
 	var root = Node3D.new()
 	var light = Util.mat(Color.html("#ff95cb"), 0.25)
 	var dark = Util.mat(Color.html("#ff5fae"), 0.3)

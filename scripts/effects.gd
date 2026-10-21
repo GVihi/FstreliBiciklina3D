@@ -107,6 +107,19 @@ func burst(pos: Vector3, count: int, cols: Array, speed: float, life_lo: float, 
 			Vector3(randf_range(-speed, speed), randf_range(0.5, speed * 1.2), randf_range(-speed, speed)),
 			randf_range(life_lo, life_hi), g.col_mat(g.pick_one(cols)), Vector3(size, size, size), 10.0)
 
+# Melee feedback (Milestone F3): pink jelly splat on a hit, a bright pink and gold flash on a deflect, a smaller pink
+# puff along the way when a returned phone flies back.
+func jelly_burst(pos: Vector3) -> void:
+	burst(pos, 22, ["#ff4fa3", "#ff95cb", "#ffe3f1", "#ffffff"], 5.0, 0.4, 0.8, 0.09)
+
+func deflect_burst(pos: Vector3) -> void:
+	burst(pos, 26, ["#ffffff", "#ffe3f1", "#ff95cb", "#ffc400"], 6.5, 0.3, 0.6, 0.08)
+
+func return_trail(pos: Vector3) -> void:
+	spawn_particle(pos + Vector3(randf_range(-0.1, 0.1), randf_range(-0.1, 0.1), randf_range(-0.1, 0.1)),
+		Vector3(randf_range(-0.4, 0.4), randf_range(-0.2, 0.5), randf_range(-0.4, 0.4)), 0.35,
+		g.col_mat(g.pick_one(["#ff4fa3", "#ffe3f1", "#ffc400"])), Vector3(0.1, 0.1, 0.1), 0.0)
+
 func plastic_burst(pos: Vector3) -> void:
 	burst(pos, 14, ["#2b2f36", "#3a3f47", "#3fa0ff", "#c9ced4"], 4.0, 0.5, 0.8, 0.07)
 
