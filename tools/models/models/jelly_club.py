@@ -101,6 +101,6 @@ def build():
         t = i / (RINGS - 1)
         rings.append((_centre(t), _profile(t) + _rib(t)))
     geo.tube("jelly", rings, "jelly_pink", sides=SIDES, radius_fn=_ridges)
-    geo.sparkles("glitter", rings, "glitter", count=260, size=0.0085, seed=7, sides=SIDES)
-    geo.sparkles("glitter_big", rings, "glitter", count=22, size=0.016, seed=11, sides=SIDES, lift=0.003)
+    geo.sparkles("glitter", rings, "glitter", count=340, size=0.0048, seed=7, sides=SIDES)
+    geo.sparkles("glitter_big", rings, "glitter", count=24, size=0.0085, seed=11, sides=SIDES, lift=0.003)
     geo.join_all("jelly_club")
