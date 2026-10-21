@@ -527,24 +527,28 @@ static func _build_rubber_from_glb() -> Dictionary:
 	return {"root": root, "paddle": club, "wobble": wob}
 
 # Wobble (Milestone F3): the club bends and ripples like jelly. The bend is done in the vertex shader, so the mesh stays one
-# object; player.gd drives the uniforms with a spring (update_gun). The shader copies colour, roughness and metallic from
+# object; player.gd drives the uniforms with a spring (update_gun). The shader copies colour and roughness from
 # the .glb's own materials, so the look is the same as without it. RUBBER_WOBBLE = false keeps the club rigid.
 const RUBBER_WOBBLE = true
 const RUBBER_REACH_Z = Vector2(0.2, -1.0)      # z of the knob (in your hand) and of the tip, the same as the model
 const RUBBER_SHADER = """
 shader_type spatial;
+render_mode diffuse_toon, specular_toon;     // the same hard-edged lighting as every other material in the game
 
 uniform vec4 albedo : source_color = vec4(1.0, 0.31, 0.64, 1.0);
 uniform float roughness : hint_range(0.0, 1.0) = 0.12;
-uniform float metallic : hint_range(0.0, 1.0) = 0.0;
+uniform float glitter = 0.0;         // 1 for the glitter flecks: bright and twinkling instead of lit
 uniform vec2 wob = vec2(0.0);        // how far the tip is pushed sideways and up (metres); the bend grows towards the tip
 uniform float jelly = 0.0;           // strength of the ripple that runs down the club (metres)
-uniform float phase = 0.0;           // moves the ripple
+uniform float phase = 0.0;           // moves the ripple and the twinkle
 uniform float squash = 0.0;          // above 0 stretches the club along its length and thins it
 uniform float knob_z = 0.2;
 uniform float tip_z = -1.0;
 
+varying vec3 rest_pos;
+
 void vertex() {
+	rest_pos = VERTEX;
 	float h = clamp((knob_z - VERTEX.z) / (knob_z - tip_z), 0.0, 1.0);   // 0 at the hand, 1 at the tip
 	VERTEX.z = knob_z + (VERTEX.z - knob_z) * (1.0 + squash);
 	VERTEX.xy *= 1.0 - squash * 0.5;
@@ -553,9 +557,18 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = albedo.rgb;
-	ROUGHNESS = roughness;
-	METALLIC = metallic;
+	float rim = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 2.0);
+	if (glitter > 0.5) {
+		float tw = 0.65 + 0.35 * sin(phase * 0.6 + dot(rest_pos, vec3(97.0, 57.0, 31.0)));
+		ALBEDO = vec3(1.0, 0.9, 0.96);
+		ROUGHNESS = 0.4;
+		EMISSION = vec3(1.0, 0.85, 0.94) * tw * 0.9;
+	} else {
+		ALBEDO = albedo.rgb;
+		ROUGHNESS = roughness;
+		SPECULAR = 1.0;
+		EMISSION = albedo.rgb * 0.22 + vec3(1.0, 0.7, 0.88) * rim * 0.5;   // lifts the shadow side and rims it, so it reads as jelly
+	}
 }
 """
 
@@ -581,7 +594,7 @@ static func _rubber_wobble_materials(club: Node) -> Array:
 		if src is BaseMaterial3D:
 			m.set_shader_parameter("albedo", src.albedo_color)
 			m.set_shader_parameter("roughness", src.roughness)
-			m.set_shader_parameter("metallic", src.metallic)
+			m.set_shader_parameter("glitter", 1.0 if src.metallic > 0.5 else 0.0)   # the glitter surface is the metallic one
 		m.set_shader_parameter("knob_z", RUBBER_REACH_Z.x)
 		m.set_shader_parameter("tip_z", RUBBER_REACH_Z.y)
 		mi.set_surface_override_material(i, m)
