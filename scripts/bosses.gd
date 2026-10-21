@@ -3,7 +3,6 @@ extends RefCounted
 # Shared game state stays on main.gd (g); this file holds the logic.
 
 const Models = preload("res://scripts/models.gd")
-const Ring = preload("res://scripts/ring.gd")
 const Util = preload("res://scripts/util.gd")
 
 var g = null
@@ -49,7 +48,7 @@ func boss_hp(base: int) -> int:
 func make_boss_dict(
 	kind: String, nm: String, variant: int, hp: int, m: Dictionary, wp: Vector3, mode: String
 ) -> Dictionary:
-	var t = Ring.to_track(wp)
+	var t = g.arena.to_track(wp)
 	return {
 		"kind": kind,
 		"name": nm,
@@ -58,8 +57,7 @@ func make_boss_dict(
 		"max_hp": hp,
 		"p": 0.7,
 		"wp": wp,
-		"x": t.x,
-		"z": t.y,
+		"yaw": g.arena.yaw(t.x),  # the way the boss's hit box is turned in world space (see set_boss_pos)
 		"wyaw": 0.0,
 		"mode": mode,
 		"flash": 0.0,
@@ -115,8 +113,8 @@ func spawn_boss() -> void:
 		hp = int(round(float(hp) * FINAL_HP_MUL))
 	var m = Models.build_boss(kind, variant, Models.kit_of(0))
 	g.add_child(m["root"])
-	var sx = clampf(g.ptx() + randf_range(-14.0, 14.0), -Ring.lim(), Ring.lim())
-	var b = make_boss_dict(kind, nm, variant, hp, m, Ring.tw(sx, -11.6), "charge")
+	var sx = clampf(g.ptx() + randf_range(-14.0, 14.0), -g.arena.lim(), g.arena.lim())
+	var b = make_boss_dict(kind, nm, variant, hp, m, g.arena.tw(sx, -11.6), "charge")
 	b["intro"] = 2.2
 	b["final"] = final
 	if final:
@@ -267,19 +265,15 @@ func lunge_speed(b: Dictionary) -> float:
 
 
 func set_boss_pos(b: Dictionary, wp: Vector3) -> void:
-	wp = g.clamp_walk(Vector3(wp.x, 0.0, wp.z), 2.1, 22.6)
+	wp = g.clamp_walk(Vector3(wp.x, 0.0, wp.z), "boss")
 	b["wp"] = wp
-	var t = Ring.to_track(wp)  # the rest of the game reads the street coordinates
-	b["x"] = t.x
-	b["z"] = t.y
+	# "wp" is the boss's position; the hit box yaw is the only thing still taken from the street
+	b["yaw"] = g.arena.yaw(g.arena.to_track(wp).x)
 
 
 # things a lunging boss crashes into: the fountain, the buildings, the tunnel / planter wedge
 func obstacle_at(p: Vector3) -> bool:
-	var r = Vector2(p.x, p.z).length()
-	if r < 2.3 or r > Ring.FACADE_RHO - 1.35:
-		return true
-	return absf(Ring.to_track(p).x) > Ring.player_lim() - 0.05
+	return g.arena.obstacle_at(p)
 
 
 # how far a lunge from wp along d actually goes (x), and whether it ends in a crash (y = 1)
@@ -393,7 +387,7 @@ func start_tele(b: Dictionary, quick: bool = false) -> void:
 			b["combo"] = (
 				1 + (1 if (b["phase"] >= 3 or g.round_n >= 5 or (runner and g.round_n >= 6)) else 0)
 			)
-			g.add_popup(g.tw3(b["x"], 2.2, b["z"]), "COMBO!", g.RED)
+			g.add_popup(g.boss_world(b, 2.2), "COMBO!", g.RED)
 		else:
 			b["combo"] = 0
 	b["pat"] = pat
@@ -408,7 +402,7 @@ func start_tele(b: Dictionary, quick: bool = false) -> void:
 	b["tele_t"] = t
 	b["tele_total"] = t
 	b["lock"] = g.player.position
-	g.sfx.play3d("ring", g.tw3(b["x"], 1.0, b["z"]), -3.0)
+	g.sfx.play3d("ring", g.boss_world(b, 1.0), -3.0)
 
 
 func start_stagger(b: Dictionary, t: float, crashed: bool) -> void:
@@ -431,7 +425,7 @@ func boss_steps(b: Dictionary, dt: float) -> void:
 	if b["step_t"] <= 0.0:
 		b["step_t"] = 0.3 / (1.0 + b["p"])
 		var sv = 0.1 + 0.25 * minf(1.0, b["p"])
-		g.sfx.play3d("step", g.tw3(b["x"], 0.0, b["z"]), linear_to_db(sv / 0.3))
+		g.sfx.play3d("step", g.boss_world(b, 0.0), linear_to_db(sv / 0.3))
 
 
 # later phases: the wifi node and the minister throw phones, which you can deflect straight back at them
@@ -441,7 +435,7 @@ func boss_throws(b: Dictionary, dt: float) -> void:
 	b["throw_t"] -= dt
 	if b["throw_t"] <= 0.0 and g.phones.size() < 3 and g.state == "play":
 		b["throw_t"] = 3.4 if b["phase"] == 2 else 2.4
-		g.phone_sys.throw_phone(g.tw3(b["x"], float(g.BOSS_INFO[b["kind"]]["cy"]) + 0.7, b["z"]), b)
+		g.phone_sys.throw_phone(g.boss_world(b, float(g.BOSS_INFO[b["kind"]]["cy"]) + 0.7), b)
 
 
 func update_bosses(dt: float) -> void:
@@ -527,7 +521,7 @@ func update_boss(b: Dictionary, dt: float) -> bool:
 			b["lgo"] = 0.0
 			b["lhit"] = false
 			b["mode"] = "lunge"
-			g.sfx.play3d("whoosh", g.tw3(b["x"], 1.0, b["z"]))
+			g.sfx.play3d("whoosh", g.boss_world(b, 1.0))
 	elif mode == "lunge":
 		var d2: Vector3 = b["ldir"]
 		var stp = minf(lunge_speed(b) * dt, b["llen"] - b["lgo"])
@@ -658,7 +652,7 @@ func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -
 	if not boss_hittable(b):
 		return
 	var inf = g.BOSS_INFO[b["kind"]]
-	var c = g.tw3(b["x"], inf["cy"], b["z"])
+	var c = g.boss_world(b, inf["cy"])
 	var k = b["kind"]
 	var stunned = b["mode"] == "stagger"
 	var armoured = weak and not weak_open(b)
@@ -741,7 +735,7 @@ func kill_boss(b: Dictionary) -> void:
 	g.hitstop = 0.15
 	g.shop_sys.add_style(30.0)
 	g.shop_sys.add_cash(18 if is_run else 55)
-	var bpos = g.tw3(b["x"], 1.0, b["z"])
+	var bpos = g.boss_world(b, 1.0)
 	if not is_run:
 		if g.hearts < g.MAXHEARTS:
 			g.hearts += 1

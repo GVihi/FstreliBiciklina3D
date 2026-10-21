@@ -17,10 +17,12 @@ Goal: every run gets one generated arena, about four times bigger than today's r
 ## How the arena works today
 
 - All game logic (riders, bosses, pedestrians, hit zones, pickups) runs in **street coordinates**: `x` is the distance along the road, `z` is the position across it (barrier, three lanes, sidewalk, facade).
-- `scripts/ring.gd` is the only place that turns street coordinates into the world: `tw(x, z)`, `tangent`, `inward`, `yaw` and `to_track`. It bends the street into a circle of radius about 13 m, with the player on a central island.
+- The game talks to the arena through one object, `arena` in `main.gd` (interface in `scripts/arena.gd`, the roundabout in `scripts/arena_roundabout.gd`). It offers the street-coordinate functions below and the world-space queries `start_position`, `clamp_walk`, `ray_blocked`, `obstacle_at`, `surface_at` and `gates`. Only `arena_roundabout.gd` still reads `ring.gd`.
+- `scripts/ring.gd` is where the roundabout turns street coordinates into the world: `tw(x, z)`, `tangent`, `inward`, `yaw` and `to_track`. It bends the street into a circle of radius about 13 m, with the player on a central island.
 - Riders loop around the ring (`x` wraps at `ARENA_HX`, half a lap) and enter and leave through a tunnel block at the seam. Each rider has a lane with a speed multiplier (`LANE_MULT`).
-- The player is held to a ring-shaped area (`PLAYER_R_MIN`, `PLAYER_R_MAX`, `Ring.player_lim()`).
-- `scripts/world.gd` builds the whole arena once at start-up. About 55 call sites use `Ring.` (`main.gd` 21, `world.gd` 15, `combat.gd` 7, `bosses.gd` 6, `riders.gd` 4, `pedestrians.gd` 2, `player.gd` 2).
+- The player is held to a ring-shaped area by the arena itself: `clamp_walk(p, who)` in `arena_roundabout.gd` keeps a point between the fountain (2.3 m) and the buildings (22.3 m) and out of the tunnel wedge. `who` ("player", "boss" or "pickup") only picks the margin.
+- `scripts/world.gd` builds the whole roundabout once at start-up, reading its numbers from the arena object. It is the roundabout's own builder; generated arenas get one of their own (step 6).
+- Not yet generalised: pedestrians and boss attacks. Bosses move by their world position `wp` and `yaw` is the hit box turn (the street `x` and `z` are gone, though boss attacks are still drawn in street space). Riders own `pos`, `yaw` and `hidden` and move them in `move_rider` in `riders.gd`: they steer at a point on their lane a little ahead (`arena.lane_point`) with a limited turn rate (`TURN_RATE`), so on the roundabout they still ride the ring, and `avoid_obstacles` steers them round `obstacle_at()` where the arena asks for it (`arena.rider_avoidance()`; the roundabout does not). Pedestrians publish `pos`, `yaw` and `hidden` (`sync_world` in `pedestrians.gd`) and cheerleaders have a fixed `pos`, but pedestrians still move by street `x`.
 
 ## What the decisions mean
 

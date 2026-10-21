@@ -11,7 +11,6 @@ const GRAY = Color(0.49, 0.48, 0.44)
 const TEXT = Color(0.96, 0.95, 0.92)
 const ACCENT = Color(1.0, 0.42, 0.17)
 const PINK = Color(1.0, 0.48, 0.72)
-const LANE_Z_H = [-5.5, -2.5, 0.5]
 
 
 func _ready() -> void:
@@ -721,7 +720,7 @@ func _draw() -> void:
 	if state == "play":
 		for r in g.riders:
 			if r["max_hp"] > 1 and (r["mode"] == "fly" or r["mode"] == "away"):
-				var wp = g.tw3(r["x"], 2.15, LANE_Z_H[r["ln"]])
+				var wp = r["pos"] + Vector3(0.0, 2.15, 0.0)
 				if g.cam.is_position_behind(wp):
 					continue
 				var s2 = g.cam.unproject_position(wp)
@@ -1050,8 +1049,8 @@ func _draw_boss_ui(k: float) -> void:
 				draw_rect(Rect2(size.x - 16.0 * k, 0, 16.0 * k, size.y), Color(1.0, 0.82, 0.25, gp))
 				_txt("DIZZY - HIT IT!  (WEAK SPOT OPEN)", cx, size.y * 0.45, int(22 * k), GOLD, 1)
 			# weak spot marker
-			if not g.cam.is_position_behind(g.tw3(b["x"], g.boss_sys.weak_point_y(b), b["z"])):
-				var wp = g.tw3(b["x"], g.boss_sys.weak_point_y(b), b["z"])
+			if not g.cam.is_position_behind(g.boss_world(b, g.boss_sys.weak_point_y(b))):
+				var wp = g.boss_world(b, g.boss_sys.weak_point_y(b))
 				var sp = g.cam.unproject_position(wp)
 				var dist = maxf(1.0, g.cam.global_position.distance_to(wp))
 				var rr = clampf(120.0 * k / dist * (78.0 / g.cam.fov), 7.0 * k, 26.0 * k)
