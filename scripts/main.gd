@@ -10,7 +10,6 @@ const Models = preload("res://scripts/models.gd")
 const HudScript = preload("res://scripts/hud.gd")
 const Toon = preload("res://scripts/toon.gd")
 const SfxScript = preload("res://scripts/sfx.gd")
-const Ring = preload("res://scripts/ring.gd")
 const Content = preload("res://scripts/content.gd")
 const SettingsScript = preload("res://scripts/settings.gd")
 const PedestriansScript = preload("res://scripts/pedestrians.gd")
@@ -33,7 +32,7 @@ const MapGenScript = preload("res://scripts/map_gen.gd")
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
 # z across it. ARENA_HX is half a lap: x runs -HX..HX and the tunnel sits at the seam.
-const ARENA_HX = Ring.HX
+const ARENA_HX = ArenaRoundaboutScript.HX
 const LANE_Z = [-5.5, -2.5, 0.5]  # far, middle, near lane
 const LANE_MULT = [1.5, 1.2, 1.0]
 const SIDEWALK_Z = -11.2
@@ -269,7 +268,7 @@ func _ready() -> void:
 	hearts = MAXHEARTS
 	shells = MAXSHELLS
 
-	world = WorldBuilder.build(self, ARENA_HX)
+	world = WorldBuilder.build(self, arena)
 
 	sfx = SfxScript.new()
 	add_child(sfx)
@@ -299,7 +298,7 @@ func _ready() -> void:
 	disc_mat.albedo_color = STRIP_COL_WARN
 
 	player = Node3D.new()
-	player.position = Ring.tw(0.0, 6.0)
+	player.position = arena.start_position()
 	add_child(player)
 	cam = Camera3D.new()
 	cam.fov = fov_hip
@@ -332,9 +331,9 @@ func _ready() -> void:
 		var m = Models.build_cheer(i)
 		add_child(m["root"])
 		var cx = (CHEER_PX[i] - 400.0) * PX_TO_M
-		m["root"].position = Ring.tw(cx, CHEER_Z, 0.0)
+		m["root"].position = arena.tw(cx, CHEER_Z, 0.0)
 		var cr: Node3D = m["root"]
-		cr.rotation = Vector3(0.0, -PI * 0.5 + Ring.yaw(cx), 0.0)
+		cr.rotation = Vector3(0.0, -PI * 0.5 + arena.yaw(cx), 0.0)
 		m["x"] = cx
 		cheerleaders.append(m)
 
@@ -667,7 +666,7 @@ func start_game(daily: bool = false) -> void:
 	civs_hit = 0
 	yaw = 0.0
 	pitch = 0.0
-	player.position = Ring.tw(0.0, 6.0)
+	player.position = arena.start_position()
 	pvel = Vector3.ZERO
 	start_round()
 
@@ -971,40 +970,40 @@ func read_move() -> Vector2:
 
 # ------------------------------------------------------------------ roundabout helpers (see ring.gd)
 func tw3(x: float, y: float, z: float) -> Vector3:
-	return Ring.tw(x, z, y)
+	return arena.tw(x, z, y)
 
 
 func ptx() -> float:
-	return Ring.to_track(player.position).x
+	return arena.to_track(player.position).x
 
 
 func ptz() -> float:
-	return Ring.to_track(player.position).y
+	return arena.to_track(player.position).y
 
 
 func rider_world(r: Dictionary, y: float) -> Vector3:
-	return Ring.tw(r["x"], LANE_Z[r["ln"]], y)
+	return arena.tw(r["x"], LANE_Z[r["ln"]], y)
 
 
 func boss_world(b: Dictionary, y: float) -> Vector3:
-	return Ring.tw(b["x"], b["z"], y)
+	return arena.tw(b["x"], b["z"], y)
 
 
 # put a street-aligned node on the ring and turn it along the road
 func place(node: Node3D, x: float, y: float, z: float) -> void:
-	node.position = Ring.tw(x, z, y)
-	node.rotation.y = Ring.yaw(x)
+	node.position = arena.tw(x, z, y)
+	node.rotation.y = arena.yaw(x)
 
 
 func street_vel(x: float, vx: float, vy: float, vz: float) -> Vector3:
-	return Ring.tangent(x) * vx + Vector3(0.0, vy, 0.0) + Ring.inward(x) * vz
+	return arena.tangent(x) * vx + Vector3(0.0, vy, 0.0) + arena.inward(x) * vz
 
 
 # things that can hurt you or that you can shoot: the edge arrows and the radar read this
 func threat_list() -> Array:
 	var out = []
 	for r in riders:
-		if (r["mode"] == "fly" or r["mode"] == "away") and not Ring.hidden(r["x"]):
+		if (r["mode"] == "fly" or r["mode"] == "away") and not arena.hidden(r["x"]):
 			out.append(
 				{
 					"pos": rider_world(r, 1.0),
@@ -1028,41 +1027,14 @@ func threat_list() -> Array:
 	return out
 
 
-# keep a point on the walkable ground: outside the fountain, inside the buildings, and out of the
-# tunnel / planter wedge at the back. Sliding along the edge, not stopping dead.
+# keep a point on the walkable ground (sliding along an edge, not stopping dead): the arena decides where
 func clamp_walk(p: Vector3, rmin: float, rmax: float) -> Vector3:
-	var r = Vector2(p.x, p.z).length()
-	if r < 0.001:
-		return Vector3(0.0, p.y, -rmin)
-	var rc = clampf(r, rmin, rmax)
-	if absf(rc - r) > 0.0001:
-		p = Vector3(p.x * rc / r, p.y, p.z * rc / r)
-	var tr = Ring.to_track(p)
-	var lim = Ring.player_lim()
-	if absf(tr.x) > lim:
-		tr.x = clampf(tr.x, -lim, lim)
-		p = Ring.tw(tr.x, tr.y, p.y)
-	return p
+	return arena.clamp_walk(p, rmin, rmax)
 
 
-# solid for darts: the fountain, the planter and the tunnel block
+# solid for darts
 func ray_blocked(p: Vector3) -> bool:
-	var r = Vector2(p.x, p.z).length()
-	if r < 1.45 and p.y < 1.1:
-		return true
-	if r < 0.3 and p.y < 2.4:
-		return true
-	var a = absf(wrapf(atan2(p.x, -p.z) - PI, -PI, PI))
-	if (
-		r >= 1.0
-		and r < Ring.GATE_RHO_IN
-		and a < PI - (Ring.player_lim() / Ring.RHO_REF + 0.06)
-		and p.y < 1.18
-	):
-		return true
-	if r >= Ring.GATE_RHO_IN and a < Ring.GATE_HALF / Ring.RHO_REF and p.y < 7.5:
-		return true
-	return false
+	return arena.ray_blocked(p)
 
 
 func move_world(mv: Vector2) -> Vector3:
@@ -1083,7 +1055,7 @@ func update_cheerleaders(_dt: float) -> void:
 		var ph = time * (4.0 + chv * 4.0) + i * 1.1
 		var jump = absf(sin(ph)) * (0.08 + chv * 0.32)
 		var cr: Node3D = m["root"]
-		cr.position = Ring.tw(m["x"], CHEER_Z, jump)
+		cr.position = arena.tw(m["x"], CHEER_Z, jump)
 		Models.pose_cheer(m, ph, chv)
 
 

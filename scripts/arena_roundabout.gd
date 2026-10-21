@@ -46,6 +46,87 @@ func player_lim() -> float:
 	return Ring.player_lim()
 
 
+func start_position() -> Vector3:
+	return Ring.tw(0.0, 6.0)
+
+
+# keep a point on the walkable ground: outside the fountain, inside the buildings, and out of the
+# tunnel / planter wedge at the back
+func clamp_walk(p: Vector3, rmin: float, rmax: float) -> Vector3:
+	var r = Vector2(p.x, p.z).length()
+	if r < 0.001:
+		return Vector3(0.0, p.y, -rmin)
+	var rc = clampf(r, rmin, rmax)
+	if absf(rc - r) > 0.0001:
+		p = Vector3(p.x * rc / r, p.y, p.z * rc / r)
+	var tr = Ring.to_track(p)
+	var lim = Ring.player_lim()
+	if absf(tr.x) > lim:
+		tr.x = clampf(tr.x, -lim, lim)
+		p = Ring.tw(tr.x, tr.y, p.y)
+	return p
+
+
+# solid for darts: the fountain, the planter and the tunnel block
+func ray_blocked(p: Vector3) -> bool:
+	var r = Vector2(p.x, p.z).length()
+	if r < 1.45 and p.y < 1.1:
+		return true
+	if r < 0.3 and p.y < 2.4:
+		return true
+	var a = absf(wrapf(atan2(p.x, -p.z) - PI, -PI, PI))
+	if (
+		r >= 1.0
+		and r < Ring.GATE_RHO_IN
+		and a < PI - (Ring.player_lim() / Ring.RHO_REF + 0.06)
+		and p.y < 1.18
+	):
+		return true
+	if r >= Ring.GATE_RHO_IN and a < Ring.GATE_HALF / Ring.RHO_REF and p.y < 7.5:
+		return true
+	return false
+
+
+# the boss obstacle test: the fountain, the buildings and the planter wedge in front of the tunnel
+func obstacle_at(p: Vector3) -> bool:
+	var r = Vector2(p.x, p.z).length()
+	if r < 2.3 or r > Ring.FACADE_RHO - 1.35:
+		return true
+	return absf(Ring.to_track(p).x) > Ring.player_lim() - 0.05
+
+
+# the ground layers are the ones world.gd lays down: lawn and paving on the island, a strip between the
+# barrier and the road, the road, the far sidewalk, then the buildings
+func surface_at(p: Vector3) -> String:
+	var r = Vector2(p.x, p.z).length()
+	var a = absf(wrapf(atan2(p.x, -p.z) - PI, -PI, PI))
+	if r >= Ring.GATE_RHO_IN and a < Ring.GATE_HALF / Ring.RHO_REF:
+		return "tunnel"
+	if r < 2.2:
+		return "grass"
+	if r < Ring.RHO_B:
+		return "plaza"
+	if r < Ring.rho(2.0):
+		return "sidewalk"
+	if r < Ring.rho(-7.0):
+		return "road"
+	if r < Ring.rho(-13.0):
+		return "sidewalk"
+	return "building"
+
+
+# one gate: the tunnel at the back, where the ring road dives under the buildings
+func gates() -> Array:
+	var mid = Ring.tw(Ring.HX, -2.5)
+	return [
+		{
+			"pos": mid,
+			"outward": Vector3(mid.x, 0.0, mid.z).normalized(),
+			"half_width": Ring.GATE_HALF,
+		}
+	]
+
+
 func rho(z: float) -> float:
 	return Ring.rho(z)
 

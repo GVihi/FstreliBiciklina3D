@@ -63,6 +63,45 @@ func player_lim() -> float:
 
 
 # ---------------------------------------------------------------- world space
+# where the player starts each round
+func start_position() -> Vector3:
+	_missing("start_position")
+	return Vector3.ZERO
+
+
+# player bounds: keep a point on the walkable ground, sliding along an edge instead of stopping dead.
+# rmin / rmax are the radii the callers pass today (the player, bosses and pickups use slightly different
+# margins); they go away when the bounds come from the arena itself (README Milestone K, Foundation).
+func clamp_walk(p: Vector3, _rmin: float, _rmax: float) -> Vector3:
+	_missing("clamp_walk")
+	return p
+
+
+# true if a dart at world point p is inside something solid
+func ray_blocked(_p: Vector3) -> bool:
+	_missing("ray_blocked")
+	return false
+
+
+# true if a boss on foot at world point p is blocked: inside an obstacle or outside the boundary
+func obstacle_at(_p: Vector3) -> bool:
+	_missing("obstacle_at")
+	return false
+
+
+# what the ground is at world point p: "grass", "plaza", "sidewalk", "road", "tunnel" or "building"
+func surface_at(_p: Vector3) -> String:
+	_missing("surface_at")
+	return ""
+
+
+# where riders enter and leave: an Array of {"pos": Vector3 (centre of the opening, on the ground),
+# "outward": Vector3 (unit vector pointing out of the arena), "half_width": float (metres)}
+func gates() -> Array:
+	_missing("gates")
+	return []
+
+
 # pull a world point back onto the road (between the near and far edge of the lanes)
 func clamp_road(p: Vector3, _z_near: float = 1.6, _z_far: float = -6.6) -> Vector3:
 	_missing("clamp_road")

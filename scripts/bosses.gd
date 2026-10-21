@@ -275,10 +275,7 @@ func set_boss_pos(b: Dictionary, wp: Vector3) -> void:
 
 # things a lunging boss crashes into: the fountain, the buildings, the tunnel / planter wedge
 func obstacle_at(p: Vector3) -> bool:
-	var r = Vector2(p.x, p.z).length()
-	if r < 2.3 or r > g.arena.FACADE_RHO - 1.35:
-		return true
-	return absf(g.arena.to_track(p).x) > g.arena.player_lim() - 0.05
+	return g.arena.obstacle_at(p)
 
 
 # how far a lunge from wp along d actually goes (x), and whether it ends in a crash (y = 1)
