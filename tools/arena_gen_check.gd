@@ -60,6 +60,7 @@ func _init() -> void:
 	if seen.size() < int(0.98 * float(count)) and problems.is_empty():
 		_fail(0, "only %d different layouts from %d seeds" % [seen.size(), count])
 	_check_speeds(rules)
+	_check_validation(rules)
 	if problems.is_empty():
 		print(
 			(
@@ -307,6 +308,91 @@ func _check_nav(sv: int, layout: Dictionary, rules: Dictionary) -> void:
 					)
 				)
 				return
+
+
+# every generated layout passes validate (generate throws the others away); and validate must notice what
+# it is for: each case below damages a good layout by hand and expects the matching problem
+func _check_validation(rules: Dictionary) -> void:
+	var good = ArenaGen.generate(7, rules)
+	var problems = ArenaGen.validate(good, rules)
+	if not problems.is_empty():
+		_fail(7, "a generated layout fails validate: %s" % problems)
+		return
+	var n = int(good["cells"])
+	var border = int(good["border"])
+	var gt = good["gates"][0]
+	var side = str(gt["side"])
+	var along_lo = int(gt["lo"])
+	var along_hi = int(gt["hi"])
+	var inner = border if side == "n" or side == "w" else n - 1 - border
+	var sealed = []
+	var narrow = []
+	for k in range(along_lo, along_hi + 1):
+		var cell_xz = Vector2i(k, inner) if side == "n" or side == "s" else Vector2i(inner, k)
+		sealed.append(cell_xz)
+		if k < along_hi:
+			narrow.append(cell_xz)
+	var st = good["start"]["cell"]
+	var cx = int(st[0])
+	var cz = int(st[1])
+	var ring = []
+	for d in range(-5, 6):
+		for edge in [-5, 5]:
+			ring.append(Vector2i(cx + d, cz + edge))
+			ring.append(Vector2i(cx + edge, cz + d))
+	var pocket = _find_pocket(good)
+	var cases = [
+		["a sealed gate", sealed, "b", "gate"],
+		["a one-cell-wide corridor to a gate", narrow, "b", "wide enough"],
+		["a walled-off pocket", pocket, "b", "cannot be reached from the start"],
+		["a dirty start area", [Vector2i(cx, cz + 1)], "g", "start area"],
+		["a start walled in on all sides", ring, "b", "in view"],
+	]
+	for c in cases:
+		if c[1].is_empty():
+			_fail(7, "no way found to build the case '%s'" % c[0])
+			continue
+		var found = ArenaGen.validate(_damaged(good, c[1], str(c[2]), rules), rules)
+		var hit = false
+		for text in found:
+			if str(text).contains(str(c[3])):
+				hit = true
+		if not hit:
+			_fail(7, "validate did not notice %s (it said %s)" % [c[0], found])
+
+
+# a copy of the layout with the given cells set to one surface character and the navigation grid redone
+func _damaged(layout: Dictionary, cells: Array, ch: String, rules: Dictionary) -> Dictionary:
+	var copy = layout.duplicate(true)
+	var rows = copy["rows"]
+	for v in cells:
+		var line: String = rows[v.y]
+		rows[v.y] = line.substr(0, v.x) + ch + line.substr(v.x + 1)
+	var grid = PackedByteArray()
+	for line in rows:
+		grid.append_array(str(line).to_ascii_buffer())
+	copy["nav"] = ArenaGen._nav_rows(grid, int(copy["cells"]), int(rules["nav"]["max_clearance"]))
+	return copy
+
+
+# the eight cells round one open grass cell that has grass all round it, so walling them in seals it off
+func _find_pocket(layout: Dictionary) -> Array:
+	var n = int(layout["cells"])
+	for z in range(3, n - 3):
+		for x in range(3, n - 3):
+			var all_grass = true
+			for dz in range(-2, 3):
+				for dx in range(-2, 3):
+					if _cell(layout, x + dx, z + dz) != "g":
+						all_grass = false
+			if all_grass:
+				var out = []
+				for dz in range(-1, 2):
+					for dx in range(-1, 2):
+						if dx != 0 or dz != 0:
+							out.append(Vector2i(x + dx, z + dz))
+				return out
+	return []
 
 
 # road is fastest, then sidewalk, then grass; buildings and anything outside the grid cannot be ridden on

@@ -11,6 +11,7 @@
   "walkable_m2": {"min": 5200, "max": 7000},
   "rider_speed": {"road": 1.0, "plaza": 1.0, "tunnel": 1.0, "sidewalk": 0.9, "grass": 0.75},
   "nav": {"max_clearance": 9},
+  "validate": {"min_clear": 2, "view_radius": 20, "min_view": 0.5},
   "max_attempts": 8,
   "streams": {"roads": "arena_roads", "plazas": "arena_plazas", "blocks": "arena_blocks"}
 }

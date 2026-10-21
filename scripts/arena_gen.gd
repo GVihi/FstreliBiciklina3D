@@ -123,7 +123,7 @@ static func _attempt(run_seed: int, attempt: int, rules: Dictionary) -> Dictiona
 		int(start_plaza["z"]) + int(start_plaza["h"]) / 2
 	)
 	var sp = _world(n, cell, sc.x + 0.5, sc.y + 0.5)
-	return {
+	var layout = {
 		"version": int(rules.get("version", 1)),
 		"seed": run_seed,
 		"attempt": attempt,
@@ -139,6 +139,10 @@ static func _attempt(run_seed: int, attempt: int, rules: Dictionary) -> Dictiona
 		"start": {"cell": [sc.x, sc.y], "pos": [sp.x, sp.y], "half": half},
 		"walkable_m2": int(round(area)),
 	}
+	# a layout that breaks the validation rules is thrown away like one with the wrong amount of ground
+	if rules.has("validate") and not validate(layout, rules).is_empty():
+		return {}
+	return layout
 
 
 # world metres (x, z) of a point given in cell units (a cell centre is index + 0.5)
@@ -354,6 +358,121 @@ static func _nav_rows(grid: PackedByteArray, n: int, cap: int) -> Array:
 			line += "#" if d == 0 else str(clampi(d, 1, cap))
 		rows.append(line)
 	return rows
+
+
+# ---------------------------------------------------------------- validation
+# The rules a layout has to satisfy before the game may use it (README Milestone K, "Validate every generated
+# arena"); numbers in rules["validate"]. Returns a list of problems in words, empty when the layout is fine.
+# generate() throws a layout away (and tries the next attempt) when this finds any problem. It reads only
+# the layout, so it also works on a layout made or damaged by hand.
+#   - the start area is a clear square of plaza with room round it (the start rule in the rules)
+#   - no sealed areas: every cell that is not a building can be reached from the start on foot
+#   - every gate can be reached from the start along corridors at least `min_clear` cells clear of buildings
+#     on every side (clearance 2 is a corridor three cells, 6 m, wide), so riders can always get in
+#   - sightlines: from the start, at least `min_view` of the open ground within `view_radius` cells is in
+#     plain view (no building in the way), so the player sees what is coming
+static func validate(layout: Dictionary, rules: Dictionary) -> Array:
+	var problems = []
+	var vr = rules.get("validate", {})
+	var n = int(layout["cells"])
+	var cell = float(layout["cell"])
+	var sx = int(layout["start"]["cell"][0])
+	var sz = int(layout["start"]["cell"][1])
+	var half = int(layout["start"]["half"])
+	for z in range(sz - half, sz + half + 1):
+		for x in range(sx - half, sx + half + 1):
+			if x < 0 or z < 0 or x >= n or z >= n or str(layout["rows"][z])[x] != "p":
+				problems.append("the start area is not all plaza at %d,%d" % [x, z])
+				return problems
+	if nav_clearance(layout, sx, sz) < half + 1:
+		problems.append("the start cell has no room round it")
+	var seen = _reach(layout, sx, sz, 1)
+	var open_cells = 0
+	var reached = 0
+	for i in range(n * n):
+		if nav_clearance(layout, i % n, i / n) > 0:
+			open_cells += 1
+			if seen[i] == 1:
+				reached += 1
+	if reached != open_cells:
+		problems.append("%d open cells cannot be reached from the start" % (open_cells - reached))
+	var wide = _reach(layout, sx, sz, int(vr.get("min_clear", 2)))
+	for gt in layout["gates"]:
+		var gx = int(float(gt["pos"][0]) / cell + float(n) / 2.0)
+		var gz = int(float(gt["pos"][1]) / cell + float(n) / 2.0)
+		if gx < 0 or gz < 0 or gx >= n or gz >= n or wide[gz * n + gx] != 1:
+			problems.append("gate %s cannot be reached through wide enough corridors" % gt["side"])
+	var share = view_share(layout, sx, sz, int(vr.get("view_radius", 20)))
+	if share < float(vr.get("min_view", 0.0)):
+		problems.append("only %d%% of the ground near the start is in view" % int(share * 100.0))
+	return problems
+
+
+# flood fill on foot (4 directions) from grid cell (sx, sz) over cells with clearance >= min_clear; returns
+# a PackedByteArray with 1 for every cell reached
+static func _reach(layout: Dictionary, sx: int, sz: int, min_clear: int) -> PackedByteArray:
+	var n = int(layout["cells"])
+	var seen = PackedByteArray()
+	seen.resize(n * n)
+	if nav_clearance(layout, sx, sz) < min_clear:
+		return seen
+	seen[sz * n + sx] = 1
+	var queue = [sz * n + sx]
+	var head = 0
+	while head < queue.size():
+		var i = int(queue[head])
+		head += 1
+		var x = i % n
+		var z = i / n
+		for step in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var nx = x + step.x
+			var nz = z + step.y
+			if nx < 0 or nz < 0 or nx >= n or nz >= n or seen[nz * n + nx] == 1:
+				continue
+			if nav_clearance(layout, nx, nz) >= min_clear:
+				seen[nz * n + nx] = 1
+				queue.append(nz * n + nx)
+	return seen
+
+
+# the share (0 to 1) of open cells within `radius` cells of grid cell (sx, sz) that can be seen from it: a
+# straight line between the cell centres crosses no building
+static func view_share(layout: Dictionary, sx: int, sz: int, radius: int) -> float:
+	var n = int(layout["cells"])
+	var open_cells = 0
+	var visible = 0
+	for z in range(maxi(0, sz - radius), mini(n, sz + radius + 1)):
+		for x in range(maxi(0, sx - radius), mini(n, sx + radius + 1)):
+			if (x - sx) * (x - sx) + (z - sz) * (z - sz) > radius * radius:
+				continue
+			if nav_clearance(layout, x, z) == 0:
+				continue
+			open_cells += 1
+			if _line_clear(layout, sx, sz, x, z):
+				visible += 1
+	return float(visible) / float(maxi(1, open_cells))
+
+
+# true if no building cell lies on the straight line from cell (x0, z0) to cell (x1, z1) (Bresenham)
+static func _line_clear(layout: Dictionary, x0: int, z0: int, x1: int, z1: int) -> bool:
+	var dx = absi(x1 - x0)
+	var dz = absi(z1 - z0)
+	var sx = 1 if x1 > x0 else -1
+	var sz = 1 if z1 > z0 else -1
+	var err = dx - dz
+	var x = x0
+	var z = z0
+	while x != x1 or z != z1:
+		if nav_clearance(layout, x, z) == 0:
+			return false
+		var e2 = 2 * err
+		if e2 > -dz:
+			err -= dz
+			x += sx
+		if e2 < dx:
+			err += dx
+			z += sz
+	return true
 
 
 # ---------------------------------------------------------------- reading a layout
