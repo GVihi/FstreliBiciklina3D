@@ -1,51 +1,59 @@
 # Procedural arenas (design note for Milestone K)
 
-Goal: every map node gets its own generated arena, much bigger and more varied than today's single roundabout. This page records what the code does now, what has to change, and the questions that need an owner decision before the big steps. The checklist is in the README under Milestone K.
+Goal: every run gets one generated arena, about four times bigger than today's roundabout, that the player walks through freely and where riders can ride on roads, sidewalks, grass and so on. This page records the owner's decisions, what the code does now, what has to change and what is still open. The checklist is in the README under Milestone K.
+
+## Decisions so far (owner)
+
+- **Size:** about 4 times the walkable area. Today the player walks in a ring from 2.3 m to 22.3 m from the centre, roughly 1,500 m². Four times that is about 6,000 m² (for example a 80 m by 80 m area). The world drawn around it is bigger still.
+- **Player:** walks through the whole arena (no longer held to a ring around a central island).
+- **Riders:** do not have to lap or follow a fixed lane. They can ride on the road, the sidewalk, the grass, anywhere that is open.
+- **One arena per run:** the arena is generated once from the run seed and used for every round of that run. Different rounds still change theme and lighting, and the run map's nodes need a rule for how they use the one arena (see the open questions).
 
 ## How the arena works today
 
 - All game logic (riders, bosses, pedestrians, hit zones, pickups) runs in **street coordinates**: `x` is the distance along the road, `z` is the position across it (barrier, three lanes, sidewalk, facade).
-- `scripts/ring.gd` is the only place that turns street coordinates into the world: `tw(x, z)` gives a world position, `tangent`, `inward` and `yaw` give directions, `to_track` goes back. It bends the street into a circle of radius about 13 m, with the player on a central island.
-- Riders loop around the ring (`x` wraps at `ARENA_HX`, half a lap) and enter and leave through a tunnel block at the seam.
-- The player walks inside a ring-shaped area (`PLAYER_R_MIN` 2.3 m to `PLAYER_R_MAX` 22.3 m, plus `Ring.player_lim()` near the tunnel).
-- `scripts/world.gd` builds the whole arena once at start-up. About 55 call sites use `Ring.` today (`main.gd` 21, `world.gd` 15, `combat.gd` 7, `bosses.gd` 6, `riders.gd` 4, `pedestrians.gd` 2, `player.gd` 2).
+- `scripts/ring.gd` is the only place that turns street coordinates into the world: `tw(x, z)`, `tangent`, `inward`, `yaw` and `to_track`. It bends the street into a circle of radius about 13 m, with the player on a central island.
+- Riders loop around the ring (`x` wraps at `ARENA_HX`, half a lap) and enter and leave through a tunnel block at the seam. Each rider has a lane with a speed multiplier (`LANE_MULT`).
+- The player is held to a ring-shaped area (`PLAYER_R_MIN`, `PLAYER_R_MAX`, `Ring.player_lim()`).
+- `scripts/world.gd` builds the whole arena once at start-up. About 55 call sites use `Ring.` (`main.gd` 21, `world.gd` 15, `combat.gd` 7, `bosses.gd` 6, `riders.gd` 4, `pedestrians.gd` 2, `player.gd` 2).
 
-The good news: because the logic already thinks in street coordinates, a different arena shape mostly means replacing what `ring.gd` does, not rewriting the game rules. The hard parts are the places that assume a circle: the player's bounds, the lap wrap, the tunnel seam, boss attack shapes (lane strips and slam circles) and the threat arrows and radar.
+## What the decisions mean
 
-## Direction (option 1: procedural arenas)
+The earlier idea of a generated "route" with street coordinates along it no longer fits: riders that cross grass and sidewalks do not live on a road, and a player who walks everywhere is not standing next to one. The game logic has to move from street coordinates to **world positions**, and the arena becomes a **terrain map** instead of a road:
 
-Each node on the run map (Milestone G and D) points at a generated **arena**: a bounded space, much larger than today's, with its own shape. An arena is made of:
+- a ground layer with a surface type at every point (road, sidewalk, grass, plaza, and so on),
+- obstacles (buildings, fountains, props, walls) and a boundary,
+- **gates** at the edge (tunnels, alleys) where riders appear and leave,
+- a **navigation grid** so riders can steer around obstacles on any open surface.
 
-1. A **route**: a path through the space that riders follow, with the street coordinates running along it. It is either a closed loop (laps, like today) or an open street with an entrance and an exit.
-2. A **player zone**: the area the player can walk in, next to the route.
-3. **Dressing** placed along the route and around the zone: facades, props, tunnel gates, lighting per theme.
-4. **Parameters** chosen from the seed: size, shape, how many entrances, which preset (plaza, street canyon, bridge, market, tunnel).
+This is a rewrite of how riders move, not only of how the world is built. It touches `riders.gd`, `bosses.gd`, `combat.gd`, `pedestrians.gd`, `pickups.gd`, `player.gd`, the HUD's threat arrows and radar, and `main.gd`.
 
 ## Plan in steps (README Milestone K)
 
-The first step changes nothing a player sees. It is what makes every later step safe.
+The first step changes nothing a player sees.
 
-1. Put the arena behind one interface (`Arena`), with the roundabout as its first implementation, and move every `Ring.` call to it.
-2. A route model: a path with an arc-length coordinate, so `tw`, `tangent`, `inward` and `yaw` work for any shape. A circle route must reproduce today's roundabout exactly (check it by comparing results).
-3. Player zone and bounds as a shape instead of two radii.
-4. The arena generator and its validation (seed in, arena out, same seed same arena).
-5. Build the world from a route: road and lanes along the path, facades and props placed along both sides. Reuse the Milestone F9 kit (chunky facade kit, props, tunnel) instead of building it twice.
-6. Adapt gameplay: spawn and despawn at entrances, wrap or end of route, boss attack shapes, pedestrians, pickups, threat arrows and radar.
-7. Scale and performance: draw distance, culling, shadow and light budget on the minimum-spec machine.
-8. Presets and variety (plaza, canyon, bridge, market, tunnel), which also covers the "New Arenas" items in Milestone D.
-9. Playtest and balance: rider speed against longer routes, sightlines, run length.
+1. Put the arena behind one `Arena` interface with world-space queries (player bounds, surface at a point, obstacles, gates). The roundabout is the first implementation.
+2. Move rider, boss and pedestrian movement from street coordinates to world positions with steering and obstacle avoidance. The roundabout must still play the same way (riders can follow a circular path in the new system).
+3. Player bounds from the arena instead of two radii.
+4. The arena generator: seed in, terrain layout out (size, roads, plazas, grass, building blocks, gates), same seed same arena.
+5. Generate the navigation grid with it and validate every arena (all gates connected, no sealed areas, minimum corridor widths, a clear start area).
+6. Build the world from the layout: ground surfaces, curbs, buildings and props (reuse the Milestone F9 kit), gates, theme lighting.
+7. Gameplay on open ground: riders on any surface, spawn at gates and where they go, boss attacks in open space, pedestrians and pickups, threat arrows, radar and aim assist for attacks from every direction and distance.
+8. Scale and performance for four times the area on the minimum-spec machine.
+9. Arena styles chosen by the seed (plaza, street canyon, market, bridge, tunnel, park), which also covers the "New Arenas" items in Milestone D.
+10. Playtest and balance.
 
-## Decisions needed from the owner
+## Open questions
 
-- **How much bigger?** For example 3 to 4 times the walkable area? This drives performance work more than anything else.
-- **Does the player still stay in a zone, or walk through the whole arena?** Today the player is held to a ring about 20 m wide. A free-roaming player changes aiming, riders' targets and the camera.
-- **Do riders still lap, or pass through?** Laps keep the current rider logic; open streets make riders appear and leave, which changes round pacing.
-- **One arena shape per run, per round, or per map node?** Per node is the most varied and the most work.
-- **Low-end PCs:** the art direction targets them, so a hard budget (triangles, lights, draw distance) should be agreed before step 5.
+- **What do riders do in an open arena?** Today they ride past the player on a lane. In an open arena they could cross between gates, ride toward the player, patrol, or follow a goal each. This decides how the game feels and should be settled before step 2.
+- **Speed by surface:** road fastest, sidewalk slower, grass slowest? It makes surfaces matter, and lets the player choose where to stand.
+- **How do map nodes use one arena?** Options: each node takes place in a different district of the arena (the player walks there), or every node uses the whole arena with a different set-up (riders, gates in use, props). Milestone G and D need to agree with this.
+- **Performance budget** (triangles, lights, shadows, draw distance) on the minimum-spec machine. It should be agreed before step 6.
+- **Can bosses and riders see and attack from far away?** A bigger open arena changes sightlines and what a threat arrow means.
 
 ## Risks
 
-- The tunnel seam and the lap wrap are built into rider movement (`riders.gd`) and pedestrians; open routes need their own spawn and despawn rules.
-- Boss attacks are drawn in street space as lane strips and slam circles; they need to work on curved and bent routes.
-- A much larger world costs frame time. Step 7 exists for this, but the size decision above should come first.
-- This is a large rewrite spread over several milestones. Doing step 1 first keeps the game playable at every point.
+- This is the biggest change on the roadmap: it replaces how everything moves. Step 1 and step 2 first, with the roundabout still working, keep the game playable at every point.
+- Riders steering over open ground need obstacle avoidance that is cheap enough for the minimum-spec machine, with up to ten riders and bosses at once.
+- Boss attacks are drawn in street space as lane strips and slam circles; they need to be redone for open ground.
+- Four times the area costs frame time; step 8 exists for this, and the budget question above should come first.
