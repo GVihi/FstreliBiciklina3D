@@ -278,7 +278,7 @@ Mostly vibe coded Godot game
 ### F3. Melee
 - [x] Chunky model with a glossy rubber material (new jelly club replaces the gummy worm: ribbed grip collar, fat knob, curved ringed shaft and a ridged head, one glossy pink material plus glitter flecks, shaped after the owner's reference photo; `tools/models/models/jelly_club.py` -> `assets/models/jelly_club.glb`, 2,600 tris, same reach and hand position as the worm, `RUBBER_MODEL_GLB = false` in `models.gd` brings the old worm back. It is one colour with no eyes, so the next checkboxes only need confirming in game. Waiting for your in-game check: open the project once so Godot imports the `.glb`, then look at the club in a run and in `tools/viewer/model_viewer.tscn`)
 - [ ] No alternating colors
-- [ ] More detail (like the Dart gun)
+- [x] More detail (like the Dart gun) (flanged end with a groove, ribbed grip collar, two kinds of ridges on the shaft: rings low down and spiral ridges below the head, a moulded seam down one side, glitter in two sizes; 16-sided rings, 4,720 tris of the 10,000 budget; `geo.tube` now takes a `radius_fn` for ridges and seams; built on the jelly club branch; waiting for your in-game check, including whether the ridges read at swing distance)
 - [ ] More rubbery look
 - [ ] No eyes
 - [ ] Rubbery wobble swing animation

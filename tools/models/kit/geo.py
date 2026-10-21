@@ -117,10 +117,11 @@ def blob(name, radius, loc, mat_name, squash=(1.0, 1.0, 1.0)):
     return _make_object(name, bm, mat_name, loc)
 
 
-def tube(name, rings, mat_name, sides=12, cap_start=True, cap_end=True):
+def tube(name, rings, mat_name, sides=12, cap_start=True, cap_end=True, radius_fn=None):
     """A faceted tube lofted through rings, for soft rubbery shapes (jelly clubs, tails, hoses).
     rings = list of (centre (x, y, z), radius) in order from start to end. Each ring is a polygon of `sides` points
     perpendicular to the path; the ends are closed with a flat cap (use a few small rings to make a dome).
+    radius_fn(i, angle) -> extra radius (metres) for point `angle` (radians) of ring `i`: spiral ridges, seams.
     Flat shaded like everything else in the kit, so it stays chunky."""
     bm = bmesh.new()
     pts = [Vector(c) for c, _ in rings]
@@ -138,7 +139,8 @@ def tube(name, rings, mat_name, sides=12, cap_start=True, cap_end=True):
         ring = []
         for k in range(sides):
             ang = 2.0 * math.pi * k / sides
-            ring.append(bm.verts.new(Vector(c) + (n1 * math.cos(ang) + n2 * math.sin(ang)) * r))
+            rr = r + (radius_fn(i, ang) if radius_fn else 0.0)
+            ring.append(bm.verts.new(Vector(c) + (n1 * math.cos(ang) + n2 * math.sin(ang)) * rr))
         grid.append(ring)
     for i in range(len(grid) - 1):
         for k in range(sides):
