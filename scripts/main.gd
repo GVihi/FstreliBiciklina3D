@@ -27,6 +27,7 @@ const ScoresScript = preload("res://scripts/scores.gd")
 const MetaScript = preload("res://scripts/meta.gd")
 const ViewmodelScript = preload("res://scripts/viewmodel.gd")
 const DailyScript = preload("res://scripts/daily.gd")
+const MapGenScript = preload("res://scripts/map_gen.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -100,6 +101,7 @@ var daily_seed = 0  # same for every player on that date (daily.gd); a Daily Run
 var daily_label = ""  # title-screen text for the above
 var daily_mode = false  # true while a Daily Run is in progress (own scoreboard later, no normal high score)
 var run_seed = 0  # the seed this run started with: today's daily seed in a Daily Run, a random one in a normal run
+var run_map = {}  # the run map generated from run_seed (map_gen.gd); rounds do not follow it yet, it is only logged
 var rider_rng = RandomNumberGenerator.new()  # which riders spawn, reseeded from the run seed at the start of every round
 var hearts = 3
 var combo = 0
@@ -641,6 +643,8 @@ func start_game(daily: bool = false) -> void:
 		run_seed = daily_seed
 	else:
 		run_seed = DailyScript.random_seed()
+	run_map = MapGenScript.generate(run_seed)
+	print(MapGenScript.to_text(run_map))
 	round_n = 1
 	score = 0
 	hearts = MAXHEARTS
