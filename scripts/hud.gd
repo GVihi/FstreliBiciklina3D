@@ -285,6 +285,9 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	var acc = 0
 	if g.shots_fired > 0:
 		acc = int(round(100.0 * g.shots_hit / g.shots_fired))
+	var coin_label = "META COINS"
+	if g.meta.boss_coins > 0:
+		coin_label = "META COINS (%d FROM BOSSES)" % g.meta.boss_coins
 	var rcols = [GRAY, TEXT, Color(0.35, 0.7, 0.42), GOLD, ACCENT]
 	var letters = ["D", "C", "B", "A", "S"]
 	var lx = cx - 190.0 * k
@@ -299,7 +302,7 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		["ROUND REACHED", "%d / %d" % [g.round_n, g.MAX_ROUNDS], TEXT],
 		["RUN TIME", g.fmt_time(g.play_time + g.shop_time), TEXT],
 		["BEST COMBO", "x%d" % g.best_combo, TEXT],
-		["META COINS", "+%d" % g.meta_earned, GOLD]
+		[coin_label, "+%d" % g.meta_earned, GOLD]
 	]
 	for i in range(rows.size()):
 		var y = y0 + i * step

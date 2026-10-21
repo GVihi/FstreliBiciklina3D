@@ -89,7 +89,7 @@ Mostly vibe coded Godot game
 
 - [ ] Add meta currency
   - [x] Earn from score
-  - [ ] Earn from boss kills
+  - [x] Earn from boss kills (5 coins for a lawnmower, wifi adapter or minister, 1 for the angry cyclist, 20 for the final boss; counted when the boss dies and paid out with the score coins when the run ends, so a run you quit pays nothing, same as the score coins; the run summary says how many came from bosses; `COINS_*` tuning constants and `add_boss_kill` in `scripts/meta.gd`, hook in `kill_boss` in `scripts/bosses.gd`. Written without running Godot, only parse-checked and linted; waiting for your in-game check: kill a boss and look at the META COINS row on the run summary. Built on the save-file versioning branch because both change `meta.gd`)
   - [ ] Earn from challenges
 
 - [x] Keep meta currency separate from run cash

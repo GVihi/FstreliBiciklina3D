@@ -724,6 +724,7 @@ func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -
 
 func kill_boss(b: Dictionary) -> void:
 	g.kills += 1
+	g.meta.add_boss_kill(str(b["kind"]), b.get("final", false))
 	b["mode"] = "dying"
 	b["die_t"] = 0.0
 	stop_boss_sound(b)
