@@ -16,8 +16,10 @@ func handle_input(event: InputEvent) -> void:
 			var k = g.SENS * g.sens_mul * (g.cam.fov / g.fov_hip)
 			g.yaw -= event.relative.x * k
 			g.pitch = clampf(g.pitch - event.relative.y * k, -1.45, 1.45)
-		elif g.drag_id != "":
-			g.hud.apply_slider(g.drag_id, g.get_viewport().get_mouse_position())
+		else:
+			if g.drag_id != "":
+				g.hud.apply_slider(g.drag_id, g.get_viewport().get_mouse_position())
+			hover_menu(event.position)
 	elif event is InputEventMouseButton:
 		if not event.pressed:
 			if event.button_index == MOUSE_BUTTON_LEFT:
@@ -240,6 +242,17 @@ func confirm_name() -> void:
 	g.scores.set_name(g.last_rank, nm)
 	g.settings.save_settings()
 	g.sfx.play("click")
+
+
+# Moving the mouse over a title / pause button selects it, so the keyboard and the mouse share
+# one highlight (title_sel / pause_sel). Staying in the gap between two buttons keeps the last one.
+func hover_menu(pos: Vector2) -> void:
+	var ti = g.hud.title_at(pos)
+	if ti >= 0:
+		g.title_sel = ti
+	var pi = g.hud.pause_at(pos)
+	if pi >= 0:
+		g.pause_sel = pi
 
 
 # ---- title screen menu (entries are listed in hud.gd TITLE_ITEMS)
