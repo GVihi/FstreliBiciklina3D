@@ -28,6 +28,11 @@ static func today_seed() -> int:
 	return seed_for(date_string())
 
 
+# Fresh random 32-bit seed (0 .. 4294967295) for a normal run. randi() is seeded from the system by Godot.
+static func random_seed() -> int:
+	return randi()
+
+
 # Seed for one named part of one round of a daily run, e.g. ("upgrade", run seed, round 3).
 # Every part gets its own seed, so what one part draws never changes what another part sees.
 static func stream_seed(run_seed: int, round_n: int, part: String) -> int:

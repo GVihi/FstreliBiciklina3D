@@ -100,7 +100,7 @@ const FINAL_HP_MUL = 1.3
 func spawn_boss() -> void:
 	var final = g.is_final_round()
 	var kind = g.BOSS_KINDS[
-		(g.round_n + g.boss_count + g.daily_shift(g.BOSS_KINDS.size())) % g.BOSS_KINDS.size()
+		(g.round_n + g.boss_count + g.seed_shift(g.BOSS_KINDS.size())) % g.BOSS_KINDS.size()
 	]
 	var variant = (g.round_n + g.boss_count) % 2
 	if final:
