@@ -12,6 +12,7 @@ Goal: every run gets one generated arena, about four times bigger than today's r
 - **A pass costs health, as now:** a rider that reaches the player and is not shot, dashed or dodged does damage, with the same dash and perfect-dodge rules as today.
 - **Rounds can run on:** a rider keeps returning until it is killed, with no cap on passes and no time limit. The melee weapon is the answer to a player who keeps missing, and damage from passes is the pressure. A round ends when every rider is down. This means a rider can no longer "escape", so the round progress icons, the "N of 10 hit" count, `NEED` and the perfect-round rule in `main.gd` must be reworked for it (see the README gameplay item).
 - **Map nodes (decided by Claude, owner left it open):** every node uses the whole arena with its own set-up: rider mix, which gates are in use, props and hazards, theme and round modifiers (night, rain, double riders from Milestone D). The player starts each round in a clear start area. Reasons: walking to a different district for each of about ten rounds would eat run time and break the 20 to 30 minute target; one set of gates and navigation data serves every node; the arena stays familiar, which suits a run the player is learning; and node variety comes from set-ups, which are cheap, rather than from more geometry. Shop, rest and event nodes are not fights, so they can stay screens or sit at a fixed spot in the arena, to be decided with Milestone D.
+- **Speed by surface (riders):** road and plaza 1.0, sidewalk 0.9, grass 0.75 of a rider's speed, so the surface a rider crosses matters and the player can choose where to stand. The table is `rider_speed` in `data/arena_rules.json`; the numbers are a first guess for the playtest item. The player's own speed does not change.
 - **Performance budget:** deferred by the owner, not a blocker for now. It still has to be set before the world is built (step 6).
 
 ## How the arena works today
@@ -50,9 +51,12 @@ The first step changes nothing a player sees.
 9. Arena styles chosen by the seed (plaza, street canyon, market, bridge, tunnel, park), which also covers the "New Arenas" items in Milestone D.
 10. Playtest and balance.
 
+## The generator (step 4, first part)
+
+`scripts/arena_gen.gd` turns a run seed into a layout, using `data/arena_rules.json` and nothing else. The layout is plain data: a grid of 48 by 48 cells of 2 m (96 m square, centred on the origin, x east and z south) written as text rows, with lists of roads, plazas, building blocks, gates and the start area (the field list is at the top of the script). Roads run straight from edge to edge and cross; the edge is a 2-cell building ring in which some road ends are opened as tunnel gates and the others are walled off; the start plaza is placed first and has a clear 5 by 5 area in the middle; building blocks fill the grass with a 1-cell gap to roads and each other. Streams are `arena_roads`, `arena_plazas` and `arena_blocks`, each seeded with the attempt number, and an attempt that fails (no room for the start plaza, ground outside 6,000 to 7,000 m²) is replaced by the next one. `tools/arena_gen_check.gd` checks it. The layout also carries the navigation grid (step 5): for every cell the clearance to the nearest building (diagonals count, capped at 9; 1 means touching), and `nav_cost` turns the rider speed table into a per-cell cost for path searches. Every layout is then validated (step 5): `ArenaGen.validate` checks that the start area is clear, that no open ground is sealed off, that every gate can be reached from the start through corridors at least three cells (6 m) wide, and that at least half of the ground within 40 m of the start is in view; a layout that fails is replaced by the next attempt. Not yet: a seed preview, and any use of the layout by the game.
+
 ## Open questions
 
-- **Speed by surface:** road fastest, sidewalk slower, grass slowest? It makes surfaces matter and lets the player choose where to stand. Not decided.
 - **Can bosses and riders see and attack from far away?** A bigger open arena changes sightlines and what a threat arrow means.
 
 ## Risks
