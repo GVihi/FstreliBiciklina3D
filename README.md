@@ -54,7 +54,7 @@ Mostly vibe coded Godot game
 - [ ] Keyboard and gamepad navigation for the settings panel (sliders are mouse-only today)
 - [ ] Controls / "How to play" page (the long controls text was removed from the title screen)
 - [ ] Pause automatically when the game window loses focus
-- [ ] Confirm before Restart Run / Quit to Title (a run is lost with one click)
+- [x] Confirm before Restart Run / Quit to Title (a run is lost with one click) (both pause menu entries now open a "RESTART RUN?" / "QUIT TO TITLE?" page with NO, GO BACK selected first and a YES button; works with mouse, keyboard (arrows / W S / Enter) and gamepad (D-pad / A), Esc or B goes back, and YES ignores clicks for 0.3 s after the page opens so a double click cannot lose the run; `confirm_*` functions in `scripts/input.gd`, `_draw_confirm` in `scripts/hud.gd`. Written without running Godot, only parse-checked and linted; waiting for your in-game check: pause, pick Restart Run and Quit to Title with each input method, and try a fast double click)
 - [ ] Optional: "Continue" button to resume an interrupted run
 
 ## High Scores

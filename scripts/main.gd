@@ -233,8 +233,11 @@ var volume = 1.0
 var outlines = true
 var drag_id = ""
 var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / scores
-var pause_page = ""  # "" = pause menu, "settings" = settings panel
+var pause_page = ""  # "" = pause menu, "settings" = settings panel, "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
+var confirm_id = ""  # what the confirmation asks about: "restart" or "title"
+var confirm_sel = 0  # highlighted confirmation button: 0 = NO (the safe default), 1 = YES
+var confirm_t0 = 0.0  # g.time when the confirmation opened; YES is ignored for a moment after (double clicks)
 var title_sel = 0  # highlighted title-menu entry (keyboard / gamepad)
 
 var cheerleaders = []
@@ -926,6 +929,7 @@ func _process(delta: float) -> void:
 	if not paused:
 		pause_page = ""
 		pause_sel = 0
+		confirm_sel = 0
 	time += dt
 	player_sys.update_player(dt, captured)
 	if not paused:
