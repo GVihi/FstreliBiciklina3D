@@ -276,7 +276,7 @@ Mostly vibe coded Godot game
 - [x] (Optional) Ammo count shown on the gun itself (a glowing number on the left side of the receiver: cyan, amber at 2 or fewer, red at 0, INF with rapid fire; `_build_ammo_label` in `models.gd`, updated in `update_gun`; the HUD ammo stays; waiting for your in-game check, including whether it is readable)
 
 ### F3. Melee
-- [ ] Chunky worm model with a glossy rubber material
+- [ ] Chunky model with a glossy rubber material
 - [ ] No alternating colors
 - [ ] More detail (like the Dart gun)
 - [ ] More rubbery look
