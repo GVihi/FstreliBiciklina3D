@@ -69,8 +69,8 @@ func apply_civ(c: Dictionary) -> void:
 	var m = c["model"]
 	var s = c["scale"]
 	var cr: Node3D = m["root"]
-	cr.position = Ring.tw(c["x"], c["z"], c["hop"])
-	cr.rotation = Vector3(0.0, (0.0 if c["dir"] > 0 else PI) + Ring.yaw(c["x"]), 0.0)
+	cr.position = g.arena.tw(c["x"], c["z"], c["hop"])
+	cr.rotation = Vector3(0.0, (0.0 if c["dir"] > 0 else PI) + g.arena.yaw(c["x"]), 0.0)
 	cr.scale = Vector3(s, s, s)
 	Models.pose_civ(m, c["ph"], c["photo"] > 0.0, c["type"] == "jogger" or c["state"] == "flee")
 
