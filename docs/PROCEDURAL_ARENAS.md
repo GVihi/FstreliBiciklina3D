@@ -9,6 +9,8 @@ Goal: every run gets one generated arena, about four times bigger than today's r
 - **Riders:** do not have to lap or follow a fixed lane. They can ride on the road, the sidewalk, the grass, anywhere that is open.
 - **One arena per run:** the arena is generated once from the run seed and used for every round of that run. Different rounds still change theme and lighting.
 - **Rider behaviour:** a rider rides toward the player. If the player does not shoot it, it passes, then turns around and rides toward the player again. The turn must be smooth (a limited turning rate, so it swings round in an arc), never a sharp 180 degree switch.
+- **A pass costs health, as now:** a rider that reaches the player and is not shot, dashed or dodged does damage, with the same dash and perfect-dodge rules as today.
+- **Rounds can run on:** a rider keeps returning until it is killed, with no cap on passes and no time limit. The melee weapon is the answer to a player who keeps missing, and damage from passes is the pressure. A round ends when every rider is down. This means a rider can no longer "escape", so the round progress icons, the "N of 10 hit" count, `NEED` and the perfect-round rule in `main.gd` must be reworked for it (see the README gameplay item).
 - **Map nodes (decided by Claude, owner left it open):** every node uses the whole arena with its own set-up: rider mix, which gates are in use, props and hazards, theme and round modifiers (night, rain, double riders from Milestone D). The player starts each round in a clear start area. Reasons: walking to a different district for each of about ten rounds would eat run time and break the 20 to 30 minute target; one set of gates and navigation data serves every node; the arena stays familiar, which suits a run the player is learning; and node variety comes from set-ups, which are cheap, rather than from more geometry. Shop, rest and event nodes are not fights, so they can stay screens or sit at a fixed spot in the arena, to be decided with Milestone D.
 - **Performance budget:** deferred by the owner, not a blocker for now. It still has to be set before the world is built (step 6).
 
@@ -48,8 +50,6 @@ The first step changes nothing a player sees.
 
 ## Open questions
 
-- **What happens when a rider passes the player?** Today a rider that reaches the player's lane is resolved as a hit or an escape, with dash and perfect-dodge rules. In the new behaviour the rider keeps coming back, so a pass needs a rule (damage unless the player dashes or dodges?).
-- **How does a round end?** If riders keep returning until they are shot, a round can run on forever for a player who misses. Options: a time limit, a cap on passes per rider, or riders that leave through a gate after a number of passes. Today each round has a fixed number of riders, each of which counts as hit or missed.
 - **Speed by surface:** road fastest, sidewalk slower, grass slowest? It makes surfaces matter and lets the player choose where to stand. Not decided.
 - **Can bosses and riders see and attack from far away?** A bigger open arena changes sightlines and what a threat arrow means.
 

@@ -475,7 +475,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [x] One arena per run (generated once from the run seed)
 - [x] Riders ride toward the player, pass if they are not shot, then turn round in a smooth arc (limited turning rate, never a sharp 180 degree switch) and ride toward the player again
 - [x] Map nodes: every node uses the whole arena with its own set-up (rider mix, gates in use, props, theme and modifiers), and the player starts each round in a clear start area (the owner left this choice to Claude, reasons in the design note)
-- [ ] Decide what happens when a rider passes the player (damage unless dash or dodge?) and how a round ends if riders keep returning (time limit, cap on passes, or riders leave through a gate)
+- [x] A rider that passes the player does damage as it does now (same dash and perfect-dodge rules); riders keep coming back until they are killed, with no cap on passes and no time limit (the melee weapon is the fallback), and a round ends when every rider is down
 - [ ] Decide whether road, sidewalk and grass change rider speed
 - [ ] Set the performance budget (triangles, lights, shadows, draw distance) on the minimum-spec machine (deferred by the owner: not needed yet, but needed before the world is built)
 
@@ -501,6 +501,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 ## Gameplay on open ground
 
 - [ ] Rider pursuit steering: ride toward the player on any open surface, pass, then turn round in a smooth arc and return; spawning at gates
+- [ ] Round clear rule for riders that cannot escape: the round ends when every rider is down; rework the round progress icons, the "N of 10 hit" count, `NEED`, the perfect-round rule and style and score rules in `main.gd` and `hud.gd`
 - [ ] Boss attacks (strips, slam circles, volleys) on open ground
 - [ ] Pedestrians, cheerleaders and pickups placed on generated arenas
 - [ ] Threat arrows, radar and aim assist for attacks from every direction and distance
