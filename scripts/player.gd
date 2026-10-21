@@ -37,16 +37,16 @@ var jelly_tip_v = 0.0
 var jelly_phase = 0.0           # moves the ripple that runs down the club
 
 # Jelly club wobble tuning (Milestone F3). Metres unless noted.
-const JELLY_STIFFNESS = 420.0   # spring strength: higher = the tip keeps up better and rings faster
-const JELLY_DAMPING = 9.0       # spring damping: lower = more wobble after the swing (about 4 bounces now)
-const JELLY_BEND = 0.16         # sideways bend of the tip per unit of lag (full swing lag gives about 15 cm)
-const JELLY_DROOP = 0.05        # the tip also sags this much (per unit of lag) while the club whips
-const JELLY_RIPPLE_IDLE = 0.004 # a tiny ripple that is always there
-const JELLY_RIPPLE_GAIN = 0.0025# ripple strength per unit of tip speed
-const JELLY_RIPPLE_MAX = 0.03
-const JELLY_RIPPLE_SPEED = 14.0 # how fast the ripple runs (rad/s)
-const JELLY_SQUASH = 0.05       # stretch along the club per unit of lag, thinning it a little
-const JELLY_SQUASH_MAX = 0.06
+const JELLY_STIFFNESS = 230.0   # spring strength: higher = the tip keeps up better and rings faster (lower = slow, floppy swings)
+const JELLY_DAMPING = 3.2       # spring damping: lower = more wobble after the swing (about 8 bounces, over a second)
+const JELLY_BEND = 0.45         # sideways bend of the tip per unit of lag (full swing lag gives about 45 cm)
+const JELLY_DROOP = 0.22        # the tip also sags this much (per unit of lag) while the club whips
+const JELLY_RIPPLE_IDLE = 0.012 # a tiny ripple that is always there
+const JELLY_RIPPLE_GAIN = 0.007# ripple strength per unit of tip speed
+const JELLY_RIPPLE_MAX = 0.09
+const JELLY_RIPPLE_SPEED = 18.0 # how fast the ripple runs (rad/s)
+const JELLY_SQUASH = 0.14       # stretch along the club per unit of lag, thinning it a little
+const JELLY_SQUASH_MAX = 0.16
 
 # Gun motion tuning (Milestone F2). Everything is in metres / radians and fades out while aiming down sights.
 const IDLE_SWAY = 0.0035        # breathing: how far the gun drifts up/down while standing still
