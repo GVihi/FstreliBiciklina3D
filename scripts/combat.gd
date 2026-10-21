@@ -2,7 +2,6 @@ extends RefCounted
 # Combat: shotgun and reload, melee swing, deflecting phones and the dart projectiles.
 # Shared game state stays on main.gd (g); this file holds the logic.
 
-const Ring = preload("res://scripts/ring.gd")
 const Util = preload("res://scripts/util.gd")
 
 var g = null
@@ -93,7 +92,7 @@ func fire() -> void:
 			world_kind = "wall"
 			break
 		ts += 0.5
-	var tfac = Ring.ray_exit_circle(org, dir, Ring.FACADE_RHO)  # buildings all around
+	var tfac = g.arena.ray_exit_circle(org, dir, g.arena.FACADE_RHO)  # buildings all around
 	if tfac > 0.0 and tfac < t_world:
 		t_world = tfac
 		world_kind = "wall"
@@ -122,25 +121,29 @@ func fire() -> void:
 		var inf = g.BOSS_INFO[b["kind"]]
 		var br: Vector3 = inf["r"]
 		var tb2 = Util.ray_ellipsoid_yaw(
-			org, dir, g.tw3(b["x"], inf["cy"], b["z"]), br + Vector3(ex, ex, ex), Ring.yaw(b["x"])
+			org,
+			dir,
+			g.tw3(b["x"], inf["cy"], b["z"]),
+			br + Vector3(ex, ex, ex),
+			g.arena.yaw(b["x"])
 		)
 		if tb2 > 0.0 and tb2 < best_t:
 			best_t = tb2
 			best_kind = "boss"
 			best_obj = b
 	for r in g.riders:
-		if (r["mode"] != "fly" and r["mode"] != "away") or Ring.hidden(r["x"]):
+		if (r["mode"] != "fly" and r["mode"] != "away") or g.arena.hidden(r["x"]):
 			continue
 		var c = g.tw3(r["x"], 0.95, g.LANE_Z[r["ln"]])
 		var t = Util.ray_ellipsoid_yaw(
-			org, dir, c, Vector3(1.3 + ex, 1.0 + ex, 0.55 + ex), Ring.yaw(r["x"])
+			org, dir, c, Vector3(1.3 + ex, 1.0 + ex, 0.55 + ex), g.arena.yaw(r["x"])
 		)
 		if t > 0.0 and t < best_t:
 			best_t = t
 			best_kind = "rider"
 			best_obj = r
 	for c2 in g.civs:
-		if c2["state"] != "walk" or Ring.hidden(c2["x"]):
+		if c2["state"] != "walk" or g.arena.hidden(c2["x"]):
 			continue
 		var s = c2["scale"]
 		var ctr = g.tw3(c2["x"], 0.95 * s, c2["z"])
@@ -166,7 +169,7 @@ func fire() -> void:
 
 	# near-miss reaction for pedestrians (not the one we hit)
 	for c3 in g.civs:
-		if c3["state"] != "walk" or c3 == best_obj or c3["flinch"] > 0.0 or Ring.hidden(c3["x"]):
+		if c3["state"] != "walk" or c3 == best_obj or c3["flinch"] > 0.0 or g.arena.hidden(c3["x"]):
 			continue
 		var to = g.tw3(c3["x"], 0.9, c3["z"]) - org
 		var proj = to.dot(dir)
@@ -262,7 +265,7 @@ func swing() -> void:
 		var r = g.riders[i]
 		if r["mode"] != "fly" and r["mode"] != "away":
 			continue
-		if not Ring.hidden(r["x"]) and flat_dist_v(zc, g.rider_world(r, 0.0)) < zr * 0.8 + 0.9:
+		if not g.arena.hidden(r["x"]) and flat_dist_v(zc, g.rider_world(r, 0.0)) < zr * 0.8 + 0.9:
 			g.rider_sys.hit_rider(r, int(g.WEAPONS["melee"]["damage"]))
 			hit_any = true
 	if hit_any:
