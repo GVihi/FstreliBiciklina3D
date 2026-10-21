@@ -212,7 +212,7 @@ func apply_aim_assist(dt: float) -> void:
 	var best_ang = deg_to_rad(8.0)
 	var cands = []
 	for r in g.riders:
-		if (r["mode"] == "fly" or r["mode"] == "away") and not Ring.hidden(r["x"]):
+		if (r["mode"] == "fly" or r["mode"] == "away") and not g.arena.hidden(r["x"]):
 			cands.append(g.tw3(r["x"], 1.2, g.LANE_Z[r["ln"]]))
 	for b in g.bosses:
 		if g.boss_sys.boss_hittable(b):
@@ -257,7 +257,7 @@ func try_dash() -> void:
 	if mv.length() > 0.1:
 		dir = g.move_world(mv.normalized())
 	else:
-		dir = Ring.tangent(g.ptx()) * (-1.0 if g.ptx() > 0.0 else 1.0)  # nothing held: dash along the island towards the front
+		dir = g.arena.tangent(g.ptx()) * (-1.0 if g.ptx() > 0.0 else 1.0)  # nothing held: dash along the island towards the front
 	dir.y = 0.0
 	g.dash_dir = dir.normalized()
 	g.dash_t = g.DASH_TIME
