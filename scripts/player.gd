@@ -2,8 +2,6 @@ extends RefCounted
 # Player: movement, dash and slide, perfect dodges, aim assist, spread and gun handling.
 # Shared game state stays on main.gd (g); this file holds the logic.
 
-const Ring = preload("res://scripts/ring.gd")
-
 var g = null
 
 # gun motion (update_gun): how far the gun lags behind turning, and the look angles of the last frame

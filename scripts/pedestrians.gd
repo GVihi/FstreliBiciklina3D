@@ -3,7 +3,6 @@ extends RefCounted
 # Shared game state stays on main.gd (g); this file holds the logic.
 
 const Models = preload("res://scripts/models.gd")
-const Ring = preload("res://scripts/ring.gd")
 
 var g = null
 
