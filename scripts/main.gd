@@ -994,10 +994,6 @@ func place(node: Node3D, x: float, y: float, z: float) -> void:
 	node.rotation.y = arena.yaw(x)
 
 
-func street_vel(x: float, vx: float, vy: float, vz: float) -> Vector3:
-	return arena.tangent(x) * vx + Vector3(0.0, vy, 0.0) + arena.inward(x) * vz
-
-
 # things that can hurt you or that you can shoot: the edge arrows and the radar read this
 func threat_list() -> Array:
 	var out = []

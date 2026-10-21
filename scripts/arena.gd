@@ -51,6 +51,28 @@ func hidden(_x: float) -> bool:
 	return false
 
 
+# world metres per street metre on the lane at street z (the ring is tighter near the island). Riders are
+# given a speed in street metres per second, which this turns into the speed over the ground.
+func scale_at(_z: float) -> float:
+	_missing("scale_at")
+	return 1.0
+
+
+# The point a rider on the lane at street z steers at: `ahead` world metres further along the lane in
+# direction dir (+1 or -1) from the world point p. This is what keeps a rider on its lane; rider pursuit
+# (README Milestone K) replaces it with "ride towards the player" and then this goes away.
+func lane_point(_p: Vector3, _dir: int, _z: float, _ahead: float) -> Vector3:
+	_missing("lane_point")
+	return Vector3.ZERO
+
+
+# street metres a rider at world point p still has to ride in direction dir before it has left the arena
+# through the gate it is heading for (used when a rider gives up and rides away)
+func exit_distance(_p: Vector3, _dir: int) -> float:
+	_missing("exit_distance")
+	return 0.0
+
+
 # how far out x can go for things that must stay in view / for the player
 func lim() -> float:
 	_missing("lim")
@@ -76,6 +98,13 @@ func start_position() -> Vector3:
 func clamp_walk(p: Vector3, _who: String = "player") -> Vector3:
 	_missing("clamp_walk")
 	return p
+
+
+# true if riders have to steer round obstacle_at() on their own. The roundabout keeps its lanes clear of
+# everything except the tunnel they ride through, so it says no; generated arenas will say yes.
+func rider_avoidance() -> bool:
+	_missing("rider_avoidance")
+	return false
 
 
 # true if a dart at world point p is inside something solid

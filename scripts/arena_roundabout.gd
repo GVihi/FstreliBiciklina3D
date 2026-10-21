@@ -40,6 +40,24 @@ func hidden(x: float) -> bool:
 	return Ring.hidden(x)
 
 
+func scale_at(z: float) -> float:
+	return Ring.scale_at(z)
+
+
+func lane_point(p: Vector3, dir: int, z: float, ahead: float) -> Vector3:
+	var x = Ring.to_track(p).x
+	return Ring.tw(x + float(dir) * ahead / Ring.scale_at(z), z)
+
+
+# a rider that rides away heads for the seam on its own side and is gone 2.6 m past it
+func exit_distance(p: Vector3, _dir: int) -> float:
+	return Ring.HX + 2.6 - absf(Ring.to_track(p).x)
+
+
+func rider_avoidance() -> bool:
+	return false
+
+
 func lim() -> float:
 	return Ring.lim()
 
