@@ -379,11 +379,10 @@ func title_at(pos: Vector2) -> int:
 func _draw_title_menu(k: float, cx: float) -> void:
 	_txt("FSTRELI", cx, size.y * 0.17, int(76 * k), ACCENT, 1)
 	_txt("BICIKLINA 3D", cx, size.y * 0.28, int(76 * k), ACCENT, 1)
-	var hov = title_at(get_viewport().get_mouse_position())
 	for i in range(TITLE_ITEMS.size()):
 		var item = TITLE_ITEMS[i]
 		var r = title_rect(i)
-		var on = hov == i or (hov < 0 and g.title_sel == i)
+		var on = g.title_sel == i  # the mouse updates title_sel in input.gd (hover_menu)
 		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
 		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
 		var base = r.position.y + 29.0 * k
@@ -498,10 +497,9 @@ func pause_at(pos: Vector2) -> int:
 
 func _draw_pause_menu(k: float, cx: float) -> void:
 	_txt("PAUSED", cx, size.y * 0.26, int(60 * k), TEXT, 1)
-	var hov = pause_at(get_viewport().get_mouse_position())
 	for i in range(PAUSE_ITEMS.size()):
 		var r = pause_rect(i)
-		var on = hov == i or (hov < 0 and g.pause_sel == i)
+		var on = g.pause_sel == i  # the mouse updates pause_sel in input.gd (hover_menu)
 		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
 		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
 		_txt(
@@ -684,7 +682,8 @@ func _draw() -> void:
 						Color(0.95, 0.71, 0.19) if i < r["hp"] else Color(0.23, 0.18, 0.17)
 					)
 
-	_draw_top_bar(k)
+	if state != "title":  # the title screen has its own corner texts, the run bar would overlap them
+		_draw_top_bar(k)
 
 	if state == "play":
 		_draw_crosshair(k)
