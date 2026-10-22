@@ -4,6 +4,7 @@ extends Node3D
 # Rules (rounds, riders, phones, bosses, hype, pickups, melee, upgrades) are ported from the
 # web game. World lives in world.gd, models in models.gd, overlay in hud.gd, sound in sfx.gd.
 
+const Lighting = preload("res://scripts/lighting.gd")
 const Util = preload("res://scripts/util.gd")
 const WorldBuilder = preload("res://scripts/world.gd")
 const Models = preload("res://scripts/models.gd")
@@ -513,25 +514,9 @@ func hi_check() -> void:
 
 
 func apply_theme(i: int) -> void:
-	var th = THEMES[i]
-	var sm = world["sky_mat"]
-	sm.sky_top_color = th["top"]
-	sm.sky_horizon_color = th["hor"]
-	sm.ground_horizon_color = th["hor"]
-	sm.ground_bottom_color = th["top"].darkened(0.5)
-	var sun = world["sun"]
-	sun.light_color = th["sun"]
-	sun.light_energy = th["sun_e"]
-	sun.rotation_degrees = Vector3(th["sun_x"], th["sun_y"], 0.0)
-	var env = world["env"]
-	env.ambient_light_color = th["amb"]
-	env.ambient_light_energy = th["amb_e"]
+	Lighting.apply_theme(THEMES[i], world)
 	if viewmodel != null:
-		viewmodel.sync_env(env)
-	for l in world["lamps"]:
-		l.visible = th["lamps"]
-	world["lamp_mat"].emission_energy_multiplier = 3.0 if th["lamps"] else 0.0
-	world["win_mat"].emission_energy_multiplier = th["lit"]
+		viewmodel.sync_env(world["env"])
 
 
 func col_mat(hex: String) -> Material:

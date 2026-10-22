@@ -14,6 +14,8 @@ extends Node3D
 #   W               switch between this flat plan and the real arena the game would build from the layout
 #                   (scripts/world_gen.gd and world_dress.gd): lit surfaces, curbs, road paint, the start frame,
 #                   buildings with windows and the tunnel blocks
+#   T               (in the real arena) the next lighting theme: DAY, GOLDEN HOUR, DUSK, NIGHT, applied the way the
+#                   game does (windows lit, lamp heads glowing, the lamp lights nearest the start on)
 #   Mouse drag      orbit        Mouse wheel   zoom        R   reset the camera (looking down, north up)
 #
 # What the numbers on screen mean is in docs/PROCEDURAL_ARENAS.md. Nothing here is used by the game.
@@ -22,6 +24,8 @@ const ArenaGen = preload("res://scripts/arena_gen.gd")
 const DailyScript = preload("res://scripts/daily.gd")
 const WorldGen = preload("res://scripts/world_gen.gd")
 const WorldDress = preload("res://scripts/world_dress.gd")
+const Lighting = preload("res://scripts/lighting.gd")
+const Content = preload("res://scripts/content.gd")
 
 const MODE_GROUND = 0
 const MODE_CLEARANCE = 1
@@ -56,6 +60,10 @@ var mode = MODE_GROUND
 var world_view = false  # showing the real ground (W) instead of the flat plan
 var ground_stats = {}  # triangles and draw calls of the real ground, while it is shown
 var dress_stats = {}  # the same for the buildings, tunnels, lamps and trees standing on it
+var theme_idx = 0  # the lighting theme of the real arena (index into Content.THEMES)
+var world = {}  # what Lighting.apply_theme works on, while the real arena is shown
+var plan_env: Environment = null  # the flat plan's plain sky
+var env_node: WorldEnvironment = null
 var root: Node3D = null
 var cam: Camera3D
 var info: Label
@@ -125,10 +133,24 @@ func _rebuild() -> void:
 		var dressed = WorldDress.build(layout)
 		root.add_child(dressed["root"])
 		dress_stats = {"tris": dressed["tris"], "draw_calls": dressed["draw_calls"]}
+		var made = Lighting.make_environment()
+		env_node.environment = made["env"]
 		var sun = DirectionalLight3D.new()
-		sun.rotation_degrees = Vector3(-58.0, 35.0, 0.0)
+		Lighting.setup_sun(sun)
+		sun.directional_shadow_max_distance = 300.0  # the viewer looks from far above
 		root.add_child(sun)
+		world = {
+			"env": made["env"],
+			"sky_mat": made["sky_mat"],
+			"sun": sun,
+			"lamps": dressed["lamps"],
+			"lamp_mat": dressed["lamp_mat"],
+			"win_mat": dressed["win_mat"],
+		}
+		_apply_theme()
 	else:
+		world = {}
+		env_node.environment = plan_env
 		var mi = MeshInstance3D.new()
 		mi.mesh = build_mesh(layout, mode)
 		var mat = StandardMaterial3D.new()
@@ -355,9 +377,10 @@ func _build_scene() -> void:
 	var env = Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
-	var we = WorldEnvironment.new()
-	we.environment = env
-	add_child(we)
+	plan_env = env
+	env_node = WorldEnvironment.new()
+	env_node.environment = env
+	add_child(env_node)
 	cam = Camera3D.new()
 	cam.fov = 50.0
 	cam.far = 600.0
@@ -440,18 +463,27 @@ func _update_info() -> void:
 	)
 
 
+# the current theme on the real arena, lamps nearest the start first
+func _apply_theme() -> void:
+	var at = layout["start"]["pos"]
+	Lighting.apply_theme(Content.THEMES[theme_idx], world, Vector3(float(at[0]), 0.0, float(at[1])))
+
+
 # what W does next, and in the real-ground view how big the ground is
 func _view_text() -> String:
 	if not world_view:
 		return "real ground"
 	return (
-		"flat plan (real ground: %d triangles, %d draw calls; buildings, lamps and trees: %d triangles, %d draw calls)"
-		% [
-			int(ground_stats["tris"]),
-			int(ground_stats["draw_calls"]),
-			int(dress_stats["tris"]),
-			int(dress_stats["draw_calls"])
-		]
+		(
+			"flat plan (real ground: %d triangles, %d draw calls; buildings, lamps and trees: %d triangles, %d draw calls)"
+			% [
+				int(ground_stats["tris"]),
+				int(ground_stats["draw_calls"]),
+				int(dress_stats["tris"]),
+				int(dress_stats["draw_calls"])
+			]
+		)
+		+ "   T: theme %s" % str(Content.THEMES[theme_idx]["name"])
 	)
 
 
@@ -532,6 +564,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_W and not layout.is_empty():
 			world_view = not world_view
 			_rebuild()
+		elif event.keycode == KEY_T and world_view and not layout.is_empty():
+			theme_idx = (theme_idx + 1) % Content.THEMES.size()
+			_apply_theme()
+			_update_info()
 		elif event.keycode == KEY_R:
 			yaw = DEFAULT_YAW
 			pitch = DEFAULT_PITCH

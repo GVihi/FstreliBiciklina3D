@@ -57,7 +57,7 @@ The first step changes nothing a player sees.
 
 ### Looking at an arena
 
-Open `tools/viewer/arena_viewer.tscn` in Godot and press F6 (the same way as the model viewer). Type a seed as the game shows it (up to 8 hex digits, e.g. `7F3A91C2`, or `today`) and press Enter, or use the Random and Daily buttons or Left / Right (previous and next seed). The arena is drawn from above: ground in its surface colour, buildings as blocks, gates (tunnels) with an arrow pointing out and a number, the start area as a pink square with a START label. The text above it gives the seed, the attempt that was used (1 is the first), the ground area, the counts and the result of `ArenaGen.validate`. Press C to colour the cells by navigation clearance instead (red 1, touching a building, to green 9 and more), which is the quickest way to see narrow corridors. Mouse drag orbits, the wheel zooms, R resets the camera. The viewer only calls `ArenaGen`, so it always shows what the game would get; `tools/arena_viewer_check.gd` tests the drawing. Press W to swap the flat plan for the real ground the game would build (see "The ground" below): lit surfaces, curbs, road paint and the start frame, with the triangle and draw-call counts in the text. W keeps the view when you change seed; C goes back to the plan. The W view also shows the dressing (next section).
+Open `tools/viewer/arena_viewer.tscn` in Godot and press F6 (the same way as the model viewer). Type a seed as the game shows it (up to 8 hex digits, e.g. `7F3A91C2`, or `today`) and press Enter, or use the Random and Daily buttons or Left / Right (previous and next seed). The arena is drawn from above: ground in its surface colour, buildings as blocks, gates (tunnels) with an arrow pointing out and a number, the start area as a pink square with a START label. The text above it gives the seed, the attempt that was used (1 is the first), the ground area, the counts and the result of `ArenaGen.validate`. Press C to colour the cells by navigation clearance instead (red 1, touching a building, to green 9 and more), which is the quickest way to see narrow corridors. Mouse drag orbits, the wheel zooms, R resets the camera. The viewer only calls `ArenaGen`, so it always shows what the game would get; `tools/arena_viewer_check.gd` tests the drawing. Press W to swap the flat plan for the real ground the game would build (see "The ground" below): lit surfaces, curbs, road paint and the start frame, with the triangle and draw-call counts in the text. W keeps the view when you change seed; C goes back to the plan. The W view also shows the dressing (next section), and T changes the lighting theme in it.
 
 ## The ground (step 6, first part)
 
@@ -68,7 +68,7 @@ Open `tools/viewer/arena_viewer.tscn` in Godot and press F6 (the same way as the
 - **Paint:** a white edge line just inside the road along every curb, and a dashed centre line along each road with whole dashes, kept 0.8 m clear of crossings and of the road's ends.
 - **Start frame:** a hazard-yellow frame round the clear start area.
 - **Cost:** 334 to 688 triangles and at most 10 draw calls over 400 seeds. The performance budget (README, "Decisions") is still open, so these are measured, not budgeted.
-- **Not here yet:** theme lighting, collision (the layout and `surface_at` stay the truth for where things can go) and real materials (it uses the roundabout's until Milestone F).
+- **Not here yet:** collision (the layout and `surface_at` stay the truth for where things can go) and real materials (it uses the roundabout's until Milestone F).
 
 `tools/world_gen_check.gd` reads the finished meshes back and compares them with the layout (run it like the other check tools: `godot --headless --path . --script res://tools/world_gen_check.gd`, optionally followed by `-- <seeds>`).
 
@@ -84,6 +84,10 @@ Open `tools/viewer/arena_viewer.tscn` in Godot and press F6 (the same way as the
 - **Cost:** 4,500 to 6,100 triangles, 10 draw calls over 100 seeds. Not budgeted: the performance budget is still open.
 
 `tools/world_dress_check.gd` checks the finished meshes against the layout (`godot --headless --path . --script res://tools/world_dress_check.gd`).
+
+## Theme lighting (step 6, third part)
+
+`Lighting.apply_theme(theme, world, focus)` (`scripts/lighting.gd`) applies a `Content.THEMES` entry to any world that has `sky_mat`, `sun`, `env`, `lamps`, `lamp_mat` and `win_mat`: the roundabout (through `main.gd`) and a dressed arena (`WorldDress.build` hands back `lamps`, `lamp_mat` and `win_mat`). Windows glow at the theme's `lit` strength, lamp heads at `LAMP_HEAD_GLOW` when it has lamps, and at most `MAX_LAMP_LIGHTS` (8) lamp lights come on, the ones nearest `focus` (the start). The viewer's W view uses it, with T to change theme. `tools/arena_theme_check.gd` checks it.
 
 ## Open questions
 
