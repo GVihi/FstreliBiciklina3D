@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "floors": 10,
   "start_nodes": 3,
   "max_edges_out": 2,
@@ -20,5 +20,31 @@
   },
   "no_repeat_along_edge": ["elite", "shop", "rest", "event"],
   "streams": {"layout": "map_layout", "types": "map_types", "content": "map_content"},
-  "max_attempts": 8
+  "max_attempts": 8,
+  "content": {
+    "theme_count": 4,
+    "boss_theme": {"mid": 2, "final": 3},
+    "boss_kinds": {"mid": ["mower", "wifi", "minister"], "final": ["minister"]},
+    "riders": {
+      "count": {
+        "normal": {"min": 8, "max": 10},
+        "elite": {"min": 10, "max": 12},
+        "boss": {"min": 6, "max": 8}
+      },
+      "min_floor": {"pro": 1, "sprinter": 2, "courier": 2, "tough": 3},
+      "weights": {
+        "normal": {"pro": 50, "sprinter": 20, "courier": 20, "tough": 10},
+        "elite": {"pro": 20, "sprinter": 25, "courier": 15, "tough": 40},
+        "boss": {"pro": 40, "sprinter": 25, "courier": 15, "tough": 20}
+      }
+    },
+    "gates": {"min_open": 2},
+    "modifiers": {
+      "chance": {"normal": 0.2, "elite": 0.5, "boss": 0.0},
+      "types": {
+        "rain": {"weight": 50, "min_floor": 3},
+        "double_riders": {"weight": 50, "min_floor": 4}
+      }
+    }
+  }
 }
