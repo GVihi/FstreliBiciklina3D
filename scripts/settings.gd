@@ -2,7 +2,10 @@ extends RefCounted
 # Settings (saved to user://settings.cfg), graphics quality (F9) and the high score file (user://hi.dat).
 # The values themselves stay on main.gd (g) because the HUD reads them there; this file only holds the logic.
 
+const SaveUtil = preload("res://scripts/save_util.gd")
 const GOLD = Color(0.95, 0.71, 0.19)
+const SETTINGS_PATH = "user://settings.cfg"
+const VERSION = 1  # settings.cfg: [meta] version. Version 0 (before versioning) had no [meta] section.
 
 var g = null
 # audio / window values read from the file before the sound system exists; apply_loaded() uses them
@@ -62,8 +65,12 @@ func apply_loaded() -> void:
 
 func load_settings() -> void:
 	var cf = ConfigFile.new()
-	if cf.load("user://settings.cfg") != OK:
+	var err = cf.load(SETTINGS_PATH)
+	if err != OK:
+		if err != ERR_FILE_NOT_FOUND:
+			SaveUtil.backup(SETTINGS_PATH, "bad")  # unreadable: keep a copy before the next save replaces it
 		return
+	SaveUtil.backup_if_newer(SETTINGS_PATH, int(cf.get_value("meta", "version", 0)), VERSION)
 	g.fov_hip = clampf(float(cf.get_value("game", "fov", g.fov_hip)), 60.0, 105.0)
 	g.sens_mul = clampf(float(cf.get_value("game", "sens", g.sens_mul)), 0.3, 3.0)
 	g.toggle_ads = bool(cf.get_value("game", "toggle_ads", g.toggle_ads))
@@ -79,6 +86,7 @@ func load_settings() -> void:
 
 func save_settings() -> void:
 	var cf = ConfigFile.new()
+	cf.set_value("meta", "version", VERSION)
 	cf.set_value("game", "fov", g.fov_hip)
 	cf.set_value("game", "sens", g.sens_mul)
 	cf.set_value("game", "toggle_ads", g.toggle_ads)
@@ -90,7 +98,7 @@ func save_settings() -> void:
 	cf.set_value("game", "voices", g.sfx.voices_on)
 	cf.set_value("game", "fullscreen", is_fullscreen())
 	cf.set_value("game", "player_name", g.player_name)
-	cf.save("user://settings.cfg")
+	cf.save(SETTINGS_PATH)
 
 
 func get_setting(id: String):

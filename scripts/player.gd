@@ -2,8 +2,6 @@ extends RefCounted
 # Player: movement, dash and slide, perfect dodges, aim assist, spread and gun handling.
 # Shared game state stays on main.gd (g); this file holds the logic.
 
-const Ring = preload("res://scripts/ring.gd")
-
 var g = null
 
 # gun motion (update_gun): how far the gun lags behind turning, and the look angles of the last frame
@@ -178,9 +176,7 @@ func update_player(dt: float, captured: bool) -> void:
 	else:
 		g.pvel = g.pvel.lerp(target, minf(1.0, dt * 10.0))
 
-	g.player.position = g.clamp_walk(
-		g.player.position + g.pvel * dt, g.PLAYER_R_MIN, g.PLAYER_R_MAX
-	)
+	g.player.position = g.clamp_walk(g.player.position + g.pvel * dt)
 	g.player.rotation.y = g.yaw
 
 	var spd = g.pvel.length()
@@ -212,11 +208,11 @@ func apply_aim_assist(dt: float) -> void:
 	var best_ang = deg_to_rad(8.0)
 	var cands = []
 	for r in g.riders:
-		if (r["mode"] == "fly" or r["mode"] == "away") and not Ring.hidden(r["x"]):
-			cands.append(g.tw3(r["x"], 1.2, g.LANE_Z[r["ln"]]))
+		if (r["mode"] == "fly" or r["mode"] == "away") and not r["hidden"]:
+			cands.append(r["pos"] + Vector3(0.0, 1.2, 0.0))
 	for b in g.bosses:
 		if g.boss_sys.boss_hittable(b):
-			cands.append(g.tw3(b["x"], g.boss_sys.weak_point_y(b), b["z"]))
+			cands.append(g.boss_world(b, g.boss_sys.weak_point_y(b)))
 	for ph in g.phones:
 		if not ph["ret"]:
 			cands.append(ph["pos"])
@@ -257,7 +253,7 @@ func try_dash() -> void:
 	if mv.length() > 0.1:
 		dir = g.move_world(mv.normalized())
 	else:
-		dir = Ring.tangent(g.ptx()) * (-1.0 if g.ptx() > 0.0 else 1.0)  # nothing held: dash along the island towards the front
+		dir = g.arena.tangent(g.ptx()) * (-1.0 if g.ptx() > 0.0 else 1.0)  # nothing held: dash along the island towards the front
 	dir.y = 0.0
 	g.dash_dir = dir.normalized()
 	g.dash_t = g.DASH_TIME

@@ -3,7 +3,13 @@ extends RefCounted
 # Shared game state stays on main.gd (g); this file holds the logic.
 
 const Models = preload("res://scripts/models.gd")
-const Ring = preload("res://scripts/ring.gd")
+
+# Steering. A rider owns its world position and the way it faces ("yaw") and steers at a point on its lane
+# a little way ahead, turning no faster than TURN_RATE. On the roundabout that point is on the lane circle,
+# so the rider rides the same ring as before; open ground will steer at the player instead.
+const TURN_RATE = 9.0  # radians per second: more than the ring ever asks for (about 3 at full speed)
+const LOOKAHEAD_MIN = 0.5  # metres
+const LOOKAHEAD_TIME = 0.03  # seconds of riding: the point to steer at is this far ahead (at least the minimum)
 
 var g = null
 
@@ -37,11 +43,15 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 		hp = 3 if g.round_n >= 5 else 2
 	var m = Models.build_rider(type, kit)
 	g.add_child(m["root"])
+	# riders start inside the tunnel block, a little before the seam, on their own lane
 	var x0 = -(g.ARENA_HX + 2.0) if dir > 0 else (g.ARENA_HX + 2.0)
-	g.place(m["root"], x0, 0.0, g.LANE_Z[lane_idx])
-	face_rider(m, dir)
+	var lane_z = g.LANE_Z[lane_idx]
 	var r = {
-		"x": x0,
+		"pos": g.arena.tw(x0, lane_z, 0.0),  # where the rider is on the ground, in world space
+		"yaw": g.arena.yaw(x0) + (0.0 if dir > 0 else PI),  # the way it faces and rides (also its hit box)
+		"hidden": true,  # inside the tunnel block: not visible, not hittable
+		"avoid_side": 1.0,  # which way it last swung round an obstacle
+		"away_left": 0.0,  # street metres still to ride before an escaping rider is out of the arena
 		"dir": dir,
 		"ln": lane_idx,
 		"base": base,
@@ -71,6 +81,8 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 	}
 	g.next_idx += 1
 	g.riders.append(r)
+	r["hidden"] = is_hidden(r["pos"])
+	place_rider(r, 0.0)
 	r["snd"] = g.sfx.make_loop("loop_rider", m["root"], Vector3(0, 1.0, 0))
 	Models.pose_rider(m, 0.0, 0.0)
 	return r
@@ -94,9 +106,88 @@ func spawn_wave() -> void:
 	g.wave_miss = false
 
 
-func face_rider(m: Dictionary, dir: int) -> void:
-	var pv: Node3D = m["pivot"]
-	pv.rotation = Vector3(0.0, 0.0 if dir > 0 else PI, 0.0)
+# The rest of the game reads where a rider is from "pos", "yaw" and "hidden", which are world-space values.
+# Only the functions below change them (move_rider and the spawn and away switches in this file).
+func is_hidden(pos: Vector3) -> bool:
+	return g.arena.hidden(g.arena.to_track(pos).x)
+
+
+# put the rider's model on the ground at its world position, facing the way it rides
+func place_rider(r: Dictionary, y: float) -> void:
+	var root: Node3D = r["model"]["root"]
+	root.position = r["pos"] + Vector3(0.0, y, 0.0)
+	root.rotation.y = r["yaw"]
+
+
+# the unit vector a rider facing yaw rides along (the models are built facing +X)
+func heading_vec(yaw: float) -> Vector3:
+	return Vector3(cos(yaw), 0.0, -sin(yaw))
+
+
+# the yaw that faces along the world vector v
+func yaw_of(v: Vector3) -> float:
+	return atan2(-v.z, v.x)
+
+
+# where a phone thrown by this rider leaves its hand: a little ahead of it
+func phone_origin(r: Dictionary) -> Vector3:
+	return r["pos"] + heading_vec(r["yaw"]) * 0.6 + Vector3(0.0, 1.4, 0.0)
+
+
+# ride for dt seconds: steer at the lane point ahead (no faster than TURN_RATE), then move along the heading
+func move_rider(r: Dictionary, dt: float) -> void:
+	var lane_z = g.LANE_Z[r["ln"]]
+	var speed = r["spd"] * g.arena.scale_at(lane_z)  # metres per second over the ground
+	var ahead = maxf(LOOKAHEAD_MIN, speed * LOOKAHEAD_TIME)
+	var target = g.arena.lane_point(r["pos"], r["dir"], lane_z, ahead)
+	var want = yaw_of(target - r["pos"])
+	if g.arena.rider_avoidance():
+		var steered = avoid_obstacles(r["pos"], want, speed, r["yaw"], r["avoid_side"])
+		var swing = wrapf(steered - r["yaw"], -PI, PI)
+		if absf(swing) > 0.0001:
+			r["avoid_side"] = signf(swing)
+		want = steered
+	var turn = wrapf(want - r["yaw"], -PI, PI)
+	var max_turn = TURN_RATE * dt
+	r["yaw"] = wrapf(r["yaw"] + clampf(turn, -max_turn, max_turn), -PI, PI)
+	r["pos"] += heading_vec(r["yaw"]) * speed * dt
+	r["hidden"] = is_hidden(r["pos"])
+
+
+# If the way ahead (a little further the faster the rider goes) is blocked, keep riding on the clear heading
+# that needs the smallest turn from the one the rider has now: straight on if that is clear, else the nearest
+# one on either side, up to 120 degrees off, trying the `side` it swung to last time (+1 or -1) first so a
+# rider does not dither between the two sides of an obstacle; boxed in, it turns hard away. When the way
+# to `want` is clear it just returns `want`. Used only where the arena asks for it.
+func avoid_obstacles(
+	pos: Vector3, want: float, speed: float, yaw: float, side: float = 1.0
+) -> float:
+	var reach = maxf(2.0, speed * 0.4)
+	if way_clear(pos, want, reach):
+		return want
+	for k in range(0, 7):
+		var off = deg_to_rad(20.0) * float(k)
+		for sgn in [side, -side]:
+			var cand = yaw + off * sgn
+			if way_clear(pos, cand, reach):
+				return cand
+	return yaw + deg_to_rad(120.0) * side
+
+
+# true if nothing is in the way over `reach` metres from pos along yaw, with 0.7 m to spare on both sides
+# (looked at in three steps)
+func way_clear(pos: Vector3, yaw: float, reach: float) -> bool:
+	var fwd = heading_vec(yaw)
+	var across = Vector3(-fwd.z, 0.0, fwd.x) * 0.7
+	for k in range(1, 4):
+		var p = pos + fwd * (reach * float(k) / 3.0)
+		if (
+			g.arena.obstacle_at(p)
+			or g.arena.obstacle_at(p + across)
+			or g.arena.obstacle_at(p - across)
+		):
+			return false
+	return true
 
 
 func update_rider_sound(r: Dictionary) -> void:
@@ -107,9 +198,9 @@ func update_rider_sound(r: Dictionary) -> void:
 
 # standing on the road is dangerous: a rider that reaches you knocks you down (a dash through it is a perfect dodge)
 func rider_collide(r: Dictionary) -> void:
-	if g.state != "play" or Ring.hidden(r["x"]):
+	if g.state != "play" or r["hidden"]:
 		return
-	var rp = g.rider_world(r, 0.0)
+	var rp = r["pos"]
 	if Vector2(rp.x - g.player.position.x, rp.z - g.player.position.z).length() < 0.95:
 		g.damage_player("RUN OVER BY A CYCLIST", "run")
 
@@ -138,18 +229,12 @@ func update_rider(r: Dictionary, dt: float) -> void:
 				r["chg"] = randf_range(0.5, 1.3)
 		var mul = 1.0 + r["age"] * 0.08
 		r["spd"] += (r["tgt"] * mul - r["spd"]) * minf(1.0, dt * 3.0)
-		r["x"] += r["dir"] * r["spd"] * dt
-		if not r["entered"] and not Ring.hidden(r["x"]):
+		move_rider(r, dt)  # riders keep circling: through the tunnel and round again
+		if not r["entered"] and not r["hidden"]:
 			r["entered"] = true
-		if r["entered"]:  # riders keep circling: through the tunnel and round again
-			if r["x"] > g.ARENA_HX:
-				r["x"] -= 2.0 * g.ARENA_HX
-			elif r["x"] < -g.ARENA_HX:
-				r["x"] += 2.0 * g.ARENA_HX
 		r["wph"] += r["spd"] * dt / 0.34
 		r["cph"] += dt * (6.0 + 0.444 * r["spd"])
-		face_rider(m, r["dir"])
-		g.place(root, r["x"], sin(r["age"] * 10.0) * 0.015, g.LANE_Z[r["ln"]])
+		place_rider(r, sin(r["age"] * 10.0) * 0.015)
 		Models.pose_rider(m, r["cph"], r["wph"])
 		update_rider_sound(r)
 		rider_collide(r)
@@ -157,7 +242,7 @@ func update_rider(r: Dictionary, dt: float) -> void:
 			r["wind_t"] -= dt
 			if r["wind_t"] <= 0.0:
 				g.phone_sys.launch_phone(r)
-		elif r["can_throw"] and r["entered"] and not Ring.hidden(r["x"]) and g.phones.size() < 3:
+		elif r["can_throw"] and r["entered"] and not r["hidden"] and g.phones.size() < 3:
 			r["throw_t"] -= dt
 			if r["throw_t"] <= 0.0:
 				if g.throw_cool <= 0.0 and g.state == "play":
@@ -166,19 +251,24 @@ func update_rider(r: Dictionary, dt: float) -> void:
 					r["throw_t"] = 0.3
 		if r["age"] > r["limit"]:
 			r["mode"] = "away"
-			r["dir"] = -1 if r["x"] < 0.0 else 1
-			face_rider(m, r["dir"])
+			# give up: turn round at once towards the nearer seam and ride out through the tunnel
+			var street_x = g.arena.to_track(r["pos"]).x
+			r["dir"] = -1 if street_x < 0.0 else 1
+			r["yaw"] = g.arena.yaw(street_x) + (0.0 if r["dir"] > 0 else PI)
+			r["away_left"] = g.arena.exit_distance(r["pos"], r["dir"])
+			place_rider(r, 0.0)
 			g.sfx.play3d("whoosh", root.position)
 	elif mode == "away":
 		r["spd"] = minf(39.0, r["spd"] + 26.0 * dt)
-		r["x"] += r["dir"] * r["spd"] * dt
+		move_rider(r, dt)
+		r["away_left"] -= r["spd"] * dt
 		r["wph"] += r["spd"] * dt / 0.34
 		r["cph"] += dt * (6.0 + 0.444 * r["spd"])
-		g.place(root, r["x"], 0.0, g.LANE_Z[r["ln"]])
+		place_rider(r, 0.0)
 		Models.pose_rider(m, r["cph"], r["wph"])
 		update_rider_sound(r)
 		rider_collide(r)
-		if absf(r["x"]) > g.ARENA_HX + 2.6:
+		if r["away_left"] < 0.0:
 			resolve(r, false)
 	elif mode == "hit":
 		r["t"] += dt
@@ -228,7 +318,7 @@ func update_rider(r: Dictionary, dt: float) -> void:
 				if p["rest"] > 1.0:
 					p["done"] = true
 			p["vel"] = v
-			node.position = Ring.clamp_road(node.position)
+			node.position = g.arena.clamp_road(node.position)
 			if r["t"] > 4.0:
 				p["done"] = true
 			if not p["done"]:
@@ -239,7 +329,7 @@ func update_rider(r: Dictionary, dt: float) -> void:
 
 func hit_rider(r: Dictionary, dmg: int) -> void:
 	r["hp"] -= dmg
-	var wpos = g.tw3(r["x"], 1.0, g.LANE_Z[r["ln"]])
+	var wpos = r["pos"] + Vector3(0.0, 1.0, 0.0)
 	if r["hp"] > 0:
 		r["flash"] = 0.15
 		g.set_flash(r["model"]["root"], true)
@@ -300,8 +390,8 @@ func spawn_parts(r: Dictionary) -> void:
 	r["parts"].append(
 		detach_part(
 			m["bike"],
-			g.street_vel(
-				r["x"],
+			part_vel(
+				r,
 				dirf * r["spd"] * 0.45 + randf_range(-1.0, 1.0),
 				randf_range(2.5, 4.0),
 				randf_range(-1.5, 1.5)
@@ -320,8 +410,8 @@ func spawn_parts(r: Dictionary) -> void:
 		r["parts"].append(
 			detach_part(
 				m["man"],
-				g.street_vel(
-					r["x"],
+				part_vel(
+					r,
 					dirf * r["spd"] * 0.35 + randf_range(-1.5, 1.5),
 					randf_range(4.0, 5.5),
 					randf_range(-1.5, 1.5)
@@ -331,6 +421,14 @@ func spawn_parts(r: Dictionary) -> void:
 				-sgn * PI * 0.5
 			)
 		)
+
+
+# velocity for a part that flies off a rider: vx along the rider's lane direction (positive is the way it was
+# going when dir is +1, as the old street coordinates had it), vy up, vz sideways
+func part_vel(r: Dictionary, vx: float, vy: float, vz: float) -> Vector3:
+	var fwd = heading_vec(r["yaw"])
+	var dirf = float(r["dir"])
+	return fwd * dirf * vx + Vector3(0.0, vy, 0.0) + Vector3(-fwd.z, 0.0, fwd.x) * dirf * vz
 
 
 func detach_part(

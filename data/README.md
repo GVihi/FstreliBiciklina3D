@@ -14,7 +14,7 @@ It is loaded by `scripts/items.gd`; bad entries are skipped and logged with `pus
 }
 ```
 
-**Keep the order of both lists unless you mean to change it:** a Daily Run shuffles these lists with a seeded generator, so reordering changes what every player sees for the same seed.
+**Keep the order of both lists unless you mean to change it:** every run now shuffles these lists with a generator seeded by the run seed, so reordering changes what every player sees for the same seed.
 
 Every entry has `id`, `kind` (`heal`, `pack` or `tier`), `name`, `desc`, `cost` (base price in dollars) and `min` (first round it can appear in).
 
@@ -40,7 +40,7 @@ Perks (bought once per run) and the duos that two perks form together. Loaded by
 ```
 
 `cost` and `min` mean the same as for items. A duo needs two different perks that exist in the file, and duo names must be unique (the game looks a duo up by name).
-**Keep the order unless you mean to change it**, for the same Daily Run reason as above.
+**Keep the order unless you mean to change it**, for the same seeded-run reason as above.
 
 What a perk *does* is still coded where it applies, by id (`g.perks.has("deadeye")` and so on in `combat.gd`, `player.gd`, `pickups.gd`, `bosses.gd`, `main.gd`), and duo effects are checked by name with `has_duo(...)`. A new perk or duo therefore needs code too; the table only holds its name, text, price and pairing.
 
@@ -76,3 +76,6 @@ Tuning numbers for the two player weapons, `dart_gun` and `melee` (the gummy wor
 
 Still in code, because they are not weapon tuning or are shared with other systems: dart hit-box sizes, boss and rider hit reactions, the upgrade level caps in `shop.gd`, and everything about thrown phones.
 
+## `map_rules.json`
+
+Numbers for the procedural run map (floors, widths, boss and prep floors, node type weights). Read by `scripts/map_gen.gd` (the run map generator; rounds do not follow the map yet). What each key means is in [`docs/MAP_GENERATION.md`](../docs/MAP_GENERATION.md).

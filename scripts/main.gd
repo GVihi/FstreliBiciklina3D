@@ -10,7 +10,6 @@ const Models = preload("res://scripts/models.gd")
 const HudScript = preload("res://scripts/hud.gd")
 const Toon = preload("res://scripts/toon.gd")
 const SfxScript = preload("res://scripts/sfx.gd")
-const Ring = preload("res://scripts/ring.gd")
 const Content = preload("res://scripts/content.gd")
 const SettingsScript = preload("res://scripts/settings.gd")
 const PedestriansScript = preload("res://scripts/pedestrians.gd")
@@ -27,19 +26,19 @@ const ScoresScript = preload("res://scripts/scores.gd")
 const MetaScript = preload("res://scripts/meta.gd")
 const ViewmodelScript = preload("res://scripts/viewmodel.gd")
 const DailyScript = preload("res://scripts/daily.gd")
+const ArenaRoundaboutScript = preload("res://scripts/arena_roundabout.gd")
+const MapGenScript = preload("res://scripts/map_gen.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
 # z across it. ARENA_HX is half a lap: x runs -HX..HX and the tunnel sits at the seam.
-const ARENA_HX = Ring.HX
+const ARENA_HX = ArenaRoundaboutScript.HX
 const LANE_Z = [-5.5, -2.5, 0.5]  # far, middle, near lane
 const LANE_MULT = [1.5, 1.2, 1.0]
 const SIDEWALK_Z = -11.2
 const JOG_Z = -8.8
 const CHEER_Z = -12.4
 const FAR_WALL_Z = -13.1
-const PLAYER_R_MIN = 2.3  # the fountain
-const PLAYER_R_MAX = 22.3  # the buildings
 
 const RIDER_SCALE = 0.05  # original pixel speeds -> metres per second
 const CIV_SCALE = 0.035
@@ -96,11 +95,12 @@ var round_n = 1
 var score = 0
 var hi = 0
 var daily_date = ""  # UTC date the daily seed belongs to, "YYYY-MM-DD"
-var daily_seed = 0  # same for every player on that date (daily.gd); the daily run mode will use it
+var daily_seed = 0  # same for every player on that date (daily.gd); a Daily Run uses it as its run seed
 var daily_label = ""  # title-screen text for the above
-var daily_mode = false  # true while a Daily Run is in progress; normal runs never touch the seeded generators
-var run_seed = 0  # the daily seed this run started with (daily_seed can roll over to a new day mid-run)
-var rider_rng = RandomNumberGenerator.new()  # daily mode: which riders spawn, reseeded at the start of every round
+var daily_mode = false  # true while a Daily Run is in progress (own scoreboard later, no normal high score)
+var run_seed = 0  # the seed this run started with: today's daily seed in a Daily Run, a random one in a normal run
+var run_map = {}  # the run map generated from run_seed (map_gen.gd); rounds do not follow it yet, it is only logged
+var rider_rng = RandomNumberGenerator.new()  # which riders spawn, reseeded from the run seed at the start of every round
 var hearts = 3
 var combo = 0
 var best_combo = 0
@@ -233,8 +233,11 @@ var volume = 1.0
 var outlines = true
 var drag_id = ""
 var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / scores
-var pause_page = ""  # "" = pause menu, "settings" = settings panel
+var pause_page = ""  # "" = pause menu, "settings" = settings panel, "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
+var confirm_id = ""  # what the confirmation asks about: "restart" or "title"
+var confirm_sel = 0  # highlighted confirmation button: 0 = NO (the safe default), 1 = YES
+var confirm_t0 = 0.0  # g.time when the confirmation opened; YES is ignored for a moment after (double clicks)
 var title_sel = 0  # highlighted title-menu entry (keyboard / gamepad)
 
 var cheerleaders = []
@@ -263,7 +266,7 @@ func _ready() -> void:
 	hearts = MAXHEARTS
 	shells = MAXSHELLS
 
-	world = WorldBuilder.build(self, ARENA_HX)
+	world = WorldBuilder.build(self, arena)
 
 	sfx = SfxScript.new()
 	add_child(sfx)
@@ -293,7 +296,7 @@ func _ready() -> void:
 	disc_mat.albedo_color = STRIP_COL_WARN
 
 	player = Node3D.new()
-	player.position = Ring.tw(0.0, 6.0)
+	player.position = arena.start_position()
 	add_child(player)
 	cam = Camera3D.new()
 	cam.fov = fov_hip
@@ -327,10 +330,11 @@ func _ready() -> void:
 		var m = Models.build_cheer(i)
 		add_child(m["root"])
 		var cx = (CHEER_PX[i] - 400.0) * PX_TO_M
-		m["root"].position = Ring.tw(cx, CHEER_Z, 0.0)
+		# a cheerleader never moves, so its world position and facing are worked out once, here
+		m["pos"] = arena.tw(cx, CHEER_Z, 0.0)
 		var cr: Node3D = m["root"]
-		cr.rotation = Vector3(0.0, -PI * 0.5 + Ring.yaw(cx), 0.0)
-		m["x"] = cx
+		cr.position = m["pos"]
+		cr.rotation = Vector3(0.0, -PI * 0.5 + arena.yaw(cx), 0.0)
 		cheerleaders.append(m)
 
 	var layer = CanvasLayer.new()
@@ -467,6 +471,7 @@ func _warm_up() -> void:
 
 # ------------------------------------------------------------------ graphics quality (F9)
 var quality = 0  # 0 = shadows + 2x MSAA, 1 = no MSAA, 2 = no MSAA and no sun shadows
+var arena = ArenaRoundaboutScript.new()  # arena.gd: the space the run is played in (today the roundabout, arena_roundabout.gd)
 var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics quality, high score file
 var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
 var pickup_sys = PickupsScript.new(self)  # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
@@ -546,37 +551,32 @@ func pick_one(arr: Array):
 	return arr[randi() % arr.size()]
 
 
-# ---- run layout randomness. Normal runs use the global generator exactly as before; a Daily Run draws the
-# parts that shape the run (rider mix, shop and upgrade offers) from generators seeded by the daily seed, so
-# every player faces the same layout. Moment-to-moment randomness (effects, aim spread, drops) stays unseeded.
+# ---- run layout randomness. Every run (normal or daily) draws the parts that shape it (rider mix, shop and
+# upgrade offers, starting boss and lighting theme) from generators seeded by the run seed, so a run can be
+# replayed from its seed. A Daily Run uses the daily seed, a normal run a random one (shown on the run summary).
+# Moment-to-moment randomness (effects, aim spread, drops) stays unseeded.
 func layout_f() -> float:
-	return rider_rng.randf() if daily_mode else randf()
+	return rider_rng.randf()
 
 
 func layout_i(n: int) -> int:
-	return (rider_rng.randi() % n) if daily_mode else (randi() % n)
+	return rider_rng.randi() % n
 
 
 func layout_shuffle(arr: Array) -> void:
-	if daily_mode:
-		DailyScript.shuffle_with(arr, rider_rng)
-	else:
-		arr.shuffle()
+	DailyScript.shuffle_with(arr, rider_rng)
 
 
-# shuffles an offer list; in a Daily Run the order depends only on the seed, the round and `part`
+# shuffles an offer list; the order depends only on the run seed, the round and `part`
 func offer_shuffle(arr: Array, part: String) -> void:
-	if daily_mode:
-		var rng = RandomNumberGenerator.new()
-		rng.seed = DailyScript.stream_seed(run_seed, round_n, part)
-		DailyScript.shuffle_with(arr, rng)
-	else:
-		arr.shuffle()
+	var rng = RandomNumberGenerator.new()
+	rng.seed = DailyScript.stream_seed(run_seed, round_n, part)
+	DailyScript.shuffle_with(arr, rng)
 
 
-# daily mode rotates which boss comes first and which lighting theme starts, so each day feels different
-func daily_shift(n: int) -> int:
-	return (run_seed % n) if daily_mode else 0
+# the seed rotates which boss comes first and which lighting theme starts, so each seed feels different
+func seed_shift(n: int) -> int:
+	return run_seed % n
 
 
 # engine callback: the logic lives in input.gd
@@ -642,6 +642,10 @@ func start_game(daily: bool = false) -> void:
 	if daily:
 		refresh_daily_seed()
 		run_seed = daily_seed
+	else:
+		run_seed = DailyScript.random_seed()
+	run_map = MapGenScript.generate(run_seed)
+	print(MapGenScript.to_text(run_map))
 	round_n = 1
 	score = 0
 	hearts = MAXHEARTS
@@ -662,7 +666,7 @@ func start_game(daily: bool = false) -> void:
 	civs_hit = 0
 	yaw = 0.0
 	pitch = 0.0
-	player.position = Ring.tw(0.0, 6.0)
+	player.position = arena.start_position()
 	pvel = Vector3.ZERO
 	start_round()
 
@@ -721,10 +725,9 @@ func start_round() -> void:
 	clear_bosses()
 	clear_phones()
 	clear_pickups()
-	theme_idx = (round_n - 1 + daily_shift(THEMES.size())) % THEMES.size()
+	theme_idx = (round_n - 1 + seed_shift(THEMES.size())) % THEMES.size()
 	apply_theme(theme_idx)
-	if daily_mode:
-		rider_rng.seed = DailyScript.stream_seed(run_seed, round_n, "riders")
+	rider_rng.seed = DailyScript.stream_seed(run_seed, round_n, "riders")
 	round_t = 0.0
 	hits.clear()
 	for i in range(PER_ROUND):
@@ -927,6 +930,7 @@ func _process(delta: float) -> void:
 	if not paused:
 		pause_page = ""
 		pause_sel = 0
+		confirm_sel = 0
 	time += dt
 	player_sys.update_player(dt, captured)
 	if not paused:
@@ -966,40 +970,41 @@ func read_move() -> Vector2:
 
 # ------------------------------------------------------------------ roundabout helpers (see ring.gd)
 func tw3(x: float, y: float, z: float) -> Vector3:
-	return Ring.tw(x, z, y)
+	return arena.tw(x, z, y)
 
 
 func ptx() -> float:
-	return Ring.to_track(player.position).x
+	return arena.to_track(player.position).x
 
 
 func ptz() -> float:
-	return Ring.to_track(player.position).y
+	return arena.to_track(player.position).y
 
 
 func rider_world(r: Dictionary, y: float) -> Vector3:
-	return Ring.tw(r["x"], LANE_Z[r["ln"]], y)
+	return r["pos"] + Vector3(0.0, y, 0.0)
 
 
 func boss_world(b: Dictionary, y: float) -> Vector3:
-	return Ring.tw(b["x"], b["z"], y)
+	return b["wp"] + Vector3(0.0, y, 0.0)
 
 
 # put a street-aligned node on the ring and turn it along the road
 func place(node: Node3D, x: float, y: float, z: float) -> void:
-	node.position = Ring.tw(x, z, y)
-	node.rotation.y = Ring.yaw(x)
+	node.position = arena.tw(x, z, y)
+	node.rotation.y = arena.yaw(x)
 
 
+# street-space velocity to world (riders no longer use it; tools/arena_check.gd still compares it)
 func street_vel(x: float, vx: float, vy: float, vz: float) -> Vector3:
-	return Ring.tangent(x) * vx + Vector3(0.0, vy, 0.0) + Ring.inward(x) * vz
+	return arena.tangent(x) * vx + Vector3(0.0, vy, 0.0) + arena.inward(x) * vz
 
 
 # things that can hurt you or that you can shoot: the edge arrows and the radar read this
 func threat_list() -> Array:
 	var out = []
 	for r in riders:
-		if (r["mode"] == "fly" or r["mode"] == "away") and not Ring.hidden(r["x"]):
+		if (r["mode"] == "fly" or r["mode"] == "away") and not r["hidden"]:
 			out.append(
 				{
 					"pos": rider_world(r, 1.0),
@@ -1023,41 +1028,14 @@ func threat_list() -> Array:
 	return out
 
 
-# keep a point on the walkable ground: outside the fountain, inside the buildings, and out of the
-# tunnel / planter wedge at the back. Sliding along the edge, not stopping dead.
-func clamp_walk(p: Vector3, rmin: float, rmax: float) -> Vector3:
-	var r = Vector2(p.x, p.z).length()
-	if r < 0.001:
-		return Vector3(0.0, p.y, -rmin)
-	var rc = clampf(r, rmin, rmax)
-	if absf(rc - r) > 0.0001:
-		p = Vector3(p.x * rc / r, p.y, p.z * rc / r)
-	var tr = Ring.to_track(p)
-	var lim = Ring.player_lim()
-	if absf(tr.x) > lim:
-		tr.x = clampf(tr.x, -lim, lim)
-		p = Ring.tw(tr.x, tr.y, p.y)
-	return p
+# keep a point on the walkable ground (sliding along an edge, not stopping dead): the arena decides where
+func clamp_walk(p: Vector3, who: String = "player") -> Vector3:
+	return arena.clamp_walk(p, who)
 
 
-# solid for darts: the fountain, the planter and the tunnel block
+# solid for darts
 func ray_blocked(p: Vector3) -> bool:
-	var r = Vector2(p.x, p.z).length()
-	if r < 1.45 and p.y < 1.1:
-		return true
-	if r < 0.3 and p.y < 2.4:
-		return true
-	var a = absf(wrapf(atan2(p.x, -p.z) - PI, -PI, PI))
-	if (
-		r >= 1.0
-		and r < Ring.GATE_RHO_IN
-		and a < PI - (Ring.player_lim() / Ring.RHO_REF + 0.06)
-		and p.y < 1.18
-	):
-		return true
-	if r >= Ring.GATE_RHO_IN and a < Ring.GATE_HALF / Ring.RHO_REF and p.y < 7.5:
-		return true
-	return false
+	return arena.ray_blocked(p)
 
 
 func move_world(mv: Vector2) -> Vector3:
@@ -1078,15 +1056,14 @@ func update_cheerleaders(_dt: float) -> void:
 		var ph = time * (4.0 + chv * 4.0) + i * 1.1
 		var jump = absf(sin(ph)) * (0.08 + chv * 0.32)
 		var cr: Node3D = m["root"]
-		cr.position = Ring.tw(m["x"], CHEER_Z, jump)
+		cr.position = m["pos"] + Vector3(0.0, jump, 0.0)
 		Models.pose_cheer(m, ph, chv)
 
 
 func cheer_say() -> void:
 	var txt = pick_one(["BRAVO!", "DAJMO!", "FSTRELI!", "YEAH!"])
 	var i = randi() % cheerleaders.size()
-	var cx = float(cheerleaders[i]["x"])
-	add_popup(tw3(cx, 2.5, CHEER_Z), txt, Color(1.0, 0.82, 0.93), true)
+	add_popup(cheerleaders[i]["pos"] + Vector3(0.0, 2.5, 0.0), txt, Color(1.0, 0.82, 0.93), true)
 
 
 # ------------------------------------------------------------------ hype

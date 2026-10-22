@@ -57,8 +57,7 @@ func spawn_pickup(t: String, pos: Vector3) -> void:
 	var ld = randf_range(2.2, 4.8)
 	var land = g.clamp_walk(
 		Vector3(g.player.position.x + sin(la) * ld, y_land, g.player.position.z - cos(la) * ld),
-		g.PLAYER_R_MIN + 0.3,
-		g.PLAYER_R_MAX - 0.4
+		"pickup"
 	)
 	var vel = Vector3((land.x - pos.x) / T, 4.9 * T + (y_land - pos.y) / T, (land.z - pos.z) / T)
 	g.pickups.append(

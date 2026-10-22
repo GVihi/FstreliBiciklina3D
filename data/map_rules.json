@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "floors": 10,
+  "start_nodes": 3,
+  "max_edges_out": 2,
+  "width": {"min": 2, "max": 4},
+  "fixed_floors": {
+    "1": {"kind": "start", "width": 3, "types": ["normal"]},
+    "4": {"kind": "prep", "width_min": 2, "width_max": 3, "types": ["shop", "rest"], "need_each": true},
+    "5": {"kind": "boss", "width": 1, "types": ["boss"], "boss": "mid"},
+    "9": {"kind": "prep", "width_min": 2, "width_max": 3, "types": ["shop", "rest"], "need_each": true},
+    "10": {"kind": "boss", "width": 1, "types": ["boss"], "boss": "final"}
+  },
+  "types": {
+    "normal": {"weight": 50, "min_floor": 1, "max_per_map": null},
+    "elite": {"weight": 15, "min_floor": 3, "max_per_map": 3},
+    "event": {"weight": 15, "min_floor": 2, "max_per_map": 3},
+    "shop": {"weight": 10, "min_floor": 2, "max_per_map": null},
+    "rest": {"weight": 10, "min_floor": 2, "max_per_map": null}
+  },
+  "no_repeat_along_edge": ["elite", "shop", "rest", "event"],
+  "streams": {"layout": "map_layout", "types": "map_types", "content": "map_content"}
+}

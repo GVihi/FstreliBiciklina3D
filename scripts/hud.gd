@@ -13,7 +13,6 @@ const GRAY = Color(0.49, 0.48, 0.44)
 const TEXT = Color(0.96, 0.95, 0.92)
 const ACCENT = Color(1.0, 0.42, 0.17)
 const PINK = Color(1.0, 0.48, 0.72)
-const LANE_Z_H = [-5.5, -2.5, 0.5]
 
 
 func _ready() -> void:
@@ -287,6 +286,9 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	var acc = 0
 	if g.shots_fired > 0:
 		acc = int(round(100.0 * g.shots_hit / g.shots_fired))
+	var coin_label = "META COINS"
+	if g.meta.boss_coins > 0:
+		coin_label = "META COINS (%d FROM BOSSES)" % g.meta.boss_coins
 	var rcols = [GRAY, TEXT, Color(0.35, 0.7, 0.42), GOLD, ACCENT]
 	var letters = ["D", "C", "B", "A", "S"]
 	var lx = cx - 190.0 * k
@@ -301,7 +303,7 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		["ROUND REACHED", "%d / %d" % [g.round_n, g.MAX_ROUNDS], TEXT],
 		["RUN TIME", g.fmt_time(g.play_time + g.shop_time), TEXT],
 		["BEST COMBO", "x%d" % g.best_combo, TEXT],
-		["META COINS", "+%d" % g.meta_earned, GOLD]
+		[coin_label, "+%d" % g.meta_earned, GOLD]
 	]
 	for i in range(rows.size()):
 		var y = y0 + i * step
@@ -344,6 +346,10 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 			)
 	if g.state_t > 0.8 and blink and not g.name_entry:
 		_txt("CLICK TO CONTINUE", cx, size.y * 0.93, int(24 * k), TEXT, 1)
+	var seed_label = "RUN SEED  " + g.DailyScript.seed_text(g.run_seed)
+	if g.daily_mode:
+		seed_label = "DAILY RUN SEED  " + g.DailyScript.seed_text(g.run_seed)
+	_txt(seed_label, cx, size.y * 0.975, int(14 * k), GRAY, 1)
 
 
 # ---------------------------------------------------------------- title screen menu
@@ -381,11 +387,10 @@ func title_at(pos: Vector2) -> int:
 func _draw_title_menu(k: float, cx: float) -> void:
 	_txt("FSTRELI", cx, size.y * 0.17, int(76 * k), ACCENT, 1)
 	_txt("BICIKLINA 3D", cx, size.y * 0.28, int(76 * k), ACCENT, 1)
-	var hov = title_at(get_viewport().get_mouse_position())
 	for i in range(TITLE_ITEMS.size()):
 		var item = TITLE_ITEMS[i]
 		var r = title_rect(i)
-		var on = hov == i or (hov < 0 and g.title_sel == i)
+		var on = g.title_sel == i  # the mouse updates title_sel in input.gd (hover_menu)
 		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
 		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
 		var base = r.position.y + 29.0 * k
@@ -500,10 +505,9 @@ func pause_at(pos: Vector2) -> int:
 
 func _draw_pause_menu(k: float, cx: float) -> void:
 	_txt("PAUSED", cx, size.y * 0.26, int(60 * k), TEXT, 1)
-	var hov = pause_at(get_viewport().get_mouse_position())
 	for i in range(PAUSE_ITEMS.size()):
 		var r = pause_rect(i)
-		var on = hov == i or (hov < 0 and g.pause_sel == i)
+		var on = g.pause_sel == i  # the mouse updates pause_sel in input.gd (hover_menu)
 		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
 		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
 		_txt(
@@ -515,6 +519,50 @@ func _draw_pause_menu(k: float, cx: float) -> void:
 			1
 		)
 	_txt("ESC TO RESUME", cx, size.y * 0.80, int(16 * k), GRAY, 1)
+
+
+# Restart Run and Quit to Title lose the run, so they ask first. NO is the first button and the default.
+const CONFIRM_TEXT = {
+	"restart": {"title": "RESTART RUN?", "yes": "YES, RESTART"},
+	"title": {"title": "QUIT TO TITLE?", "yes": "YES, QUIT"}
+}
+
+
+func confirm_rect(i: int) -> Rect2:
+	var k = size.y / 720.0
+	var w = 320.0 * k
+	var h = 46.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.46 + i * (h + 10.0 * k), w, h)
+
+
+func confirm_at(pos: Vector2) -> int:
+	if g == null or not g.paused or g.pause_page != "confirm":
+		return -1
+	for i in range(2):
+		if confirm_rect(i).has_point(pos):
+			return i
+	return -1
+
+
+func _draw_confirm(k: float, cx: float) -> void:
+	var text = CONFIRM_TEXT.get(g.confirm_id, CONFIRM_TEXT["restart"])
+	_txt(text["title"], cx, size.y * 0.26, int(60 * k), TEXT, 1)
+	_txt("THIS RUN WILL BE LOST - NO SCORE AND NO COINS", cx, size.y * 0.36, int(20 * k), RED, 1)
+	var labels = ["NO, GO BACK", text["yes"]]
+	for i in range(2):
+		var r = confirm_rect(i)
+		var on = g.confirm_sel == i  # the mouse updates confirm_sel in input.gd (hover_menu)
+		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
+		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
+		_txt(
+			labels[i],
+			r.position.x + r.size.x * 0.5,
+			r.position.y + 31.0 * k,
+			int(22 * k),
+			TEXT if on else GRAY,
+			1
+		)
+	_txt("ESC TO GO BACK", cx, size.y * 0.80, int(16 * k), GRAY, 1)
 
 
 # ---------------------------------------------------------------- settings panel (pause screen / title with TAB)
@@ -686,7 +734,7 @@ func _draw() -> void:
 	if state == "play":
 		for r in g.riders:
 			if r["max_hp"] > 1 and (r["mode"] == "fly" or r["mode"] == "away"):
-				var wp = g.tw3(r["x"], 2.15, LANE_Z_H[r["ln"]])
+				var wp = r["pos"] + Vector3(0.0, 2.15, 0.0)
 				if g.cam.is_position_behind(wp):
 					continue
 				var s2 = g.cam.unproject_position(wp)
@@ -698,7 +746,8 @@ func _draw() -> void:
 						Color(0.95, 0.71, 0.19) if i < r["hp"] else Color(0.23, 0.18, 0.17)
 					)
 
-	_draw_top_bar(k)
+	if state != "title":  # the title screen has its own corner texts, the run bar would overlap them
+		_draw_top_bar(k)
 
 	if state == "play":
 		_draw_crosshair(k)
@@ -780,6 +829,9 @@ func _draw() -> void:
 			_dim(0.86)
 			_draw_settings(k)
 			_txt("ESC OR CLICK OUTSIDE TO GO BACK", cx, size.y * 0.92, int(14 * k), GRAY, 1)
+		elif g.pause_page == "confirm":
+			_dim(0.6)
+			_draw_confirm(k, cx)
 		else:
 			_dim(0.6)
 			_draw_pause_menu(k, cx)
@@ -1011,8 +1063,8 @@ func _draw_boss_ui(k: float) -> void:
 				draw_rect(Rect2(size.x - 16.0 * k, 0, 16.0 * k, size.y), Color(1.0, 0.82, 0.25, gp))
 				_txt("DIZZY - HIT IT!  (WEAK SPOT OPEN)", cx, size.y * 0.45, int(22 * k), GOLD, 1)
 			# weak spot marker
-			if not g.cam.is_position_behind(g.tw3(b["x"], g.boss_sys.weak_point_y(b), b["z"])):
-				var wp = g.tw3(b["x"], g.boss_sys.weak_point_y(b), b["z"])
+			if not g.cam.is_position_behind(g.boss_world(b, g.boss_sys.weak_point_y(b))):
+				var wp = g.boss_world(b, g.boss_sys.weak_point_y(b))
 				var sp = g.cam.unproject_position(wp)
 				var dist = maxf(1.0, g.cam.global_position.distance_to(wp))
 				var rr = clampf(120.0 * k / dist * (78.0 / g.cam.fov), 7.0 * k, 26.0 * k)
