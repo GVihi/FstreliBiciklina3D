@@ -109,7 +109,7 @@ func spawn_wave() -> void:
 # The rest of the game reads where a rider is from "pos", "yaw" and "hidden", which are world-space values.
 # Only the functions below change them (move_rider and the spawn and away switches in this file).
 func is_hidden(pos: Vector3) -> bool:
-	return g.arena.hidden(g.arena.to_track(pos).x)
+	return g.arena.hidden_at(pos)
 
 
 # put the rider's model on the ground at its world position, facing the way it rides
@@ -182,9 +182,9 @@ func way_clear(pos: Vector3, yaw: float, reach: float) -> bool:
 	for k in range(1, 4):
 		var p = pos + fwd * (reach * float(k) / 3.0)
 		if (
-			g.arena.obstacle_at(p)
-			or g.arena.obstacle_at(p + across)
-			or g.arena.obstacle_at(p - across)
+			g.arena.rider_blocked(p)
+			or g.arena.rider_blocked(p + across)
+			or g.arena.rider_blocked(p - across)
 		):
 			return false
 	return true

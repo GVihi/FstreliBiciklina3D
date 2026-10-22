@@ -107,6 +107,24 @@ func rider_avoidance() -> bool:
 	return false
 
 
+# true if riders chase the player over open ground (README Milestone K, rider pursuit): they ride at the player
+# on any surface, pass, turn round in an arc and come back, and they come out of the gates. False keeps the
+# lane steering the roundabout needs. Generated arenas say yes.
+func rider_pursuit() -> bool:
+	return false
+
+
+# true if a rider at world point p cannot ride there. Riders do not go where a boss cannot (obstacle_at) except
+# through the gates: an arena whose gates a boss may not enter overrides this to leave them open.
+func rider_blocked(p: Vector3) -> bool:
+	return obstacle_at(p)
+
+
+# true if the world point p is inside a gate's tunnel: not visible, not hittable
+func hidden_at(p: Vector3) -> bool:
+	return hidden(to_track(p).x)
+
+
 # true if a dart at world point p is inside something solid
 func ray_blocked(_p: Vector3) -> bool:
 	_missing("ray_blocked")
