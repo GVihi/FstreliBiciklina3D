@@ -11,8 +11,9 @@ extends Node3D
 #   Left / Right    the previous / next seed (counted up or down by one)
 #   C               switch between the ground colours and the navigation clearance (how many cells from
 #                   the nearest building: red 1, touching, to green 9)
-#   W               switch between this flat plan and the real ground the game would build from the layout
-#                   (scripts/world_gen.gd): lit surfaces, curbs, road paint and the start frame
+#   W               switch between this flat plan and the real arena the game would build from the layout
+#                   (scripts/world_gen.gd and world_dress.gd): lit surfaces, curbs, road paint, the start frame,
+#                   buildings with windows and the tunnel blocks
 #   Mouse drag      orbit        Mouse wheel   zoom        R   reset the camera (looking down, north up)
 #
 # What the numbers on screen mean is in docs/PROCEDURAL_ARENAS.md. Nothing here is used by the game.
@@ -20,12 +21,14 @@ extends Node3D
 const ArenaGen = preload("res://scripts/arena_gen.gd")
 const DailyScript = preload("res://scripts/daily.gd")
 const WorldGen = preload("res://scripts/world_gen.gd")
+const WorldDress = preload("res://scripts/world_dress.gd")
 
 const MODE_GROUND = 0
 const MODE_CLEARANCE = 1
 const BUILDING_HEIGHT = 4.0
 const START_COLOR = Color("#FF2D95")
 const GATE_COLOR = Color("#19D3E6")
+const TUNNEL_BLOCK_COLOR = Color(0.04, 0.04, 0.05)  # the tunnel blocks are black; a hair lighter so the swatch shows
 const SIDE_SHADE = [0.78, 0.62, 0.7, 0.55]  # north, east, south, west faces of a building
 const GROUND_COLORS = {
 	"g": Color("#7FB069"),
@@ -52,6 +55,7 @@ var seed_value = 0
 var mode = MODE_GROUND
 var world_view = false  # showing the real ground (W) instead of the flat plan
 var ground_stats = {}  # triangles and draw calls of the real ground, while it is shown
+var dress_stats = {}  # the same for the buildings and tunnels standing on it
 var root: Node3D = null
 var cam: Camera3D
 var info: Label
@@ -113,10 +117,14 @@ func _rebuild() -> void:
 	root = Node3D.new()
 	add_child(root)
 	ground_stats = {}
+	dress_stats = {}
 	if world_view:
 		var built = WorldGen.build_ground(layout)
 		root.add_child(built["root"])
 		ground_stats = {"tris": built["tris"], "draw_calls": built["draw_calls"]}
+		var dressed = WorldDress.build(layout)
+		root.add_child(dressed["root"])
+		dress_stats = {"tris": dressed["tris"], "draw_calls": dressed["draw_calls"]}
 		var sun = DirectionalLight3D.new()
 		sun.rotation_degrees = Vector3(-58.0, 35.0, 0.0)
 		root.add_child(sun)
@@ -437,8 +445,13 @@ func _view_text() -> String:
 	if not world_view:
 		return "real ground"
 	return (
-		"flat plan (real ground: %d triangles, %d draw calls)"
-		% [int(ground_stats["tris"]), int(ground_stats["draw_calls"])]
+		"flat plan (real ground: %d triangles, %d draw calls; buildings and tunnels: %d triangles, %d draw calls)"
+		% [
+			int(ground_stats["tris"]),
+			int(ground_stats["draw_calls"]),
+			int(dress_stats["tris"]),
+			int(dress_stats["draw_calls"])
+		]
 	)
 
 
@@ -452,6 +465,10 @@ func _fill_legend() -> void:
 		entries.append([WorldGen.CURB_COLOR, "curb"])
 		entries.append([WorldGen.PAINT_COLOR, "road paint"])
 		entries.append([WorldGen.HAZARD_COLOR, "start frame"])
+		entries.append([WorldDress.BRICK_COLOR, "brick building"])
+		entries.append([WorldDress.DARK_WALL_COLOR, "dark building"])
+		entries.append([WorldDress.WINDOW_COLOR, "windows"])
+		entries.append([TUNNEL_BLOCK_COLOR, "tunnel block"])
 		entries.append([GATE_COLOR, "gate label"])
 	elif mode == MODE_GROUND:
 		for key in ["g", "p", "s", "r", "b", "t"]:

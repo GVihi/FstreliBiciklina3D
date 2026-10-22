@@ -21,6 +21,7 @@ const ArenaGen = preload("res://scripts/arena_gen.gd")
 const DailyScript = preload("res://scripts/daily.gd")
 const Viewer = preload("res://tools/viewer/arena_viewer.gd")
 const WorldGen = preload("res://scripts/world_gen.gd")
+const WorldDress = preload("res://scripts/world_dress.gd")
 
 var problems = []
 
@@ -394,8 +395,8 @@ func _check_world_view(scene: Node, rules: Dictionary) -> void:
 		problems.append("the plan's text does not offer the real ground: " + scene.info.text)
 
 
-# what the real-ground view must be showing now: the ground of scene.layout, a light, the right legend, the
-# counts in the text and a label for every gate and the start
+# what the real-arena view must be showing now: the ground and the buildings and tunnels of scene.layout, a
+# light, the right legend, the counts in the text and a label for every gate and the start
 func _check_ground_shown(scene: Node, how: String) -> void:
 	if not scene.world_view:
 		problems.append("%s did not switch to the real ground" % how)
@@ -434,8 +435,53 @@ func _check_ground_shown(scene: Node, how: String) -> void:
 				% [how, str(scene.ground_stats), int(want["tris"]), int(want["draw_calls"])]
 			)
 		)
+	# the buildings and tunnels stand on it: the ones WorldDress builds for this layout, with their counts
+	var dressing = scene.root.get_node_or_null("ArenaDressing")
+	var dressed = WorldDress.build(scene.layout)
+	if dressing == null:
+		problems.append("%s: no buildings and tunnels under the viewer's root" % how)
+	else:
+		for part_name in dressed["parts"]:
+			var shown = dressing.get_node_or_null(part_name)
+			if (
+				shown == null
+				or (
+					shown.mesh.surface_get_arrays(0)
+					!= dressed["parts"][part_name].mesh.surface_get_arrays(0)
+				)
+			):
+				problems.append(
+					"%s: %s is not the one WorldDress builds for this layout" % [how, part_name]
+				)
+	if (
+		int(scene.dress_stats.get("tris", -1)) != int(dressed["tris"])
+		or int(scene.dress_stats.get("draw_calls", -1)) != int(dressed["draw_calls"])
+	):
+		(
+			problems
+			. append(
+				(
+					"%s: the viewer keeps %s for the dressing, WorldDress says %d triangles and %d draw calls"
+					% [
+						how,
+						str(scene.dress_stats),
+						int(dressed["tris"]),
+						int(dressed["draw_calls"])
+					]
+				)
+			)
+		)
 	var counts = "%d triangles, %d draw calls" % [int(want["tris"]), int(want["draw_calls"])]
-	if not scene.info.text.contains(counts) or not scene.info.text.contains("W: flat plan"):
+	var dress_counts = (
+		"buildings and tunnels: %d triangles, %d draw calls"
+		% [int(dressed["tris"]), int(dressed["draw_calls"])]
+	)
+	dressed["root"].free()
+	if (
+		not scene.info.text.contains(counts)
+		or not scene.info.text.contains(dress_counts)
+		or not scene.info.text.contains("W: flat plan")
+	):
 		problems.append(
 			(
 				"%s: the text does not give %s and offer the flat plan: %s"
@@ -468,6 +514,10 @@ func _check_ground_shown(scene: Node, how: String) -> void:
 		"curb": WorldGen.CURB_COLOR,
 		"road paint": WorldGen.PAINT_COLOR,
 		"start frame": WorldGen.HAZARD_COLOR,
+		"brick building": WorldDress.BRICK_COLOR,
+		"dark building": WorldDress.DARK_WALL_COLOR,
+		"windows": WorldDress.WINDOW_COLOR,
+		"tunnel block": Viewer.TUNNEL_BLOCK_COLOR,
 	}
 	for key in WorldGen.SURFACE_NAMES:
 		legend_want[WorldGen.SURFACE_NAMES[key]] = WorldGen.SURFACE_STYLE[key][0]

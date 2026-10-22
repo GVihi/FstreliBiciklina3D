@@ -72,20 +72,20 @@ static func build_ground(layout: Dictionary) -> Dictionary:
 	calls += 1
 	for ch in ["g", "p", "s", "r", "b", "t"]:
 		var rects = []
-		for r in _merge_cells(rows, n, ch):
+		for r in merge_cells(rows, n, ch):
 			rects.append(
 				[
-					_edge(n, cell, r[0]),
-					_edge(n, cell, r[1]),
-					_edge(n, cell, r[2]),
-					_edge(n, cell, r[3])
+					grid_edge(n, cell, r[0]),
+					grid_edge(n, cell, r[1]),
+					grid_edge(n, cell, r[2]),
+					grid_edge(n, cell, r[3])
 				]
 			)
 		if rects.is_empty():
 			continue
 		var style = SURFACE_STYLE[ch]
 		var mat = Util.unshaded(style[0]) if ch == "t" else Util.mat(style[0], style[1])
-		var mi = _part(root, "ground_" + SURFACE_NAMES[ch], _flat_mesh(rects, 0.0), mat)
+		var mi = add_part(root, "ground_" + SURFACE_NAMES[ch], _flat_mesh(rects, 0.0), mat)
 		parts["ground_" + SURFACE_NAMES[ch]] = mi
 		tris += rects.size() * 2
 		calls += 1
@@ -104,7 +104,7 @@ static func build_ground(layout: Dictionary) -> Dictionary:
 			var xc = float(e["pos"]) + float(e["side"]) * EDGE_INSET
 			edge_lines.append([xc - half_line, e["a0"], xc + half_line, e["a1"]])
 	if not curbs.is_empty():
-		parts["curbs"] = _part(
+		parts["curbs"] = add_part(
 			root, "curbs", _box_mesh(curbs, 0.0, CURB_H), Util.mat(CURB_COLOR, 0.9)
 		)
 		tris += curbs.size() * 10
@@ -113,13 +113,13 @@ static func build_ground(layout: Dictionary) -> Dictionary:
 	for rd in layout["roads"]:
 		paint = paint + _dashes(rows, n, cell, rd)
 	if not paint.is_empty():
-		parts["paint"] = _part(
+		parts["paint"] = add_part(
 			root, "paint", _flat_mesh(paint, PAINT_Y), Util.mat(PAINT_COLOR, 0.8)
 		)
 		tris += paint.size() * 2
 		calls += 1
 	var frame = _start_frame(layout)
-	parts["start_frame"] = _part(
+	parts["start_frame"] = add_part(
 		root, "start_frame", _flat_mesh(frame, START_Y), Util.mat(HAZARD_COLOR, 0.7)
 	)
 	tris += frame.size() * 2
@@ -129,14 +129,14 @@ static func build_ground(layout: Dictionary) -> Dictionary:
 
 # ---------------------------------------------------------------- layout to rectangles
 # world metres of grid line i (0 is the west / north edge of the arena)
-static func _edge(n: int, cell: float, i: int) -> float:
+static func grid_edge(n: int, cell: float, i: int) -> float:
 	return (float(i) - float(n) / 2.0) * cell
 
 
 # The cells of one ground type as few rectangles as it is easy to get: each row's runs, and a run with the
 # same span as the one above it grows that rectangle down. Returns [[cx0, cz0, cx1, cz1]] in cells, the end
 # exclusive.
-static func _merge_cells(rows: Array, n: int, ch: String) -> Array:
+static func merge_cells(rows: Array, n: int, ch: String) -> Array:
 	var done = []
 	var open = {}
 	for cz in range(n):
@@ -166,7 +166,7 @@ static func _merge_cells(rows: Array, n: int, ch: String) -> Array:
 	return done
 
 
-static func _at(rows: Array, n: int, cx: int, cz: int) -> String:
+static func cell_at(rows: Array, n: int, cx: int, cz: int) -> String:
 	if cx < 0 or cz < 0 or cx >= n or cz >= n:
 		return "b"
 	return str(rows[cz])[cx]
@@ -186,12 +186,14 @@ static func _road_edges(rows: Array, n: int, cell: float) -> Array:
 				var side = 0
 				if along < n:
 					var before = (
-						_at(rows, n, along, line - 1)
+						cell_at(rows, n, along, line - 1)
 						if axis == "h"
-						else _at(rows, n, line - 1, along)
+						else cell_at(rows, n, line - 1, along)
 					)
 					var after = (
-						_at(rows, n, along, line) if axis == "h" else _at(rows, n, line, along)
+						cell_at(rows, n, along, line)
+						if axis == "h"
+						else cell_at(rows, n, line, along)
 					)
 					if before == "r" and CURB_NEIGHBOURS.contains(after):
 						side = -1
@@ -201,9 +203,9 @@ static func _road_edges(rows: Array, n: int, cell: float) -> Array:
 					out.append(
 						{
 							"axis": axis,
-							"pos": _edge(n, cell, line),
-							"a0": _edge(n, cell, run_start),
-							"a1": _edge(n, cell, along),
+							"pos": grid_edge(n, cell, line),
+							"a0": grid_edge(n, cell, run_start),
+							"a1": grid_edge(n, cell, along),
 							"side": run_side
 						}
 					)
@@ -221,7 +223,7 @@ static func _dashes(rows: Array, n: int, cell: float, rd: Dictionary) -> Array:
 	var out = []
 	var c = int(rd["centre"])
 	var ns = str(rd["dir"]) == "ns"
-	var mid = _edge(n, cell, c) + cell * 0.5  # the middle of the road across it, in metres
+	var mid = grid_edge(n, cell, c) + cell * 0.5  # the middle of the road across it, in metres
 	var start = -1
 	for a in range(n + 1):
 		var plain = false
@@ -231,15 +233,15 @@ static func _dashes(rows: Array, n: int, cell: float, rd: Dictionary) -> Array:
 			var dx = 2 if ns else 0
 			var dz = 0 if ns else 2
 			plain = (
-				_at(rows, n, x, z) == "r"
-				and _at(rows, n, x - dx, z - dz) != "r"
-				and _at(rows, n, x + dx, z + dz) != "r"
+				cell_at(rows, n, x, z) == "r"
+				and cell_at(rows, n, x - dx, z - dz) != "r"
+				and cell_at(rows, n, x + dx, z + dz) != "r"
 			)
 		if plain and start < 0:
 			start = a
 		elif not plain and start >= 0:
-			var lo = _edge(n, cell, start) + DASH_MARGIN
-			var hi = _edge(n, cell, a) - DASH_MARGIN
+			var lo = grid_edge(n, cell, start) + DASH_MARGIN
+			var hi = grid_edge(n, cell, a) - DASH_MARGIN
 			var count = int(floor((hi - lo + DASH_GAP) / (DASH_LEN + DASH_GAP)))
 			if count > 0:
 				var total = float(count) * DASH_LEN + float(count - 1) * DASH_GAP
@@ -270,7 +272,7 @@ static func _start_frame(layout: Dictionary) -> Array:
 
 
 # ---------------------------------------------------------------- meshes
-static func _part(
+static func add_part(
 	root: Node3D, part_name: String, mesh: ArrayMesh, mat: Material
 ) -> MeshInstance3D:
 	var mi = MeshInstance3D.new()
@@ -289,7 +291,7 @@ static func _flat_mesh(rects: Array, y: float) -> ArrayMesh:
 	var idx = PackedInt32Array()
 	for r in rects:
 		_top(verts, norms, idx, r, y)
-	return _finish(verts, norms, idx)
+	return finish_mesh(verts, norms, idx)
 
 
 # boxes ([x0, z0, x1, z1] in metres) from y0 to y1: the top and the four sides, twenty vertices each
@@ -304,17 +306,17 @@ static func _box_mesh(rects: Array, y0: float, y1: float) -> ArrayMesh:
 		var c = Vector3(r[2], y0, r[3])
 		var d = Vector3(r[0], y0, r[3])
 		var up = Vector3(0.0, y1 - y0, 0.0)
-		_face(verts, norms, idx, [a, b, b + up, a + up], Vector3(0.0, 0.0, -1.0))
-		_face(verts, norms, idx, [b, c, c + up, b + up], Vector3(1.0, 0.0, 0.0))
-		_face(verts, norms, idx, [c, d, d + up, c + up], Vector3(0.0, 0.0, 1.0))
-		_face(verts, norms, idx, [d, a, a + up, d + up], Vector3(-1.0, 0.0, 0.0))
-	return _finish(verts, norms, idx)
+		add_face(verts, norms, idx, [a, b, b + up, a + up], Vector3(0.0, 0.0, -1.0))
+		add_face(verts, norms, idx, [b, c, c + up, b + up], Vector3(1.0, 0.0, 0.0))
+		add_face(verts, norms, idx, [c, d, d + up, c + up], Vector3(0.0, 0.0, 1.0))
+		add_face(verts, norms, idx, [d, a, a + up, d + up], Vector3(-1.0, 0.0, 0.0))
+	return finish_mesh(verts, norms, idx)
 
 
 static func _top(
 	verts: PackedVector3Array, norms: PackedVector3Array, idx: PackedInt32Array, r: Array, y: float
 ) -> void:
-	_face(
+	add_face(
 		verts,
 		norms,
 		idx,
@@ -330,7 +332,7 @@ static func _top(
 
 # one square face with the outward normal n: its corners are put in the order Godot draws as front-facing
 # (clockwise seen from outside), whichever way round they were given
-static func _face(
+static func add_face(
 	verts: PackedVector3Array,
 	norms: PackedVector3Array,
 	idx: PackedInt32Array,
@@ -347,7 +349,7 @@ static func _face(
 	idx.append_array(PackedInt32Array([base, base + 1, base + 2, base, base + 2, base + 3]))
 
 
-static func _finish(
+static func finish_mesh(
 	verts: PackedVector3Array, norms: PackedVector3Array, idx: PackedInt32Array
 ) -> ArrayMesh:
 	var arrays = []
