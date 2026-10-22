@@ -79,6 +79,149 @@ static func to_text(map: Dictionary) -> String:
 	return "\n".join(lines)
 
 
+# ---------------------------------------------------------------- validation
+# The checklist a map has to satisfy before the game may use it (docs/MAP_GENERATION.md, "What a valid map must
+# satisfy"). Returns the problems in words, an empty list when the map is fine. It reads only the map and the
+# rules, so it also works on a map damaged by hand. Every problem names the floor (1-based) and lane (0-based).
+#   - the floor count, node counts and node types of the fixed floors (start, prep floors, bosses)
+#   - every edge goes to a real lane of the next floor, edges on a floor are in order and do not cross
+#   - every node can be reached from floor 1, and every node can reach the final boss (no dead ends)
+#   - the boss floors each hold one boss, and every prep floor holds only its types (so every path crosses them)
+#   - caps (max_per_map), first floors (min_floor) and no_repeat_along_edge hold
+static func validate(map: Dictionary, rules: Dictionary = {}) -> Array:
+	if rules.is_empty():
+		rules = load_rules()
+	if rules.is_empty():
+		return ["the map rules are missing"]
+	if map.is_empty() or not map.has("floors"):
+		return ["there is no map"]
+	var floors = map["floors"]
+	var n = int(rules["floors"])
+	if floors.size() != n:
+		return ["expected %d floors, got %d" % [n, floors.size()]]
+	var problems = []
+	var counts = {}
+	for f in range(n):
+		_validate_floor(floors, f, rules, counts, problems)
+	for t in rules["types"]:
+		var cap = rules["types"][t].get("max_per_map")
+		if cap != null and int(counts.get(t, 0)) > int(cap):
+			problems.append("%d '%s' nodes, the most allowed is %d" % [counts[t], t, int(cap)])
+	if problems.is_empty():
+		_validate_reach(floors, problems)
+	return problems
+
+
+# one floor of validate(): node count, types, edges, crossing and the fixed-floor rules
+static func _validate_floor(
+	floors: Array, f: int, rules: Dictionary, counts: Dictionary, problems: Array
+) -> void:
+	var nodes = floors[f]
+	var n = floors.size()
+	var spec = rules["fixed_floors"].get(str(f + 1))
+	var wmin = int(rules["width"]["min"])
+	var wmax = int(rules["width"]["max"])
+	if spec != null:
+		wmin = int(spec.get("width", spec.get("width_min", wmin)))
+		wmax = int(spec.get("width", spec.get("width_max", wmax)))
+	if nodes.size() < wmin or nodes.size() > wmax:
+		problems.append(
+			"floor %d has %d nodes, expected %d to %d" % [f + 1, nodes.size(), wmin, wmax]
+		)
+	var seen_types = {}
+	var max_out = int(rules.get("max_edges_out", 2))
+	var restricted = rules.get("no_repeat_along_edge", [])
+	var last_j = -1  # right-most lane the edges of the lanes to the left reached (crossing check)
+	for i in range(nodes.size()):
+		var t = str(nodes[i].get("type", ""))
+		counts[t] = int(counts.get(t, 0)) + 1
+		seen_types[t] = true
+		var row = rules["types"].get(t)
+		if row == null and t != "boss":
+			problems.append("floor %d lane %d has unknown type '%s'" % [f + 1, i, t])
+		if spec != null and not spec["types"].has(t):
+			problems.append("floor %d lane %d is '%s', not allowed there" % [f + 1, i, t])
+		if spec == null and row != null and f + 1 < int(row["min_floor"]):
+			problems.append("floor %d lane %d is '%s' before its first floor" % [f + 1, i, t])
+		var nexts = nodes[i].get("next", [])
+		if f == n - 1:
+			if nexts.size() != 0:
+				problems.append("the final boss (floor %d lane %d) has edges" % [f + 1, i])
+			continue
+		if nexts.size() < 1:
+			problems.append("floor %d lane %d has no edge up (a dead end)" % [f + 1, i])
+		if nodes.size() > 1 and nexts.size() > max_out:
+			problems.append(
+				(
+					"floor %d lane %d has %d edges, the most allowed is %d"
+					% [f + 1, i, nexts.size(), max_out]
+				)
+			)
+		for k in range(nexts.size()):
+			var j = int(nexts[k])
+			if j < 0 or j >= floors[f + 1].size():
+				problems.append(
+					(
+						"floor %d lane %d has an edge to a lane that does not exist on floor %d"
+						% [f + 1, i, f + 2]
+					)
+				)
+				continue
+			if k > 0 and j <= int(nexts[k - 1]):
+				problems.append("floor %d lane %d has its edges out of order" % [f + 1, i])
+			if j < last_j:
+				problems.append("edges cross between floor %d and floor %d" % [f + 1, f + 2])
+			last_j = maxi(last_j, j)
+			if restricted.has(t) and str(floors[f + 1][j].get("type", "")) == t:
+				problems.append(
+					"floor %d lane %d and the node it joins are both '%s'" % [f + 1, i, t]
+				)
+	if spec == null:
+		return
+	if spec.get("need_each", false) and nodes.size() >= spec["types"].size():
+		for t in spec["types"]:
+			if not seen_types.has(t):
+				problems.append("prep floor %d has no '%s' node" % [f + 1, t])
+	if (
+		spec.get("kind", "") == "boss"
+		and (nodes.size() != 1 or str(nodes[0].get("type", "")) != "boss")
+	):
+		problems.append("boss floor %d must hold exactly one boss node" % (f + 1))
+
+
+# every node reachable from floor 1 and able to reach the final floor; only called when the edges are in range
+static func _validate_reach(floors: Array, problems: Array) -> void:
+	var n = floors.size()
+	var up = []  # up[f][i]: node i of floor f can be reached from floor 1
+	for f in range(n):
+		var row = []
+		row.resize(floors[f].size())
+		row.fill(f == 0)
+		up.append(row)
+	for f in range(n - 1):
+		for i in range(floors[f].size()):
+			if up[f][i]:
+				for j in floors[f][i]["next"]:
+					up[f + 1][int(j)] = true
+	var down = []  # down[f][i]: node i of floor f can reach the final floor
+	for f in range(n):
+		var row = []
+		row.resize(floors[f].size())
+		row.fill(f == n - 1)
+		down.append(row)
+	for f in range(n - 2, -1, -1):
+		for i in range(floors[f].size()):
+			for j in floors[f][i]["next"]:
+				if down[f + 1][int(j)]:
+					down[f][i] = true
+	for f in range(n):
+		for i in range(floors[f].size()):
+			if not up[f][i]:
+				problems.append("floor %d lane %d cannot be reached from floor 1" % [f + 1, i])
+			if not down[f][i]:
+				problems.append("floor %d lane %d cannot reach the final boss" % [f + 1, i])
+
+
 # ---------------------------------------------------------------- internals
 static func _rng(run_seed: int, part: String) -> RandomNumberGenerator:
 	var rng = RandomNumberGenerator.new()
