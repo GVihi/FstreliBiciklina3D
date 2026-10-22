@@ -741,8 +741,14 @@ func _part_matches(
 	var lowest = INF
 	for f in faces:
 		lowest = minf(lowest, _span(f["v"])["lo"].y)
-	if count > 0 and part_name != "lamp_heads" and absf(lowest) > EPS:
-		found.append("%s check: it does not stand on the ground (lowest point %.3f)" % [part_name, lowest])
+	if (
+		count > 0
+		and (part_name == "lamp_posts" or part_name == "tree_trunks")
+		and absf(lowest) > EPS
+	):
+		found.append(
+			"%s check: it does not stand on the ground (lowest point %.3f)" % [part_name, lowest]
+		)
 
 
 func _check_props(layout: Dictionary, built: Dictionary, found: Array) -> void:
@@ -765,9 +771,12 @@ func _check_props(layout: Dictionary, built: Dictionary, found: Array) -> void:
 		var centre = _centre_of(layout, c)
 		if lamp["pole"].distance_to(centre + d * WorldDress.LAMP_SETBACK) > EPS:
 			found.append("lamp check: the pole in %s is not LAMP_SETBACK from the centre" % str(c))
-		if lamp["head"].distance_to(
-			centre + d * (WorldDress.LAMP_SETBACK + WorldDress.LAMP_ARM_REACH)
-		) > EPS:
+		if (
+			lamp["head"].distance_to(
+				centre + d * (WorldDress.LAMP_SETBACK + WorldDress.LAMP_ARM_REACH)
+			)
+			> EPS
+		):
 			found.append("lamp check: the head in %s is not LAMP_ARM_REACH from its pole" % str(c))
 		if _cell_char(layout, int(c.x + dir.x * 2), int(c.y + dir.y * 2)) != "r":
 			# the head is 1.9 m out: it must be over the road, whose first cell is the next one over
@@ -802,10 +811,7 @@ func _check_props(layout: Dictionary, built: Dictionary, found: Array) -> void:
 		var across = WorldDress.LAMP_HEAD_ACROSS
 		heads.append(
 			_top_key(
-				head,
-				WorldDress.LAMP_HEAD_Y1,
-				along if ns else across,
-				across if ns else along
+				head, WorldDress.LAMP_HEAD_Y1, along if ns else across, across if ns else along
 			)
 		)
 	var lamp_count = props["lamps"].size()
@@ -848,10 +854,13 @@ func _check_props(layout: Dictionary, built: Dictionary, found: Array) -> void:
 			found.append("tree check: two trees in cell %s" % str(c))
 		tree_seen[c] = true
 		if not _tree_ok(layout, c):
-			found.append(
-				(
-					"tree check: a tree in cell %s, which is not grass with only grass and sidewalk round it"
-					% str(c)
+			(
+				found
+				. append(
+					(
+						"tree check: a tree in cell %s, which is not grass with only grass and sidewalk round it"
+						% str(c)
+					)
 				)
 			)
 		elif tree["pos"].distance_to(_centre_of(layout, c)) > EPS:
