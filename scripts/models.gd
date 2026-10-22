@@ -3,6 +3,7 @@ extends RefCounted
 # Everything is built from primitives so there are no art assets to import.
 
 const Util = preload("res://scripts/util.gd")
+const Toon = preload("res://scripts/toon.gd")
 
 const SKIN = "#e8b98a"
 const SKIN_DARK = "#c79869"
@@ -641,7 +642,7 @@ const RUBBER_WOBBLE = true
 const RUBBER_REACH_Z = Vector2(0.2, -1.0)  # z of the knob (in your hand) and of the tip, the same as the model
 const RUBBER_SHADER = """
 shader_type spatial;
-render_mode diffuse_toon, specular_toon;     // the same hard-edged lighting as every other material in the game
+render_mode @RENDER_MODES@;     // filled in by _rubber_shader_code(): toon or ordinary lighting, the same as every other material
 
 uniform vec4 albedo : source_color = vec4(1.0, 0.31, 0.64, 1.0);
 uniform float roughness : hint_range(0.0, 1.0) = 0.12;
@@ -683,6 +684,14 @@ void fragment() {
 """
 
 
+# RUBBER_SHADER with the lighting modes that match the rest of the game (see toon.gd, Toon.ENABLED)
+static func _rubber_shader_code() -> String:
+	var modes = (
+		"diffuse_toon, specular_toon" if Toon.ENABLED else "diffuse_burley, specular_schlick_ggx"
+	)
+	return RUBBER_SHADER.replace("@RENDER_MODES@", modes)
+
+
 # swaps every surface of the club for a ShaderMaterial with the wobble; returns those materials (empty if it could not)
 static func _rubber_wobble_materials(club: Node) -> Array:
 	var mi: MeshInstance3D = null
@@ -696,7 +705,7 @@ static func _rubber_wobble_materials(club: Node) -> Array:
 	if mi == null or mi.mesh == null:
 		return []
 	var sh = Shader.new()
-	sh.code = RUBBER_SHADER
+	sh.code = _rubber_shader_code()
 	var out = []
 	for i in range(mi.mesh.get_surface_count()):
 		var src = mi.mesh.surface_get_material(i)

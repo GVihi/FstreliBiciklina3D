@@ -10,7 +10,7 @@ extends RefCounted
 #   angle  180 deg   the road dives into a black tunnel block: riders enter and leave there
 
 const Util = preload("res://scripts/util.gd")
-const Toon = preload("res://scripts/toon.gd")
+const Lighting = preload("res://scripts/lighting.gd")
 
 
 static func build(root: Node3D, arena) -> Dictionary:
@@ -23,19 +23,15 @@ static func build(root: Node3D, arena) -> Dictionary:
 	sky.sky_material = sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.6, 0.65, 0.7)
 	env.ambient_light_energy = 0.8
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	Toon.setup_glow(env)
+	Lighting.setup_environment(env)
 	var we = WorldEnvironment.new()
 	we.environment = env
 	root.add_child(we)
 
 	var sun = DirectionalLight3D.new()
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL  # 1 shadow map instead of 4 splits
-	sun.directional_shadow_max_distance = 36.0
+	Lighting.setup_sun(sun)
 	root.add_child(sun)
 
 	out["env"] = env
@@ -58,7 +54,7 @@ static func build(root: Node3D, arena) -> Dictionary:
 	var leaf = Util.mat(Color(0.18, 0.38, 0.2), 1.0)
 	var leaf2 = Util.mat(Color(0.24, 0.46, 0.24), 1.0)
 
-	var win_mat = Util.glow(Color(1.0, 0.85, 0.5), 0.0)
+	var win_mat = Util.glow(Color(1.0, 0.74, 0.38), 0.0)  # warm orange so lit windows never burn out to white
 	win_mat.albedo_color = Color(0.25, 0.32, 0.4)
 	var lamp_mat = Util.glow(Color(1.0, 0.9, 0.65), 0.0)
 	out["win_mat"] = win_mat
@@ -164,9 +160,9 @@ static func build(root: Node3D, arena) -> Dictionary:
 		Util.box(lp, Vector3(0.45, 0.1, 0.28), Vector3(0, 5.12, 1.3), lamp_mat)
 		var ol = OmniLight3D.new()
 		ol.position = Vector3(0, 4.9, 1.3)
-		ol.omni_range = 13.0
-		ol.light_energy = 2.2
-		ol.light_color = Color(1.0, 0.85, 0.6)
+		ol.omni_range = 16.0
+		ol.light_energy = 3.2  # a warm pool on the road under each lamp
+		ol.light_color = Color(1.0, 0.8, 0.5)
 		ol.visible = false
 		lp.add_child(ol)
 		lamps.append(ol)

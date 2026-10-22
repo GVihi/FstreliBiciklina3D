@@ -2,6 +2,8 @@ extends RefCounted
 # Input: mouse, keyboard and gamepad handling, menu clicks and weapon switching.
 # Shared game state stays on main.gd (g); this file holds the logic.
 
+const Toon = preload("res://scripts/toon.gd")
+
 var g = null
 
 
@@ -120,7 +122,7 @@ func handle_input(event: InputEvent) -> void:
 			g.add_note("VOICE EFFECTS " + ("ON" if g.sfx.toggle_voice_fx() else "OFF"), g.GOLD)
 		elif kc == KEY_F9:
 			g.settings.cycle_quality()
-		elif kc == KEY_F10:
+		elif kc == KEY_F10 and Toon.ENABLED:
 			g.settings.set_setting("outline", not g.outlines)
 			g.add_note("OUTLINES " + ("ON" if g.outlines else "OFF"), g.GOLD)
 		elif kc == KEY_F8:

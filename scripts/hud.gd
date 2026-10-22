@@ -5,6 +5,8 @@ extends Control
 var g = null
 var font: Font
 
+const Toon = preload("res://scripts/toon.gd")
+
 const GOLD = Color(0.95, 0.71, 0.19)
 const RED = Color(0.9, 0.33, 0.24)
 const GRAY = Color(0.49, 0.48, 0.44)
@@ -564,7 +566,7 @@ func _draw_confirm(k: float, cx: float) -> void:
 
 
 # ---------------------------------------------------------------- settings panel (pause screen / title with TAB)
-const SETTING_ROWS = [
+const ALL_SETTING_ROWS = [
 	{"id": "fov", "label": "FIELD OF VIEW", "min": 60.0, "max": 105.0, "fmt": "%d"},
 	{"id": "sens", "label": "MOUSE SENSITIVITY", "min": 0.3, "max": 3.0, "fmt": "%.1fx"},
 	{"id": "assist", "label": "AIM ASSIST (STICK)", "min": 0.0, "max": 1.0, "fmt": "pct"},
@@ -576,6 +578,18 @@ const SETTING_ROWS = [
 	{"id": "sound", "label": "SOUND", "toggle": true},
 	{"id": "voices", "label": "VOICES", "toggle": true}
 ]
+
+var _setting_rows = null
+
+
+# the rows that are shown: the OUTLINES switch only exists while the toon look is on (toon.gd)
+func setting_rows() -> Array:
+	if _setting_rows == null:
+		_setting_rows = []
+		for row in ALL_SETTING_ROWS:
+			if row["id"] != "outline" or Toon.ENABLED:
+				_setting_rows.append(row)
+	return _setting_rows
 
 
 func settings_visible() -> bool:
@@ -591,7 +605,7 @@ func settings_visible() -> bool:
 func panel_rect() -> Rect2:
 	var k = size.y / 720.0
 	var w = 560.0 * k
-	var h = (44.0 + SETTING_ROWS.size() * 34.0 + 12.0) * k
+	var h = (44.0 + setting_rows().size() * 34.0 + 12.0) * k
 	return Rect2((size.x - w) * 0.5, (size.y - h) * 0.5, w, h)
 
 
@@ -615,22 +629,22 @@ func track_rect(i: int) -> Rect2:
 func setting_at(pos: Vector2) -> String:
 	if not settings_visible():
 		return ""
-	for i in range(SETTING_ROWS.size()):
+	for i in range(setting_rows().size()):
 		if row_rect(i).has_point(pos):
-			return SETTING_ROWS[i]["id"]
+			return setting_rows()[i]["id"]
 	return ""
 
 
 func is_toggle(id: String) -> bool:
-	for row in SETTING_ROWS:
+	for row in setting_rows():
 		if row["id"] == id:
 			return row.get("toggle", false) or row.has("choices")
 	return false
 
 
 func apply_slider(id: String, pos: Vector2) -> void:
-	for i in range(SETTING_ROWS.size()):
-		var row = SETTING_ROWS[i]
+	for i in range(setting_rows().size()):
+		var row = setting_rows()[i]
 		if row["id"] == id:
 			var tr = track_rect(i)
 			var t = clampf((pos.x - tr.position.x) / tr.size.x, 0.0, 1.0)
@@ -645,8 +659,8 @@ func _draw_settings(k: float) -> void:
 		"SETTINGS", pr.position.x + pr.size.x * 0.5, pr.position.y + 30.0 * k, int(20 * k), GOLD, 1
 	)
 	var mp = get_viewport().get_mouse_position()
-	for i in range(SETTING_ROWS.size()):
-		var row = SETTING_ROWS[i]
+	for i in range(setting_rows().size()):
+		var row = setting_rows()[i]
 		var r = row_rect(i)
 		if r.has_point(mp):
 			draw_rect(r, Color(1, 1, 1, 0.06))

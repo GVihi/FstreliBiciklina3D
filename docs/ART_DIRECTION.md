@@ -82,11 +82,11 @@ Target machine: **i5-7500 (4 cores), GTX 1060 3 GB, 8 GB RAM, 1080p at 60 fps.**
 | Video memory | all textures together well under about 1 GB; shared 512 to 1024 px atlases, no normal maps on most assets |
 | Lighting | one directional sun with soft shadows (cascades limited), a small number of real lights, baked light for the static arena where it helps |
 | Not used | SDFGI, volumetric fog, SSR, SSAO (a "high" preset may include SSAO if it fits) |
-| Anti-aliasing | MSAA 2x or cheaper FXAA |
+| Anti-aliasing | **Decided (F1): MSAA 2x on the high preset, FXAA on medium, none on low.** MSAA 2x visibly smooths the chunky silhouettes and 4x showed no visible gain over it in test renders; FXAA is nearly free but exists only in Forward+ (in the Compatibility renderer medium has no anti-aliasing). Frame time measured on a development laptop with integrated graphics (see `docs/baseline_f1/README.md`); no minimum-spec machine was available. |
 | CPU | keep the per-frame script work and entity counts in check; a GTX 1060 will not be the first bottleneck |
-| Quality presets | F9 stays: high (shadows, MSAA, glow), medium (no MSAA), low (no shadows, no glow) |
+| Quality presets | F9 stays, three steps: **high** (2x MSAA, 2048 shadow map, glow), **medium** (FXAA, 1024 shadow map, glow), **low** (no anti-aliasing, no shadows, no glow). See `scripts/settings.gd`. |
 
-Open technical test: **Compatibility renderer vs Forward+** on this class of hardware. With a GTX 1060 either works, so the decision is made on measured frame time and look, not on assumptions.
+**Decided (F1): ship Forward+; Compatibility stays only as Godot's fallback when Vulkan fails.** Measured on a development laptop with integrated graphics (`docs/baseline_f1/README.md`): Forward+ stayed under 16.7 ms in every preset and theme, Compatibility stuttered on the HIGH preset and has no FXAA on MEDIUM. Not measured on a GTX 1060 class machine.
 
 ## 6. Gameplay readability rules (non-negotiable)
 
