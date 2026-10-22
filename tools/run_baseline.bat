@@ -23,11 +23,13 @@ echo   tools\run_baseline.bat "D:\SteamLibrary\steamapps\common\Godot Engine\god
 exit /b 1
 
 :have_godot
-if not exist "%GODOT%" (
-  echo Godot not found at: %GODOT%
-  exit /b 1
-)
+if exist "%GODOT%" goto godot_ok
+echo Godot not found at the path given.
+exit /b 1
+:godot_ok
 echo Using Godot: %GODOT%
+echo Godot version (the project needs 4.7 or newer):
+"%GODOT%" --version
 echo Do not touch the mouse or keyboard until both runs are finished.
 echo.
 
