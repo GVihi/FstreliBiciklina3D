@@ -11,12 +11,15 @@ extends Node3D
 #   Left / Right    the previous / next seed (counted up or down by one)
 #   C               switch between the ground colours and the navigation clearance (how many cells from
 #                   the nearest building: red 1, touching, to green 9)
+#   W               switch between this flat plan and the real ground the game would build from the layout
+#                   (scripts/world_gen.gd): lit surfaces, curbs, road paint and the start frame
 #   Mouse drag      orbit        Mouse wheel   zoom        R   reset the camera (looking down, north up)
 #
 # What the numbers on screen mean is in docs/PROCEDURAL_ARENAS.md. Nothing here is used by the game.
 
 const ArenaGen = preload("res://scripts/arena_gen.gd")
 const DailyScript = preload("res://scripts/daily.gd")
+const WorldGen = preload("res://scripts/world_gen.gd")
 
 const MODE_GROUND = 0
 const MODE_CLEARANCE = 1
@@ -47,6 +50,8 @@ var rules = {}
 var layout = {}
 var seed_value = 0
 var mode = MODE_GROUND
+var world_view = false  # showing the real ground (W) instead of the flat plan
+var ground_stats = {}  # triangles and draw calls of the real ground, while it is shown
 var root: Node3D = null
 var cam: Camera3D
 var info: Label
@@ -107,14 +112,23 @@ func _rebuild() -> void:
 		return
 	root = Node3D.new()
 	add_child(root)
-	var mi = MeshInstance3D.new()
-	mi.mesh = build_mesh(layout, mode)
-	var mat = StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.vertex_color_use_as_albedo = true
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mi.material_override = mat
-	root.add_child(mi)
+	ground_stats = {}
+	if world_view:
+		var built = WorldGen.build_ground(layout)
+		root.add_child(built["root"])
+		ground_stats = {"tris": built["tris"], "draw_calls": built["draw_calls"]}
+		var sun = DirectionalLight3D.new()
+		sun.rotation_degrees = Vector3(-58.0, 35.0, 0.0)
+		root.add_child(sun)
+	else:
+		var mi = MeshInstance3D.new()
+		mi.mesh = build_mesh(layout, mode)
+		var mat = StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.vertex_color_use_as_albedo = true
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mi.material_override = mat
+		root.add_child(mi)
 	_add_gate_labels()
 	_fill_legend()
 	_update_info()
@@ -395,7 +409,7 @@ func _update_info() -> void:
 		gates.append("%d%s" % [number, str(gt["side"]).to_upper()])
 		number += 1
 	info.text = (
-		"Seed %s%s   attempt %d   ground %d m2 (%d x %d cells of %.0f m)\nroads %d   plazas %d   buildings %d   gates %d (%s)   start at %.0f, %.0f m   validation: %s\nLeft/Right: seed -/+ 1   C: %s   drag: orbit   wheel: zoom   R: reset"
+		"Seed %s%s   attempt %d   ground %d m2 (%d x %d cells of %.0f m)\nroads %d   plazas %d   buildings %d   gates %d (%s)   start at %.0f, %.0f m   validation: %s\nLeft/Right: seed -/+ 1   C: %s   W: %s   drag: orbit   wheel: zoom   R: reset"
 		% [
 			DailyScript.seed_text(seed_value),
 			"  (today's daily seed)" if seed_value == DailyScript.today_seed() else "",
@@ -413,7 +427,18 @@ func _update_info() -> void:
 			float(layout["start"]["pos"][1]),
 			"ok" if problems.is_empty() else "; ".join(problems),
 			"colours by clearance" if mode == MODE_GROUND else "colours by ground",
+			_view_text(),
 		]
+	)
+
+
+# what W does next, and in the real-ground view how big the ground is
+func _view_text() -> String:
+	if not world_view:
+		return "real ground"
+	return (
+		"flat plan (real ground: %d triangles, %d draw calls)"
+		% [int(ground_stats["tris"]), int(ground_stats["draw_calls"])]
 	)
 
 
@@ -421,7 +446,14 @@ func _fill_legend() -> void:
 	for c in legend.get_children():
 		c.queue_free()
 	var entries = []
-	if mode == MODE_GROUND:
+	if world_view:
+		for key in ["g", "p", "s", "r", "b", "t"]:
+			entries.append([WorldGen.SURFACE_STYLE[key][0], WorldGen.SURFACE_NAMES[key]])
+		entries.append([WorldGen.CURB_COLOR, "curb"])
+		entries.append([WorldGen.PAINT_COLOR, "road paint"])
+		entries.append([WorldGen.HAZARD_COLOR, "start frame"])
+		entries.append([GATE_COLOR, "gate label"])
+	elif mode == MODE_GROUND:
 		for key in ["g", "p", "s", "r", "b", "t"]:
 			entries.append([GROUND_COLORS[key], GROUND_NAMES[key]])
 		entries.append([GATE_COLOR, "gate arrow"])
@@ -475,7 +507,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_LEFT:
 			show_seed(seed_value - 1)
 		elif event.keycode == KEY_C and not layout.is_empty():
+			world_view = false  # the clearance colours belong to the plan
 			mode = MODE_CLEARANCE if mode == MODE_GROUND else MODE_GROUND
+			_rebuild()
+		elif event.keycode == KEY_W and not layout.is_empty():
+			world_view = not world_view
 			_rebuild()
 		elif event.keycode == KEY_R:
 			yaw = DEFAULT_YAW
