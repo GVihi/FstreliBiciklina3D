@@ -3,3 +3,5 @@
 # binary assets: never touch line endings
 *.glb binary
 *.png binary
+# Windows batch files need CRLF, or goto labels can fail
+*.bat text eol=crlf
