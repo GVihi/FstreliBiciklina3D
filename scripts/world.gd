@@ -17,15 +17,9 @@ static func build(root: Node3D, arena) -> Dictionary:
 	var out = {}
 
 	# ---------- environment + sun ----------
-	var env = Environment.new()
-	var sky_mat = ProceduralSkyMaterial.new()
-	var sky = Sky.new()
-	sky.sky_material = sky_mat
-	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-	env.ambient_light_color = Color(0.6, 0.65, 0.7)
-	env.ambient_light_energy = 0.8
-	Lighting.setup_environment(env)
+	var made = Lighting.make_environment()
+	var env: Environment = made["env"]
+	var sky_mat = made["sky_mat"]
 	var we = WorldEnvironment.new()
 	we.environment = env
 	root.add_child(we)

@@ -22,6 +22,8 @@ const DailyScript = preload("res://scripts/daily.gd")
 const Viewer = preload("res://tools/viewer/arena_viewer.gd")
 const WorldGen = preload("res://scripts/world_gen.gd")
 const WorldDress = preload("res://scripts/world_dress.gd")
+const Lighting = preload("res://scripts/lighting.gd")
+const Content = preload("res://scripts/content.gd")
 
 var problems = []
 
@@ -354,6 +356,61 @@ func _check_scene(rules: Dictionary) -> void:
 	scene.queue_free()
 
 
+# T: the next theme, applied the way the game does it to the lit arena, and only there
+func _check_themes(scene: Node) -> void:
+	var count = Content.THEMES.size()
+	if scene.theme_idx != 0:
+		problems.append("the real arena does not start in the first theme")
+	for step in range(1, count + 1):
+		scene._unhandled_input(_key(KEY_T))
+		await process_frame
+		var idx = step % count
+		var th = Content.THEMES[idx]
+		if scene.theme_idx != idx:
+			problems.append("T number %d gave theme %d, expected %d" % [step, scene.theme_idx, idx])
+			return
+		if not scene.info.text.contains("T: theme " + str(th["name"])):
+			problems.append(
+				"the text does not name the theme %s: %s" % [th["name"], scene.info.text]
+			)
+		var w = scene.world
+		if absf(w["win_mat"].emission_energy_multiplier - float(th["lit"])) > 0.001:
+			problems.append("%s: the windows do not glow as the theme says" % th["name"])
+		var glow = Lighting.LAMP_HEAD_GLOW if th["lamps"] else 0.0
+		if absf(w["lamp_mat"].emission_energy_multiplier - glow) > 0.001:
+			problems.append("%s: the lamp heads do not glow as the theme says" % th["name"])
+		var on = 0
+		for l in w["lamps"]:
+			if l.visible:
+				on += 1
+		var want = mini(Lighting.MAX_LAMP_LIGHTS, w["lamps"].size()) if th["lamps"] else 0
+		if on != want:
+			problems.append("%s: %d lamp lights on, expected %d" % [th["name"], on, want])
+		if absf(w["sun"].light_energy - float(th["sun_e"])) > 0.001:
+			problems.append("%s: the sun is not the theme's" % th["name"])
+	if scene.env_node.environment != scene.world["env"]:
+		problems.append("the lit arena is not using its own environment")
+	# a new seed keeps the theme, and the plan has no theme (T does nothing there)
+	scene.theme_idx = 2
+	scene._unhandled_input(_key(KEY_RIGHT))
+	await process_frame
+	if scene.theme_idx != 2 or scene.world["win_mat"].emission_energy_multiplier < 0.7:
+		problems.append("changing the seed dropped the theme")
+	scene._unhandled_input(_key(KEY_W))
+	await process_frame
+	scene._unhandled_input(_key(KEY_T))
+	await process_frame
+	if scene.theme_idx != 2:
+		problems.append("T changed the theme in the flat plan")
+	if scene.env_node.environment != scene.plan_env:
+		problems.append("the flat plan is not back on its plain sky")
+	scene.theme_idx = 0
+	scene._unhandled_input(_key(KEY_W))
+	await process_frame
+	scene.show_seed(0x7F3A91C2)  # back to the seed the rest of the checks start from
+	await process_frame
+
+
 # W: the real ground instead of the flat plan, as WorldGen builds it from the layout on show
 func _check_world_view(scene: Node, rules: Dictionary) -> void:
 	scene.show_seed(0x7F3A91C2)
@@ -365,6 +422,7 @@ func _check_world_view(scene: Node, rules: Dictionary) -> void:
 	scene._unhandled_input(_key(KEY_W))
 	await process_frame
 	_check_ground_shown(scene, "W")
+	await _check_themes(scene)
 	# the next seed keeps the real-ground view and shows the ground of the new layout
 	scene._unhandled_input(_key(KEY_RIGHT))
 	await process_frame
