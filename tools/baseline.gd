@@ -11,7 +11,8 @@ extends SceneTree
 #      script turns the view round, fires the gun and keeps the player alive, with vsync off
 #   3. a report: report.md (read this first), results.json and frametime.csv in one output folder
 #
-# It never ends a run, so it does not write the score, meta or settings files. It checks that at the end.
+# Scripted play keeps the score at 0 and the hearts full, so no run ever ends with a score and none of the
+# score, meta, settings or high score files is written. It checks that at the end and says so in the report.
 # Options after "--": --label=NAME  --out=DIR  --seconds=N (per measurement, default 8)
 #                     --no-screens  --no-frametime  --raw (also write every single frame)
 
@@ -41,10 +42,10 @@ func _init() -> void:
 	_read_args()
 	_make_folders()
 	saves_before = _save_times()
-	info = _system_info()
 	main = load("res://main.tscn").instantiate()
 	root.add_child(main)
 	await _frames(10)
+	info = _system_info()  # after the window exists, so the size is the real one
 	if do_screens:
 		await _capture_screens()
 	if do_frametime:
@@ -240,6 +241,7 @@ func _measure_one(q: int, t: int, rid: RID) -> Dictionary:
 		if main.state != "play":
 			main.start_game()
 		main.hearts = main.MAXHEARTS
+		main.score = 0  # a game over with a score would write the high score, scores and meta files
 		main.yaw += 0.7 * minf(dt, 0.05)
 		fire_t -= dt
 		if fire_t <= 0.0:
