@@ -470,7 +470,7 @@ func _warm_up() -> void:
 
 
 # ------------------------------------------------------------------ graphics quality (F9)
-var quality = 0  # 0 = shadows + 2x MSAA, 1 = no MSAA, 2 = no MSAA and no sun shadows
+var quality = 0  # 0 = 2x MSAA + shadows (2048 map), 1 = FXAA + shadows (1024 map), 2 = no anti-aliasing, no shadows, no glow (see settings.gd)
 var arena = ArenaRoundaboutScript.new()  # arena.gd: the space the run is played in (today the roundabout, arena_roundabout.gd)
 var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics quality, high score file
 var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
