@@ -4,6 +4,14 @@ extends RefCounted
 
 const Models = preload("res://scripts/models.gd")
 
+# Steering, the same way riders do it (riders.gd): a pedestrian owns its world position and the way it faces
+# ("yaw") and steers at a point on its lane a little way ahead, turning no faster than TURN_RATE. On the
+# roundabout that point is on the lane circle, so it walks the same path as before; open ground will steer
+# at a goal instead, round whatever the arena says is in the way.
+const TURN_RATE = 6.0  # radians per second: far more than the ring ever asks for (well under 1)
+const LOOKAHEAD_MIN = 0.5  # metres
+const LOOKAHEAD_TIME = 0.03  # seconds of walking: the point to steer at is this far ahead (at least the minimum)
+
 var g = null
 
 
@@ -40,17 +48,20 @@ func spawn_civ(init_x: float = 9999.0) -> void:
 	}
 	var m = Models.build_civ(kind, pal)
 	g.add_child(m["root"])
+	# init_x is where along the street it starts (a spawn point, not a position it keeps): by default
+	# inside the tunnel block a little before the seam
 	var x0 = init_x
 	if init_x > 9000.0:
 		x0 = -(g.ARENA_HX + 1.8) if dir > 0 else (g.ARENA_HX + 1.8)
 	var z = g.JOG_Z if kind == "jogger" else g.SIDEWALK_Z + randf_range(-0.5, 0.5)
 	var c = {
 		"type": kind,
-		"x": x0,
-		"z": z,
-		"pos": Vector3.ZERO,  # where it stands on the ground, in world space (see sync_world)
-		"yaw": 0.0,  # the way the model faces in world space
-		"hidden": true,  # inside the tunnel block: not visible, not hittable
+		"lane_z": z,  # the lane it walks along (street z): it steers at a point on it a little ahead
+		"pos": g.arena.tw(x0, z, 0.0),  # where it stands on the ground, in world space
+		"yaw": g.arena.yaw(x0) + (0.0 if dir > 0 else PI),  # the way it faces and walks (also its hit box)
+		"hidden": g.arena.hidden(x0),  # inside the tunnel block: not visible, not hittable
+		"avoid_side": 1.0,  # which way it last swung round an obstacle
+		"left": street_left(x0, dir),  # street metres still to walk before it is out of the arena
 		"dir": dir,
 		"spd": spd,
 		"ph": randf_range(0.0, 6.0),
@@ -68,17 +79,51 @@ func spawn_civ(init_x: float = 9999.0) -> void:
 
 
 # The rest of the game reads where a pedestrian is from "pos", "yaw" and "hidden", which are world-space values.
-# Today they are worked out from the street position (x on the sidewalk or jogging lane), here and nowhere
-# else; when pedestrians walk over open ground (README Milestone K) this is the only function that stops
-# deriving them. apply_civ calls it, and it runs after every move.
-func sync_world(c: Dictionary) -> void:
-	c["pos"] = g.arena.tw(c["x"], c["z"], 0.0)
-	c["yaw"] = (0.0 if c["dir"] > 0 else PI) + g.arena.yaw(c["x"])
-	c["hidden"] = g.arena.hidden(c["x"])
+# Only move_civ (and the spawn and flee switches in this file) change them.
+
+
+# street metres a pedestrian at street x walking in direction dir (+1 or -1) still has to go before it is
+# out of the arena: 2.4 m past the seam at the end it walks towards. This and `turn_to_flee` below are the
+# only places that still think in street coordinates; the placement item (README Milestone K, Gameplay on
+# open ground) replaces them with gates.
+func street_left(x: float, dir: int) -> float:
+	return g.ARENA_HX + 2.4 - x * float(dir)
+
+
+# walk for dt seconds at speed_street street metres per second: steer at the lane point ahead (no faster than
+# TURN_RATE), then move along the heading. Returns nothing: "pos", "yaw", "hidden" and "left" are updated.
+func move_civ(c: Dictionary, speed_street: float, dt: float) -> void:
+	var rs = g.rider_sys
+	var speed = speed_street * g.arena.scale_at(c["lane_z"])  # metres per second over the ground
+	var ahead = maxf(LOOKAHEAD_MIN, speed * LOOKAHEAD_TIME)
+	var target = g.arena.lane_point(c["pos"], c["dir"], c["lane_z"], ahead)
+	var want = rs.yaw_of(target - c["pos"])
+	if g.arena.rider_avoidance():
+		var steered = rs.avoid_obstacles(c["pos"], want, speed, c["yaw"], c["avoid_side"])
+		var swing = wrapf(steered - c["yaw"], -PI, PI)
+		if absf(swing) > 0.0001:
+			c["avoid_side"] = signf(swing)
+		want = steered
+	var turn = wrapf(want - c["yaw"], -PI, PI)
+	var max_turn = TURN_RATE * dt
+	c["yaw"] = wrapf(c["yaw"] + clampf(turn, -max_turn, max_turn), -PI, PI)
+	c["pos"] += rs.heading_vec(c["yaw"]) * speed * dt
+	c["hidden"] = rs.is_hidden(c["pos"])
+	c["left"] -= speed_street * dt
+
+
+# a startled pedestrian runs away: turn round at once and head for the nearer end of the street (it can only
+# be startled while visible, so its street x is not wrapped round the seam)
+func turn_to_flee(c: Dictionary) -> void:
+	var street_x = g.arena.to_track(c["pos"]).x
+	c["state"] = "flee"
+	c["dir"] = -1 if street_x < 0.0 else 1
+	c["yaw"] = g.arena.yaw(street_x) + (0.0 if c["dir"] > 0 else PI)
+	c["left"] = street_left(street_x, c["dir"])
+	c["hop"] = 0.0
 
 
 func apply_civ(c: Dictionary) -> void:
-	sync_world(c)
 	var m = c["model"]
 	var s = c["scale"]
 	var cr: Node3D = m["root"]
@@ -115,18 +160,16 @@ func update_civs(dt: float) -> void:
 				if c["photo"] > 0.0:
 					moving = false
 			if moving:
-				c["x"] += c["dir"] * c["spd"] * dt
+				move_civ(c, c["spd"], dt)
 				c["ph"] += dt * (4.0 + c["spd"] * 2.0)
 		elif st == "startled":
 			c["hop"] = absf(sin(c["t"] * PI / 0.35)) * 0.3 if c["t"] < 0.7 else 0.0
 			if c["t"] > 0.8:
-				c["state"] = "flee"
-				c["dir"] = -1 if c["x"] < 0.0 else 1
-				c["hop"] = 0.0
+				turn_to_flee(c)
 		elif st == "flee":
-			c["x"] += c["dir"] * 6.6 * dt
+			move_civ(c, 6.6, dt)
 			c["ph"] += dt * 16.0
-		if absf(c["x"]) > g.ARENA_HX + 2.4:
+		if c["left"] < 0.0:
 			c["model"]["root"].queue_free()
 			g.civs.remove_at(i)
 		else:
