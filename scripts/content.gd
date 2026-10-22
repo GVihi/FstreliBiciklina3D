@@ -37,42 +37,42 @@ static var THEMES = [
 	},
 	{
 		"name": "GOLDEN HOUR",
-		"top": Color.html("#6d9bd0"),
-		"hor": Color.html("#f7d9a8"),
+		"top": Color.html("#78a8dc"),
+		"hor": Color.html("#fbdcaa"),
 		"sun": Color.html("#ffb865"),
-		"sun_e": 1.2,
-		"sun_x": -16.0,
+		"sun_e": 1.25,
+		"sun_x": -22.0,
 		"sun_y": -60.0,
-		"amb": Color(0.78, 0.66, 0.55),
-		"amb_e": 0.7,
+		"amb": Color(0.86, 0.72, 0.62),
+		"amb_e": 0.9,
 		"lamps": false,
-		"lit": 0.4
+		"lit": 0.3
 	},
 	{
 		"name": "DUSK",
-		"top": Color.html("#2c3770"),
-		"hor": Color.html("#f09a68"),
+		"top": Color.html("#3b4c92"),
+		"hor": Color.html("#f4a06e"),
 		"sun": Color.html("#ff8a5a"),
-		"sun_e": 0.55,
-		"sun_x": -7.0,
+		"sun_e": 0.7,
+		"sun_x": -9.0,
 		"sun_y": -70.0,
-		"amb": Color(0.42, 0.38, 0.55),
-		"amb_e": 0.7,
+		"amb": Color(0.52, 0.48, 0.68),
+		"amb_e": 1.0,
 		"lamps": true,
-		"lit": 1.2
+		"lit": 0.8
 	},
 	{
 		"name": "NIGHT",
-		"top": Color.html("#050a1e"),
-		"hor": Color.html("#26345c"),
-		"sun": Color.html("#8fa8ff"),
-		"sun_e": 0.3,
+		"top": Color.html("#14245a"),
+		"hor": Color.html("#40568f"),
+		"sun": Color.html("#a3b8ff"),
+		"sun_e": 0.5,
 		"sun_x": -45.0,
 		"sun_y": 35.0,
-		"amb": Color(0.22, 0.27, 0.45),
-		"amb_e": 0.8,
+		"amb": Color(0.34, 0.4, 0.62),
+		"amb_e": 1.0,
 		"lamps": true,
-		"lit": 2.0
+		"lit": 1.0
 	}
 ]
 static var BOSS_KINDS = ["mower", "wifi", "minister"]

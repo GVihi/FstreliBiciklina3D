@@ -54,7 +54,7 @@ static func build(root: Node3D, arena) -> Dictionary:
 	var leaf = Util.mat(Color(0.18, 0.38, 0.2), 1.0)
 	var leaf2 = Util.mat(Color(0.24, 0.46, 0.24), 1.0)
 
-	var win_mat = Util.glow(Color(1.0, 0.85, 0.5), 0.0)
+	var win_mat = Util.glow(Color(1.0, 0.74, 0.38), 0.0)  # warm orange so lit windows never burn out to white
 	win_mat.albedo_color = Color(0.25, 0.32, 0.4)
 	var lamp_mat = Util.glow(Color(1.0, 0.9, 0.65), 0.0)
 	out["win_mat"] = win_mat
@@ -160,9 +160,9 @@ static func build(root: Node3D, arena) -> Dictionary:
 		Util.box(lp, Vector3(0.45, 0.1, 0.28), Vector3(0, 5.12, 1.3), lamp_mat)
 		var ol = OmniLight3D.new()
 		ol.position = Vector3(0, 4.9, 1.3)
-		ol.omni_range = 13.0
-		ol.light_energy = 2.2
-		ol.light_color = Color(1.0, 0.85, 0.6)
+		ol.omni_range = 16.0
+		ol.light_energy = 3.2  # a warm pool on the road under each lamp
+		ol.light_color = Color(1.0, 0.8, 0.5)
 		ol.visible = false
 		lp.add_child(ol)
 		lamps.append(ol)
