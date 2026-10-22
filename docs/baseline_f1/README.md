@@ -4,11 +4,12 @@ Raw output of `tools/baseline.gd` (see `tools/BASELINE.md`), run once per render
 `forward_plus/` has every screenshot; `compatibility/` has the report and data plus only the DAY and
 preset screenshots, to keep the repo small.
 
-## Machine (NOT the minimum-spec machine)
+## Machine (owner decision: this counts as the baseline)
 
 Intel Core Ultra 7 155U laptop, Intel integrated graphics, Windows 10.0.26300, window 1280x720 on a
 1920x1080 screen. The minimum spec in `docs/ART_DIRECTION.md` is an i5-7500, GTX 1060 3 GB at 1080p, so
-these numbers are a development-laptop baseline. They do not replace a run on the minimum-spec machine.
+these numbers come from a development laptop. The owner has no minimum-spec machine and decided to take this
+run as the baseline.
 
 ## Frame times (8 s per row, vsync off)
 
