@@ -38,5 +38,8 @@ run as the baseline.
 ## Notes
 
 - Save files were untouched by both runs.
-- In the `04_play_day_preset_*` screenshots the HUD round label shows NIGHT or GOLDEN HOUR while the
-  scene is lit as DAY, so the label does not follow `apply_theme` in the script's scripted play.
+- In the `04_play_day_preset_*` and `03_play_*` screenshots the HUD round label shows the wrong theme name
+  (NIGHT or GOLDEN HOUR on a DAY scene). Cause: the script called `apply_theme` without setting
+  `theme_idx`, which the HUD label reads; the game sets both in `start_round`. Fixed in `tools/baseline.gd`
+  (`_set_theme`); the frame times are practically unaffected (only the bird sound reads `theme_idx`), and the screenshots in this folder still show the old
+  label until the baseline is run again.

@@ -81,6 +81,13 @@ func _make_folders() -> void:
 	DirAccess.make_dir_recursive_absolute(out_dir + "/screens")
 
 
+func _set_theme(t: int) -> void:
+	# start_round sets theme_idx and then calls apply_theme; the HUD round label reads theme_idx.
+	# Do both, or the screenshots show the lighting of one theme under the name of another.
+	main.theme_idx = t
+	main.apply_theme(t)
+
+
 func _frames(n: int) -> void:
 	for i in range(n):
 		await process_frame
@@ -139,13 +146,13 @@ func _capture_screens() -> void:
 	main.start_game()
 	await _frames(240)
 	for t in range(main.THEMES.size()):
-		main.apply_theme(t)
+		_set_theme(t)
 		await _shot(
 			"03_play_%d_%s" % [t, str(main.THEMES[t]["name"]).to_lower().replace(" ", "_")], 12
 		)
 
 	# play at each graphics preset (DAY): compare the edges of these three for the anti-aliasing check
-	main.apply_theme(0)
+	_set_theme(0)
 	for q in range(3):
 		main.quality = q
 		main.settings.apply_quality()
@@ -205,7 +212,7 @@ func _measure_frame_times() -> void:
 		for t in range(main.THEMES.size()):
 			main.quality = q
 			main.settings.apply_quality()
-			main.apply_theme(t)
+			_set_theme(t)
 			var r = await _measure_one(q, t, rid)
 			results.append(r)
 			print(
