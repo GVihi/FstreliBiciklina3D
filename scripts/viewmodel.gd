@@ -49,6 +49,7 @@ func setup(main_cam: Camera3D, nodes: Array, world_env: Environment) -> void:
 	env.background_mode = Environment.BG_CLEAR_COLOR
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.tonemap_mode = world_env.tonemap_mode
+	env.tonemap_exposure = world_env.tonemap_exposure
 	env.glow_enabled = false
 	sync_env(world_env)
 
@@ -75,6 +76,7 @@ func sync_env(world_env: Environment) -> void:
 	env.ambient_light_color = world_env.ambient_light_color
 	env.ambient_light_energy = world_env.ambient_light_energy
 	env.tonemap_mode = world_env.tonemap_mode
+	env.tonemap_exposure = world_env.tonemap_exposure
 
 
 func set_msaa(mode: int) -> void:

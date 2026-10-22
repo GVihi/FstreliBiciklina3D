@@ -24,14 +24,14 @@ static var TYPES = {
 static var THEMES = [
 	{
 		"name": "DAY",
-		"top": Color.html("#4f98d8"),
-		"hor": Color.html("#dbe9ee"),
-		"sun": Color.html("#fff4e0"),
-		"sun_e": 1.1,
-		"sun_x": -55.0,
-		"sun_y": -30.0,
-		"amb": Color(0.62, 0.68, 0.76),
-		"amb_e": 0.75,
+		"top": Color.html("#58a6e6"),
+		"hor": Color.html("#e4f0f5"),
+		"sun": Color.html("#fff1d6"),
+		"sun_e": 1.3,
+		"sun_x": -48.0,
+		"sun_y": -35.0,
+		"amb": Color(0.66, 0.73, 0.84),
+		"amb_e": 0.85,
 		"lamps": false,
 		"lit": 0.0
 	},

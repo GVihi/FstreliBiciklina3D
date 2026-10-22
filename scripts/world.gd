@@ -10,7 +10,7 @@ extends RefCounted
 #   angle  180 deg   the road dives into a black tunnel block: riders enter and leave there
 
 const Util = preload("res://scripts/util.gd")
-const Toon = preload("res://scripts/toon.gd")
+const Lighting = preload("res://scripts/lighting.gd")
 
 
 static func build(root: Node3D, arena) -> Dictionary:
@@ -23,19 +23,15 @@ static func build(root: Node3D, arena) -> Dictionary:
 	sky.sky_material = sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.6, 0.65, 0.7)
 	env.ambient_light_energy = 0.8
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	Toon.setup_glow(env)
+	Lighting.setup_environment(env)
 	var we = WorldEnvironment.new()
 	we.environment = env
 	root.add_child(we)
 
 	var sun = DirectionalLight3D.new()
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL  # 1 shadow map instead of 4 splits
-	sun.directional_shadow_max_distance = 36.0
+	Lighting.setup_sun(sun)
 	root.add_child(sun)
 
 	out["env"] = env

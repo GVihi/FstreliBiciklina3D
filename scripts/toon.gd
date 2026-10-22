@@ -72,12 +72,3 @@ static func make_outline_quad() -> MeshInstance3D:
 	m.set_shader_parameter("compat", 1.0 if RenderingServer.get_rendering_device() == null else 0.0)
 	mi.material_override = m
 	return mi
-
-
-static func setup_glow(env: Environment) -> void:
-	env.glow_enabled = true
-	env.glow_intensity = 0.5
-	env.glow_strength = 0.9
-	env.glow_bloom = 0.0
-	env.glow_hdr_threshold = 1.0
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
