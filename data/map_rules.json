@@ -19,5 +19,6 @@
     "rest": {"weight": 10, "min_floor": 2, "max_per_map": null}
   },
   "no_repeat_along_edge": ["elite", "shop", "rest", "event"],
-  "streams": {"layout": "map_layout", "types": "map_types", "content": "map_content"}
+  "streams": {"layout": "map_layout", "types": "map_types", "content": "map_content"},
+  "max_attempts": 8
 }

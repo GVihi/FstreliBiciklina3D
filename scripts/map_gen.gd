@@ -31,15 +31,47 @@ static func load_rules() -> Dictionary:
 
 
 # Builds the map for a run seed. Pass `rules` to test other numbers; by default the shipped file is used.
-# Returns {} (and logs why) when the rules cannot produce a map.
+# A map that fails validate() is thrown away and the next attempt draws from streams seeded with the attempt
+# number (DailyScript.stream_seed(run_seed, attempt, "map_retry:<stream name>")), never patched by hand, so a seed
+# still gives exactly one map. Attempt 0 uses the plain streams, so a map that is fine the first time is the
+# same map as before the retry existed. The map records the attempt it came from ("attempt"). Up to
+# `max_attempts` (rules, default 8) are tried; returns {} (and logs why) when every attempt fails.
+# `test_invalid_attempts` in the rules is for tools/map_check.gd only: it makes that many attempts count as
+# invalid, so the retry can be tested without a seed that really fails.
 static func generate(run_seed: int, rules: Dictionary = {}) -> Dictionary:
 	if rules.is_empty():
 		rules = load_rules()
 	if rules.is_empty():
 		return {}
+	var attempts = maxi(1, int(rules.get("max_attempts", 8)))
+	var forced = int(rules.get("test_invalid_attempts", 0))
+	var last = ""
+	for attempt in range(attempts):
+		var map = _build(run_seed, attempt, rules)
+		if map.is_empty():
+			last = "the floors could not be connected"
+			continue
+		var problems = (
+			["attempt forced invalid by the test"] if attempt < forced else validate(map, rules)
+		)
+		if problems.is_empty():
+			return map
+		last = str(problems[0])
+	push_error(
+		(
+			"map: no valid map for seed %s in %d attempts (last problem: %s)"
+			% [DailyScript.seed_text(run_seed), attempts, last]
+		)
+	)
+	return {}
+
+
+# One attempt at the map for a run seed: floors, edges and types, not yet validated. {} when the floors cannot
+# be connected.
+static func _build(run_seed: int, attempt: int, rules: Dictionary) -> Dictionary:
 	var streams = rules.get("streams", {})
-	var layout_rng = _rng(run_seed, str(streams.get("layout", "map_layout")))
-	var types_rng = _rng(run_seed, str(streams.get("types", "map_types")))
+	var layout_rng = _rng(run_seed, str(streams.get("layout", "map_layout")), attempt)
+	var types_rng = _rng(run_seed, str(streams.get("types", "map_types")), attempt)
 	var n_floors = int(rules["floors"])
 	var floors = []
 	for f in range(1, n_floors + 1):
@@ -58,7 +90,7 @@ static func generate(run_seed: int, rules: Dictionary = {}) -> Dictionary:
 			)
 			return {}
 	_assign_types(floors, rules, types_rng)
-	return {"seed": run_seed, "floors": floors}
+	return {"seed": run_seed, "attempt": attempt, "floors": floors}
 
 
 # One line per floor, final boss first, e.g. "F03  N(0,1) S(1) ?(2)": the letter is the node type and the
@@ -223,9 +255,12 @@ static func _validate_reach(floors: Array, problems: Array) -> void:
 
 
 # ---------------------------------------------------------------- internals
-static func _rng(run_seed: int, part: String) -> RandomNumberGenerator:
+static func _rng(run_seed: int, part: String, attempt: int = 0) -> RandomNumberGenerator:
 	var rng = RandomNumberGenerator.new()
-	rng.seed = DailyScript.stream_seed(run_seed, 0, part)
+	if attempt == 0:
+		rng.seed = DailyScript.stream_seed(run_seed, 0, part)
+	else:
+		rng.seed = DailyScript.stream_seed(run_seed, attempt, "map_retry:" + part)
 	return rng
 
 
