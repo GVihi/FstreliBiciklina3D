@@ -42,6 +42,7 @@ func setup(main_cam: Camera3D, nodes: Array, world_env: Environment) -> void:
 	viewport.transparent_bg = true
 	viewport.handle_input_locally = false
 	viewport.msaa_3d = g.get_viewport().msaa_3d
+	viewport.screen_space_aa = g.get_viewport().screen_space_aa
 	box.add_child(viewport)  # no own World3D: it draws the same world as the main viewport
 
 	# own environment: no sky (the world shows through), no glow, same ambient light and tone mapping as the world
@@ -49,6 +50,7 @@ func setup(main_cam: Camera3D, nodes: Array, world_env: Environment) -> void:
 	env.background_mode = Environment.BG_CLEAR_COLOR
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.tonemap_mode = world_env.tonemap_mode
+	env.tonemap_exposure = world_env.tonemap_exposure
 	env.glow_enabled = false
 	sync_env(world_env)
 
@@ -75,10 +77,15 @@ func sync_env(world_env: Environment) -> void:
 	env.ambient_light_color = world_env.ambient_light_color
 	env.ambient_light_energy = world_env.ambient_light_energy
 	env.tonemap_mode = world_env.tonemap_mode
+	env.tonemap_exposure = world_env.tonemap_exposure
 
 
 func set_msaa(mode: int) -> void:
 	viewport.msaa_3d = mode
+
+
+func set_screen_space_aa(mode: int) -> void:
+	viewport.screen_space_aa = mode
 
 
 # once per frame after the world camera has moved: same position and roll (so shake and slide tilt carry over), own FOV

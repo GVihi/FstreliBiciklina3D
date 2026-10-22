@@ -18,13 +18,27 @@ func _init(game) -> void:
 	g = game
 
 
+# F9 presets (README Milestone F1, docs/ART_DIRECTION.md):
+#   0 HIGH    2x MSAA, sun shadows from a 2048 map, glow
+#   1 MEDIUM  FXAA instead of MSAA (nearly free), sun shadows from a 1024 map, glow
+#   2 LOW     no anti-aliasing, no sun shadows, no glow
+# FXAA only exists in the Forward+ and Mobile renderers. In the Compatibility renderer (also what Godot
+# falls back to when Vulkan does not work) MEDIUM therefore has no anti-aliasing at all.
 func apply_quality() -> void:
-	g.get_viewport().msaa_3d = Viewport.MSAA_2X if g.quality == 0 else Viewport.MSAA_DISABLED
+	var vp = g.get_viewport()
+	vp.msaa_3d = Viewport.MSAA_2X if g.quality == 0 else Viewport.MSAA_DISABLED
+	var fxaa = g.quality == 1 and RenderingServer.get_rendering_device() != null
+	vp.screen_space_aa = (
+		Viewport.SCREEN_SPACE_AA_FXAA if fxaa else Viewport.SCREEN_SPACE_AA_DISABLED
+	)
 	if g.viewmodel != null:
-		g.viewmodel.set_msaa(g.get_viewport().msaa_3d)
+		g.viewmodel.set_msaa(vp.msaa_3d)
+		g.viewmodel.set_screen_space_aa(vp.screen_space_aa)
+	RenderingServer.directional_shadow_atlas_set_size(2048 if g.quality == 0 else 1024, true)
 	var sun: DirectionalLight3D = g.world["sun"]
 	sun.shadow_enabled = g.quality < 2
-	g.outline_quad.visible = g.outlines and g.quality < 2
+	if g.outline_quad != null:
+		g.outline_quad.visible = g.outlines and g.quality < 2
 	var env: Environment = g.world["env"]
 	env.glow_enabled = g.quality < 2
 
@@ -33,7 +47,9 @@ func cycle_quality() -> void:
 	g.quality = (g.quality + 1) % 3
 	apply_quality()
 	var names = [
-		"GRAPHICS: HIGH", "GRAPHICS: MEDIUM (NO MSAA)", "GRAPHICS: LOW (NO MSAA, NO SHADOWS)"
+		"GRAPHICS: HIGH",
+		"GRAPHICS: MEDIUM (FXAA, SMALLER SHADOWS)",
+		"GRAPHICS: LOW (NO ANTI-ALIASING, NO SHADOWS, NO GLOW)"
 	]
 	g.add_note(names[g.quality], GOLD)
 	save_settings()

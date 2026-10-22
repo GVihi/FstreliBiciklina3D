@@ -6,6 +6,8 @@ extends RefCounted
 # was the main source of hitches. Now the first rider builds them and every later one reuses them.
 # Never change a material or mesh you got from here (use glow() for materials you animate).
 
+const Toon = preload("res://scripts/toon.gd")
+
 static var _mats := {}
 static var _meshes := {}
 
@@ -18,8 +20,9 @@ static func mat(col: Color, rough: float = 0.9, metal: float = 0.0) -> StandardM
 	m.albedo_color = col
 	m.roughness = rough
 	m.metallic = metal
-	m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON  # hard-edged cartoon shading
-	m.specular_mode = BaseMaterial3D.SPECULAR_TOON
+	if Toon.ENABLED:
+		m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON  # hard-edged cartoon shading
+		m.specular_mode = BaseMaterial3D.SPECULAR_TOON
 	_mats[key] = m
 	return m
 
