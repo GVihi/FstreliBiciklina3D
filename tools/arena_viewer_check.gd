@@ -473,7 +473,7 @@ func _check_ground_shown(scene: Node, how: String) -> void:
 		)
 	var counts = "%d triangles, %d draw calls" % [int(want["tris"]), int(want["draw_calls"])]
 	var dress_counts = (
-		"buildings and tunnels: %d triangles, %d draw calls"
+		"buildings, lamps and trees: %d triangles, %d draw calls"
 		% [int(dressed["tris"]), int(dressed["draw_calls"])]
 	)
 	dressed["root"].free()
@@ -518,6 +518,8 @@ func _check_ground_shown(scene: Node, how: String) -> void:
 		"dark building": WorldDress.DARK_WALL_COLOR,
 		"windows": WorldDress.WINDOW_COLOR,
 		"tunnel block": Viewer.TUNNEL_BLOCK_COLOR,
+		"lamp": WorldDress.METAL_COLOR,
+		"tree": WorldDress.LEAF_COLOR,
 	}
 	for key in WorldGen.SURFACE_NAMES:
 		legend_want[WorldGen.SURFACE_NAMES[key]] = WorldGen.SURFACE_STYLE[key][0]

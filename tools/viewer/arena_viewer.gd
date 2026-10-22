@@ -55,7 +55,7 @@ var seed_value = 0
 var mode = MODE_GROUND
 var world_view = false  # showing the real ground (W) instead of the flat plan
 var ground_stats = {}  # triangles and draw calls of the real ground, while it is shown
-var dress_stats = {}  # the same for the buildings and tunnels standing on it
+var dress_stats = {}  # the same for the buildings, tunnels, lamps and trees standing on it
 var root: Node3D = null
 var cam: Camera3D
 var info: Label
@@ -445,7 +445,7 @@ func _view_text() -> String:
 	if not world_view:
 		return "real ground"
 	return (
-		"flat plan (real ground: %d triangles, %d draw calls; buildings and tunnels: %d triangles, %d draw calls)"
+		"flat plan (real ground: %d triangles, %d draw calls; buildings, lamps and trees: %d triangles, %d draw calls)"
 		% [
 			int(ground_stats["tris"]),
 			int(ground_stats["draw_calls"]),
@@ -469,6 +469,8 @@ func _fill_legend() -> void:
 		entries.append([WorldDress.DARK_WALL_COLOR, "dark building"])
 		entries.append([WorldDress.WINDOW_COLOR, "windows"])
 		entries.append([TUNNEL_BLOCK_COLOR, "tunnel block"])
+		entries.append([WorldDress.METAL_COLOR, "lamp"])
+		entries.append([WorldDress.LEAF_COLOR, "tree"])
 		entries.append([GATE_COLOR, "gate label"])
 	elif mode == MODE_GROUND:
 		for key in ["g", "p", "s", "r", "b", "t"]:
