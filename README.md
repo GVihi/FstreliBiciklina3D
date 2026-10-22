@@ -255,7 +255,7 @@ Mostly vibe coded Godot game
 ### F1. Foundation (before any new asset)
 - [x] Answer the first open questions (minimum spec, who makes models, references, bright look): done, see `docs/ART_DIRECTION.md`
 - [x] Answer the remaining questions (UI language, ammo on the weapon, rarity colours, hazard-stripe motif, logo): done, see section 9 of `docs/ART_DIRECTION.md`
-- [ ] Record the "before" baseline: screenshots of every screen and theme, plus frame time on the minimum-spec machine (needs you: Godot cannot run in my working environment)
+- [x] Record the "before" baseline: screenshots of every screen and theme, plus frame time (owner decision: the development laptop run counts as the baseline, since no minimum-spec machine is available; `tools/baseline.gd`, `tools/run_baseline.bat`, `tools/BASELINE.md`. Run on a Core Ultra 7 155U laptop with integrated graphics at 1280x720 with Godot 4.7.2: all 20 screens per renderer and frame times for every preset and theme are in `docs/baseline_f1/`. Not measured: a GTX 1060 class machine or 1080p, so the 16.6 ms budget at 1080p is only checked on this laptop)
 - [x] Set up the model pipeline (Claude as modeler, Blender as a Python module `bpy`): scripts in `tools/models/`, output to `assets/models/*.glb` with a preview sheet per model in `docs/model_previews/`, automatic budget and file validation, conventions (1 unit = 1 metre), and an in-game model viewer (`tools/viewer/model_viewer.tscn`). How to use it: `tools/models/README.md`
 - [x] Build the shared style kit: bevelled primitive helpers, the colour palette and material set (`tools/models/kit/`), and a test model (`test_crate`)
 - [x] Owner check: open `tools/viewer/model_viewer.tscn` in Godot (F6) and confirm `test_crate` looks right in the game (colours, bevels, hazard stripes, the glowing lamp, scale) (confirmed by the owner)
@@ -263,7 +263,7 @@ Mostly vibe coded Godot game
 - [x] Switch off the outline pass and flat unlit toon materials behind a flag; simple lit low-poly materials become the default (`Toon.ENABLED = false` in `scripts/toon.gd`: no outline quad, `Util.mat()` and the jelly club shader use ordinary lit shading, and the OUTLINES row in settings and the F10 key are gone while it is off; `true` brings the old look back. Effects, strips and rings stay unshaded on purpose. Checked by rendering the game here with a software renderer, before and after: `docs/screenshots/f1-toon-off-before.png` and `f1-toon-off-after.png`. With flat toon lighting gone the NIGHT theme is clearly darker, which the next lighting items are there to fix; waiting for your in-game check on real hardware, including the jelly club and the settings panel)
 - [x] Lighting baseline for DAY: bright sun with soft readable shadows, light sky, tone mapping, glow on gameplay accents (new `scripts/lighting.gd` sets up the environment and the sun once for all themes: Filmic tone mapping kept, because ACES washed the yellow kerb stripe out to white; additive glow that only picks up things brighter than 1.0; sun shadow blur 2.0 with adjusted biases. DAY itself got a lighter sky, a warmer and stronger sun at 48 degrees and more blue fill light in `Content.THEMES`. `Toon.setup_glow` is gone, so `toon.gd` now holds only the outline code that F12 removes. Checked by rendering the game here with a software renderer in the Compatibility renderer, before and after: `docs/screenshots/f1-day-lighting-before.png` and `f1-day-lighting-after.png`; NIGHT renders the same as before. Not checked: Forward+, shadow softness on real hardware (the software render still shows jagged shadow edges), frame time, glow on pickups in motion; waiting for your in-game check)
 - [x] Lighting for GOLDEN HOUR, DUSK and NIGHT (warm lamp pools and lit windows, medium-dark sky, nothing hides in the dark) (`Content.THEMES`: GOLDEN HOUR got a higher sun for shorter shadows and more warm fill light; DUSK and NIGHT got a lighter blue sky (NIGHT is no longer near black), stronger fill light so the road and sidewalk stay readable, and a dimmer window glow; lit windows are warm orange so they no longer burn out to white, and the street lamps reach 16 m with more energy. Checked by rendering the game here with a software renderer, before and after, for each theme: `docs/screenshots/f1-golden-hour-*.png`, `f1-dusk-*.png`, `f1-night-*.png`. Not checked: real hardware, Forward+, frame time, how far the lamp pools reach on the road in motion (the software render shows them only faintly); waiting for your in-game check)
-- [ ] Test the Compatibility renderer against Forward+ on old hardware and decide which to ship
+- [x] Test the Compatibility renderer against Forward+ on old hardware and decide which to ship (decided: ship Forward+, which is the project default, and keep Compatibility only as Godot's fallback when Vulkan fails. On the dev laptop with integrated graphics Forward+ stayed under 16.7 ms in every preset and theme (HIGH 1% low 142 fps or better), while Compatibility stuttered on HIGH (1% low 37 to 53 fps, up to 5.9% of frames over budget) and has no FXAA on MEDIUM; numbers in `docs/baseline_f1/README.md`. Not tested on old hardware, which the owner does not have; no code change, `project.godot` already uses Forward+)
 - [x] Anti-aliasing choice (MSAA or cheaper FXAA) and re-define the F9 quality presets for the new look (decided: HIGH = 2x MSAA and a 2048 shadow map, MEDIUM = FXAA and a 1024 shadow map, LOW = no anti-aliasing, no shadows, no glow; in `scripts/settings.gd`, the viewmodel follows, decision recorded in `docs/ART_DIRECTION.md`. In zoomed test renders MSAA 2x clearly smooths the chunky edges and 4x showed no visible gain over it. FXAA only exists in Forward+: in the Compatibility renderer, which is also Godot\'s fallback when Vulkan fails, MEDIUM has no anti-aliasing, so the code only asks for it when Forward+ is running. Checked here: each preset sets the right MSAA, FXAA, shadow and glow state on both viewports, no warnings, all CI checks pass. Not checked: Forward+ (no Vulkan here, so FXAA was never seen working), frame time on any machine; to settle with the Compatibility vs Forward+ test)
 
 ### F2. Dart gun (first person)
@@ -515,6 +515,22 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 ---
 
+# Milestone L: Jumping
+
+Jumping on Space, so the movement feels like a modern FPS. Space is the dash key today (and the gamepad A button), so the first step is to give dash a new key.
+
+- [ ] Decide the new dash key and gamepad button (Space and A are taken by jumping), and move dash there in the input map, the key rebinding list, the Controls page, `README.txt` and the HUD hint under the dash bar
+- [ ] Jump on Space: a short hop with gravity, a fixed jump height and some air control (decide the numbers while building it; coyote time and jump buffering make it feel right)
+- [ ] Jump on the gamepad (A) and add it to the key rebinding list and the Controls page
+- [ ] Decide how jumping mixes with sprint, crouch, slide and dash (can you jump out of a slide, dash in the air, shoot and aim while airborne)
+- [ ] Decide whether jumping over a passing rider counts as a dodge, and keep the PERFECT DODGE rule working as it does now
+- [ ] Keep the player inside the arena while jumping: the height must not let the player clear buildings, props or the fountain, so the `Arena` bounds queries (`clamp_walk`, `obstacle_at`) still hold in the air
+- [ ] Camera and gun feedback for take-off and landing (viewmodel dip, a small camera kick) and the jump and landing sounds (builds on "Footsteps, landing, slide and dash" in S2)
+- [ ] Check darts, melee, hit boxes, aim assist and the radar while airborne
+- [ ] Playtest and tune the feel: jump height, gravity and air control
+
+---
+
 # Tooling & QA
 
 - [ ] Playtest pass of everything built in Milestone A (title, pause, settings, run, win / lose, leaderboard, name entry). It was written without running the game
@@ -557,3 +573,4 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [ ] Milestone I: Roguelite progression (builds on the meta currency and unlocks in Milestone B)
 - [ ] Milestone J: Manual reload (small and independent, can be done at any time)
 - [ ] Milestone K: Procedural arenas (big: replaces how riders and bosses move; start with the "Foundation" steps, which keep the roundabout playing as today)
+- [ ] Milestone L: Jumping (small and independent; Space is the dash key today, so dash moves to another key first)
