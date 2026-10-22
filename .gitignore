@@ -30,3 +30,5 @@ tools/models/.venv/
 __pycache__/
 
 *.import
+# Output of tools/baseline.gd
+baseline_out/
