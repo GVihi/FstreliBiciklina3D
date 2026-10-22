@@ -139,8 +139,15 @@ static func validate(map: Dictionary, rules: Dictionary = {}) -> Array:
 		var cap = rules["types"][t].get("max_per_map")
 		if cap != null and int(counts.get(t, 0)) > int(cap):
 			problems.append("%d '%s' nodes, the most allowed is %d" % [counts[t], t, int(cap)])
-	if problems.is_empty():
-		_validate_reach(floors, problems)
+	var boss_floors = 0
+	for key in rules["fixed_floors"]:
+		if str(rules["fixed_floors"][key].get("kind", "")) == "boss":
+			boss_floors += 1
+	if int(counts.get("boss", 0)) != boss_floors:
+		problems.append(
+			"expected %d boss nodes, got %d" % [boss_floors, int(counts.get("boss", 0))]
+		)
+	_validate_reach(floors, problems)
 	return problems
 
 
@@ -221,7 +228,8 @@ static func _validate_floor(
 		problems.append("boss floor %d must hold exactly one boss node" % (f + 1))
 
 
-# every node reachable from floor 1 and able to reach the final floor; only called when the edges are in range
+# every node reachable from floor 1 and able to reach the final floor; edges to lanes that do not exist are
+# skipped here (the floor check names them)
 static func _validate_reach(floors: Array, problems: Array) -> void:
 	var n = floors.size()
 	var up = []  # up[f][i]: node i of floor f can be reached from floor 1
@@ -233,8 +241,9 @@ static func _validate_reach(floors: Array, problems: Array) -> void:
 	for f in range(n - 1):
 		for i in range(floors[f].size()):
 			if up[f][i]:
-				for j in floors[f][i]["next"]:
-					up[f + 1][int(j)] = true
+				for j in floors[f][i].get("next", []):
+					if int(j) >= 0 and int(j) < up[f + 1].size():
+						up[f + 1][int(j)] = true
 	var down = []  # down[f][i]: node i of floor f can reach the final floor
 	for f in range(n):
 		var row = []
@@ -243,8 +252,8 @@ static func _validate_reach(floors: Array, problems: Array) -> void:
 		down.append(row)
 	for f in range(n - 2, -1, -1):
 		for i in range(floors[f].size()):
-			for j in floors[f][i]["next"]:
-				if down[f + 1][int(j)]:
+			for j in floors[f][i].get("next", []):
+				if int(j) >= 0 and int(j) < down[f + 1].size() and down[f + 1][int(j)]:
 					down[f][i] = true
 	for f in range(n):
 		for i in range(floors[f].size()):
