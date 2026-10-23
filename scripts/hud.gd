@@ -1000,7 +1000,10 @@ func _draw() -> void:
 		_dim(0.52)
 		var n_hit = g.count_hits()
 		_txt("ROUND CLEAR", cx, size.y * 0.2, int(70 * k), GOLD, 1)
-		_txt("%d OF %d HIT" % [n_hit, g.PER_ROUND], cx, size.y * 0.38, int(32 * k), TEXT, 1)
+		var hit_line = "%d OF %d HIT" % [n_hit, g.PER_ROUND]
+		if not g.riders_can_escape():
+			hit_line = "ALL %d RIDERS DOWN" % g.PER_ROUND
+		_txt(hit_line, cx, size.y * 0.38, int(32 * k), TEXT, 1)
 		_txt("SCORE " + str(g.score).pad_zeros(6), cx, size.y * 0.46, int(26 * k), TEXT, 1)
 		var acc = 0
 		if g.shots_fired > 0:

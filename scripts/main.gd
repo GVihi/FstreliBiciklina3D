@@ -75,7 +75,7 @@ const ACCENT = Color(1.0, 0.42, 0.17)
 # values the HUD reads (vars so they are reachable from another script)
 var PER_ROUND = 10
 var MAX_ROUNDS = 10  # a run is this many rounds; clearing the last one wins the run
-var NEED = 6
+var NEED = 6  # hits that clear a round where riders can get away (the roundabout); see hits_needed()
 var MAXSHELLS = int(Content.WEAPONS["dart_gun"]["start_clip"])
 var MAXHEARTS = 3
 # game content tables live in content.gd; same names, so the HUD still reads g.NAME
@@ -149,6 +149,7 @@ var offers = []
 var wait = 0.0
 var wait_msg = ""
 var wave_miss = false
+var round_lives_lost = 0  # lives lost in this round: a round with none lost is perfect where no rider can get away
 var boss_count = 0
 var pending_boss = false
 var throw_cool = 0.0
@@ -874,6 +875,7 @@ func start_round() -> void:
 	for i in range(PER_ROUND):
 		hits.append(null)
 	next_idx = 0
+	round_lives_lost = 0
 	popups.clear()
 	notes.clear()
 	boss_count = 0
@@ -913,6 +915,28 @@ func count_hits() -> int:
 	return n
 
 
+# Can a rider get away? On the roundabout a rider that is not hit gives up after its time limit and rides out of
+# the tunnel ("GOT AWAY"). On an arena with rider pursuit (the generated arena) it never gives up: it keeps coming
+# back until it is shot, so every rider ends up hit and the round ends when the last one is down.
+func riders_can_escape() -> bool:
+	return not arena.rider_pursuit()
+
+
+# riders that have to be hit to clear the round: NEED where they can get away, all of them where they cannot
+func hits_needed() -> int:
+	if riders_can_escape():
+		return NEED
+	return PER_ROUND
+
+
+# a perfect round: every rider hit where they can get away; where they cannot (so every rider is hit anyway), no
+# life lost during the round
+func is_perfect_round(n: int) -> bool:
+	if riders_can_escape():
+		return n == PER_ROUND
+	return n >= PER_ROUND and round_lives_lost == 0
+
+
 func fmt_time(sec: float) -> String:
 	var s = int(sec)
 	return "%d:%02d" % [int(sec / 60.0), s % 60]
@@ -927,7 +951,7 @@ func need_boss() -> bool:
 		return false
 	if is_final_round():
 		# the last round has no ordinary bosses: after the riders comes the final boss, if you got far enough to face it
-		return boss_count == 0 and next_idx >= PER_ROUND and count_hits() >= NEED
+		return boss_count == 0 and next_idx >= PER_ROUND and count_hits() >= hits_needed()
 	if boss_count == 0 and next_idx >= 4:
 		return true
 	if boss_count == 1 and round_n >= 3 and next_idx >= PER_ROUND:
@@ -959,7 +983,7 @@ func end_round() -> void:
 			% [round_n, fmt_time(round_t), fmt_time(play_time), fmt_time(shop_time)]
 		)
 	)
-	var perfect = n == PER_ROUND
+	var perfect = is_perfect_round(n)
 	clear_phones()
 	if perfect:
 		score += 5000
@@ -967,9 +991,9 @@ func end_round() -> void:
 		fx_sys.confetti()
 	hi_check()
 	state_t = 0.0
-	if n >= NEED and is_final_round() and final_boss_dead:
+	if n >= hits_needed() and is_final_round() and final_boss_dead:
 		win_run()
-	elif n >= NEED:
+	elif n >= hits_needed():
 		state = "clear"
 		hearts = mini(MAXHEARTS, hearts + 1)
 		sfx.play("clear")
@@ -1042,6 +1066,7 @@ func damage_player(label: String, reason: String) -> void:
 			shop_sys.add_cash(80)
 		return
 	hearts -= 1
+	round_lives_lost += 1
 	combo = 0
 	invuln = 1.3
 	shake = 1.0
