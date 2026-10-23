@@ -114,6 +114,13 @@ func rider_pursuit() -> bool:
 	return false
 
 
+# the share of its speed a rider keeps on the ground at world point p (road and plaza 1.0, sidewalk 0.9, grass
+# 0.75 in data/arena_rules.json). Only used where riders pursue over open ground; the roundabout's lanes use
+# scale_at instead.
+func rider_speed_at(_p: Vector3) -> float:
+	return 1.0
+
+
 # true if a rider at world point p cannot ride there. Riders do not go where a boss cannot (obstacle_at) except
 # through the gates: an arena whose gates a boss may not enter overrides this to leave them open.
 func rider_blocked(p: Vector3) -> bool:

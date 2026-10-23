@@ -21,6 +21,10 @@ const PURSUIT_MAX_TURN = 6.0  # radians per second
 const PASS_RANGE = 7.0  # metres: the player this close and behind means the rider has passed
 const OVERSHOOT = 9.0  # metres ridden straight on after a pass before turning back
 const GATE_DEPTH = 2.0  # metres inside the tunnel a rider starts, and the depth it rides out to (plus the mouth)
+const OBSTACLE_BRAKE = 2.3  # per second: a rider with free ground ahead of L metres rides no faster than this times L
+const BRAKE_MIN_SPEED = 3.0  # metres per second: the slowest it brakes to for something close ahead
+const AWAY_REACH = 2.0  # metres from the exit point at which a rider that gave up counts as out
+const AWAY_MIN_SPEED = 8.0  # metres per second: the slowest a rider that gave up goes to make its turn
 
 var g = null
 
@@ -70,6 +74,8 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 		"yaw": start_yaw,  # the way it faces and rides (also its hit box)
 		"hidden": true,  # inside the tunnel block: not visible, not hittable
 		"avoid_side": 1.0,  # which way it last swung round an obstacle
+		"ride_speed": 0.0,  # metres per second it rode at on the last step (braked for something close ahead)
+		"turn_rate": 0.0,  # radians per second it was allowed to turn at on the last step
 		"pursuit": "chase",  # open ground: "chase" rides at the player, "overshoot" rides straight on after a pass
 		"run_left": 0.0,  # open ground: metres still to ride straight on before turning back
 		"away_gate": {},  # open ground: the gate a rider that gave up rides out of
@@ -182,7 +188,16 @@ func gate_exit_point(gate: Dictionary) -> Vector3:
 # metres a rider that gave up still has to ride to its gate's exit point (never negative)
 func away_distance(r: Dictionary) -> float:
 	var to = gate_exit_point(r["away_gate"]) - r["pos"]
-	return maxf(0.0, Vector2(to.x, to.z).length() - 0.8)
+	return maxf(0.0, Vector2(to.x, to.z).length() - AWAY_REACH)
+
+
+# The fastest a rider that gave up may go and still reach its gate: its turning circle (twice the radius,
+# speed squared over the sideways acceleration) must fit in the distance left, or it would circle the gate
+# for ever. Never below AWAY_MIN_SPEED.
+func away_speed_cap(r: Dictionary) -> float:
+	var to = gate_exit_point(r["away_gate"]) - r["pos"]
+	var dist = Vector2(to.x, to.z).length()
+	return maxf(AWAY_MIN_SPEED, sqrt(PURSUIT_ACCEL * dist * 0.5))
 
 
 # the point an open-ground rider steers at. Still inside the tunnel it rides straight out. A rider that gave up
@@ -214,7 +229,17 @@ func pursuit_turn_rate(speed: float) -> float:
 func move_rider(r: Dictionary, dt: float) -> void:
 	var pursuit = g.arena.rider_pursuit()
 	var lane_z = g.LANE_Z[r["ln"]]
-	var speed = r["spd"] * (1.0 if pursuit else g.arena.scale_at(lane_z))  # metres per second over the ground
+	# metres per second over the ground: on open ground the surface under the rider sets its share of the speed
+	var speed = (
+		r["spd"] * (g.arena.rider_speed_at(r["pos"]) if pursuit else g.arena.scale_at(lane_z))
+	)
+	var in_tunnel = pursuit and r["hidden"] and not r["entered"]
+	if pursuit and not in_tunnel:
+		# something close ahead: ride slower, so the arc the rider can swing is tight enough to clear it
+		var look = speed / OBSTACLE_BRAKE + 1.0
+		var free = clear_distance(r["pos"], r["yaw"], look)
+		if free < look:
+			speed = minf(speed, maxf(BRAKE_MIN_SPEED, OBSTACLE_BRAKE * free))
 	var target: Vector3
 	var turn_rate = TURN_RATE
 	if pursuit:
@@ -224,15 +249,21 @@ func move_rider(r: Dictionary, dt: float) -> void:
 		var ahead = maxf(LOOKAHEAD_MIN, speed * LOOKAHEAD_TIME)
 		target = g.arena.lane_point(r["pos"], r["dir"], lane_z, ahead)
 	var want = yaw_of(target - r["pos"])
-	var in_tunnel = pursuit and r["hidden"] and not r["entered"]
 	if (g.arena.rider_avoidance() or pursuit) and not in_tunnel:
-		var steered = avoid_obstacles(r["pos"], want, speed, r["yaw"], r["avoid_side"])
+		# on open ground the look reaches over the arc the rider needs to swing clear: its turning radius (speed
+		# squared over the sideways acceleration) plus a margin, so it starts to turn away in time
+		var min_reach = 0.0
+		if pursuit:
+			min_reach = 1.2 * speed * speed / PURSUIT_ACCEL + 3.0
+		var steered = avoid_obstacles(r["pos"], want, speed, r["yaw"], r["avoid_side"], min_reach)
 		var swing = wrapf(steered - r["yaw"], -PI, PI)
 		if absf(swing) > 0.0001:
 			r["avoid_side"] = signf(swing)
 		want = steered
 	var turn = wrapf(want - r["yaw"], -PI, PI)
 	var max_turn = turn_rate * dt
+	r["ride_speed"] = speed
+	r["turn_rate"] = turn_rate
 	r["yaw"] = wrapf(r["yaw"] + clampf(turn, -max_turn, max_turn), -PI, PI)
 	r["pos"] += heading_vec(r["yaw"]) * speed * dt
 	r["hidden"] = is_hidden(r["pos"])
@@ -248,27 +279,48 @@ func move_rider(r: Dictionary, dt: float) -> void:
 # rider does not dither between the two sides of an obstacle; boxed in, it turns hard away. When the way
 # to `want` is clear it just returns `want`. Used only where the arena asks for it.
 func avoid_obstacles(
-	pos: Vector3, want: float, speed: float, yaw: float, side: float = 1.0
+	pos: Vector3, want: float, speed: float, yaw: float, side: float = 1.0, min_reach: float = 0.0
 ) -> float:
-	var reach = maxf(2.0, speed * 0.4)
-	if way_clear(pos, want, reach):
+	var reach = maxf(maxf(2.0, speed * 0.4), min_reach)
+	# a long look is sampled every metre so a post cannot slip between two samples; the short look keeps 3
+	var samples = 3 if min_reach <= 0.0 else int(ceil(reach))
+	if way_clear(pos, want, reach, samples):
 		return want
 	for k in range(0, 7):
 		var off = deg_to_rad(20.0) * float(k)
 		for sgn in [side, -side]:
 			var cand = yaw + off * sgn
-			if way_clear(pos, cand, reach):
+			if way_clear(pos, cand, reach, samples):
 				return cand
 	return yaw + deg_to_rad(120.0) * side
 
 
-# true if nothing is in the way over `reach` metres from pos along yaw, with 0.7 m to spare on both sides
-# (looked at in three steps)
-func way_clear(pos: Vector3, yaw: float, reach: float) -> bool:
+# metres a rider at pos can ride along yaw before it reaches something it cannot ride through (with the same
+# 0.7 m to spare on both sides as way_clear), looking at most `reach` metres ahead: `reach` when nothing is there
+func clear_distance(pos: Vector3, yaw: float, reach: float) -> float:
 	var fwd = heading_vec(yaw)
 	var across = Vector3(-fwd.z, 0.0, fwd.x) * 0.7
-	for k in range(1, 4):
-		var p = pos + fwd * (reach * float(k) / 3.0)
+	var d = 1.0
+	while d < reach + 1.0:
+		var at = minf(d, reach)
+		var p = pos + fwd * at
+		if (
+			g.arena.rider_blocked(p)
+			or g.arena.rider_blocked(p + across)
+			or g.arena.rider_blocked(p - across)
+		):
+			return maxf(0.0, at - 1.0)
+		d += 1.0
+	return reach
+
+
+# true if nothing is in the way over `reach` metres from pos along yaw, with 0.7 m to spare on both sides
+# (looked at in `samples` steps, three by default)
+func way_clear(pos: Vector3, yaw: float, reach: float, samples: int = 3) -> bool:
+	var fwd = heading_vec(yaw)
+	var across = Vector3(-fwd.z, 0.0, fwd.x) * 0.7
+	for k in range(1, samples + 1):
+		var p = pos + fwd * (reach * float(k) / float(samples))
 		if (
 			g.arena.rider_blocked(p)
 			or g.arena.rider_blocked(p + across)
@@ -353,6 +405,8 @@ func update_rider(r: Dictionary, dt: float) -> void:
 			g.sfx.play3d("whoosh", root.position)
 	elif mode == "away":
 		r["spd"] = minf(39.0, r["spd"] + 26.0 * dt)
+		if g.arena.rider_pursuit():
+			r["spd"] = minf(r["spd"], away_speed_cap(r))
 		move_rider(r, dt)
 		if g.arena.rider_pursuit():
 			r["away_left"] = away_distance(r)
