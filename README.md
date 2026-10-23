@@ -1,6 +1,9 @@
 # FstreliBiciklina3D
 Mostly vibe coded Godot game
 
+## Testing rule
+- Every test or check that has to be run from the command line with Godot (`godot --headless ... --script res://tools/...`) gets a Windows `.bat` script next to it in `tools/`, written like `tools/run_baseline.bat`: an optional path to the Godot exe as the first argument, the default Steam folder searched if none is given, the Godot version printed, and the result shown at the end. A check is not finished until its `.bat` exists. The first one is `tools/run_generated_run_check.bat`.
+
 # Roguelite Development Roadmap
 
 > The game is already most of the way to a roguelite. It has runs made of rounds, a shop, perks that pair into duos, and bosses. Almost everything on this list is a layer on top of that, plus the missing "between runs" progression.
