@@ -5,10 +5,13 @@ extends RefCounted
 #
 # A map is {"seed": int, "floors": Array}. floors[0] is floor 1 (the start) and the last entry is the final boss.
 # A floor is an Array of nodes in lane order (left to right); a node is {"type": String, "next": Array},
-# where "next" lists the lane numbers of the nodes it connects to on the next floor.
+# where "next" lists the lane numbers of the nodes it connects to on the next floor. generate() adds "content"
+# to every node (scripts/map_content.gd) and "gates" to the map (how many gates the arena has).
 # Node types: normal, elite, shop, event, rest, boss.
 
 const DailyScript = preload("res://scripts/daily.gd")
+const MapContent = preload("res://scripts/map_content.gd")
+const ArenaGen = preload("res://scripts/arena_gen.gd")
 
 const PATH = "res://data/map_rules.json"
 const LETTERS = {"normal": "N", "elite": "E", "shop": "S", "event": "?", "rest": "R", "boss": "B"}
@@ -38,11 +41,17 @@ static func load_rules() -> Dictionary:
 # `max_attempts` (rules, default 8) are tried; returns {} (and logs why) when every attempt fails.
 # `test_invalid_attempts` in the rules is for tools/map_check.gd only: it makes that many attempts count as
 # invalid, so the retry can be tested without a seed that really fails.
-static func generate(run_seed: int, rules: Dictionary = {}) -> Dictionary:
+#
+# Every node also gets "content" (scripts/map_content.gd): the theme, riders, gates, modifiers and boss kind of
+# its encounter. The content needs to know how many gates the run's arena layout has: pass `gate_count` to
+# say so (tools and tests do), or leave it at -1 to read it from ArenaGen.generate(run_seed).
+static func generate(run_seed: int, rules: Dictionary = {}, gate_count: int = -1) -> Dictionary:
 	if rules.is_empty():
 		rules = load_rules()
 	if rules.is_empty():
 		return {}
+	if gate_count < 0 and rules.has("content"):
+		gate_count = _arena_gates(run_seed)
 	var attempts = maxi(1, int(rules.get("max_attempts", 8)))
 	var forced = int(rules.get("test_invalid_attempts", 0))
 	var last = ""
@@ -55,6 +64,7 @@ static func generate(run_seed: int, rules: Dictionary = {}) -> Dictionary:
 			["attempt forced invalid by the test"] if attempt < forced else validate(map, rules)
 		)
 		if problems.is_empty():
+			MapContent.fill(map, run_seed, attempt, gate_count, rules)
 			return map
 		last = str(problems[0])
 	push_error(
@@ -64,6 +74,14 @@ static func generate(run_seed: int, rules: Dictionary = {}) -> Dictionary:
 		)
 	)
 	return {}
+
+
+# How many gates the arena layout of this run seed has (0 when the layout cannot be built).
+static func _arena_gates(run_seed: int) -> int:
+	var layout = ArenaGen.generate(run_seed)
+	if layout.is_empty():
+		return 0
+	return layout["gates"].size()
 
 
 # One attempt at the map for a run seed: floors, edges and types, not yet validated. {} when the floors cannot
