@@ -356,7 +356,7 @@ func confirm_activate(i: int) -> void:
 	var id = g.confirm_id
 	g.pause_page = ""
 	if id == "restart":
-		g.start_game(g.daily_mode)
+		g.start_game(g.daily_mode, g.run_seed if g.custom_seed_run else -1)
 	elif id == "title":
 		g.abandon_run()
 

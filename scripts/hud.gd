@@ -311,7 +311,7 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		_txt(rows[i][0], lx, y, int(20 * k), GRAY)
 		_txt(rows[i][1], rx, y, int(24 * k), rows[i][2], 2)
 	var uy = y0 + rows.size() * step + 14.0 * k
-	if g.score > 0 and g.score >= g.hi and not g.daily_mode:
+	if g.score > 0 and g.score >= g.hi and g.ranked_run():
 		_txt("NEW HIGH SCORE", cx, uy, int(24 * k), GOLD, 1)
 		uy += 34.0 * k
 	if g.last_rank >= 0:
@@ -349,6 +349,8 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	var seed_label = "RUN SEED  " + g.DailyScript.seed_text(g.run_seed)
 	if g.daily_mode:
 		seed_label = "DAILY RUN SEED  " + g.DailyScript.seed_text(g.run_seed)
+	elif g.custom_seed_run:
+		seed_label = "CUSTOM SEED  " + g.DailyScript.seed_text(g.run_seed) + "  (NOT RANKED)"
 	_txt(seed_label, cx, size.y * 0.975, int(14 * k), GRAY, 1)
 
 
@@ -815,7 +817,7 @@ func _draw() -> void:
 			TEXT,
 			1
 		)
-		if g.score > 0 and g.score >= g.hi and not g.daily_mode:
+		if g.score > 0 and g.score >= g.hi and g.ranked_run():
 			_txt("NEW HIGH SCORE", cx, size.y * 0.58, int(24 * k), GOLD, 1)
 		if g.state_t > 0.8 and blink:
 			_txt("CLICK TO PICK AN UPGRADE", cx, size.y * 0.7, int(28 * k), TEXT, 1)
@@ -875,6 +877,8 @@ func _draw_top_bar(k: float) -> void:
 	var round_label = "ROUND %d/%d  %s" % [g.round_n, g.MAX_ROUNDS, g.THEMES[g.theme_idx]["name"]]
 	if g.daily_mode:
 		round_label += "  DAILY"
+	elif g.custom_seed_run:
+		round_label += "  SEED"
 	_txt(round_label, 300.0 * k, 17.0 * k, fs, GOLD)
 	for i in range(g.PER_ROUND):
 		var st = g.hits[i] if i < g.hits.size() else null

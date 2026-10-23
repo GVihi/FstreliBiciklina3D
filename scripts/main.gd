@@ -99,6 +99,7 @@ var daily_date = ""  # UTC date the daily seed belongs to, "YYYY-MM-DD"
 var daily_seed = 0  # same for every player on that date (daily.gd); a Daily Run uses it as its run seed
 var daily_label = ""  # title-screen text for the above
 var daily_mode = false  # true while a Daily Run is in progress (own scoreboard later, no normal high score)
+var custom_seed_run = false  # true while a run with a seed typed in on the title screen is in progress (kept off the normal high score and Top 10, like a Daily Run; a restart replays the same seed)
 var run_seed = 0  # the seed this run started with: today's daily seed in a Daily Run, a random one in a normal run
 var run_map = {}  # the run map generated from run_seed (map_gen.gd); rounds do not follow it yet, it is only logged
 var rider_rng = RandomNumberGenerator.new()  # which riders spawn, reseeded from the run seed at the start of every round
@@ -505,8 +506,14 @@ func set_setting(id: String, v) -> void:
 	settings.set_setting(id, v)
 
 
+# true when this run counts for the normal high score and Top 10: not a Daily Run and not a typed-in seed
+# (a seed everybody can replay would let one easy seed be farmed)
+func ranked_run() -> bool:
+	return not daily_mode and not custom_seed_run
+
+
 func hi_check() -> void:
-	if daily_mode:  # daily runs get their own scoreboard (not built yet), not the normal high score
+	if not ranked_run():  # daily and custom-seed runs stay off the normal high score
 		return
 	if score > hi:
 		hi = score
@@ -620,13 +627,18 @@ func abandon_run() -> void:
 	go_to_title()
 
 
-func start_game(daily: bool = false) -> void:
+# `daily`: a Daily Run (today's seed). `custom_seed`: 0 to 4294967295 to play that seed (typed in on the title
+# screen); -1 draws a random one.
+func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	reset_run()
 	meta.begin_run()
 	daily_mode = daily
+	custom_seed_run = not daily and custom_seed >= 0
 	if daily:
 		refresh_daily_seed()
 		run_seed = daily_seed
+	elif custom_seed_run:
+		run_seed = custom_seed & 0xFFFFFFFF
 	else:
 		run_seed = DailyScript.random_seed()
 	run_map = MapGenScript.generate(run_seed)
