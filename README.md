@@ -532,10 +532,13 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 Jumping on Space, so the movement feels like a modern FPS. Space is the dash key today (and the gamepad A button), so the first step is to give dash a new key.
 
+> Feel goal: fast-paced, like a Quake game. Sprints, jumps and dashes chain into each other, and the player can aim and shoot while airborne. Every decision below should be judged against that.
+
 - [ ] Decide the new dash key and gamepad button (Space and A are taken by jumping), and move dash there in the input map, the key rebinding list, the Controls page, `README.txt` and the HUD hint under the dash bar
 - [ ] Jump on Space: a short hop with gravity, a fixed jump height and some air control (decide the numbers while building it; coyote time and jump buffering make it feel right)
 - [ ] Jump on the gamepad (A) and add it to the key rebinding list and the Controls page
 - [ ] Decide how jumping mixes with sprint, crouch, slide and dash (can you jump out of a slide, dash in the air, shoot and aim while airborne)
+- [ ] Fast, Quake-like movement flow: sprint into a jump without losing speed, start a dash from the air or out of a jump, keep momentum through the landing, and aim, shoot and throw while airborne with no penalty to aim; tune it so chaining sprint, jump and dash is clearly faster than walking and every step of it can be cancelled into the next (decide the numbers while building it, and check it does not make riders, bosses or the arena size feel too small)
 - [ ] Decide whether jumping over a passing rider counts as a dodge, and keep the PERFECT DODGE rule working as it does now
 - [ ] Keep the player inside the arena while jumping: the height must not let the player clear buildings, props or the fountain, so the `Arena` bounds queries (`clamp_walk`, `obstacle_at`) still hold in the air
 - [ ] Camera and gun feedback for take-off and landing (viewmodel dip, a small camera kick) and the jump and landing sounds (builds on "Footsteps, landing, slide and dash" in S2)
