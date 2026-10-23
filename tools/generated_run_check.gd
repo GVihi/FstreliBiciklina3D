@@ -17,10 +17,13 @@ extends SceneTree
 # Exits with status 1 and prints the first problems.
 
 const ArenaGenScript = preload("res://scripts/arena_gen.gd")
+const MAIN_SCENE = "res://main.tscn"
 const GENERATED = "res://scripts/arena_generated.gd"
 const ROUNDABOUT = "res://scripts/arena_roundabout.gd"
 const SECONDS = 30.0
 const DT = 1.0 / 60.0
+const GATE_SEEDS = 200  # layouts whose gate starts are checked
+const STUCK_AFTER = 6.0  # seconds: a rider that is still inside its tunnel this long after it started is stuck
 const GATE_SLACK = 9.0  # metres: a new rider is this near a gate at most (it starts in the tunnel, a few metres in)
 
 var problems = []
@@ -33,12 +36,13 @@ func _initialize() -> void:
 	if args.size() > 0:
 		count = int(args[0])
 	await _check_flag_off()
-	main = load("res://main.tscn").instantiate()
+	main = load(MAIN_SCENE).instantiate()
 	main.generated_arena = true
 	root.add_child(main)
 	for i in range(3):
 		await process_frame
 	_check_title()
+	_check_gate_spawns()
 	var summary = []
 	for k in range(count):
 		summary.append(_play((k * 2654435761 + 4242) & 0xFFFFFFFF))
@@ -60,7 +64,7 @@ func _fail(text: String) -> void:
 
 # the flag is off unless asked for: the roundabout is the arena, with its pedestrians and cheerleaders
 func _check_flag_off() -> void:
-	var m = load("res://main.tscn").instantiate()
+	var m = load(MAIN_SCENE).instantiate()
 	root.add_child(m)
 	for i in range(3):
 		await process_frame
@@ -102,6 +106,43 @@ func _check_title() -> void:
 	for key in ["env", "sky_mat", "sun", "win_mat", "lamp_mat", "lamps"]:
 		if not main.world.has(key):
 			_fail("the world has no %s" % key)
+
+
+# A rider starts at rider_sys.gate_spawn_point(gate) and rides straight out of the tunnel. On every gate of many
+# layouts that point must be hidden ground a rider can ride on (a start outside the grid has speed 0, so the rider
+# sat there for ever: east and south gates were exactly on the edge), and the straight ride out must never meet
+# a wall or ground a rider cannot ride on before it is out in the open.
+func _check_gate_spawns() -> void:
+	var seen_gates = 0
+	for k in range(GATE_SEEDS):
+		var seed_value = (k * 2654435761 + 99) & 0xFFFFFFFF
+		var layout = ArenaGenScript.generate(seed_value)
+		if layout.is_empty():
+			continue
+		var arena = load(GENERATED).new(layout)
+		for gate in arena.gates():
+			seen_gates += 1
+			var tag = "seed %08X, gate at %s" % [seed_value, gate["pos"]]
+			var at: Vector3 = main.rider_sys.gate_spawn_point(gate)
+			if not arena.hidden_at(at):
+				_fail("%s: riders start in the open at %s" % [tag, at])
+			if arena.rider_speed_at(at) <= 0.0 or arena.rider_blocked(at):
+				_fail("%s: riders start where nothing can be ridden, at %s" % [tag, at])
+				continue
+			var out = false
+			var step = 0.25
+			for i in range(1, int(14.0 / step)):
+				var p: Vector3 = at - gate["outward"] * step * float(i)
+				if arena.rider_blocked(p) or arena.rider_speed_at(p) <= 0.0:
+					_fail("%s: the ride out of the tunnel is blocked at %s" % [tag, p])
+					break
+				if not arena.hidden_at(p):
+					out = true
+					break
+			if not out:
+				_fail("%s: a rider does not come out of the tunnel within 14 m" % tag)
+	if seen_gates == 0:
+		_fail("no gates were checked")
 
 
 func _check_one_world(where: String) -> void:
@@ -220,6 +261,11 @@ func _sample(tag: String, f: int, half: float, arena, seen: Dictionary) -> int:
 			if near > GATE_SLACK:
 				_fail("%s, frame %d: a new rider is %.1f m from the nearest gate" % [tag, f, near])
 				wrong += 1
+		if not r["entered"] and r["age"] > STUCK_AFTER:
+			_fail(
+				"%s, frame %d: a rider has been stuck in its tunnel for %.1f s" % [tag, f, r["age"]]
+			)
+			wrong += 1
 		if not r["hidden"] and arena.rider_blocked(p):
 			_fail("%s, frame %d: a rider is inside a wall at %s" % [tag, f, p])
 			wrong += 1
