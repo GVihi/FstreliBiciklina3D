@@ -114,7 +114,12 @@ func spawn_boss() -> void:
 	var m = Models.build_boss(kind, variant, Models.kit_of(0))
 	g.add_child(m["root"])
 	var sx = clampf(g.ptx() + randf_range(-14.0, 14.0), -g.arena.lim(), g.arena.lim())
-	var b = make_boss_dict(kind, nm, variant, hp, m, g.arena.tw(sx, -11.6), "charge")
+	var spawn_at = g.arena.tw(sx, -11.6)
+	if g.arena.rider_pursuit():
+		# open ground: a boss comes in at the mouth of a gate, on ground it can stand on
+		var gate = g.rider_sys.pick_gate()
+		spawn_at = g.arena.clamp_walk(gate["pos"] - gate["outward"] * 5.0, "boss")
+	var b = make_boss_dict(kind, nm, variant, hp, m, spawn_at, "charge")
 	b["intro"] = 2.2
 	b["final"] = final
 	if final:

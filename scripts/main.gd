@@ -29,6 +29,9 @@ const ViewmodelScript = preload("res://scripts/viewmodel.gd")
 const DailyScript = preload("res://scripts/daily.gd")
 const ArenaRoundaboutScript = preload("res://scripts/arena_roundabout.gd")
 const MapGenScript = preload("res://scripts/map_gen.gd")
+const ArenaGenScript = preload("res://scripts/arena_gen.gd")
+const GeneratedArenaScript = preload("res://scripts/arena_generated.gd")
+const WorldGeneratedScript = preload("res://scripts/world_generated.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -274,7 +277,10 @@ func _ready() -> void:
 	hearts = MAXHEARTS
 	shells = MAXSHELLS
 
-	world = WorldBuilder.build(self, arena)
+	if OS.get_cmdline_user_args().has(GENERATED_ARENA_ARG):
+		generated_arena = true
+	if not (generated_arena and use_generated_arena(daily_seed)):
+		world = WorldBuilder.build(self, arena)
 
 	sfx = SfxScript.new()
 	add_child(sfx)
@@ -353,6 +359,7 @@ func _ready() -> void:
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud.g = self
 
+	update_arena_dressing()
 	apply_theme(0)
 	settings.apply_quality()
 	for i in range(PER_ROUND):
@@ -479,7 +486,15 @@ func _warm_up() -> void:
 
 # ------------------------------------------------------------------ graphics quality (F9)
 var quality = 0  # 0 = 2x MSAA + shadows (2048 map), 1 = FXAA + shadows (1024 map), 2 = no anti-aliasing, no shadows, no glow (see settings.gd)
-var arena = ArenaRoundaboutScript.new()  # arena.gd: the space the run is played in (today the roundabout, arena_roundabout.gd)
+var arena = ArenaRoundaboutScript.new()  # arena.gd: the space the run is played in (the roundabout, arena_roundabout.gd, unless the generated arena flag is on)
+# The generated arena flag (README Milestone K): off by default, so the game is the roundabout as always. Turn it
+# on by starting the game with the user argument --generated-arena (godot --path . -- --generated-arena). Then the
+# title screen shows the arena made from today's daily seed and every run plays on the arena made from its run
+# seed (arena_generated.gd, world_generated.gd). Work in progress: pedestrians and cheerleaders are left out of a
+# generated arena and bosses come out of a gate; the round does not end by itself until every rider is down yet.
+const GENERATED_ARENA_ARG = "--generated-arena"
+var generated_arena = false
+var world_root: Node3D = null  # the generated arena's world (the roundabout's is built straight into this node)
 var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics quality, high score file
 var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
 var pickup_sys = PickupsScript.new(self)  # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
@@ -524,6 +539,48 @@ func hi_check() -> void:
 	if score > hi:
 		hi = score
 		settings.save_hi(hi)
+
+
+# Makes the arena generated from seed_value the arena of the game and builds its world (the old generated world is
+# freed). Returns false and changes nothing when the seed gives no usable layout, so the game goes on with the
+# arena it had. The caller puts the player on arena.start_position() and applies the theme and quality again.
+func use_generated_arena(seed_value: int) -> bool:
+	var layout = ArenaGenScript.generate(seed_value)
+	if layout.is_empty():
+		push_warning(
+			(
+				"main: seed %s gave no generated arena, keeping the one in use"
+				% DailyScript.seed_text(seed_value)
+			)
+		)
+		return false
+	if world_root != null:
+		remove_child(world_root)
+		world_root.free()
+	arena = GeneratedArenaScript.new(layout)
+	world_root = Node3D.new()
+	world_root.name = "GeneratedWorld"
+	add_child(world_root)
+	world = WorldGeneratedScript.build(world_root, arena)
+	print(
+		(
+			"generated arena for seed %s: %d gates, %d triangles, %d draw calls"
+			% [
+				DailyScript.seed_text(seed_value),
+				arena.gates().size(),
+				world["tris"],
+				world["draw_calls"]
+			]
+		)
+	)
+	return true
+
+
+# what stands on the ground that the arena does not place yet: the cheerleaders are the roundabout's, on its far
+# sidewalk, so they are hidden on an arena where riders chase over open ground (until they are placed on it)
+func update_arena_dressing() -> void:
+	for m in cheerleaders:
+		m["root"].visible = not arena.rider_pursuit()
 
 
 func apply_theme(i: int) -> void:
@@ -647,6 +704,9 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 		run_seed = custom_seed & 0xFFFFFFFF
 	else:
 		run_seed = DailyScript.random_seed()
+	if generated_arena and use_generated_arena(run_seed):  # one arena per run, made from the run seed
+		update_arena_dressing()
+		settings.apply_quality()
 	run_map = MapGenScript.generate(run_seed)
 	print(MapGenScript.to_text(run_map))
 	print(MapGenScript.content_text(run_map))
