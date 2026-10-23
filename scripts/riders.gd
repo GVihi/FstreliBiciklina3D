@@ -11,6 +11,21 @@ const TURN_RATE = 9.0  # radians per second: more than the ring ever asks for (a
 const LOOKAHEAD_MIN = 0.5  # metres
 const LOOKAHEAD_TIME = 0.03  # seconds of riding: the point to steer at is this far ahead (at least the minimum)
 
+# Pursuit (open ground, where arena.rider_pursuit() is true). A rider rides at the player on any surface. The
+# turn is limited by sideways acceleration instead of a fixed rate, so a fast rider swings wide and a slow one
+# turns tight: the rate is PURSUIT_ACCEL / speed, at most PURSUIT_MAX_TURN. When it has gone past the player (the
+# player is behind it and closer than PASS_RANGE) it rides straight on for OVERSHOOT metres, then turns round in
+# that arc and comes back. Riders come out of a gate and, when they give up, ride out of the nearest one.
+const PURSUIT_ACCEL = 20.0  # metres per second squared, sideways
+const PURSUIT_MAX_TURN = 6.0  # radians per second
+const PASS_RANGE = 7.0  # metres: the player this close and behind means the rider has passed
+const OVERSHOOT = 9.0  # metres ridden straight on after a pass before turning back
+const GATE_DEPTH = 2.0  # metres inside the tunnel a rider starts, and the depth it rides out to (plus the mouth)
+const OBSTACLE_BRAKE = 2.3  # per second: a rider with free ground ahead of L metres rides no faster than this times L
+const BRAKE_MIN_SPEED = 3.0  # metres per second: the slowest it brakes to for something close ahead
+const AWAY_REACH = 2.0  # metres from the exit point at which a rider that gave up counts as out
+const AWAY_MIN_SPEED = 8.0  # metres per second: the slowest a rider that gave up goes to make its turn
+
 var g = null
 
 
@@ -46,12 +61,25 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 	# riders start inside the tunnel block, a little before the seam, on their own lane
 	var x0 = -(g.ARENA_HX + 2.0) if dir > 0 else (g.ARENA_HX + 2.0)
 	var lane_z = g.LANE_Z[lane_idx]
+	var start_pos = g.arena.tw(x0, lane_z, 0.0)
+	var start_yaw = g.arena.yaw(x0) + (0.0 if dir > 0 else PI)
+	if g.arena.rider_pursuit():
+		# open ground: in a gate's tunnel, facing out of it; "dir" stays 1 so parts fly the way it rides
+		var gate = pick_gate()
+		start_pos = gate["pos"] + gate["outward"] * GATE_DEPTH
+		start_yaw = yaw_of(-gate["outward"])
+		dir = 1
 	var r = {
-		"pos": g.arena.tw(x0, lane_z, 0.0),  # where the rider is on the ground, in world space
-		"yaw": g.arena.yaw(x0) + (0.0 if dir > 0 else PI),  # the way it faces and rides (also its hit box)
+		"pos": start_pos,  # where the rider is on the ground, in world space
+		"yaw": start_yaw,  # the way it faces and rides (also its hit box)
 		"hidden": true,  # inside the tunnel block: not visible, not hittable
 		"avoid_side": 1.0,  # which way it last swung round an obstacle
-		"away_left": 0.0,  # street metres still to ride before an escaping rider is out of the arena
+		"ride_speed": 0.0,  # metres per second it rode at on the last step (braked for something close ahead)
+		"turn_rate": 0.0,  # radians per second it was allowed to turn at on the last step
+		"pursuit": "chase",  # open ground: "chase" rides at the player, "overshoot" rides straight on after a pass
+		"run_left": 0.0,  # open ground: metres still to ride straight on before turning back
+		"away_gate": {},  # open ground: the gate a rider that gave up rides out of
+		"away_left": 0.0,  # metres still to ride before an escaping rider is out of the arena
 		"dir": dir,
 		"ln": lane_idx,
 		"base": base,
@@ -109,7 +137,7 @@ func spawn_wave() -> void:
 # The rest of the game reads where a rider is from "pos", "yaw" and "hidden", which are world-space values.
 # Only the functions below change them (move_rider and the spawn and away switches in this file).
 func is_hidden(pos: Vector3) -> bool:
-	return g.arena.hidden(g.arena.to_track(pos).x)
+	return g.arena.hidden_at(pos)
 
 
 # put the rider's model on the ground at its world position, facing the way it rides
@@ -134,24 +162,115 @@ func phone_origin(r: Dictionary) -> Vector3:
 	return r["pos"] + heading_vec(r["yaw"]) * 0.6 + Vector3(0.0, 1.4, 0.0)
 
 
-# ride for dt seconds: steer at the lane point ahead (no faster than TURN_RATE), then move along the heading
+# one of the arena's gates, chosen with the layout's random numbers so a seed gives the same riders
+func pick_gate() -> Dictionary:
+	var gates = g.arena.gates()
+	return gates[g.layout_i(gates.size())]
+
+
+# the gate nearest to world point pos
+func nearest_gate(pos: Vector3) -> Dictionary:
+	var best = {}
+	var best_d = INF
+	for gate in g.arena.gates():
+		var d = Vector2(gate["pos"].x - pos.x, gate["pos"].z - pos.z).length()
+		if d < best_d:
+			best_d = d
+			best = gate
+	return best
+
+
+# the point a rider that gave up rides at: the far end of its gate's tunnel
+func gate_exit_point(gate: Dictionary) -> Vector3:
+	return gate["pos"] + gate["outward"] * (GATE_DEPTH + 1.0)
+
+
+# metres a rider that gave up still has to ride to its gate's exit point (never negative)
+func away_distance(r: Dictionary) -> float:
+	var to = gate_exit_point(r["away_gate"]) - r["pos"]
+	return maxf(0.0, Vector2(to.x, to.z).length() - AWAY_REACH)
+
+
+# The fastest a rider that gave up may go and still reach its gate: its turning circle (twice the radius,
+# speed squared over the sideways acceleration) must fit in the distance left, or it would circle the gate
+# for ever. Never below AWAY_MIN_SPEED.
+func away_speed_cap(r: Dictionary) -> float:
+	var to = gate_exit_point(r["away_gate"]) - r["pos"]
+	var dist = Vector2(to.x, to.z).length()
+	return maxf(AWAY_MIN_SPEED, sqrt(PURSUIT_ACCEL * dist * 0.5))
+
+
+# the point an open-ground rider steers at. Still inside the tunnel it rides straight out. A rider that gave up
+# rides at its gate. Otherwise it rides at the player; once it has passed the player (the player behind it and
+# within PASS_RANGE) it rides straight on for OVERSHOOT metres, and then it turns back at the player.
+func pursuit_target(r: Dictionary) -> Vector3:
+	var fwd = heading_vec(r["yaw"])
+	if r["mode"] == "away":
+		return gate_exit_point(r["away_gate"])
+	if r["hidden"] and not r["entered"]:
+		return r["pos"] + fwd * 10.0
+	var pp: Vector3 = g.player.position
+	var to = Vector3(pp.x - r["pos"].x, 0.0, pp.z - r["pos"].z)
+	if r["pursuit"] == "chase" and to.length() < PASS_RANGE and fwd.dot(to) < 0.0:
+		r["pursuit"] = "overshoot"
+		r["run_left"] = OVERSHOOT
+	if r["pursuit"] == "overshoot":
+		return r["pos"] + fwd * 10.0
+	return Vector3(pp.x, 0.0, pp.z)
+
+
+# the most an open-ground rider may turn in a second at this speed (sideways acceleration over speed)
+func pursuit_turn_rate(speed: float) -> float:
+	return minf(PURSUIT_MAX_TURN, PURSUIT_ACCEL / maxf(speed, 1.0))
+
+
+# ride for dt seconds: steer at the lane point ahead (no faster than TURN_RATE), then move along the heading.
+# Where the arena has rider pursuit, steer at the player instead (pursuit_target) with the sideways limit.
 func move_rider(r: Dictionary, dt: float) -> void:
+	var pursuit = g.arena.rider_pursuit()
 	var lane_z = g.LANE_Z[r["ln"]]
-	var speed = r["spd"] * g.arena.scale_at(lane_z)  # metres per second over the ground
-	var ahead = maxf(LOOKAHEAD_MIN, speed * LOOKAHEAD_TIME)
-	var target = g.arena.lane_point(r["pos"], r["dir"], lane_z, ahead)
+	# metres per second over the ground: on open ground the surface under the rider sets its share of the speed
+	var speed = (
+		r["spd"] * (g.arena.rider_speed_at(r["pos"]) if pursuit else g.arena.scale_at(lane_z))
+	)
+	var in_tunnel = pursuit and r["hidden"] and not r["entered"]
+	if pursuit and not in_tunnel:
+		# something close ahead: ride slower, so the arc the rider can swing is tight enough to clear it
+		var look = speed / OBSTACLE_BRAKE + 1.0
+		var free = clear_distance(r["pos"], r["yaw"], look)
+		if free < look:
+			speed = minf(speed, maxf(BRAKE_MIN_SPEED, OBSTACLE_BRAKE * free))
+	var target: Vector3
+	var turn_rate = TURN_RATE
+	if pursuit:
+		target = pursuit_target(r)
+		turn_rate = pursuit_turn_rate(speed)
+	else:
+		var ahead = maxf(LOOKAHEAD_MIN, speed * LOOKAHEAD_TIME)
+		target = g.arena.lane_point(r["pos"], r["dir"], lane_z, ahead)
 	var want = yaw_of(target - r["pos"])
-	if g.arena.rider_avoidance():
-		var steered = avoid_obstacles(r["pos"], want, speed, r["yaw"], r["avoid_side"])
+	if (g.arena.rider_avoidance() or pursuit) and not in_tunnel:
+		# on open ground the look reaches over the arc the rider needs to swing clear: its turning radius (speed
+		# squared over the sideways acceleration) plus a margin, so it starts to turn away in time
+		var min_reach = 0.0
+		if pursuit:
+			min_reach = 1.2 * speed * speed / PURSUIT_ACCEL + 3.0
+		var steered = avoid_obstacles(r["pos"], want, speed, r["yaw"], r["avoid_side"], min_reach)
 		var swing = wrapf(steered - r["yaw"], -PI, PI)
 		if absf(swing) > 0.0001:
 			r["avoid_side"] = signf(swing)
 		want = steered
 	var turn = wrapf(want - r["yaw"], -PI, PI)
-	var max_turn = TURN_RATE * dt
+	var max_turn = turn_rate * dt
+	r["ride_speed"] = speed
+	r["turn_rate"] = turn_rate
 	r["yaw"] = wrapf(r["yaw"] + clampf(turn, -max_turn, max_turn), -PI, PI)
 	r["pos"] += heading_vec(r["yaw"]) * speed * dt
 	r["hidden"] = is_hidden(r["pos"])
+	if pursuit and r["pursuit"] == "overshoot":
+		r["run_left"] -= speed * dt
+		if r["run_left"] <= 0.0:
+			r["pursuit"] = "chase"
 
 
 # If the way ahead (a little further the faster the rider goes) is blocked, keep riding on the clear heading
@@ -160,31 +279,52 @@ func move_rider(r: Dictionary, dt: float) -> void:
 # rider does not dither between the two sides of an obstacle; boxed in, it turns hard away. When the way
 # to `want` is clear it just returns `want`. Used only where the arena asks for it.
 func avoid_obstacles(
-	pos: Vector3, want: float, speed: float, yaw: float, side: float = 1.0
+	pos: Vector3, want: float, speed: float, yaw: float, side: float = 1.0, min_reach: float = 0.0
 ) -> float:
-	var reach = maxf(2.0, speed * 0.4)
-	if way_clear(pos, want, reach):
+	var reach = maxf(maxf(2.0, speed * 0.4), min_reach)
+	# a long look is sampled every metre so a post cannot slip between two samples; the short look keeps 3
+	var samples = 3 if min_reach <= 0.0 else int(ceil(reach))
+	if way_clear(pos, want, reach, samples):
 		return want
 	for k in range(0, 7):
 		var off = deg_to_rad(20.0) * float(k)
 		for sgn in [side, -side]:
 			var cand = yaw + off * sgn
-			if way_clear(pos, cand, reach):
+			if way_clear(pos, cand, reach, samples):
 				return cand
 	return yaw + deg_to_rad(120.0) * side
 
 
-# true if nothing is in the way over `reach` metres from pos along yaw, with 0.7 m to spare on both sides
-# (looked at in three steps)
-func way_clear(pos: Vector3, yaw: float, reach: float) -> bool:
+# metres a rider at pos can ride along yaw before it reaches something it cannot ride through (with the same
+# 0.7 m to spare on both sides as way_clear), looking at most `reach` metres ahead: `reach` when nothing is there
+func clear_distance(pos: Vector3, yaw: float, reach: float) -> float:
 	var fwd = heading_vec(yaw)
 	var across = Vector3(-fwd.z, 0.0, fwd.x) * 0.7
-	for k in range(1, 4):
-		var p = pos + fwd * (reach * float(k) / 3.0)
+	var d = 1.0
+	while d < reach + 1.0:
+		var at = minf(d, reach)
+		var p = pos + fwd * at
 		if (
-			g.arena.obstacle_at(p)
-			or g.arena.obstacle_at(p + across)
-			or g.arena.obstacle_at(p - across)
+			g.arena.rider_blocked(p)
+			or g.arena.rider_blocked(p + across)
+			or g.arena.rider_blocked(p - across)
+		):
+			return maxf(0.0, at - 1.0)
+		d += 1.0
+	return reach
+
+
+# true if nothing is in the way over `reach` metres from pos along yaw, with 0.7 m to spare on both sides
+# (looked at in `samples` steps, three by default)
+func way_clear(pos: Vector3, yaw: float, reach: float, samples: int = 3) -> bool:
+	var fwd = heading_vec(yaw)
+	var across = Vector3(-fwd.z, 0.0, fwd.x) * 0.7
+	for k in range(1, samples + 1):
+		var p = pos + fwd * (reach * float(k) / float(samples))
+		if (
+			g.arena.rider_blocked(p)
+			or g.arena.rider_blocked(p + across)
+			or g.arena.rider_blocked(p - across)
 		):
 			return false
 	return true
@@ -251,24 +391,34 @@ func update_rider(r: Dictionary, dt: float) -> void:
 					r["throw_t"] = 0.3
 		if r["age"] > r["limit"]:
 			r["mode"] = "away"
-			# give up: turn round at once towards the nearer seam and ride out through the tunnel
-			var street_x = g.arena.to_track(r["pos"]).x
-			r["dir"] = -1 if street_x < 0.0 else 1
-			r["yaw"] = g.arena.yaw(street_x) + (0.0 if r["dir"] > 0 else PI)
-			r["away_left"] = g.arena.exit_distance(r["pos"], r["dir"])
+			if g.arena.rider_pursuit():
+				# give up: swing round in the usual arc and ride out of the nearest gate
+				r["away_gate"] = nearest_gate(r["pos"])
+				r["away_left"] = away_distance(r)
+			else:
+				# give up: turn round at once towards the nearer seam and ride out through the tunnel
+				var street_x = g.arena.to_track(r["pos"]).x
+				r["dir"] = -1 if street_x < 0.0 else 1
+				r["yaw"] = g.arena.yaw(street_x) + (0.0 if r["dir"] > 0 else PI)
+				r["away_left"] = g.arena.exit_distance(r["pos"], r["dir"])
 			place_rider(r, 0.0)
 			g.sfx.play3d("whoosh", root.position)
 	elif mode == "away":
 		r["spd"] = minf(39.0, r["spd"] + 26.0 * dt)
+		if g.arena.rider_pursuit():
+			r["spd"] = minf(r["spd"], away_speed_cap(r))
 		move_rider(r, dt)
-		r["away_left"] -= r["spd"] * dt
+		if g.arena.rider_pursuit():
+			r["away_left"] = away_distance(r)
+		else:
+			r["away_left"] -= r["spd"] * dt
 		r["wph"] += r["spd"] * dt / 0.34
 		r["cph"] += dt * (6.0 + 0.444 * r["spd"])
 		place_rider(r, 0.0)
 		Models.pose_rider(m, r["cph"], r["wph"])
 		update_rider_sound(r)
 		rider_collide(r)
-		if r["away_left"] < 0.0:
+		if r["away_left"] <= 0.0:
 			resolve(r, false)
 	elif mode == "hit":
 		r["t"] += dt
