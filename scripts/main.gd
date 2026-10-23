@@ -95,6 +95,7 @@ var WEAPONS = Content.WEAPONS
 # ------------------------------------------------------------------ state
 var state = "title"  # title / play / clear / upgrade / over
 var paused = false
+var force_captured = false  # test hook: headless Godot cannot capture the mouse, so a check sets this to play a round
 var round_n = 1
 var score = 0
 var hi = 0
@@ -1065,7 +1066,7 @@ func _process(delta: float) -> void:
 	if hitstop > 0.0:
 		hitstop -= delta
 		dt *= 0.1
-	var captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	var captured = force_captured or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	paused = (state == "play" and not captured)
 	if not paused:
 		pause_page = ""

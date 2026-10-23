@@ -143,7 +143,7 @@ func _play(seed_value: int) -> String:
 	if main.state != "play":
 		_fail("%s: picking a node did not start the round (state %s)" % [tag, main.state])
 		return tag + ": no round"
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	main.force_captured = true  # headless cannot capture the mouse; without this the game counts as paused
 	var half = float(arena.layout["cells"]) * float(arena.layout["cell"]) / 2.0
 	var start = arena.start_position()
 	var frames = int(SECONDS / DT)
