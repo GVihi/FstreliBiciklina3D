@@ -68,6 +68,7 @@ This is the checklist for the "validate that every generated map is completable"
 - Every node can be reached from a floor 1 node, and every node can reach the final boss (no dead ends).
 - Every start-to-final-boss path crosses the mid boss and both prep floors.
 - Caps (`max_per_map`) and `no_repeat_along_edge` hold.
+- Every fight can be played: at least one rider, a rider mix that adds up, and at least one open gate that exists in the arena; every boss node has a boss kind and every shop, rest or event has its seed. The content is drawn before validation, so a map with unplayable content is regenerated like any other.
 
 ## Checking the generator
 
