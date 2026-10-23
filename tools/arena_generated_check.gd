@@ -19,6 +19,7 @@ func _init() -> void:
 	if args.size() > 0:
 		seeds = int(args[0])
 	var rules = ArenaGenScript.load_rules()
+	_check_interface_covered()
 	var checked = 0
 	for i in range(seeds):
 		var layout = ArenaGenScript.generate(1000 + i * 7919, rules)
@@ -30,6 +31,7 @@ func _init() -> void:
 		_check_start_and_gates(arena, layout, i)
 		_check_blocking(arena, layout, i)
 		_check_clamp(arena, layout, i)
+		_check_stubs(arena, layout, i)
 		checked += 1
 	if bad.size() > 0:
 		print("arena_generated_check: %d problem(s)" % bad.size())
@@ -222,3 +224,149 @@ func _check_clamp(arena, layout: Dictionary, tag: int) -> void:
 	# the player's ground is never smaller than a pickup's: what a pickup can land on, the player can reach
 	if arena.MARGINS["pickup"] < arena.MARGINS["player"]:
 		bad.append("arena %d: pickups are kept less far from walls than the player" % tag)
+
+
+# the function names declared in a script file, read from its source
+func _declared_functions(path: String) -> Array:
+	var names = []
+	var f = FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		bad.append("cannot read %s" % path)
+		return names
+	var re = RegEx.new()
+	re.compile("(?m)^func\\s+([A-Za-z_][A-Za-z0-9_]*)")
+	for m in re.search_all(f.get_as_text()):
+		names.append(m.get_string(1))
+	return names
+
+
+# once, not per arena: the class answers every Arena function itself (the base class only complains), and has
+# every name the game scripts read from `arena`, so code that has not moved to world positions cannot fail on it
+func _check_interface_covered() -> void:
+	var own = _declared_functions("res://scripts/arena_generated.gd")
+	for name in _declared_functions("res://scripts/arena.gd"):
+		if not name.begins_with("_") and not own.has(name):
+			bad.append(
+				(
+					"GeneratedArena does not override Arena.%s (the base class only logs an error)"
+					% name
+				)
+			)
+	var probe = GeneratedArena.new(ArenaGenScript.generate(1000, ArenaGenScript.load_rules()))
+	var consts = probe.get_script().get_script_constant_map()
+	var re = RegEx.new()
+	re.compile("\\barena\\.([A-Za-z_][A-Za-z0-9_]*)")
+	var dir = DirAccess.open("res://scripts")
+	var used = {}
+	for file in dir.get_files():
+		# the roundabout's own builder (world.gd) and the roundabout itself are not what runs on a generated arena
+		if not file.ends_with(".gd") or file in ["world.gd", "arena_roundabout.gd"]:
+			continue
+		var f = FileAccess.open("res://scripts/" + file, FileAccess.READ)
+		for line in f.get_as_text().split("\n"):
+			if line.strip_edges().begins_with("#"):
+				continue
+			for m in re.search_all(line):
+				used[m.get_string(1)] = file
+	for name in used:
+		if name == "gd":  # "arena.gd" in a path or a comment
+			continue
+		if not probe.has_method(name) and not consts.has(name):
+			bad.append("%s reads arena.%s, which GeneratedArena does not have" % [used[name], name])
+
+
+# the street-coordinate stubs give safe values: inside the arena, on ground a boss can stand on, never an error
+func _check_stubs(arena, layout: Dictionary, tag: int) -> void:
+	var half = float(layout["cells"]) * float(layout["cell"]) / 2.0
+	var rng = RandomNumberGenerator.new()
+	rng.seed = 777 + tag
+	if not (
+		arena.lim() > 0.0
+		and arena.player_lim() > 0.0
+		and arena.player_lim() < arena.lim()
+		and arena.lim() < half
+	):
+		bad.append(
+			(
+				"arena %d: limits are wrong (lim %.1f, player_lim %.1f, half %.1f)"
+				% [tag, arena.lim(), arena.player_lim(), half]
+			)
+		)
+	for k in range(100):
+		var x = rng.randf_range(-half * 1.5, half * 1.5)
+		var z = rng.randf_range(-half * 1.5, half * 1.5)
+		var y = rng.randf_range(0.0, 3.0)
+		var w = arena.tw(x, z, y)
+		if _outside(arena, w) or absf(w.y - y) > 0.0001:
+			bad.append(
+				(
+					"arena %d: tw(%.1f, %.1f, %.1f) is %s, outside the arena or at the wrong height"
+					% [tag, x, z, y, w]
+				)
+			)
+			return
+		var inside = absf(x) < half - 0.5 and absf(z) < half - 0.5
+		var t = arena.to_track(w)
+		if inside and (absf(t.x - x) > 0.0001 or absf(t.y - z) > 0.0001):
+			bad.append("arena %d: to_track does not undo tw at (%.1f, %.1f): %s" % [tag, x, z, t])
+			return
+		# the frame: tangent and inward are flat, unit, square to each other, and inward x tangent points up
+		var tan: Vector3 = arena.tangent(x)
+		var inw: Vector3 = arena.inward(x)
+		if (
+			absf(tan.length() - 1.0) > 0.001
+			or absf(inw.length() - 1.0) > 0.001
+			or absf(tan.y) > 0.0001
+			or absf(inw.y) > 0.0001
+			or absf(tan.dot(inw)) > 0.001
+		):
+			bad.append(
+				"arena %d: tangent %s and inward %s are not a flat unit frame" % [tag, tan, inw]
+			)
+			return
+		# a model turned by yaw(x) faces along the tangent, as it does on the roundabout (yaw 0 faces +x there too)
+		var facing = Vector3.RIGHT.rotated(Vector3.UP, arena.yaw(x))
+		if (facing - tan).length() > 0.001:
+			bad.append(
+				(
+					"arena %d: a model turned by yaw(%.1f) faces %s, not along the tangent %s"
+					% [tag, x, facing, tan]
+				)
+			)
+			return
+		if arena.hidden(x) or absf(arena.scale_at(z) - 1.0) > 0.0001:
+			bad.append(
+				(
+					"arena %d: hidden or scale_at is not the neutral value at (%.1f, %.1f)"
+					% [tag, x, z]
+				)
+			)
+			return
+		# a point to steer at, and a point pulled back onto the road, are on ground a boss can stand on
+		var p = Vector3(rng.randf_range(-half, half), 0.0, rng.randf_range(-half, half))
+		for dir in [-1, 1]:
+			var lp = arena.lane_point(p, dir, z, rng.randf_range(0.0, 8.0))
+			if not arena._clear(lp, arena.MARGINS["boss"]):
+				bad.append(
+					"arena %d: lane_point gave %s, which is in or against a wall" % [tag, lp]
+				)
+				return
+		var rp = arena.clamp_road(p)
+		if not arena._clear(rp, arena.MARGINS["boss"]):
+			bad.append("arena %d: clamp_road gave %s, which is in or against a wall" % [tag, rp])
+			return
+		# no facade circle: a ray from the start never leaves one, and the constant combat reads is there
+		var d = Vector3(rng.randf_range(-1.0, 1.0), 0.0, rng.randf_range(-1.0, 1.0)).normalized()
+		if arena.ray_exit_circle(arena.start_position(), d, arena.FACADE_RHO) > 0.0:
+			bad.append("arena %d: ray_exit_circle reports a facade circle" % tag)
+			return
+		# the way out for a rider that gives up is the distance to the nearest gate
+		var want = INF
+		for g in arena.gates():
+			want = minf(want, Vector2(g["pos"].x - p.x, g["pos"].z - p.z).length())
+		var got = arena.exit_distance(p, 1)
+		if got < 0.0 or absf(got - want) > 0.0001:
+			bad.append(
+				"arena %d: exit_distance is %.2f, the nearest gate is %.2f away" % [tag, got, want]
+			)
+			return

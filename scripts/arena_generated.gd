@@ -163,5 +163,85 @@ func rider_blocked(p: Vector3) -> bool:
 
 # true if p is outside the grid altogether
 func _outside(p: Vector3) -> bool:
-	var half = float(layout["cells"]) * float(layout["cell"]) / 2.0
+	var half = _half()
 	return absf(p.x) >= half or absf(p.z) >= half
+
+
+# ---------------------------------------------------------------- street-coordinate stubs
+# Riders, bosses, pedestrians and the player still call the street-coordinate functions in places (the
+# "Gameplay on open ground" items in the README move the rest to world positions). A generated arena has no
+# street, so these answer as if street x and z were world x and z: the same mapping as the roundabout has at its
+# middle (tangent along +x, inward along +z, no turn), always a point inside the arena, never an error. They are
+# for code that has not moved yet; nothing should be built on them.
+const FACADE_RHO = 0.0  # the roundabout's circle of facades (combat.gd reads it); a generated arena has none
+const EDGE_LIM = 5.0  # metres in from the grid edge for lim(): clear of the 2-cell building ring and a metre more
+const EDGE_PLAYER_LIM = 6.0  # ... and for player_lim(), a little further in, as on the roundabout
+
+
+# street point (x, z) at height y -> the world point with the same x and z, kept inside the arena
+func tw(x: float, z: float, y: float = 0.0) -> Vector3:
+	var h = _half() - 0.5
+	return Vector3(clampf(x, -h, h), y, clampf(z, -h, h))
+
+
+# world position -> (x, z)
+func to_track(p: Vector3) -> Vector2:
+	return Vector2(p.x, p.z)
+
+
+func tangent(_x: float) -> Vector3:
+	return Vector3.RIGHT
+
+
+func inward(_x: float) -> Vector3:
+	return Vector3.BACK
+
+
+func yaw(_x: float) -> float:
+	return 0.0
+
+
+# there is no tunnel along a street: nothing is hidden by street x (hidden_at looks at the real tunnels)
+func hidden(_x: float) -> bool:
+	return false
+
+
+# a street metre is a world metre
+func scale_at(_z: float) -> float:
+	return 1.0
+
+
+# `ahead` metres further along +x (or -x for dir -1) from p, kept on ground a boss can stand on
+func lane_point(p: Vector3, dir: int, _z: float, ahead: float) -> Vector3:
+	return clamp_walk(p + Vector3.RIGHT * float(dir) * ahead, "boss")
+
+
+# metres to the nearest gate (0 when there are none), as the way out for a rider that gives up
+func exit_distance(p: Vector3, _dir: int) -> float:
+	var best = INF
+	for gate in _gates:
+		best = minf(best, Vector2(gate["pos"].x - p.x, gate["pos"].z - p.z).length())
+	return best if best < INF else 0.0
+
+
+func lim() -> float:
+	return _half() - EDGE_LIM
+
+
+func player_lim() -> float:
+	return _half() - EDGE_PLAYER_LIM
+
+
+# there is no road to be pulled back onto: keep the point on ground a boss can stand on
+func clamp_road(p: Vector3, _z_near: float = 1.6, _z_far: float = -6.6) -> Vector3:
+	return clamp_walk(p, "boss")
+
+
+# there is no circle of facades: a ray never leaves one
+func ray_exit_circle(_o: Vector3, _d: Vector3, _radius: float) -> float:
+	return -1.0
+
+
+# half the width of the grid, in metres
+func _half() -> float:
+	return float(layout["cells"]) * float(layout["cell"]) / 2.0
