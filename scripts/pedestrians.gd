@@ -12,6 +12,14 @@ const TURN_RATE = 6.0  # radians per second: far more than the ring ever asks fo
 const LOOKAHEAD_MIN = 0.5  # metres
 const LOOKAHEAD_TIME = 0.03  # seconds of walking: the point to steer at is this far ahead (at least the minimum)
 
+# Open ground (an arena where arena.rider_pursuit() is true, the generated arenas): there is no street to walk
+# along. A pedestrian comes out of one of the arena's gates facing in, steers across the arena at the exit point
+# of a different gate ("goal") round whatever is in the way, and is gone when it is back inside any gate's tunnel
+# (or at the goal's exit point). "left" then holds the metres still to walk to that exit point, less GOAL_REACH,
+# or -1 once it is in a tunnel, so the code that removes a pedestrian at "left" < 0 is the same on both kinds of
+# arena.
+const GOAL_REACH = 0.5  # metres short of the gate's exit point at which a pedestrian counts as gone
+
 var g = null
 
 
@@ -20,8 +28,9 @@ func _init(game) -> void:
 
 
 func spawn_civ(init_x: float = 9999.0) -> void:
-	if g.arena.rider_pursuit():
-		return  # a generated arena has no street to walk along: pedestrians are placed on it in a later step
+	var open = g.arena.rider_pursuit()
+	if open and g.arena.gates().is_empty():
+		return  # nowhere to come out of
 	var kind = g.pick_one(["walker", "granny", "jogger", "tourist"])
 	var dir = 1 if randf() < 0.5 else -1
 	var spd = 0.0
@@ -63,6 +72,8 @@ func spawn_civ(init_x: float = 9999.0) -> void:
 		"yaw": g.arena.yaw(x0) + (0.0 if dir > 0 else PI),  # the way it faces and walks (also its hit box)
 		"hidden": g.arena.hidden(x0),  # inside the tunnel block: not visible, not hittable
 		"avoid_side": 1.0,  # which way it last swung round an obstacle
+		"goal": {},  # open ground: the gate it walks to and leaves through
+		"entered": false,  # open ground: true once it has come out of the gate it started in
 		"left": street_left(x0, dir),  # street metres still to walk before it is out of the arena
 		"dir": dir,
 		"spd": spd,
@@ -76,8 +87,32 @@ func spawn_civ(init_x: float = 9999.0) -> void:
 		"scale": m["scale"] * randf_range(0.97, 1.04),
 		"model": m
 	}
+	if open:
+		enter_at_gate(c)
 	g.civs.append(c)
 	apply_civ(c)
+
+
+# Open ground: put a new pedestrian in the tunnel of a gate, facing in, and pick a different gate for it to leave
+# by (the same one only when the arena has no other). The gate is a random one: pedestrians use the global random
+# numbers like everything else about them, so the seed does not decide them.
+func enter_at_gate(c: Dictionary) -> void:
+	var rs = g.rider_sys
+	var gates = g.arena.gates()
+	var from: Dictionary = gates[randi() % gates.size()]
+	var others = gates.filter(func(gate): return gate["pos"] != from["pos"])
+	c["goal"] = from if others.is_empty() else others[randi() % others.size()]
+	c["pos"] = rs.gate_spawn_point(from)
+	c["yaw"] = rs.yaw_of(-from["outward"])
+	c["hidden"] = rs.is_hidden(c["pos"])
+	c["entered"] = false
+	c["left"] = goal_left(c)
+
+
+# open ground: metres still to walk before the pedestrian is at its goal gate's exit point (and so gone)
+func goal_left(c: Dictionary) -> float:
+	var to: Vector3 = g.rider_sys.gate_exit_point(c["goal"]) - c["pos"]
+	return Vector2(to.x, to.z).length() - GOAL_REACH
 
 
 # The rest of the game reads where a pedestrian is from "pos", "yaw" and "hidden", which are world-space values.
@@ -97,10 +132,20 @@ func street_left(x: float, dir: int) -> float:
 func move_civ(c: Dictionary, speed_street: float, dt: float) -> void:
 	var rs = g.rider_sys
 	var speed = speed_street * g.arena.scale_at(c["lane_z"])  # metres per second over the ground
-	var ahead = maxf(LOOKAHEAD_MIN, speed * LOOKAHEAD_TIME)
-	var target = g.arena.lane_point(c["pos"], c["dir"], c["lane_z"], ahead)
+	var open = g.arena.rider_pursuit()
+	if open and not c["hidden"]:
+		c["entered"] = true
+	var in_tunnel = open and c["hidden"] and not c["entered"]  # still in the tunnel it started in
+	var target: Vector3
+	if open:
+		target = rs.gate_exit_point(c["goal"])
+		if in_tunnel:
+			target = c["pos"] + rs.heading_vec(c["yaw"]) * 10.0  # walk straight out of the tunnel first
+	else:
+		var ahead = maxf(LOOKAHEAD_MIN, speed * LOOKAHEAD_TIME)
+		target = g.arena.lane_point(c["pos"], c["dir"], c["lane_z"], ahead)
 	var want = rs.yaw_of(target - c["pos"])
-	if g.arena.rider_avoidance():
+	if g.arena.rider_avoidance() and not in_tunnel:
 		var steered = rs.avoid_obstacles(c["pos"], want, speed, c["yaw"], c["avoid_side"])
 		var swing = wrapf(steered - c["yaw"], -PI, PI)
 		if absf(swing) > 0.0001:
@@ -111,7 +156,11 @@ func move_civ(c: Dictionary, speed_street: float, dt: float) -> void:
 	c["yaw"] = wrapf(c["yaw"] + clampf(turn, -max_turn, max_turn), -PI, PI)
 	c["pos"] += rs.heading_vec(c["yaw"]) * speed * dt
 	c["hidden"] = rs.is_hidden(c["pos"])
-	c["left"] -= speed_street * dt
+	if open:
+		# back inside a gate's tunnel after coming out of one: it has left the arena, by its own gate or another
+		c["left"] = -1.0 if c["entered"] and c["hidden"] else goal_left(c)
+	else:
+		c["left"] -= speed_street * dt
 
 
 # a startled pedestrian runs away: turn round at once and head for the nearer end of the street (it can only
@@ -176,6 +225,14 @@ func update_civs(dt: float) -> void:
 			g.civs.remove_at(i)
 		else:
 			apply_civ(c)
+
+
+# remove every pedestrian (their models too): used when the arena changes, since a pedestrian's position and its
+# goal gate belong to the arena it was made for
+func clear_civs() -> void:
+	for c in g.civs:
+		c["model"]["root"].queue_free()
+	g.civs.clear()
 
 
 func hit_civ(c: Dictionary) -> void:

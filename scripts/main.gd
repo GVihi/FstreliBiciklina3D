@@ -492,8 +492,8 @@ var arena = ArenaRoundaboutScript.new()  # arena.gd: the space the run is played
 # The generated arena flag (README Milestone K): off by default, so the game is the roundabout as always. Turn it
 # on by starting the game with the user argument --generated-arena (godot --path . -- --generated-arena). Then the
 # title screen shows the arena made from today's daily seed and every run plays on the arena made from its run
-# seed (arena_generated.gd, world_generated.gd). Work in progress: pedestrians and cheerleaders are left out of a
-# generated arena and bosses come out of a gate; the round does not end by itself until every rider is down yet.
+# seed (arena_generated.gd, world_generated.gd). Work in progress: cheerleaders are left out of a generated arena
+# and bosses come out of a gate; pedestrians come out of a gate and walk to another one.
 const GENERATED_ARENA_ARG = "--generated-arena"
 var generated_arena = false
 var world_root: Node3D = null  # the generated arena's world (the roundabout's is built straight into this node)
@@ -560,6 +560,7 @@ func use_generated_arena(seed_value: int) -> bool:
 		remove_child(world_root)
 		world_root.free()
 	arena = GeneratedArenaScript.new(layout)
+	civ_sys.clear_civs()  # a pedestrian walks between the gates of the arena it was made for
 	world_root = Node3D.new()
 	world_root.name = "GeneratedWorld"
 	add_child(world_root)

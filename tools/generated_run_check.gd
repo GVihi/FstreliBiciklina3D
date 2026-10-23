@@ -12,8 +12,8 @@ extends SceneTree
 #   - picking the first node of the map starts a round, and for 30 seconds of play (the game stepped at 60 frames
 #     a second, the player walking a circle round the start, aiming at the nearest rider and firing) nothing
 #     breaks: the player stays on ground it can stand on, riders and bosses stay finite and near the arena, a
-#     rider that is not in a gate's tunnel is never inside a wall, riders come out of the gates, there are no
-#     pedestrians and the cheerleaders stay hidden
+#     rider that is not in a gate's tunnel is never inside a wall, riders come out of the gates, pedestrians come
+#     out of the gates too and never stand deep inside a wall, and the cheerleaders stay hidden
 # Exits with status 1 and prints the first problems.
 
 const ArenaGenScript = preload("res://scripts/arena_gen.gd")
@@ -101,8 +101,26 @@ func _check_title() -> void:
 		_fail("on the title screen the player is not on the start")
 	if main.cheerleaders.any(func(c): return c["root"].visible):
 		_fail("a cheerleader shows on a generated arena")
-	if not main.civs.is_empty():
-		_fail("pedestrians were spawned on a generated arena")
+	if main.civs.size() != 2:
+		_fail(
+			(
+				"the title screen has %d pedestrians on a generated arena, expected 2"
+				% main.civs.size()
+			)
+		)
+	for c in main.civs:
+		var near = INF
+		for gate in main.arena.gates():
+			near = minf(
+				near, Vector2(gate["pos"].x - c["pos"].x, gate["pos"].z - c["pos"].z).length()
+			)
+		if near > GATE_SLACK or not c["hidden"]:
+			_fail(
+				(
+					"a pedestrian on the title screen is not in a gate's tunnel (%.1f m from a gate)"
+					% near
+				)
+			)
 	for key in ["env", "sky_mat", "sun", "win_mat", "lamp_mat", "lamps"]:
 		if not main.world.has(key):
 			_fail("the world has no %s" % key)
@@ -175,6 +193,8 @@ func _play(seed_value: int) -> String:
 		_fail("%s: the run's arena is not the one ArenaGen makes for the seed" % tag)
 	_check_one_world(tag)
 	var arena = main.arena
+	if not main.civs.is_empty():
+		_fail("%s: a pedestrian from the arena before is still there" % tag)
 	if main.player.position != arena.start_position():
 		_fail("%s: the player did not start on the arena's start" % tag)
 	if main.state != "map":
@@ -217,13 +237,22 @@ func _play(seed_value: int) -> String:
 		_fail("%s: only %d frames were played" % [tag, played])
 	if seen.is_empty():
 		_fail("%s: no rider came out in %.0f seconds" % [tag, float(played) * DT])
-	if not main.civs.is_empty():
-		_fail("%s: pedestrians appeared on a generated arena" % tag)
+	var civs_seen = seen.keys().filter(func(k): return k is String and k.begins_with("civ")).size()
+	if civs_seen == 0:
+		_fail("%s: no pedestrian came out in %.0f seconds" % [tag, float(played) * DT])
 	if main.cheerleaders.any(func(c): return c["root"].visible):
 		_fail("%s: a cheerleader showed on a generated arena" % tag)
 	return (
-		"%s: %d gates, %.1f s played, %d riders seen, %d shots, state %s"
-		% [tag, arena.gates().size(), float(played) * DT, seen.size(), shots, main.state]
+		"%s: %d gates, %.1f s played, %d riders and %d pedestrians seen, %d shots, state %s"
+		% [
+			tag,
+			arena.gates().size(),
+			float(played) * DT,
+			seen.size() - civs_seen,
+			civs_seen,
+			shots,
+			main.state
+		]
 	)
 
 
@@ -269,12 +298,30 @@ func _sample(tag: String, f: int, half: float, arena, seen: Dictionary) -> int:
 		if not r["hidden"] and arena.rider_blocked(p):
 			_fail("%s, frame %d: a rider is inside a wall at %s" % [tag, f, p])
 			wrong += 1
+	for c in main.civs:
+		var cp: Vector3 = c["pos"]
+		if not _finite(cp) or absf(cp.x) > half + 15.0 or absf(cp.z) > half + 15.0:
+			_fail("%s, frame %d: a pedestrian is at %s, off the arena" % [tag, f, cp])
+			wrong += 1
+			continue
+		seen["civ%d" % c["model"]["root"].get_instance_id()] = true
+		if not c["hidden"] and _deep_in_wall(arena, cp):
+			_fail("%s, frame %d: a pedestrian stands deep inside a wall at %s" % [tag, f, cp])
+			wrong += 1
 	for b in main.bosses:
 		var bp: Vector3 = b["wp"]
 		if not _finite(bp) or absf(bp.x) > half + 15.0 or absf(bp.z) > half + 15.0:
 			_fail("%s, frame %d: a boss is at %s, off the arena" % [tag, f, bp])
 			wrong += 1
 	return wrong
+
+
+# true if p and the four points 0.3 m off it are all buildings (a graze of a corner is not deep)
+func _deep_in_wall(arena, p: Vector3) -> bool:
+	for off in [Vector3(0.3, 0, 0), Vector3(-0.3, 0, 0), Vector3(0, 0, 0.3), Vector3(0, 0, -0.3)]:
+		if not arena.rider_blocked(p + off):
+			return false
+	return arena.rider_blocked(p)
 
 
 func _finite(v: Vector3) -> bool:
