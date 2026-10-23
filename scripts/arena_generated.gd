@@ -59,3 +59,109 @@ func _world_gates() -> Array:
 			}
 		)
 	return out
+
+
+# ---------------------------------------------------------------- bounds and blocking
+# Margins (metres) kept clear round a point so a body does not sink into a wall: the player, a boss (which
+# may stand a little closer to the edge) and a pickup's landing spot (kept further in so it can be reached).
+const MARGINS = {"player": 0.45, "boss": 0.3, "pickup": 1.0}
+const SOLID_HEIGHT = 6.5  # metres: the lowest building or tunnel block; a dart above it is not stopped here
+const SLIDE_STEP = 0.25  # metres between the rings searched for the nearest free point
+const SLIDE_MAX = 8.0  # metres: how far from a blocked point the search goes
+
+
+# true if the cell under p is ground someone on foot can stand on (not a building or a tunnel block)
+func _walkable(p: Vector3) -> bool:
+	var s = surface_at(p)
+	return s != "building" and s != "tunnel"
+
+
+# true if p is walkable and so are the eight points `margin` metres round it
+func _clear(p: Vector3, margin: float) -> bool:
+	if not _walkable(p):
+		return false
+	for k in range(8):
+		var a = TAU * float(k) / 8.0
+		if not _walkable(p + Vector3(cos(a), 0.0, sin(a)) * margin):
+			return false
+	return true
+
+
+# keep a point on the walkable ground, sliding along an edge: a point that is free comes back unchanged, one
+# in or against a wall comes back as the nearest free point (which is where pushing into a wall slides to)
+func clamp_walk(p: Vector3, who: String = "player") -> Vector3:
+	var margin: float = MARGINS.get(who, MARGINS["player"])
+	if _clear(p, margin):
+		return p
+	# far outside the grid (a thrown pickup, a knock-back): first bring it to the edge of the grid
+	var half = float(layout["cells"]) * float(layout["cell"]) / 2.0 - 0.5
+	var at = Vector3(clampf(p.x, -half, half), p.y, clampf(p.z, -half, half))
+	if _clear(at, margin):
+		return at
+	p = at
+	var r = SLIDE_STEP
+	while r <= SLIDE_MAX:
+		var n = maxi(8, int(ceil(TAU * r / SLIDE_STEP)))
+		var best = Vector3.ZERO
+		var best_d = INF
+		for k in range(n):
+			var a = TAU * float(k) / float(n)
+			var q = Vector3(p.x + cos(a) * r, p.y, p.z + sin(a) * r)
+			if _clear(q, margin):
+				# among the free points on this ring take the one nearest the way the point was going
+				var d = Vector2(q.x - p.x, q.z - p.z).length()
+				if d < best_d:
+					best_d = d
+					best = q
+		if best_d < INF:
+			return best
+		r += SLIDE_STEP
+	# deep inside a wall (a thick block at the edge): walk the point towards the start until it is free
+	var home = start_position()
+	var dist = Vector2(home.x - p.x, home.z - p.z).length()
+	var t = 0.0
+	while t < dist:
+		t += 0.5
+		var q = Vector3(p.x, p.y, p.z).move_toward(Vector3(home.x, p.y, home.z), t)
+		if _clear(q, margin):
+			return q
+	return home
+
+
+# true if a boss on foot at p is blocked: inside a building or a tunnel block, or outside the arena
+func obstacle_at(p: Vector3) -> bool:
+	return not _walkable(p)
+
+
+# true if a dart at p is inside something solid: a building or a tunnel block, below the lowest roof
+func ray_blocked(p: Vector3) -> bool:
+	return p.y < SOLID_HEIGHT and not _walkable(p)
+
+
+# true if p is inside a gate's tunnel: on a tunnel cell, or past the outer wall in a gate's opening
+func hidden_at(p: Vector3) -> bool:
+	if surface_at(p) == "tunnel":
+		return true
+	if surface_at(p) != "building":
+		return false
+	for gate in _gates:
+		var d: Vector3 = p - gate["pos"]
+		var along = d.dot(gate["outward"])
+		var across = absf(d.x * gate["outward"].z - d.z * gate["outward"].x)
+		if along > 0.0 and across < gate["half_width"] and _outside(p):
+			return true
+	return false
+
+
+# true if a rider at p cannot ride there: a building, but not through a gate (tunnel cells and the opening)
+func rider_blocked(p: Vector3) -> bool:
+	var s = surface_at(p)
+	if s == "building":
+		return not hidden_at(p)
+	return false
+
+
+# true if p is outside the grid altogether
+func _outside(p: Vector3) -> bool:
+	var half = float(layout["cells"]) * float(layout["cell"]) / 2.0
+	return absf(p.x) >= half or absf(p.z) >= half
