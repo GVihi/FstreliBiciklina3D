@@ -4,6 +4,9 @@ extends RefCounted
 
 const Models = preload("res://scripts/models.gd")
 
+const LAND_TRIES = 8  # directions tried for a landing spot on open ground
+const LAND_STEP = 0.5  # metres between the points checked on the way from the player to the spot
+
 var g = null
 
 
@@ -47,18 +50,50 @@ func drop_kill(pos: Vector3, tough: bool) -> void:
 			spawn_pickup(t, pos)
 
 
+# Where a pickup comes down: 2.2 to 4.8 m from the player in a random direction, kept on ground a pickup may
+# lie on (`clamp_walk`). On open ground (a generated arena) it must also be reachable: the way from the player
+# to it crosses no wall, because a spot pushed out of a building can end up round the corner or on the far side
+# of a block, where the player would have to walk a long way for it. Up to LAND_TRIES directions are tried; if
+# none is reachable the nearest of them is used. The roundabout draws one direction, exactly as before.
+func landing_spot(y_land: float) -> Vector3:
+	var open = g.arena.rider_pursuit()
+	var tries = LAND_TRIES if open else 1
+	var best = Vector3.ZERO
+	var best_d = INF
+	for _k in range(tries):
+		var la = randf() * TAU
+		var ld = randf_range(2.2, 4.8)
+		var land = g.clamp_walk(
+			Vector3(g.player.position.x + sin(la) * ld, y_land, g.player.position.z - cos(la) * ld),
+			"pickup"
+		)
+		if not open:
+			return land
+		if way_clear(g.player.position, land):
+			return land
+		var d = Vector2(land.x - g.player.position.x, land.z - g.player.position.z).length()
+		if d < best_d:
+			best_d = d
+			best = land
+	return best
+
+
+# true if the straight way from a to b (sampled every LAND_STEP metres) crosses nothing a boss cannot walk on
+func way_clear(a: Vector3, b: Vector3) -> bool:
+	var n = maxi(1, int(ceil(a.distance_to(b) / LAND_STEP)))
+	for i in range(1, n + 1):
+		if g.arena.obstacle_at(a.lerp(b, float(i) / float(n))):
+			return false
+	return true
+
+
 func spawn_pickup(t: String, pos: Vector3) -> void:
 	var inf = g.DROP_INFO[t]
 	var m = Models.build_pickup(inf["col"], inf["ch"])
 	g.add_child(m["root"])
 	var T = 1.0
 	var y_land = 0.55
-	var la = randf() * TAU  # lands a few metres from wherever the player is
-	var ld = randf_range(2.2, 4.8)
-	var land = g.clamp_walk(
-		Vector3(g.player.position.x + sin(la) * ld, y_land, g.player.position.z - cos(la) * ld),
-		"pickup"
-	)
+	var land = landing_spot(y_land)  # lands a few metres from wherever the player is
 	var vel = Vector3((land.x - pos.x) / T, 4.9 * T + (y_land - pos.y) / T, (land.z - pos.z) / T)
 	g.pickups.append(
 		{
