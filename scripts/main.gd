@@ -631,6 +631,7 @@ func start_game(daily: bool = false) -> void:
 		run_seed = DailyScript.random_seed()
 	run_map = MapGenScript.generate(run_seed)
 	print(MapGenScript.to_text(run_map))
+	print(MapGenScript.content_text(run_map))
 	round_n = 1
 	score = 0
 	hearts = MAXHEARTS

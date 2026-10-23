@@ -129,6 +129,40 @@ static func to_text(map: Dictionary) -> String:
 	return "\n".join(lines)
 
 
+# One line per node with content, floor 1 first, e.g. "F03 L1 N theme 2 riders 9 (pro 5, sprinter 2, courier 1,
+# tough 1) gates 0,2 rain" or "F05 L0 B mower theme 2 ...". For the console and the debug preview.
+static func content_text(map: Dictionary) -> String:
+	if map.is_empty():
+		return "(no map)"
+	var lines = []
+	var floors = map["floors"]
+	for f in range(floors.size()):
+		for i in range(floors[f].size()):
+			var node = floors[f][i]
+			var c = node.get("content", {})
+			var text = (
+				"F%02d L%d %s theme %s"
+				% [f + 1, i, LETTERS.get(node["type"], "-"), c.get("theme", "-")]
+			)
+			if c.has("riders"):
+				var parts = []
+				for kind in c["riders"]["mix"]:
+					parts.append("%s %d" % [kind, int(c["riders"]["mix"][kind])])
+				text += " riders %d (%s)" % [int(c["riders"]["count"]), ", ".join(parts)]
+				var open = []
+				for g in c["gates"]:
+					open.append(str(g))
+				text += " gates %s" % ",".join(open)
+				for m in c["modifiers"]:
+					text += " " + str(m)
+			if c.has("boss"):
+				text += " " + str(c["boss"]) + (" FINAL" if c.has("final") else "")
+			if c.has("seed"):
+				text += " seed %08X" % int(c["seed"])
+			lines.append(text)
+	return "\n".join(lines)
+
+
 # ---------------------------------------------------------------- validation
 # The checklist a map has to satisfy before the game may use it (docs/MAP_GENERATION.md, "What a valid map must
 # satisfy"). Returns the problems in words, an empty list when the map is fine. It reads only the map and the

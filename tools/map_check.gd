@@ -47,6 +47,7 @@ func _init() -> void:
 	_check_validator(rules)
 	_check_retry(rules)
 	_check_content_streams(rules)
+	_check_content_text(rules)
 	if problems.is_empty():
 		print(
 			(
@@ -412,3 +413,16 @@ func _shape(map: Dictionary) -> Array:
 			row.append([node["type"], node["next"]])
 		out.append(row)
 	return out
+
+
+# content_text prints one line per node
+func _check_content_text(rules: Dictionary) -> void:
+	var map = MapGen.generate(99, rules, _gates_for(99))
+	var nodes = 0
+	for floor_nodes in map["floors"]:
+		nodes += floor_nodes.size()
+	var lines = MapGen.content_text(map).split("\n")
+	if lines.size() != nodes:
+		_fail(99, "content_text printed %d lines for %d nodes" % [lines.size(), nodes])
+	if not lines[lines.size() - 1].contains("minister FINAL"):
+		_fail(99, "content_text does not end with the final boss")
