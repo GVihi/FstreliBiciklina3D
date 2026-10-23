@@ -60,11 +60,11 @@ static func generate(run_seed: int, rules: Dictionary = {}, gate_count: int = -1
 		if map.is_empty():
 			last = "the floors could not be connected"
 			continue
+		MapContent.fill(map, run_seed, attempt, gate_count, rules)
 		var problems = (
 			["attempt forced invalid by the test"] if attempt < forced else validate(map, rules)
 		)
 		if problems.is_empty():
-			MapContent.fill(map, run_seed, attempt, gate_count, rules)
 			return map
 		last = str(problems[0])
 	push_error(
@@ -172,6 +172,8 @@ static func content_text(map: Dictionary) -> String:
 #   - every node can be reached from floor 1, and every node can reach the final boss (no dead ends)
 #   - the boss floors each hold one boss, and every prep floor holds only its types (so every path crosses them)
 #   - caps (max_per_map), first floors (min_floor) and no_repeat_along_edge hold
+#   - when the nodes carry content: every fight can be played (riders, and at least one open gate that exists
+#     in the arena), every boss has a boss kind, every other node has its seed
 static func validate(map: Dictionary, rules: Dictionary = {}) -> Array:
 	if rules.is_empty():
 		rules = load_rules()
@@ -200,7 +202,49 @@ static func validate(map: Dictionary, rules: Dictionary = {}) -> Array:
 			"expected %d boss nodes, got %d" % [boss_floors, int(counts.get("boss", 0))]
 		)
 	_validate_reach(floors, problems)
+	_validate_content(map, rules, problems)
 	return problems
+
+
+# The content part of validate(): a map whose nodes have no "content" (rules without a content section) is
+# skipped. A fight with no riders or no open gate could never be finished, so the map could not be completed.
+static func _validate_content(map: Dictionary, rules: Dictionary, problems: Array) -> void:
+	if not rules.has("content"):
+		return
+	var gates = int(map.get("gates", -1))
+	if gates < 0:
+		problems.append("the map has no gate count, so its content cannot be checked")
+		return
+	var floors = map["floors"]
+	for f in range(floors.size()):
+		for i in range(floors[f].size()):
+			var node = floors[f][i]
+			var where = "floor %d lane %d" % [f + 1, i]
+			var c = node.get("content")
+			if typeof(c) != TYPE_DICTIONARY:
+				problems.append("%s has no content" % where)
+				continue
+			var t = str(node.get("type", ""))
+			if not MapContent.is_fight(t):
+				if not c.has("seed"):
+					problems.append("%s (%s) has no seed in its content" % [where, t])
+				continue
+			var riders = c.get("riders", {})
+			if int(riders.get("count", 0)) < 1:
+				problems.append("%s is a fight with no riders" % where)
+			var sum = 0
+			for kind in riders.get("mix", {}):
+				sum += int(riders["mix"][kind])
+			if sum != int(riders.get("count", 0)):
+				problems.append("%s rider mix does not add up to its rider count" % where)
+			var open = c.get("gates", [])
+			if open.size() < 1:
+				problems.append("%s has no open gate, riders could not enter" % where)
+			for g in open:
+				if int(g) < 0 or int(g) >= gates:
+					problems.append("%s opens gate %d, the arena has %d" % [where, int(g), gates])
+			if t == "boss" and str(c.get("boss", "")) == "":
+				problems.append("%s is a boss node with no boss kind" % where)
 
 
 # one floor of validate(): node count, types, edges, crossing and the fixed-floor rules
