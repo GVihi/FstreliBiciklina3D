@@ -5,10 +5,13 @@ extends RefCounted
 #
 # A map is {"seed": int, "floors": Array}. floors[0] is floor 1 (the start) and the last entry is the final boss.
 # A floor is an Array of nodes in lane order (left to right); a node is {"type": String, "next": Array},
-# where "next" lists the lane numbers of the nodes it connects to on the next floor.
+# where "next" lists the lane numbers of the nodes it connects to on the next floor. generate() adds "content"
+# to every node (scripts/map_content.gd) and "gates" to the map (how many gates the arena has).
 # Node types: normal, elite, shop, event, rest, boss.
 
 const DailyScript = preload("res://scripts/daily.gd")
+const MapContent = preload("res://scripts/map_content.gd")
+const ArenaGen = preload("res://scripts/arena_gen.gd")
 
 const PATH = "res://data/map_rules.json"
 const LETTERS = {"normal": "N", "elite": "E", "shop": "S", "event": "?", "rest": "R", "boss": "B"}
@@ -31,15 +34,62 @@ static func load_rules() -> Dictionary:
 
 
 # Builds the map for a run seed. Pass `rules` to test other numbers; by default the shipped file is used.
-# Returns {} (and logs why) when the rules cannot produce a map.
-static func generate(run_seed: int, rules: Dictionary = {}) -> Dictionary:
+# A map that fails validate() is thrown away and the next attempt draws from streams seeded with the attempt
+# number (DailyScript.stream_seed(run_seed, attempt, "map_retry:<stream name>")), never patched by hand, so a seed
+# still gives exactly one map. Attempt 0 uses the plain streams, so a map that is fine the first time is the
+# same map as before the retry existed. The map records the attempt it came from ("attempt"). Up to
+# `max_attempts` (rules, default 8) are tried; returns {} (and logs why) when every attempt fails.
+# `test_invalid_attempts` in the rules is for tools/map_check.gd only: it makes that many attempts count as
+# invalid, so the retry can be tested without a seed that really fails.
+#
+# Every node also gets "content" (scripts/map_content.gd): the theme, riders, gates, modifiers and boss kind of
+# its encounter. The content needs to know how many gates the run's arena layout has: pass `gate_count` to
+# say so (tools and tests do), or leave it at -1 to read it from ArenaGen.generate(run_seed).
+static func generate(run_seed: int, rules: Dictionary = {}, gate_count: int = -1) -> Dictionary:
 	if rules.is_empty():
 		rules = load_rules()
 	if rules.is_empty():
 		return {}
+	if gate_count < 0 and rules.has("content"):
+		gate_count = _arena_gates(run_seed)
+	var attempts = maxi(1, int(rules.get("max_attempts", 8)))
+	var forced = int(rules.get("test_invalid_attempts", 0))
+	var last = ""
+	for attempt in range(attempts):
+		var map = _build(run_seed, attempt, rules)
+		if map.is_empty():
+			last = "the floors could not be connected"
+			continue
+		MapContent.fill(map, run_seed, attempt, gate_count, rules)
+		var problems = (
+			["attempt forced invalid by the test"] if attempt < forced else validate(map, rules)
+		)
+		if problems.is_empty():
+			return map
+		last = str(problems[0])
+	push_error(
+		(
+			"map: no valid map for seed %s in %d attempts (last problem: %s)"
+			% [DailyScript.seed_text(run_seed), attempts, last]
+		)
+	)
+	return {}
+
+
+# How many gates the arena layout of this run seed has (0 when the layout cannot be built).
+static func _arena_gates(run_seed: int) -> int:
+	var layout = ArenaGen.generate(run_seed)
+	if layout.is_empty():
+		return 0
+	return layout["gates"].size()
+
+
+# One attempt at the map for a run seed: floors, edges and types, not yet validated. {} when the floors cannot
+# be connected.
+static func _build(run_seed: int, attempt: int, rules: Dictionary) -> Dictionary:
 	var streams = rules.get("streams", {})
-	var layout_rng = _rng(run_seed, str(streams.get("layout", "map_layout")))
-	var types_rng = _rng(run_seed, str(streams.get("types", "map_types")))
+	var layout_rng = _rng(run_seed, str(streams.get("layout", "map_layout")), attempt)
+	var types_rng = _rng(run_seed, str(streams.get("types", "map_types")), attempt)
 	var n_floors = int(rules["floors"])
 	var floors = []
 	for f in range(1, n_floors + 1):
@@ -58,7 +108,7 @@ static func generate(run_seed: int, rules: Dictionary = {}) -> Dictionary:
 			)
 			return {}
 	_assign_types(floors, rules, types_rng)
-	return {"seed": run_seed, "floors": floors}
+	return {"seed": run_seed, "attempt": attempt, "floors": floors}
 
 
 # One line per floor, final boss first, e.g. "F03  N(0,1) S(1) ?(2)": the letter is the node type and the
@@ -79,10 +129,243 @@ static func to_text(map: Dictionary) -> String:
 	return "\n".join(lines)
 
 
+# One line per node with content, floor 1 first, e.g. "F03 L1 N theme 2 riders 9 (pro 5, sprinter 2, courier 1,
+# tough 1) gates 0,2 rain" or "F05 L0 B mower theme 2 ...". For the console and the debug preview.
+static func content_text(map: Dictionary) -> String:
+	if map.is_empty():
+		return "(no map)"
+	var lines = []
+	var floors = map["floors"]
+	for f in range(floors.size()):
+		for i in range(floors[f].size()):
+			var node = floors[f][i]
+			var c = node.get("content", {})
+			var text = (
+				"F%02d L%d %s theme %s"
+				% [f + 1, i, LETTERS.get(node["type"], "-"), c.get("theme", "-")]
+			)
+			if c.has("riders"):
+				var parts = []
+				for kind in c["riders"]["mix"]:
+					parts.append("%s %d" % [kind, int(c["riders"]["mix"][kind])])
+				text += " riders %d (%s)" % [int(c["riders"]["count"]), ", ".join(parts)]
+				var open = []
+				for g in c["gates"]:
+					open.append(str(g))
+				text += " gates %s" % ",".join(open)
+				for m in c["modifiers"]:
+					text += " " + str(m)
+			if c.has("boss"):
+				text += " " + str(c["boss"]) + (" FINAL" if c.has("final") else "")
+			if c.has("seed"):
+				text += " seed %08X" % int(c["seed"])
+			lines.append(text)
+	return "\n".join(lines)
+
+
+# ---------------------------------------------------------------- validation
+# The checklist a map has to satisfy before the game may use it (docs/MAP_GENERATION.md, "What a valid map must
+# satisfy"). Returns the problems in words, an empty list when the map is fine. It reads only the map and the
+# rules, so it also works on a map damaged by hand. Every problem names the floor (1-based) and lane (0-based).
+#   - the floor count, node counts and node types of the fixed floors (start, prep floors, bosses)
+#   - every edge goes to a real lane of the next floor, edges on a floor are in order and do not cross
+#   - every node can be reached from floor 1, and every node can reach the final boss (no dead ends)
+#   - the boss floors each hold one boss, and every prep floor holds only its types (so every path crosses them)
+#   - caps (max_per_map), first floors (min_floor) and no_repeat_along_edge hold
+#   - when the nodes carry content: every fight can be played (riders, and at least one open gate that exists
+#     in the arena), every boss has a boss kind, every other node has its seed
+static func validate(map: Dictionary, rules: Dictionary = {}) -> Array:
+	if rules.is_empty():
+		rules = load_rules()
+	if rules.is_empty():
+		return ["the map rules are missing"]
+	if map.is_empty() or not map.has("floors"):
+		return ["there is no map"]
+	var floors = map["floors"]
+	var n = int(rules["floors"])
+	if floors.size() != n:
+		return ["expected %d floors, got %d" % [n, floors.size()]]
+	var problems = []
+	var counts = {}
+	for f in range(n):
+		_validate_floor(floors, f, rules, counts, problems)
+	for t in rules["types"]:
+		var cap = rules["types"][t].get("max_per_map")
+		if cap != null and int(counts.get(t, 0)) > int(cap):
+			problems.append("%d '%s' nodes, the most allowed is %d" % [counts[t], t, int(cap)])
+	var boss_floors = 0
+	for key in rules["fixed_floors"]:
+		if str(rules["fixed_floors"][key].get("kind", "")) == "boss":
+			boss_floors += 1
+	if int(counts.get("boss", 0)) != boss_floors:
+		problems.append(
+			"expected %d boss nodes, got %d" % [boss_floors, int(counts.get("boss", 0))]
+		)
+	_validate_reach(floors, problems)
+	_validate_content(map, rules, problems)
+	return problems
+
+
+# The content part of validate(): a map whose nodes have no "content" (rules without a content section) is
+# skipped. A fight with no riders or no open gate could never be finished, so the map could not be completed.
+static func _validate_content(map: Dictionary, rules: Dictionary, problems: Array) -> void:
+	if not rules.has("content"):
+		return
+	var gates = int(map.get("gates", -1))
+	if gates < 0:
+		problems.append("the map has no gate count, so its content cannot be checked")
+		return
+	var floors = map["floors"]
+	for f in range(floors.size()):
+		for i in range(floors[f].size()):
+			var node = floors[f][i]
+			var where = "floor %d lane %d" % [f + 1, i]
+			var c = node.get("content")
+			if typeof(c) != TYPE_DICTIONARY:
+				problems.append("%s has no content" % where)
+				continue
+			var t = str(node.get("type", ""))
+			if not MapContent.is_fight(t):
+				if not c.has("seed"):
+					problems.append("%s (%s) has no seed in its content" % [where, t])
+				continue
+			var riders = c.get("riders", {})
+			if int(riders.get("count", 0)) < 1:
+				problems.append("%s is a fight with no riders" % where)
+			var sum = 0
+			for kind in riders.get("mix", {}):
+				sum += int(riders["mix"][kind])
+			if sum != int(riders.get("count", 0)):
+				problems.append("%s rider mix does not add up to its rider count" % where)
+			var open = c.get("gates", [])
+			if open.size() < 1:
+				problems.append("%s has no open gate, riders could not enter" % where)
+			for g in open:
+				if int(g) < 0 or int(g) >= gates:
+					problems.append("%s opens gate %d, the arena has %d" % [where, int(g), gates])
+			if t == "boss" and str(c.get("boss", "")) == "":
+				problems.append("%s is a boss node with no boss kind" % where)
+
+
+# one floor of validate(): node count, types, edges, crossing and the fixed-floor rules
+static func _validate_floor(
+	floors: Array, f: int, rules: Dictionary, counts: Dictionary, problems: Array
+) -> void:
+	var nodes = floors[f]
+	var n = floors.size()
+	var spec = rules["fixed_floors"].get(str(f + 1))
+	var wmin = int(rules["width"]["min"])
+	var wmax = int(rules["width"]["max"])
+	if spec != null:
+		wmin = int(spec.get("width", spec.get("width_min", wmin)))
+		wmax = int(spec.get("width", spec.get("width_max", wmax)))
+	if nodes.size() < wmin or nodes.size() > wmax:
+		problems.append(
+			"floor %d has %d nodes, expected %d to %d" % [f + 1, nodes.size(), wmin, wmax]
+		)
+	var seen_types = {}
+	var max_out = int(rules.get("max_edges_out", 2))
+	var restricted = rules.get("no_repeat_along_edge", [])
+	var last_j = -1  # right-most lane the edges of the lanes to the left reached (crossing check)
+	for i in range(nodes.size()):
+		var t = str(nodes[i].get("type", ""))
+		counts[t] = int(counts.get(t, 0)) + 1
+		seen_types[t] = true
+		var row = rules["types"].get(t)
+		if row == null and t != "boss":
+			problems.append("floor %d lane %d has unknown type '%s'" % [f + 1, i, t])
+		if spec != null and not spec["types"].has(t):
+			problems.append("floor %d lane %d is '%s', not allowed there" % [f + 1, i, t])
+		if spec == null and row != null and f + 1 < int(row["min_floor"]):
+			problems.append("floor %d lane %d is '%s' before its first floor" % [f + 1, i, t])
+		var nexts = nodes[i].get("next", [])
+		if f == n - 1:
+			if nexts.size() != 0:
+				problems.append("the final boss (floor %d lane %d) has edges" % [f + 1, i])
+			continue
+		if nexts.size() < 1:
+			problems.append("floor %d lane %d has no edge up (a dead end)" % [f + 1, i])
+		if nodes.size() > 1 and nexts.size() > max_out:
+			problems.append(
+				(
+					"floor %d lane %d has %d edges, the most allowed is %d"
+					% [f + 1, i, nexts.size(), max_out]
+				)
+			)
+		for k in range(nexts.size()):
+			var j = int(nexts[k])
+			if j < 0 or j >= floors[f + 1].size():
+				problems.append(
+					(
+						"floor %d lane %d has an edge to a lane that does not exist on floor %d"
+						% [f + 1, i, f + 2]
+					)
+				)
+				continue
+			if k > 0 and j <= int(nexts[k - 1]):
+				problems.append("floor %d lane %d has its edges out of order" % [f + 1, i])
+			if j < last_j:
+				problems.append("edges cross between floor %d and floor %d" % [f + 1, f + 2])
+			last_j = maxi(last_j, j)
+			if restricted.has(t) and str(floors[f + 1][j].get("type", "")) == t:
+				problems.append(
+					"floor %d lane %d and the node it joins are both '%s'" % [f + 1, i, t]
+				)
+	if spec == null:
+		return
+	if spec.get("need_each", false) and nodes.size() >= spec["types"].size():
+		for t in spec["types"]:
+			if not seen_types.has(t):
+				problems.append("prep floor %d has no '%s' node" % [f + 1, t])
+	if (
+		spec.get("kind", "") == "boss"
+		and (nodes.size() != 1 or str(nodes[0].get("type", "")) != "boss")
+	):
+		problems.append("boss floor %d must hold exactly one boss node" % (f + 1))
+
+
+# every node reachable from floor 1 and able to reach the final floor; edges to lanes that do not exist are
+# skipped here (the floor check names them)
+static func _validate_reach(floors: Array, problems: Array) -> void:
+	var n = floors.size()
+	var up = []  # up[f][i]: node i of floor f can be reached from floor 1
+	for f in range(n):
+		var row = []
+		row.resize(floors[f].size())
+		row.fill(f == 0)
+		up.append(row)
+	for f in range(n - 1):
+		for i in range(floors[f].size()):
+			if up[f][i]:
+				for j in floors[f][i].get("next", []):
+					if int(j) >= 0 and int(j) < up[f + 1].size():
+						up[f + 1][int(j)] = true
+	var down = []  # down[f][i]: node i of floor f can reach the final floor
+	for f in range(n):
+		var row = []
+		row.resize(floors[f].size())
+		row.fill(f == n - 1)
+		down.append(row)
+	for f in range(n - 2, -1, -1):
+		for i in range(floors[f].size()):
+			for j in floors[f][i].get("next", []):
+				if int(j) >= 0 and int(j) < down[f + 1].size() and down[f + 1][int(j)]:
+					down[f][i] = true
+	for f in range(n):
+		for i in range(floors[f].size()):
+			if not up[f][i]:
+				problems.append("floor %d lane %d cannot be reached from floor 1" % [f + 1, i])
+			if not down[f][i]:
+				problems.append("floor %d lane %d cannot reach the final boss" % [f + 1, i])
+
+
 # ---------------------------------------------------------------- internals
-static func _rng(run_seed: int, part: String) -> RandomNumberGenerator:
+static func _rng(run_seed: int, part: String, attempt: int = 0) -> RandomNumberGenerator:
 	var rng = RandomNumberGenerator.new()
-	rng.seed = DailyScript.stream_seed(run_seed, 0, part)
+	if attempt == 0:
+		rng.seed = DailyScript.stream_seed(run_seed, 0, part)
+	else:
+		rng.seed = DailyScript.stream_seed(run_seed, attempt, "map_retry:" + part)
 	return rng
 
 
