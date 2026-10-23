@@ -101,7 +101,12 @@ var daily_label = ""  # title-screen text for the above
 var daily_mode = false  # true while a Daily Run is in progress (own scoreboard later, no normal high score)
 var custom_seed_run = false  # true while a run with a seed typed in on the title screen is in progress (kept off the normal high score and Top 10, like a Daily Run; a restart replays the same seed)
 var run_seed = 0  # the seed this run started with: today's daily seed in a Daily Run, a random one in a normal run
-var run_map = {}  # the run map generated from run_seed (map_gen.gd); rounds do not follow it yet, it is only logged
+var run_map = {}  # the run map generated from run_seed (map_gen.gd); the run walks it one node per round (see "run map walk" below)
+var map_floor = -1  # floor index (0-based) of the node being played, -1 before the first pick
+var map_lane = 0  # lane of the node being played
+var map_path = []  # the lane taken on every floor so far, in order (map_path[f] is the lane on floor f)
+var map_choices = []  # on the map screen: the lanes of the next floor the player may pick
+var map_sel = 0  # highlighted entry of map_choices (keyboard / gamepad / mouse hover)
 var rider_rng = RandomNumberGenerator.new()  # which riders spawn, reseeded from the run seed at the start of every round
 var hearts = 3
 var combo = 0
@@ -646,6 +651,13 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	print(MapGenScript.to_text(run_map))
 	print(MapGenScript.content_text(run_map))
 	round_n = 1
+	map_floor = -1
+	map_lane = 0
+	map_path = []
+	map_choices = []
+	map_sel = 0
+	if not run_map.is_empty():
+		MAX_ROUNDS = run_map["floors"].size()  # a run is one node on every floor of the map
 	score = 0
 	hearts = MAXHEARTS
 	combo = 0
@@ -667,7 +679,76 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	pitch = 0.0
 	player.position = arena.start_position()
 	pvel = Vector3.ZERO
+	if run_map.is_empty():
+		start_round()  # no map (it could not be generated): play the rounds in a line, as before
+	else:
+		enter_map()
+
+
+# ---- run map walk. The run walks the map from floor 1 to the final boss, one node per round, and picks the
+# next node on the map screen (state "map"). The floor number is the round number, so everything that grows with
+# the round (rider speed, prices, boss strength) is unchanged. What each node TYPE does (elite, shop, event, rest,
+# boss) is still the old round: those are the next roadmap items, so for now the type is only shown.
+const NODE_NAMES = {
+	"normal": "NORMAL FIGHT",
+	"elite": "ELITE FIGHT",
+	"shop": "SHOP",
+	"event": "EVENT",
+	"rest": "REST STOP",
+	"boss": "BOSS"
+}
+
+
+# the node being played, or {} before the first pick or when there is no map
+func current_node() -> Dictionary:
+	if run_map.is_empty() or map_floor < 0 or map_floor >= run_map["floors"].size():
+		return {}
+	return run_map["floors"][map_floor][map_lane]
+
+
+# the lanes of the next floor the player may pick: every node of floor 1 at the start, otherwise the nodes the
+# current one connects to
+func next_lanes() -> Array:
+	var out = []
+	if run_map.is_empty() or map_floor + 1 >= run_map["floors"].size():
+		return out
+	if map_floor < 0:
+		for i in range(run_map["floors"][0].size()):
+			out.append(i)
+	else:
+		for j in current_node()["next"]:
+			out.append(int(j))
+	return out
+
+
+# opens the map screen with the choices for the next round
+func enter_map() -> void:
+	map_choices = next_lanes()
+	map_sel = 0
+	state = "map"
+	state_t = 0.0
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+# plays the i-th choice of the map screen as the next round
+func pick_node(i: int) -> void:
+	if state != "map" or i < 0 or i >= map_choices.size():
+		return
+	map_lane = int(map_choices[i])
+	map_floor += 1
+	map_path.append(map_lane)
+	round_n = map_floor + 1
+	sfx.play("click")
 	start_round()
+
+
+# between rounds, after the shop: on to the map screen (or the next round of a linear run)
+func next_round() -> void:
+	if run_map.is_empty():
+		round_n += 1
+		start_round()
+	else:
+		enter_map()
 
 
 func clear_riders() -> void:
@@ -1103,7 +1184,7 @@ func update_game(dt: float) -> void:
 	if state == "play":
 		play_time += dt
 		round_t += dt
-	elif state == "clear" or state == "upgrade" or state == "shop":
+	elif state == "clear" or state == "upgrade" or state == "shop" or state == "map":
 		shop_time += dt
 	if invuln > 0.0:
 		invuln -= dt
