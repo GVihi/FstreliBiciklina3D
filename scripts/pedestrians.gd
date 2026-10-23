@@ -183,6 +183,7 @@ func hit_civ(c: Dictionary) -> void:
 	c["t"] = 0.0
 	c["hop"] = 0.0
 	g.hearts -= 1
+	g.round_lives_lost += 1
 	g.combo = 0
 	g.civs_hit += 1
 	g.hit_marker = 0.18

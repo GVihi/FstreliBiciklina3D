@@ -24,6 +24,8 @@ const GATE_DEPTH = 2.0  # metres inside the tunnel a rider starts, and the depth
 const OBSTACLE_BRAKE = 2.3  # per second: a rider with free ground ahead of L metres rides no faster than this times L
 const BRAKE_MIN_SPEED = 3.0  # metres per second: the slowest it brakes to for something close ahead
 const AWAY_REACH = 2.0  # metres from the exit point at which a rider that gave up counts as out
+const NEVER_GIVES_UP = 1.0e9  # seconds: the time limit of a rider that cannot get away (g.riders_can_escape())
+const AGE_SPEED_CAP = 6.0  # seconds: the longest a rider speeds up for, where it has no time limit
 const AWAY_MIN_SPEED = 8.0  # metres per second: the slowest a rider that gave up goes to make its turn
 
 var g = null
@@ -107,6 +109,8 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 		"throw_t": randf_range(0.5, 1.4),
 		"wind_t": 0.0
 	}
+	if not g.riders_can_escape():
+		r["limit"] = NEVER_GIVES_UP
 	g.next_idx += 1
 	g.riders.append(r)
 	r["hidden"] = is_hidden(r["pos"])
@@ -367,7 +371,10 @@ func update_rider(r: Dictionary, dt: float) -> void:
 			else:
 				r["tgt"] = r["base"] * randf_range(0.7, 1.4)
 				r["chg"] = randf_range(0.5, 1.3)
-		var mul = 1.0 + r["age"] * 0.08
+		# a rider that never gives up must not keep speeding up for ever
+		var mul = (
+			1.0 + minf(r["age"], AGE_SPEED_CAP if r["limit"] >= NEVER_GIVES_UP else INF) * 0.08
+		)
 		r["spd"] += (r["tgt"] * mul - r["spd"]) * minf(1.0, dt * 3.0)
 		move_rider(r, dt)  # riders keep circling: through the tunnel and round again
 		if not r["entered"] and not r["hidden"]:
