@@ -46,6 +46,7 @@ func _init() -> void:
 			break
 	_check_validator(rules)
 	_check_retry(rules)
+	_check_content_streams(rules)
 	if problems.is_empty():
 		print(
 			(
@@ -383,3 +384,31 @@ func _check_retry(rules: Dictionary) -> void:
 	hopeless["test_invalid_attempts"] = int(rules.get("max_attempts", 8))
 	if not MapGen.generate(5, hopeless, _gates_for(5)).is_empty():
 		_fail(5, "a map was returned although every attempt was invalid")
+
+
+# The content must not change the map: the floors, edges and types are the same with and without the "content"
+# rules. And with no gate count given, the map uses the gate count of the real arena layout of the same seed.
+func _check_content_streams(rules: Dictionary) -> void:
+	var plain = rules.duplicate(true)
+	plain.erase("content")
+	for n in range(40):
+		var seed_value = n * 104729 + 17
+		var with_content = MapGen.generate(seed_value, rules, _gates_for(seed_value))
+		var without = MapGen.generate(seed_value, plain)
+		if JSON.stringify(_shape(with_content)) != JSON.stringify(_shape(without)):
+			_fail(seed_value, "adding the content changed the floors, edges or types")
+		var layout = ArenaGen.generate(seed_value)
+		var real = MapGen.generate(seed_value, rules)
+		if layout.is_empty() or int(real.get("gates", -1)) != layout["gates"].size():
+			_fail(seed_value, "the map's gate count is not the arena layout's gate count")
+
+
+# the map without its "content" entries: types and edges only
+func _shape(map: Dictionary) -> Array:
+	var out = []
+	for floor_nodes in map["floors"]:
+		var row = []
+		for node in floor_nodes:
+			row.append([node["type"], node["next"]])
+		out.append(row)
+	return out
