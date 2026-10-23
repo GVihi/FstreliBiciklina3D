@@ -20,6 +20,8 @@ func _init(game) -> void:
 
 
 func spawn_civ(init_x: float = 9999.0) -> void:
+	if g.arena.rider_pursuit():
+		return  # a generated arena has no street to walk along: pedestrians are placed on it in a later step
 	var kind = g.pick_one(["walker", "granny", "jogger", "tourist"])
 	var dir = 1 if randf() < 0.5 else -1
 	var spd = 0.0
