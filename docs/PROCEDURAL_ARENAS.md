@@ -120,5 +120,5 @@ Where an arena says `rider_pursuit()` (the roundabout does not), `move_rider` in
 
 - This is the biggest change on the roadmap: it replaces how everything moves. Step 1 and step 2 first, with the roundabout still working, keep the game playable at every point.
 - Riders steering over open ground need pursuit, smooth turning and obstacle avoidance that are cheap enough for the minimum-spec machine, with up to ten riders and bosses at once. A rider that turns in an arc must not clip buildings or props while doing it.
-- Boss attacks are drawn in street space as lane strips and slam circles; they need to be redone for open ground.
+- Boss attacks: strips and slam circles are in world space already. On open ground a boss steers round obstacles, attacks only with a clear line and a slam does not go through walls (`open_ground()` in `scripts/bosses.gd`). Still open: no path search, so a boss can get stuck in a U-shaped dead end.
 - Four times the area costs frame time; step 8 exists for this, and the budget question above should come first.
