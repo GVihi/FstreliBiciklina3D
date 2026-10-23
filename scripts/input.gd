@@ -92,7 +92,9 @@ func handle_input(event: InputEvent) -> void:
 			pause_move(1)
 			confirm_move()
 		elif kc == KEY_1 or kc == KEY_KP_1:
-			if g.state == "upgrade":
+			if g.state == "map" and g.state_t > 0.3:
+				g.pick_node(0)
+			elif g.state == "upgrade":
 				if g.state_t > 0.35:
 					g.shop_sys.pick_upgrade(0)
 			elif g.state == "shop":
@@ -100,7 +102,9 @@ func handle_input(event: InputEvent) -> void:
 			elif g.state == "play":
 				toggle_weapon(false)
 		elif kc == KEY_2 or kc == KEY_KP_2:
-			if g.state == "upgrade":
+			if g.state == "map" and g.state_t > 0.3:
+				g.pick_node(1)
+			elif g.state == "upgrade":
 				if g.state_t > 0.35:
 					g.shop_sys.pick_upgrade(1)
 			elif g.state == "shop":
@@ -108,7 +112,9 @@ func handle_input(event: InputEvent) -> void:
 			elif g.state == "play":
 				toggle_weapon(true)
 		elif kc == KEY_3 or kc == KEY_KP_3:
-			if g.state == "upgrade" and g.state_t > 0.35:
+			if g.state == "map" and g.state_t > 0.3:
+				g.pick_node(2)
+			elif g.state == "upgrade" and g.state_t > 0.35:
 				g.shop_sys.pick_upgrade(2)
 			elif g.state == "shop":
 				g.shop_sys.buy(2)
@@ -203,14 +209,19 @@ func on_pad_button(btn: int) -> void:
 
 
 func menu_move(d: int) -> void:
-	if g.state == "upgrade":
+	if g.state == "map":
+		g.map_sel = posmod(g.map_sel + d, maxi(1, g.map_choices.size()))
+	elif g.state == "upgrade":
 		g.menu_sel = posmod(g.menu_sel + d, maxi(1, g.offers.size()))
 	elif g.state == "shop":
 		g.menu_sel = posmod(g.menu_sel + d, maxi(1, g.shop_items.size()))
 
 
 func menu_confirm() -> void:
-	if g.state == "title":
+	if g.state == "map":
+		if g.state_t > 0.3:
+			g.pick_node(g.map_sel)
+	elif g.state == "title":
 		title_activate(g.title_sel)
 	elif g.state == "play" and g.paused:
 		pause_activate(g.pause_sel)
@@ -307,6 +318,10 @@ func hover_menu(pos: Vector2) -> void:
 	var ci = g.hud.confirm_at(pos)
 	if ci >= 0:
 		g.confirm_sel = ci
+	if g.state == "map":
+		var mi = g.hud.map_choice_at(pos)
+		if mi >= 0:
+			g.map_sel = mi
 
 
 # ---- title screen menu (entries are listed in hud.gd TITLE_ITEMS)
@@ -428,6 +443,9 @@ func on_click() -> void:
 			var ti = g.hud.title_at(mp)
 			if ti >= 0:
 				title_activate(ti)
+	elif g.state == "map":
+		if g.state_t > 0.3:
+			g.pick_node(g.hud.map_choice_at(g.get_viewport().get_mouse_position()))
 	elif g.state == "clear" and g.state_t > 0.8:
 		g.shop_sys.enter_upgrade()
 	elif g.state == "upgrade" and g.state_t > 0.35:

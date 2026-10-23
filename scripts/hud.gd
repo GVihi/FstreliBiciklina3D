@@ -546,6 +546,136 @@ func _draw_title_page(k: float, cx: float) -> void:
 	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.78, int(18 * k), GRAY, 1)
 
 
+# ---------------------------------------------------------------- run map screen (state "map")
+const MAP_COLORS = {
+	"normal": Color("#7FB069"),
+	"elite": Color("#D1495B"),
+	"shop": Color("#EDAE49"),
+	"event": Color("#00A6A6"),
+	"rest": Color("#6C9BD2"),
+	"boss": Color("#8E44AD"),
+}
+const MAP_LETTERS = {
+	"normal": "N", "elite": "E", "shop": "S", "event": "?", "rest": "R", "boss": "B"
+}
+
+
+# Where the node of floor f (0-based) and lane i is drawn: floor 1 at the bottom, the final boss at the top,
+# lanes spread left to right around the left-middle of the screen (the info panel is on the right).
+func map_node_pos(f: int, i: int) -> Vector2:
+	var k = size.y / 720.0
+	var floors = g.run_map["floors"]
+	var top = size.y * 0.2
+	var bottom = size.y * 0.84
+	var steps = maxi(1, floors.size() - 1)
+	var x = size.x * 0.4 + (float(i) - float(floors[f].size() - 1) * 0.5) * 120.0 * k
+	var y = bottom - (bottom - top) * float(f) / float(steps)
+	return Vector2(x, y)
+
+
+# which entry of g.map_choices is under the mouse, or -1
+func map_choice_at(pos: Vector2) -> int:
+	if g == null or g.state != "map" or g.run_map.is_empty():
+		return -1
+	var k = size.y / 720.0
+	for idx in range(g.map_choices.size()):
+		if map_node_pos(g.map_floor + 1, int(g.map_choices[idx])).distance_to(pos) <= 28.0 * k:
+			return idx
+	return -1
+
+
+func _draw_map_screen(k: float, cx: float) -> void:
+	_dim(0.84)
+	var floors = g.run_map["floors"]
+	_txt("CHOOSE YOUR NEXT STOP", cx, size.y * 0.09, int(46 * k), GOLD, 1)
+	var next_f = g.map_floor + 1
+	# edges: grey, the path taken in gold, the edges you can take now in white
+	for f in range(floors.size() - 1):
+		for i in range(floors[f].size()):
+			var a = map_node_pos(f, i)
+			for j in floors[f][i]["next"]:
+				var b = map_node_pos(f + 1, int(j))
+				var col = Color(1, 1, 1, 0.16)
+				var width = 2.0 * k
+				if f < g.map_path.size() - 1 and g.map_path[f] == i and g.map_path[f + 1] == int(j):
+					col = GOLD
+					width = 5.0 * k
+				elif f == g.map_floor and i == g.map_lane and g.map_choices.has(int(j)):
+					col = Color(1, 1, 1, 0.8)
+					width = 3.0 * k
+				draw_line(a, b, col, width, true)
+	if g.map_floor < 0:
+		for i in g.map_choices:
+			draw_line(
+				map_node_pos(0, int(i)) + Vector2(0.0, 50.0 * k),
+				map_node_pos(0, int(i)),
+				Color(1, 1, 1, 0.8),
+				3.0 * k,
+				true
+			)
+	var pulse = 0.5 + 0.5 * sin(g.time * 5.0)
+	for f in range(floors.size()):
+		_txt(
+			"%d" % (f + 1),
+			map_node_pos(f, 0).x - 130.0 * k - float(floors[f].size() - 1) * 60.0 * k,
+			map_node_pos(f, 0).y + 6.0 * k,
+			int(16 * k),
+			GRAY,
+			2
+		)
+		for i in range(floors[f].size()):
+			var p = map_node_pos(f, i)
+			var t = str(floors[f][i]["type"])
+			var fill = MAP_COLORS.get(t, GRAY)
+			var taken = f < g.map_path.size() and g.map_path[f] == i
+			var choice = f == next_f and g.map_choices.has(i)
+			var picked = choice and g.map_choices[g.map_sel] == i
+			var r = 20.0 * k
+			if not taken and not choice:
+				fill = fill.darkened(0.6)
+			if taken:
+				draw_circle(p, r + 5.0 * k, GOLD)
+			elif picked:
+				draw_circle(p, r + (6.0 + 3.0 * pulse) * k, TEXT)
+			elif choice:
+				draw_circle(p, r + 4.0 * k, Color(1, 1, 1, 0.6))
+			else:
+				draw_circle(p, r + 2.0 * k, Color(0, 0, 0, 0.6))
+			draw_circle(p, r, fill)
+			_txt(MAP_LETTERS.get(t, "-"), p.x, p.y + 7.0 * k, int(20 * k), Color.BLACK, 1)
+	# the panel on the right: what the highlighted choice is
+	var px = size.x * 0.68
+	if g.map_choices.size() > 0:
+		var node = floors[next_f][g.map_choices[g.map_sel]]
+		var t = str(node["type"])
+		_txt("FLOOR %d OF %d" % [next_f + 1, floors.size()], px, size.y * 0.3, int(18 * k), GRAY)
+		_txt(
+			g.NODE_NAMES.get(t, t.to_upper()),
+			px,
+			size.y * 0.38,
+			int(34 * k),
+			MAP_COLORS.get(t, TEXT)
+		)
+		if t == "boss":
+			_txt(
+				"THE FINAL BOSS" if next_f + 1 == floors.size() else "A BOSS GUARDS THIS FLOOR",
+				px,
+				size.y * 0.44,
+				int(18 * k),
+				TEXT
+			)
+		_txt("ROUND %d" % (next_f + 1), px, size.y * 0.5, int(18 * k), TEXT)
+	_txt(
+		"LEFT / RIGHT OR MOUSE TO CHOOSE   ENTER OR CLICK TO GO   1-3 PICKS DIRECTLY",
+		cx,
+		size.y * 0.93,
+		int(14 * k),
+		GRAY,
+		1
+	)
+	_txt("(NODE TYPES DO NOT CHANGE THE ROUND YET)", cx, size.y * 0.965, int(12 * k), GRAY, 1)
+
+
 # ---------------------------------------------------------------- pause menu
 const PAUSE_ITEMS = [
 	{"id": "resume", "label": "RESUME"},
@@ -891,6 +1021,8 @@ func _draw() -> void:
 		_draw_upgrade(k)
 	elif state == "shop":
 		_draw_shop(k)
+	elif state == "map":
+		_draw_map_screen(k, cx)
 
 	if g.paused:
 		if g.pause_page == "settings":

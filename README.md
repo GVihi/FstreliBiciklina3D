@@ -175,7 +175,7 @@ Mostly vibe coded Godot game
 
 ## Run Structure
 
-- [ ] Replace linear round progression
+- [x] Replace linear round progression (a run starts on a map screen and walks the generated map one node per round: pick the next node (Left / Right or mouse, Enter or click, 1-3), play it, upgrade and shop, back to the map, until the final boss floor; the floor number is the round number so difficulty scaling is unchanged, and `MAX_ROUNDS` follows the map; a run without a map still goes in a line; `enter_map` / `pick_node` / `next_round` in `scripts/main.gd`, `_draw_map_screen` in `scripts/hud.gd`, see `docs/MAP_GENERATION.md`. What each node type DOES is the list below and still open: for now every node plays the ordinary round and the type is only shown. NOT RUN YET: written in a session without Godot, only gdformat and gdlint were run, so play a run and run `godot --headless --path . --script res://tools/map_walk_check.gd`)
 
 ### Map Nodes
 

@@ -310,8 +310,7 @@ func enter_shop() -> void:
 func leave_shop() -> void:
 	if g.state != "shop":
 		return
-	g.round_n += 1
-	g.start_round()
+	g.next_round()
 
 
 func buy(i: int) -> void:
