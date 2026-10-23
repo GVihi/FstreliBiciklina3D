@@ -72,6 +72,7 @@ func spawn_civ(init_x: float = 9999.0) -> void:
 		"yaw": g.arena.yaw(x0) + (0.0 if dir > 0 else PI),  # the way it faces and walks (also its hit box)
 		"hidden": g.arena.hidden(x0),  # inside the tunnel block: not visible, not hittable
 		"avoid_side": 1.0,  # which way it last swung round an obstacle
+		"open": open,  # which kind of arena it was made for: one made for the other kind is dropped (update_civs)
 		"goal": {},  # open ground: the gate it walks to and leaves through
 		"entered": false,  # open ground: true once it has come out of the gate it started in
 		"left": street_left(x0, dir),  # street metres still to walk before it is out of the arena
@@ -193,6 +194,10 @@ func update_civs(dt: float) -> void:
 			spawn_civ()
 	for i in range(g.civs.size() - 1, -1, -1):
 		var c = g.civs[i]
+		if c["open"] != g.arena.rider_pursuit():
+			c["model"]["root"].queue_free()  # made for the other kind of arena (the arena was swapped under it)
+			g.civs.remove_at(i)
+			continue
 		c["t"] += dt
 		if c["flinch"] > 0.0:
 			c["flinch"] -= dt
