@@ -67,7 +67,8 @@ func _world_gates() -> Array:
 const MARGINS = {"player": 0.45, "boss": 0.3, "pickup": 1.0}
 const SOLID_HEIGHT = 6.5  # metres: the lowest building or tunnel block; a dart above it is not stopped here
 const SLIDE_STEP = 0.25  # metres between the rings searched for the nearest free point
-const SLIDE_MAX = 8.0  # metres: how far from a blocked point the search goes
+const SLIDE_MAX = 8.0  # metres: out to here the search rings are fine (SLIDE_STEP apart)
+const SLIDE_COARSE_STEP = 1.0  # metres between rings, and along them, beyond SLIDE_MAX
 
 
 # true if the cell under p is ground someone on foot can stand on (not a building or a tunnel block)
@@ -99,32 +100,31 @@ func clamp_walk(p: Vector3, who: String = "player") -> Vector3:
 	if _clear(at, margin):
 		return at
 	p = at
+	# Search rings of growing radius for the nearest free point. Close to the point the rings are fine (a wall
+	# edge is found to a quarter of a metre); a point deep inside a thick block at the edge may have to go
+	# further, where the rings get coarser so the search stays cheap (it is rare, and only runs for such points).
+	var reach = float(layout["cells"]) * float(layout["cell"]) * 1.5
+	var home = start_position()
 	var r = SLIDE_STEP
-	while r <= SLIDE_MAX:
-		var n = maxi(8, int(ceil(TAU * r / SLIDE_STEP)))
+	while r <= reach:
+		var step = SLIDE_STEP if r <= SLIDE_MAX else SLIDE_COARSE_STEP
+		var n = maxi(8, int(ceil(TAU * r / step)))
 		var best = Vector3.ZERO
 		var best_d = INF
 		for k in range(n):
 			var a = TAU * float(k) / float(n)
 			var q = Vector3(p.x + cos(a) * r, p.y, p.z + sin(a) * r)
 			if _clear(q, margin):
-				# among the free points on this ring take the one nearest the way the point was going
-				var d = Vector2(q.x - p.x, q.z - p.z).length()
+				# on a ring every free point is as near as the next; take the one nearest the start so a
+				# knock-back out of a wall ends up on the side the player can reach
+				var d = Vector2(q.x - home.x, q.z - home.z).length()
 				if d < best_d:
 					best_d = d
 					best = q
 		if best_d < INF:
 			return best
-		r += SLIDE_STEP
-	# deep inside a wall (a thick block at the edge): walk the point towards the start until it is free
-	var home = start_position()
-	var dist = Vector2(home.x - p.x, home.z - p.z).length()
-	var t = 0.0
-	while t < dist:
-		t += 0.5
-		var q = Vector3(p.x, p.y, p.z).move_toward(Vector3(home.x, p.y, home.z), t)
-		if _clear(q, margin):
-			return q
+		r += step
+	# nothing free anywhere in reach (not possible on a layout that passed validation): go to the start
 	return home
 
 
