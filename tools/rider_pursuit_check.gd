@@ -127,9 +127,9 @@ func _check_spawn() -> String:
 				best_i = i
 		var gate = mock.gate_list[best_i]
 		seen_gate[best_i] = true
-		if absf(best - main.rider_sys.GATE_DEPTH) > 0.01:
+		if absf(best - main.rider_sys.GATE_SPAWN) > 0.01:
 			bad.append(
-				"a rider started %.2f m from a gate, not %.1f m" % [best, main.rider_sys.GATE_DEPTH]
+				"a rider started %.2f m from a gate, not %.1f m" % [best, main.rider_sys.GATE_SPAWN]
 			)
 		if not r["hidden"]:
 			bad.append("a rider started in the open, not inside the gate's tunnel")

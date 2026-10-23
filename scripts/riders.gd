@@ -20,7 +20,11 @@ const PURSUIT_ACCEL = 20.0  # metres per second squared, sideways
 const PURSUIT_MAX_TURN = 6.0  # radians per second
 const PASS_RANGE = 7.0  # metres: the player this close and behind means the rider has passed
 const OVERSHOOT = 9.0  # metres ridden straight on after a pass before turning back
-const GATE_DEPTH = 2.0  # metres inside the tunnel a rider starts, and the depth it rides out to (plus the mouth)
+# A gate's "pos" is the middle of its tunnel block, which is 4 m deep on a generated arena: the outer edge of the grid
+# is 2 m beyond it. A rider that starts exactly on that edge is outside the grid, where nothing can be ridden on
+# (rider_speed_at is 0), so it never moved: it started this far from pos instead, well inside the tunnel.
+const GATE_SPAWN = 1.0  # metres from a gate's pos towards the outside where a rider starts
+const GATE_DEPTH = 2.0  # metres: with the mouth, how far a rider that gave up rides out (see gate_exit_point)
 const OBSTACLE_BRAKE = 2.3  # per second: a rider with free ground ahead of L metres rides no faster than this times L
 const BRAKE_MIN_SPEED = 3.0  # metres per second: the slowest it brakes to for something close ahead
 const AWAY_REACH = 2.0  # metres from the exit point at which a rider that gave up counts as out
@@ -68,7 +72,7 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 	if g.arena.rider_pursuit():
 		# open ground: in a gate's tunnel, facing out of it; "dir" stays 1 so parts fly the way it rides
 		var gate = pick_gate()
-		start_pos = gate["pos"] + gate["outward"] * GATE_DEPTH
+		start_pos = gate_spawn_point(gate)
 		start_yaw = yaw_of(-gate["outward"])
 		dir = 1
 	var r = {
@@ -182,6 +186,11 @@ func nearest_gate(pos: Vector3) -> Dictionary:
 			best_d = d
 			best = gate
 	return best
+
+
+# where a rider starts at a gate: inside the tunnel, a little beyond its middle (see GATE_SPAWN)
+func gate_spawn_point(gate: Dictionary) -> Vector3:
+	return gate["pos"] + gate["outward"] * GATE_SPAWN
 
 
 # the point a rider that gave up rides at: the far end of its gate's tunnel
