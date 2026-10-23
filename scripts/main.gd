@@ -99,8 +99,14 @@ var daily_date = ""  # UTC date the daily seed belongs to, "YYYY-MM-DD"
 var daily_seed = 0  # same for every player on that date (daily.gd); a Daily Run uses it as its run seed
 var daily_label = ""  # title-screen text for the above
 var daily_mode = false  # true while a Daily Run is in progress (own scoreboard later, no normal high score)
+var custom_seed_run = false  # true while a run with a seed typed in on the title screen is in progress (kept off the normal high score and Top 10, like a Daily Run; a restart replays the same seed)
 var run_seed = 0  # the seed this run started with: today's daily seed in a Daily Run, a random one in a normal run
-var run_map = {}  # the run map generated from run_seed (map_gen.gd); rounds do not follow it yet, it is only logged
+var run_map = {}  # the run map generated from run_seed (map_gen.gd); the run walks it one node per round (see "run map walk" below)
+var map_floor = -1  # floor index (0-based) of the node being played, -1 before the first pick
+var map_lane = 0  # lane of the node being played
+var map_path = []  # the lane taken on every floor so far, in order (map_path[f] is the lane on floor f)
+var map_choices = []  # on the map screen: the lanes of the next floor the player may pick
+var map_sel = 0  # highlighted entry of map_choices (keyboard / gamepad / mouse hover)
 var rider_rng = RandomNumberGenerator.new()  # which riders spawn, reseeded from the run seed at the start of every round
 var hearts = 3
 var combo = 0
@@ -239,6 +245,7 @@ var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
 var confirm_id = ""  # what the confirmation asks about: "restart" or "title"
 var confirm_sel = 0  # highlighted confirmation button: 0 = NO (the safe default), 1 = YES
 var confirm_t0 = 0.0  # g.time when the confirmation opened; YES is ignored for a moment after (double clicks)
+var seed_buf = ""  # the hex digits typed on the custom seed page of the title screen (up to 8)
 var title_sel = 0  # highlighted title-menu entry (keyboard / gamepad)
 
 var cheerleaders = []
@@ -505,8 +512,14 @@ func set_setting(id: String, v) -> void:
 	settings.set_setting(id, v)
 
 
+# true when this run counts for the normal high score and Top 10: not a Daily Run and not a typed-in seed
+# (a seed everybody can replay would let one easy seed be farmed)
+func ranked_run() -> bool:
+	return not daily_mode and not custom_seed_run
+
+
 func hi_check() -> void:
-	if daily_mode:  # daily runs get their own scoreboard (not built yet), not the normal high score
+	if not ranked_run():  # daily and custom-seed runs stay off the normal high score
 		return
 	if score > hi:
 		hi = score
@@ -620,18 +633,31 @@ func abandon_run() -> void:
 	go_to_title()
 
 
-func start_game(daily: bool = false) -> void:
+# `daily`: a Daily Run (today's seed). `custom_seed`: 0 to 4294967295 to play that seed (typed in on the title
+# screen); -1 draws a random one.
+func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	reset_run()
 	meta.begin_run()
 	daily_mode = daily
+	custom_seed_run = not daily and custom_seed >= 0
 	if daily:
 		refresh_daily_seed()
 		run_seed = daily_seed
+	elif custom_seed_run:
+		run_seed = custom_seed & 0xFFFFFFFF
 	else:
 		run_seed = DailyScript.random_seed()
 	run_map = MapGenScript.generate(run_seed)
 	print(MapGenScript.to_text(run_map))
+	print(MapGenScript.content_text(run_map))
 	round_n = 1
+	map_floor = -1
+	map_lane = 0
+	map_path = []
+	map_choices = []
+	map_sel = 0
+	if not run_map.is_empty():
+		MAX_ROUNDS = run_map["floors"].size()  # a run is one node on every floor of the map
 	score = 0
 	hearts = MAXHEARTS
 	combo = 0
@@ -653,7 +679,76 @@ func start_game(daily: bool = false) -> void:
 	pitch = 0.0
 	player.position = arena.start_position()
 	pvel = Vector3.ZERO
+	if run_map.is_empty():
+		start_round()  # no map (it could not be generated): play the rounds in a line, as before
+	else:
+		enter_map()
+
+
+# ---- run map walk. The run walks the map from floor 1 to the final boss, one node per round, and picks the
+# next node on the map screen (state "map"). The floor number is the round number, so everything that grows with
+# the round (rider speed, prices, boss strength) is unchanged. What each node TYPE does (elite, shop, event, rest,
+# boss) is still the old round: those are the next roadmap items, so for now the type is only shown.
+const NODE_NAMES = {
+	"normal": "NORMAL FIGHT",
+	"elite": "ELITE FIGHT",
+	"shop": "SHOP",
+	"event": "EVENT",
+	"rest": "REST STOP",
+	"boss": "BOSS"
+}
+
+
+# the node being played, or {} before the first pick or when there is no map
+func current_node() -> Dictionary:
+	if run_map.is_empty() or map_floor < 0 or map_floor >= run_map["floors"].size():
+		return {}
+	return run_map["floors"][map_floor][map_lane]
+
+
+# the lanes of the next floor the player may pick: every node of floor 1 at the start, otherwise the nodes the
+# current one connects to
+func next_lanes() -> Array:
+	var out = []
+	if run_map.is_empty() or map_floor + 1 >= run_map["floors"].size():
+		return out
+	if map_floor < 0:
+		for i in range(run_map["floors"][0].size()):
+			out.append(i)
+	else:
+		for j in current_node()["next"]:
+			out.append(int(j))
+	return out
+
+
+# opens the map screen with the choices for the next round
+func enter_map() -> void:
+	map_choices = next_lanes()
+	map_sel = 0
+	state = "map"
+	state_t = 0.0
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+# plays the i-th choice of the map screen as the next round
+func pick_node(i: int) -> void:
+	if state != "map" or i < 0 or i >= map_choices.size():
+		return
+	map_lane = int(map_choices[i])
+	map_floor += 1
+	map_path.append(map_lane)
+	round_n = map_floor + 1
+	sfx.play("click")
 	start_round()
+
+
+# between rounds, after the shop: on to the map screen (or the next round of a linear run)
+func next_round() -> void:
+	if run_map.is_empty():
+		round_n += 1
+		start_round()
+	else:
+		enter_map()
 
 
 func clear_riders() -> void:
@@ -1089,7 +1184,7 @@ func update_game(dt: float) -> void:
 	if state == "play":
 		play_time += dt
 		round_t += dt
-	elif state == "clear" or state == "upgrade" or state == "shop":
+	elif state == "clear" or state == "upgrade" or state == "shop" or state == "map":
 		shop_time += dt
 	if invuln > 0.0:
 		invuln -= dt

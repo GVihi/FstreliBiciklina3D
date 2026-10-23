@@ -311,7 +311,7 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		_txt(rows[i][0], lx, y, int(20 * k), GRAY)
 		_txt(rows[i][1], rx, y, int(24 * k), rows[i][2], 2)
 	var uy = y0 + rows.size() * step + 14.0 * k
-	if g.score > 0 and g.score >= g.hi and not g.daily_mode:
+	if g.score > 0 and g.score >= g.hi and g.ranked_run():
 		_txt("NEW HIGH SCORE", cx, uy, int(24 * k), GOLD, 1)
 		uy += 34.0 * k
 	if g.last_rank >= 0:
@@ -349,6 +349,8 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	var seed_label = "RUN SEED  " + g.DailyScript.seed_text(g.run_seed)
 	if g.daily_mode:
 		seed_label = "DAILY RUN SEED  " + g.DailyScript.seed_text(g.run_seed)
+	elif g.custom_seed_run:
+		seed_label = "CUSTOM SEED  " + g.DailyScript.seed_text(g.run_seed) + "  (NOT RANKED)"
 	_txt(seed_label, cx, size.y * 0.975, int(14 * k), GRAY, 1)
 
 
@@ -356,6 +358,7 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 const TITLE_ITEMS = [
 	{"id": "play", "label": "PLAY"},
 	{"id": "daily", "label": "DAILY RUN"},
+	{"id": "seed", "label": "CUSTOM SEED"},
 	{"id": "loadout", "label": "LOADOUT", "soon": true},
 	{"id": "unlocks", "label": "UNLOCKS", "soon": true},
 	{"id": "scores", "label": "HIGH SCORES"},
@@ -371,8 +374,8 @@ const TITLE_PAGES = {
 func title_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var w = 320.0 * k
-	var h = 42.0 * k
-	return Rect2((size.x - w) * 0.5, size.y * 0.35 + i * (h + 8.0 * k), w, h)
+	var h = 38.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.35 + i * (h + 6.0 * k), w, h)
 
 
 func title_at(pos: Vector2) -> int:
@@ -393,7 +396,7 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		var on = g.title_sel == i  # the mouse updates title_sel in input.gd (hover_menu)
 		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
 		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
-		var base = r.position.y + 29.0 * k
+		var base = r.position.y + 27.0 * k
 		_txt(
 			item["label"], r.position.x + r.size.x * 0.5, base, int(22 * k), TEXT if on else GRAY, 1
 		)
@@ -466,16 +469,211 @@ func _draw_scores_page(k: float, cx: float) -> void:
 	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 
 
+# the START button of the custom seed page (the click is handled in input.gd)
+func seed_start_rect() -> Rect2:
+	var k = size.y / 720.0
+	return Rect2(size.x * 0.5 - 130.0 * k, size.y * 0.62, 260.0 * k, 46.0 * k)
+
+
+func _draw_seed_page(k: float, cx: float) -> void:
+	_txt("CUSTOM SEED", cx, size.y * 0.2, int(60 * k), GOLD, 1)
+	_txt(
+		"THE SEED DECIDES THE MAP, THE ARENA AND THE RIDERS.",
+		cx,
+		size.y * 0.29,
+		int(20 * k),
+		TEXT,
+		1
+	)
+	_txt(
+		"TYPE UP TO 8 DIGITS (0-9, A-F) OR PASTE WITH CTRL+V.",
+		cx,
+		size.y * 0.34,
+		int(16 * k),
+		GRAY,
+		1
+	)
+	var box = Rect2(cx - 190.0 * k, size.y * 0.42, 380.0 * k, 64.0 * k)
+	draw_rect(box, Color(0.13, 0.14, 0.16))
+	draw_rect(box, ACCENT, false, 3.0 * k)
+	var shown = g.seed_buf
+	if int(g.time * 2.0) % 2 == 0 and shown.length() < 8:
+		shown += "_"
+	_txt(shown, cx, box.position.y + 46.0 * k, int(40 * k), TEXT, 1)
+	_txt(
+		"E.G. 7F3A91C2    TODAY'S DAILY SEED IS " + g.DailyScript.seed_text(g.daily_seed),
+		cx,
+		size.y * 0.56,
+		int(14 * k),
+		GRAY,
+		1
+	)
+	var r = seed_start_rect()
+	var ready = g.seed_buf != ""
+	draw_rect(r, Color(0.176, 0.196, 0.22) if ready else Color(0.13, 0.14, 0.16))
+	draw_rect(r, ACCENT if ready else Color(0.29, 0.31, 0.33), false, 3.0 * k)
+	_txt("START", cx, r.position.y + 32.0 * k, int(24 * k), TEXT if ready else GRAY, 1)
+	_txt(
+		"A RUN ON A TYPED SEED IS NOT RANKED: NO HIGH SCORE AND NO TOP 10.",
+		cx,
+		size.y * 0.78,
+		int(14 * k),
+		GRAY,
+		1
+	)
+	_txt(
+		"ENTER OR CLICK START   ESC OR CLICK ELSEWHERE TO GO BACK",
+		cx,
+		size.y * 0.84,
+		int(18 * k),
+		GRAY,
+		1
+	)
+
+
 # placeholder pages for the screens that are still on the roadmap
 func _draw_title_page(k: float, cx: float) -> void:
 	if g.title_page == "scores":
 		_draw_scores_page(k, cx)
+		return
+	if g.title_page == "seed":
+		_draw_seed_page(k, cx)
 		return
 	var info = TITLE_PAGES.get(g.title_page, ["", ""])
 	_txt(info[0], cx, size.y * 0.24, int(60 * k), GOLD, 1)
 	_txt(info[1], cx, size.y * 0.34, int(20 * k), TEXT, 1)
 	_txt("COMING SOON", cx, size.y * 0.56, int(32 * k), ACCENT, 1)
 	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.78, int(18 * k), GRAY, 1)
+
+
+# ---------------------------------------------------------------- run map screen (state "map")
+const MAP_COLORS = {
+	"normal": Color("#7FB069"),
+	"elite": Color("#D1495B"),
+	"shop": Color("#EDAE49"),
+	"event": Color("#00A6A6"),
+	"rest": Color("#6C9BD2"),
+	"boss": Color("#8E44AD"),
+}
+const MAP_LETTERS = {
+	"normal": "N", "elite": "E", "shop": "S", "event": "?", "rest": "R", "boss": "B"
+}
+
+
+# Where the node of floor f (0-based) and lane i is drawn: floor 1 at the bottom, the final boss at the top,
+# lanes spread left to right around the left-middle of the screen (the info panel is on the right).
+func map_node_pos(f: int, i: int) -> Vector2:
+	var k = size.y / 720.0
+	var floors = g.run_map["floors"]
+	var top = size.y * 0.2
+	var bottom = size.y * 0.84
+	var steps = maxi(1, floors.size() - 1)
+	var x = size.x * 0.4 + (float(i) - float(floors[f].size() - 1) * 0.5) * 120.0 * k
+	var y = bottom - (bottom - top) * float(f) / float(steps)
+	return Vector2(x, y)
+
+
+# which entry of g.map_choices is under the mouse, or -1
+func map_choice_at(pos: Vector2) -> int:
+	if g == null or g.state != "map" or g.run_map.is_empty():
+		return -1
+	var k = size.y / 720.0
+	for idx in range(g.map_choices.size()):
+		if map_node_pos(g.map_floor + 1, int(g.map_choices[idx])).distance_to(pos) <= 28.0 * k:
+			return idx
+	return -1
+
+
+func _draw_map_screen(k: float, cx: float) -> void:
+	_dim(0.84)
+	var floors = g.run_map["floors"]
+	_txt("CHOOSE YOUR NEXT STOP", cx, size.y * 0.09, int(46 * k), GOLD, 1)
+	var next_f = g.map_floor + 1
+	# edges: grey, the path taken in gold, the edges you can take now in white
+	for f in range(floors.size() - 1):
+		for i in range(floors[f].size()):
+			var a = map_node_pos(f, i)
+			for j in floors[f][i]["next"]:
+				var b = map_node_pos(f + 1, int(j))
+				var col = Color(1, 1, 1, 0.16)
+				var width = 2.0 * k
+				if f < g.map_path.size() - 1 and g.map_path[f] == i and g.map_path[f + 1] == int(j):
+					col = GOLD
+					width = 5.0 * k
+				elif f == g.map_floor and i == g.map_lane and g.map_choices.has(int(j)):
+					col = Color(1, 1, 1, 0.8)
+					width = 3.0 * k
+				draw_line(a, b, col, width, true)
+	if g.map_floor < 0:
+		for i in g.map_choices:
+			draw_line(
+				map_node_pos(0, int(i)) + Vector2(0.0, 50.0 * k),
+				map_node_pos(0, int(i)),
+				Color(1, 1, 1, 0.8),
+				3.0 * k,
+				true
+			)
+	var pulse = 0.5 + 0.5 * sin(g.time * 5.0)
+	for f in range(floors.size()):
+		_txt(
+			"%d" % (f + 1),
+			map_node_pos(f, 0).x - 130.0 * k - float(floors[f].size() - 1) * 60.0 * k,
+			map_node_pos(f, 0).y + 6.0 * k,
+			int(16 * k),
+			GRAY,
+			2
+		)
+		for i in range(floors[f].size()):
+			var p = map_node_pos(f, i)
+			var t = str(floors[f][i]["type"])
+			var fill = MAP_COLORS.get(t, GRAY)
+			var taken = f < g.map_path.size() and g.map_path[f] == i
+			var choice = f == next_f and g.map_choices.has(i)
+			var picked = choice and g.map_choices[g.map_sel] == i
+			var r = 20.0 * k
+			if not taken and not choice:
+				fill = fill.darkened(0.6)
+			if taken:
+				draw_circle(p, r + 5.0 * k, GOLD)
+			elif picked:
+				draw_circle(p, r + (6.0 + 3.0 * pulse) * k, TEXT)
+			elif choice:
+				draw_circle(p, r + 4.0 * k, Color(1, 1, 1, 0.6))
+			else:
+				draw_circle(p, r + 2.0 * k, Color(0, 0, 0, 0.6))
+			draw_circle(p, r, fill)
+			_txt(MAP_LETTERS.get(t, "-"), p.x, p.y + 7.0 * k, int(20 * k), Color.BLACK, 1)
+	# the panel on the right: what the highlighted choice is
+	var px = size.x * 0.68
+	if g.map_choices.size() > 0:
+		var node = floors[next_f][g.map_choices[g.map_sel]]
+		var t = str(node["type"])
+		_txt("FLOOR %d OF %d" % [next_f + 1, floors.size()], px, size.y * 0.3, int(18 * k), GRAY)
+		_txt(
+			g.NODE_NAMES.get(t, t.to_upper()),
+			px,
+			size.y * 0.38,
+			int(34 * k),
+			MAP_COLORS.get(t, TEXT)
+		)
+		if t == "boss":
+			_txt(
+				"THE FINAL BOSS" if next_f + 1 == floors.size() else "A BOSS GUARDS THIS FLOOR",
+				px,
+				size.y * 0.44,
+				int(18 * k),
+				TEXT
+			)
+		_txt("ROUND %d" % (next_f + 1), px, size.y * 0.5, int(18 * k), TEXT)
+	_txt(
+		"LEFT / RIGHT OR MOUSE TO CHOOSE   ENTER OR CLICK TO GO   1-3 PICKS DIRECTLY",
+		cx,
+		size.y * 0.93,
+		int(14 * k),
+		GRAY,
+		1
+	)
+	_txt("(NODE TYPES DO NOT CHANGE THE ROUND YET)", cx, size.y * 0.965, int(12 * k), GRAY, 1)
 
 
 # ---------------------------------------------------------------- pause menu
@@ -815,7 +1013,7 @@ func _draw() -> void:
 			TEXT,
 			1
 		)
-		if g.score > 0 and g.score >= g.hi and not g.daily_mode:
+		if g.score > 0 and g.score >= g.hi and g.ranked_run():
 			_txt("NEW HIGH SCORE", cx, size.y * 0.58, int(24 * k), GOLD, 1)
 		if g.state_t > 0.8 and blink:
 			_txt("CLICK TO PICK AN UPGRADE", cx, size.y * 0.7, int(28 * k), TEXT, 1)
@@ -823,6 +1021,8 @@ func _draw() -> void:
 		_draw_upgrade(k)
 	elif state == "shop":
 		_draw_shop(k)
+	elif state == "map":
+		_draw_map_screen(k, cx)
 
 	if g.paused:
 		if g.pause_page == "settings":
@@ -875,6 +1075,8 @@ func _draw_top_bar(k: float) -> void:
 	var round_label = "ROUND %d/%d  %s" % [g.round_n, g.MAX_ROUNDS, g.THEMES[g.theme_idx]["name"]]
 	if g.daily_mode:
 		round_label += "  DAILY"
+	elif g.custom_seed_run:
+		round_label += "  SEED"
 	_txt(round_label, 300.0 * k, 17.0 * k, fs, GOLD)
 	for i in range(g.PER_ROUND):
 		var st = g.hits[i] if i < g.hits.size() else null
