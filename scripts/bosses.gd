@@ -82,6 +82,8 @@ func make_boss_dict(
 		"lcrash": false,
 		"lhit": false,
 		"chase_t": 0.0,
+		"side": 0.0,
+		"swerve": Vector3.ZERO,
 		"throw_t": 2.0,
 		"pat": "lunge",
 		"combo": 0,
@@ -93,6 +95,13 @@ func make_boss_dict(
 
 # extra health of the final boss on top of the normal per-round growth
 const FINAL_HP_MUL = 1.3
+
+# open ground: how far ahead a walking boss looks for something solid (metres), and how much room it keeps to
+# either side of its path
+const BOSS_LOOK = 4.0
+const BOSS_ROOM = 0.7
+# the red lane and the red circle sit this high on open ground, so the curbs (0.12 m) do not hide them
+const OPEN_MARK_Y = 0.14
 
 
 func spawn_boss() -> void:
@@ -291,6 +300,75 @@ func lunge_probe(wp: Vector3, d: Vector3, want: float) -> Vector2:
 	return Vector2(want, 0.0)
 
 
+# On an arena that asks riders to steer round obstacles (open ground with buildings), a boss does too: it walks
+# round them, only lines up an attack when nothing solid is between it and the player, and a slam does not
+# reach through a wall. The roundabout says no, so its bosses keep walking straight at the player and can
+# still be lured into a crash against the fountain.
+func open_ground() -> bool:
+	return g.arena.rider_avoidance()
+
+
+# true if a boss at `from` could go straight to `to` without meeting something solid
+func line_clear(from: Vector3, to: Vector3) -> bool:
+	var d = Vector3(to.x - from.x, 0.0, to.z - from.z)
+	var dist = d.length()
+	if dist < 0.01:
+		return true
+	return lunge_probe(from, d / dist, dist).y < 0.5
+
+
+# true if a boss at pos could walk `reach` metres along heading with BOSS_ROOM to spare on both sides
+func way_clear(pos: Vector3, heading: Vector3, reach: float) -> bool:
+	var across = Vector3(-heading.z, 0.0, heading.x) * BOSS_ROOM
+	var l = 1.0
+	while l < reach + 1.0:
+		var p = pos + heading * minf(l, reach)
+		if obstacle_at(p) or obstacle_at(p + across) or obstacle_at(p - across):
+			return false
+		l += 1.0
+	return true
+
+
+# The way a boss walks to get to `want` (a unit vector). If the way is clear that is `want`. If not, the boss
+# swerves: the first time to the clear heading nearest to `want` (up to 120 degrees off), and after that it keeps
+# its own heading (b["swerve"]) and only turns further, to the side it swung to (b["side"], +1 or -1), when that
+# heading is blocked. So it follows a wall to its end instead of turning back when the player is off to one side,
+# and does not flip between the two ends of the wall. When the way to `want` is clear again the swerve is
+# forgotten. Boxed in, it turns hard away from the obstacle.
+func steer_boss(b: Dictionary, want: Vector3) -> Vector3:
+	var wp: Vector3 = b["wp"]
+	if way_clear(wp, want, BOSS_LOOK):
+		b["side"] = 0.0
+		b["swerve"] = Vector3.ZERO
+		return want
+	var side = float(b["side"])
+	if side == 0.0:
+		# the first swerve: the side that needs the smaller turn
+		for k in range(1, 7):
+			for sgn in [1.0, -1.0]:
+				var first = want.rotated(Vector3.UP, deg_to_rad(20.0) * float(k) * float(sgn))
+				if way_clear(wp, first, BOSS_LOOK):
+					b["side"] = float(sgn)
+					b["swerve"] = first
+					return first
+		b["side"] = 1.0
+		b["swerve"] = want.rotated(Vector3.UP, deg_to_rad(120.0))
+		return b["swerve"]
+	var cur: Vector3 = b["swerve"]
+	if cur == Vector3.ZERO:
+		cur = want
+	# keep the heading it has if that is clear, else turn on to the side it swung to, and only then try the other
+	for sgn in [side, -side]:
+		for k in range(0, 7):
+			var cand = cur.rotated(Vector3.UP, deg_to_rad(20.0) * float(k) * float(sgn))
+			if way_clear(wp, cand, BOSS_LOOK):
+				b["side"] = float(sgn)
+				b["swerve"] = cand
+				return cand
+	b["swerve"] = cur.rotated(Vector3.UP, deg_to_rad(120.0) * side)
+	return b["swerve"]
+
+
 func lunge_dir(b: Dictionary) -> Vector3:
 	var wp: Vector3 = b["wp"]
 	var lk: Vector3 = b["lock"]
@@ -326,7 +404,7 @@ func update_strip(b: Dictionary, locked: bool) -> void:
 	if length < 0.3:
 		strip.visible = false
 		return
-	var wa = Vector3(wp.x, 0.035, wp.z)
+	var wa = Vector3(wp.x, OPEN_MARK_Y if open_ground() else 0.035, wp.z)
 	var we = wa + d * length
 	var wv = we - wa
 	var ln = Vector2(wv.x, wv.z).length()
@@ -486,7 +564,10 @@ func update_boss(b: Dictionary, dt: float) -> bool:
 		dv.y = 0.0
 		var step = minf(boss_speed(b) * dt, dv.length())
 		if dv.length() > 0.05:
-			set_boss_pos(b, wp + dv.normalized() * step)
+			var walk = dv.normalized()
+			if open_ground():
+				walk = steer_boss(b, walk)
+			set_boss_pos(b, wp + walk * step)
 		b["wyaw"] = atan2(dir.x, dir.z)
 		b["p"] = 0.7 + 0.15 * float(b["phase"] - 1)
 		update_boss_sound(b)
@@ -494,7 +575,12 @@ func update_boss(b: Dictionary, dt: float) -> bool:
 		boss_throws(b, dt)
 		if dist < (1.3 if runner else 1.6) and b["intro"] <= 0.0:
 			boss_tackle(b)
-		elif b["chase_t"] >= tele_wait(b) and dist < 15.0 and b["intro"] <= 0.0:
+		elif (
+			b["chase_t"] >= tele_wait(b)
+			and dist < 15.0
+			and b["intro"] <= 0.0
+			and (not open_ground() or line_clear(wp, pp))
+		):
 			start_tele(b)
 	elif mode == "tele" and b["pat"] == "slam":
 		b["tele_t"] -= dt
@@ -568,7 +654,7 @@ func update_disc(b: Dictionary) -> void:
 	var wp: Vector3 = b["wp"]
 	var r = float(b["slam_r"])
 	disc.visible = true
-	disc.position = Vector3(wp.x, 0.04, wp.z)
+	disc.position = Vector3(wp.x, OPEN_MARK_Y if open_ground() else 0.04, wp.z)
 	disc.scale = Vector3(r, 1.0, r)
 	var k = 1.0 - clampf(b["tele_t"] / maxf(b["tele_total"], 0.01), 0.0, 1.0)
 	var c = g.STRIP_COL_WARN.lerp(g.STRIP_COL_LOCK, k)
@@ -585,7 +671,11 @@ func do_slam(b: Dictionary) -> void:
 	g.shake = maxf(g.shake, 0.7)
 	g.hitstop = maxf(g.hitstop, 0.05)
 	g.fx_sys.burst(pos, 22, ["#c9ced4", "#f2b630", "#8a8f98"], 5.0, 0.4, 0.8, 0.1)
-	if boss_flat_dist(b) < float(b["slam_r"]):
+	# on open ground the shock does not go through a wall
+	var reached = boss_flat_dist(b) < float(b["slam_r"])
+	if reached and open_ground():
+		reached = line_clear(wp, g.player.position)
+	if reached:
 		g.damage_player("BOSS SLAMMED YOU", "boss")
 		if g.state != "play":
 			return
