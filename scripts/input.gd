@@ -49,6 +49,9 @@ func handle_input(event: InputEvent) -> void:
 		if g.state == "over" and g.name_entry:
 			name_key(event)  # typing a leaderboard name: no hotkeys
 			return
+		if g.state == "title" and g.title_page == "seed":
+			seed_key(event)  # typing a seed: letters like R, M, V and S must not trigger their hotkeys
+			return
 		var kc = event.keycode
 		if kc == KEY_R:
 			if g.state == "shop":
@@ -242,6 +245,45 @@ func name_key(event: InputEventKey) -> void:
 			g.name_buf += ch
 
 
+# ---- custom seed page (title screen): up to 8 hex digits, the same text the game shows as a seed
+const MAX_SEED_DIGITS = 8
+
+
+func seed_key(event: InputEventKey) -> void:
+	var kc = event.keycode
+	if kc == KEY_ESCAPE:
+		title_back()
+	elif kc == KEY_ENTER or kc == KEY_KP_ENTER:
+		seed_start()
+	elif kc == KEY_BACKSPACE:
+		g.seed_buf = g.seed_buf.substr(0, maxi(0, g.seed_buf.length() - 1))
+	elif kc == KEY_V and (event.ctrl_pressed or event.meta_pressed):
+		for i in range(DisplayServer.clipboard_get().length()):
+			seed_add_char(DisplayServer.clipboard_get()[i])
+	elif event.unicode > 31:
+		seed_add_char(char(event.unicode))
+
+
+# adds one typed character when it is a hex digit and there is room (so a pasted "0x7F3A..." drops the x)
+func seed_add_char(ch: String) -> void:
+	var up = ch.to_upper()
+	if (
+		g.seed_buf.length() < MAX_SEED_DIGITS
+		and up.length() == 1
+		and "0123456789ABCDEF".contains(up)
+	):
+		g.seed_buf += up
+
+
+# starts a normal-looking run on the typed seed (it is not ranked, see Main.ranked_run)
+func seed_start() -> void:
+	if g.seed_buf == "":
+		g.sfx.play("click")
+		return
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	g.start_game(false, g.seed_buf.hex_to_int())
+
+
 func confirm_name() -> void:
 	var nm = g.name_buf.strip_edges()
 	if nm == "":
@@ -294,6 +336,10 @@ func title_activate(i: int) -> void:
 		g.start_game(true)
 	elif id == "quit":
 		g.get_tree().quit()
+	elif id == "seed":
+		g.seed_buf = ""
+		g.title_page = id
+		g.sfx.play("click")
 	else:
 		g.title_page = id  # loadout / unlocks / scores / settings
 		g.sfx.play("click")
@@ -370,6 +416,11 @@ func on_click() -> void:
 				not g.settings.click_setting(g.hud.setting_at(mp))
 				and not g.hud.panel_rect().has_point(mp)
 			):
+				title_back()
+		elif g.title_page == "seed":
+			if g.hud.seed_start_rect().has_point(mp):
+				seed_start()
+			else:
 				title_back()
 		elif g.title_page != "":
 			title_back()
