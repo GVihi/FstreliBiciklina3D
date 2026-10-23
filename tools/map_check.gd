@@ -301,6 +301,17 @@ func _check_validator(rules: Dictionary) -> void:
 		"two elites joined by an edge": ["both 'elite'", _repeat_along_edge],
 		"edges out of the final boss": ["has edges", func(m): m["floors"][9][0]["next"] = [0]],
 		"a node with no type": ["unknown type", func(m): m["floors"][5][0]["type"] = ""],
+		"a fight with no open gate":
+		["no open gate", func(m): m["floors"][0][0]["content"]["gates"] = []],
+		"a gate the arena does not have":
+		["opens gate", func(m): m["floors"][0][0]["content"]["gates"] = [99]],
+		"a fight with no riders":
+		["no riders", func(m): m["floors"][0][0]["content"]["riders"]["count"] = 0],
+		"a rider mix that does not add up":
+		["does not add up", func(m): m["floors"][0][0]["content"]["riders"]["count"] += 1],
+		"a boss with no kind": ["no boss kind", func(m): m["floors"][4][0]["content"]["boss"] = ""],
+		"a shop with no seed": ["no seed", func(m): _drop_seed(m)],
+		"a node with no content": ["has no content", func(m): m["floors"][2][0].erase("content")],
 	}
 	for name in cases:
 		var map = good.duplicate(true)
@@ -327,6 +338,15 @@ func _check_validator(rules: Dictionary) -> void:
 		_fail(0, "validate never named a node with too many edges when the limit was one")
 	if MapGen.validate({}, rules).is_empty():
 		_fail(0, "validate accepts an empty map")
+
+
+# removes the seed of the first node that has one (a shop, rest or event)
+func _drop_seed(map: Dictionary) -> void:
+	for floor_nodes in map["floors"]:
+		for node in floor_nodes:
+			if node["content"].has("seed"):
+				node["content"].erase("seed")
+				return
 
 
 func _all_to_lane_zero(map: Dictionary, floor_index: int) -> void:
