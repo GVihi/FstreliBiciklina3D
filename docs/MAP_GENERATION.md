@@ -80,6 +80,10 @@ godot --headless --path . --script res://tools/map_check.gd -- 3735928559 500
 
 `MapGen.to_text` prints a map as one line per floor, final boss first: the letter is the node type (N normal, E elite, S shop, ? event, R rest, B boss) and the numbers are the lanes it connects to on the next floor.
 
+## Seeds typed in by the player
+
+The title screen has a CUSTOM SEED page: 8 hex digits at most, the same text the game shows as "RUN SEED". It plays exactly that seed, so the map, the arena and the riders are the ones `tools/viewer/map_viewer.tscn` and `tools/viewer/arena_viewer.tscn` show for it. Such a run is **not ranked** (no normal high score, no Top 10, like a Daily Run) and a restart replays the same seed.
+
 ## Open points for Milestone D and balance
 
 - Today the game offers upgrades and a shop after every round. On a map the shop is a node, so the shop now appears on only some paths: the economy and the upgrade pacing need a balance pass once the map exists (compare the Milestone I balance item).
