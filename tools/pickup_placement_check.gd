@@ -23,6 +23,7 @@ const MAX_DISTANCE = 8.0
 
 var problems = []
 var main = null
+var nooks = 0  # landing spots dropped at the feet of a player standing in a nook
 
 
 func _initialize() -> void:
@@ -55,8 +56,8 @@ func _initialize() -> void:
 	if problems.is_empty():
 		print(
 			(
-				"pickup_placement_check: %d arenas, %d landing spots, %d with a wall in the way, all on free ground"
-				% [count, spots, blocked]
+				"pickup_placement_check: %d arenas, %d landing spots, %d with a wall in the way, %d at the feet of a player in a nook, all on free ground"
+				% [count, spots, blocked, nooks]
 			)
 		)
 		quit(0)
@@ -109,9 +110,21 @@ func _check_arena(layout: Dictionary, k: int) -> Array:
 			var spot = main.pickup_sys.landing_spot(0.55)
 			spots += 1
 			if arena.clamp_walk(spot, "pickup").distance_to(spot) > 0.001:
-				_fail(
-					"arena %d: a landing spot at %s is not ground a pickup may lie on" % [k, spot]
+				# only a player standing in a nook (no room for the pickup margin anywhere near) may have a spot
+				# that is not pickup ground: it is then at the player's feet, on ground the player can stand on
+				var feet_ok = (
+					arena.clamp_walk(spot, "player").distance_to(spot) < 0.001
+					and Vector2(spot.x - p.x, spot.z - p.z).length() < 1.0
 				)
+				if not feet_ok:
+					_fail(
+						(
+							"arena %d: a landing spot at %s is not ground a pickup may lie on"
+							% [k, spot]
+						)
+					)
+				else:
+					nooks += 1
 			var d = Vector2(spot.x - p.x, spot.z - p.z).length()
 			if d > MAX_DISTANCE:
 				_fail("arena %d: a landing spot is %.1f m from the player at %s" % [k, d, p])
