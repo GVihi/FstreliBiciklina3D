@@ -1316,8 +1316,13 @@ func _draw_boss_ui(k: float) -> void:
 
 # ---- 360 degree awareness: arrows at the screen edge for anything off screen, and a small radar ----
 const THREAT_COL = {
-	"rider": Color(1.0, 0.92, 0.75), "boss": Color(1.0, 0.25, 0.2), "phone": Color(1.0, 0.82, 0.2)
+	"rider": Color(1.0, 0.27, 0.2), "boss": Color(1.0, 0.1, 0.12), "phone": Color(1.0, 0.82, 0.15)
 }
+# the edge arrows: a chevron with a soft glow and a dark outline so it reads on any background; red is danger
+const ARROW_SIZE = 17.0  # pixels at 1080p for the weakest arrow
+const ARROW_GROW = 17.0  # extra pixels for the strongest
+const ARROW_BOSS_SCALE = 1.25  # a boss is the biggest thing that can hit you
+const ARROW_MIN_ALPHA = 0.8
 
 
 # angle of a world point relative to where the camera looks: 0 ahead, + to the right, +-PI behind
@@ -1334,8 +1339,8 @@ func _draw_threats(k: float) -> void:
 	# strongest first; on open ground that also weighs distance and approach (threats.gd)
 	list = Threats.ranked(list, g.arena.rider_pursuit())
 	var c = size * 0.5
-	var rx = size.x * 0.5 - 30.0 * k
-	var ry = size.y * 0.5 - 80.0 * k
+	var rx = size.x * 0.5 - 46.0 * k
+	var ry = size.y * 0.5 - 96.0 * k
 	var half_h = atan(tan(deg_to_rad(g.cam.fov * 0.5)) * size.x / size.y)  # horizontal half field of view
 	var drawn = 0
 	for t in list:
@@ -1350,19 +1355,43 @@ func _draw_threats(k: float) -> void:
 		var pos = c + Vector2(sin(rel) * rx, -cos(rel) * ry * 0.85)
 		var out = (pos - c).normalized()
 		var side = Vector2(-out.y, out.x)
-		var sz = (9.0 + 11.0 * urg) * k
+		var sz = (ARROW_SIZE + ARROW_GROW * urg) * k
+		if t["kind"] == "boss":
+			sz *= ARROW_BOSS_SCALE
 		var col: Color = THREAT_COL[t["kind"]]
-		col.a = 0.55 + 0.4 * urg
-		if t["urg"] >= 0.9:  # something about to hit you flashes, however far away
-			col.a *= 0.65 + 0.35 * sin(g.time * 18.0)
-		var tip = pos + out * sz
-		var b1 = pos - out * sz * 0.4 + side * sz * 0.8
-		var b2 = pos - out * sz * 0.4 - side * sz * 0.8
-		draw_colored_polygon(
-			PackedVector2Array([tip + out * 2.0 * k, b1 - side * 2.0 * k, b2 + side * 2.0 * k]),
-			Color(0, 0, 0, 0.55 * col.a)
-		)
-		draw_colored_polygon(PackedVector2Array([tip, b1, b2]), col)
+		col.a = lerpf(ARROW_MIN_ALPHA, 1.0, urg)
+		# it beats faster the closer and more pressing the threat is; something about to hit you flashes hard
+		var beat = 0.5 + 0.5 * sin(g.time * (5.0 + 9.0 * urg))
+		var pulse = 1.0 + 0.12 * urg * beat
+		if t["urg"] >= 0.9:
+			col.a *= 0.6 + 0.4 * (0.5 + 0.5 * sin(g.time * 20.0))
+			pulse = 1.0 + 0.2 * beat
+		sz *= pulse
+		_draw_arrow_shape(pos, out, side, sz, col, k)
+
+
+# one chevron pointing along out: soft glow, dark outline, the colour, and a light stripe down its middle
+func _draw_arrow_shape(
+	pos: Vector2, out: Vector2, side: Vector2, sz: float, col: Color, k: float
+) -> void:
+	var glow = col
+	glow.a = col.a * 0.22
+	_chevron(pos, out, side, sz * 1.7, glow)
+	var shadow = Color(0, 0, 0, 0.75 * col.a)
+	_chevron(pos, out, side, sz + 3.5 * k, shadow)
+	_chevron(pos, out, side, sz, col)
+	var light = Color(1, 1, 1, 0.55 * col.a)
+	draw_line(pos - out * sz * 0.35, pos + out * sz * 0.8, light, maxf(1.5 * k, sz * 0.09))
+
+
+# a notched arrow head centred on pos, drawn as two triangles (a concave polygon can fail to triangulate)
+func _chevron(pos: Vector2, out: Vector2, side: Vector2, sz: float, col: Color) -> void:
+	var tip = pos + out * sz
+	var left = pos - out * sz * 0.55 + side * sz * 0.95
+	var right = pos - out * sz * 0.55 - side * sz * 0.95
+	var notch = pos - out * sz * 0.15
+	draw_colored_polygon(PackedVector2Array([tip, left, notch]), col)
+	draw_colored_polygon(PackedVector2Array([tip, notch, right]), col)
 
 
 func _draw_radar(k: float) -> void:
