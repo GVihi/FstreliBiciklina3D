@@ -784,6 +784,23 @@ func current_node() -> Dictionary:
 	return run_map["floors"][map_floor][map_lane]
 
 
+# What the node being played says about the round (its "content", docs/MAP_GENERATION.md), or {} when there is none.
+# Only on an arena with rider pursuit (the generated arena): the content is made for it (its gate numbers are the
+# layout's), so the roundabout plays every node as it always did.
+func node_setup() -> Dictionary:
+	if not arena.rider_pursuit():
+		return {}
+	return current_node().get("content", {})
+
+
+# the theme of the round: the node's, where it has one, otherwise the old rule (round number and run seed)
+func round_theme() -> int:
+	var setup = node_setup()
+	if setup.has("theme"):
+		return int(setup["theme"]) % THEMES.size()
+	return (round_n - 1 + seed_shift(THEMES.size())) % THEMES.size()
+
+
 # the lanes of the next floor the player may pick: every node of floor 1 at the start, otherwise the nodes the
 # current one connects to
 func next_lanes() -> Array:
@@ -883,7 +900,7 @@ func start_round() -> void:
 	clear_bosses()
 	clear_phones()
 	clear_pickups()
-	theme_idx = (round_n - 1 + seed_shift(THEMES.size())) % THEMES.size()
+	theme_idx = round_theme()
 	apply_theme(theme_idx)
 	rider_rng.seed = DailyScript.stream_seed(run_seed, round_n, "riders")
 	round_t = 0.0
