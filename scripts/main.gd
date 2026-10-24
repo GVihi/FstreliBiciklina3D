@@ -662,6 +662,26 @@ func _input(event: InputEvent) -> void:
 	input_sys.handle_input(event)
 
 
+# engine callback: the game window lost focus (Alt+Tab, a click on another window)
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		pause_on_focus_loss()
+
+
+# The game is paused by letting go of the mouse (see `_process`), so pausing on focus loss means
+# releasing it. Only a round in progress is paused; the title screen, menus and the pause menu
+# itself are left alone. Returns true when it paused the game.
+func pause_on_focus_loss() -> bool:
+	if state != "play":
+		return false
+	var captured = force_captured or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	if not captured:
+		return false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	force_captured = false  # the test hook as well, so a check sees the game pause
+	return true
+
+
 # ================================================================== game flow
 func reset_run() -> void:
 	MAXSHELLS = int(WEAPONS["dart_gun"]["start_clip"])
