@@ -129,8 +129,21 @@ func _check_end(m, lives_lost: int, want_perfect: bool) -> void:
 	m.state = "play"
 	var score_before = m.score
 	m.after_wave()
+	# the round is not over when the last rider falls: the extraction point opens and the player walks to it
+	if m.state != "play" or not m.objective_sys.extracting:
+		_fail(
+			(
+				"%s: all ten hit, expected the extraction point to open, got state %s extracting %s"
+				% [tag, m.state, m.objective_sys.extracting]
+			)
+		)
+		return
+	if m.score != score_before:
+		_fail("%s: the score changed before the extraction point was reached" % tag)
+	m.player.position = m.objective_sys.goal["pos"] + Vector3(0.5, 0.0, 0.0)
+	m.objective_sys.update(0.1)
 	if m.state != "clear":
-		_fail("%s: all ten hit but the round ended in state %s" % [tag, m.state])
+		_fail("%s: stood on the extraction point but the round ended in state %s" % [tag, m.state])
 		return
 	var gained = m.score - score_before
 	if want_perfect and gained != PERFECT_BONUS:

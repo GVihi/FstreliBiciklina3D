@@ -14,7 +14,7 @@ extends SceneTree
 # real generated arenas and spawns pedestrians on each: every one must start hidden in a gate's tunnel (1 m
 # out from the gate, facing in) with a goal gate (a different one where there is another), come out of the
 # tunnel within 10 s, never stand deep inside a building while visible, and leave the arena by being back in
-# a gate's tunnel (90 % of them within 150 s of walking; the rest may be stuck behind a building, which is
+# a gate's tunnel (90 % of them within 240 s of walking; the rest may be stuck behind a building, which is
 # what the walls do to a pedestrian that has no path search).
 #
 # Run from the project folder:
@@ -32,7 +32,7 @@ const ArenaGenScript = preload("res://scripts/arena_gen.gd")
 const GeneratedArena = preload("res://scripts/arena_generated.gd")
 const OPEN_ARENAS = 12  # generated arenas the open-ground check walks pedestrians on
 const OPEN_PER_ARENA = 6  # pedestrians spawned on each
-const OPEN_SECONDS = 150.0  # how long they get to leave
+const OPEN_SECONDS = 240.0  # how long they get to leave (150 on the old 96 m arena; the 144 m one is 1.5 times as far across)
 const OPEN_DT = 1.0 / 20.0
 const OPEN_EMERGE = 10.0  # seconds: a pedestrian is out of its start tunnel by then
 const OPEN_MIN_LEFT = 0.9  # the share that must have left within OPEN_SECONDS

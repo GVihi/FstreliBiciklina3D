@@ -10,6 +10,8 @@ const WorldBuilder = preload("res://scripts/world.gd")
 const Models = preload("res://scripts/models.gd")
 const HudScript = preload("res://scripts/hud.gd")
 const Toon = preload("res://scripts/toon.gd")
+const Rim = preload("res://scripts/rim.gd")
+const ObjectiveScript = preload("res://scripts/objective.gd")
 const SfxScript = preload("res://scripts/sfx.gd")
 const Content = preload("res://scripts/content.gd")
 const SettingsScript = preload("res://scripts/settings.gd")
@@ -248,6 +250,8 @@ var ads_on = false
 var aim_assist = 0.6
 var volume = 1.0
 var outlines = true
+var rim_outline = true  # fresnel rim on characters: red on foes, green on bystanders (rim.gd)
+var fx_scale = 1.0  # 0 to 1: how strong screen shake and screen flashes are (accessibility setting)
 var drag_id = ""
 var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / scores
 var pause_page = ""  # "" = pause menu, "settings" = settings panel, "confirm" = restart / quit confirmation
@@ -359,6 +363,7 @@ func _ready() -> void:
 		cr.rotation = Vector3(0.0, -PI * 0.5 + arena.yaw(cx), 0.0)
 		m["home_pos"] = m["pos"]  # the roundabout's place for it, which update_arena_dressing goes back to
 		m["home_yaw"] = cr.rotation.y
+		rim_apply(m["root"], Rim.FRIEND)
 		cheerleaders.append(m)
 
 	var layer = CanvasLayer.new()
@@ -403,6 +408,7 @@ func _warm_up() -> void:
 		holder.add_child(m["root"])
 		m["root"].position = Vector3(x, 0.0, 0.0)
 		Models.pose_rider(m, 0.0, 0.0)
+		rim_apply(m["root"], Rim.FOE)
 		if first:
 			set_flash(m["root"], true)  # compiles the hit-flash overlay
 			first = false
@@ -420,10 +426,12 @@ func _warm_up() -> void:
 		holder.add_child(c["root"])
 		c["root"].position = Vector3(x, 0.0, 1.5)
 		Models.pose_civ(c, 0.5, kind == "tourist", kind == "jogger")
+		rim_apply(c["root"], Rim.FRIEND)
 		x += 1.6
 	for i in range(2):
 		var cl = Models.build_cheer(i)
 		holder.add_child(cl["root"])
+		rim_apply(cl["root"], Rim.FRIEND)
 		cl["root"].position = Vector3(x, 0.0, 1.5)
 		x += 1.6
 	x = -6.0
@@ -509,6 +517,7 @@ var generated_arena = false
 var world_root: Node3D = null  # the generated arena's world (the roundabout's is built straight into this node)
 var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics quality, high score file
 var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
+var objective_sys = ObjectiveScript.new(self)  # objective.gd: Objectives: supply caches and the extraction point on generated arenas.
 var pickup_sys = PickupsScript.new(self)  # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
 var civ_sys = PedestriansScript.new(self)  # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
 var boss_sys = BossesScript.new(self)  # bosses.gd: Bosses: spawning, telegraphed attacks, weak points, phases and defeat.
@@ -634,9 +643,28 @@ func col_mat(hex: String) -> Material:
 
 func set_flash(node: Node, on: bool) -> void:
 	if node is MeshInstance3D:
-		node.material_overlay = flash_mat if on else null
+		# when the flash ends the mesh goes back to its rim outline (rim.gd), or to nothing
+		node.material_overlay = flash_mat if on else Rim.resting_overlay(node)
 	for ch in node.get_children():
 		set_flash(ch, on)
+
+
+# put the rim outline on a character model (or take it off again when the setting is off); `kind` is Rim.FOE
+# (riders, bosses) or Rim.FRIEND (pedestrians, cheerleaders)
+func rim_apply(root: Node, kind: String) -> void:
+	Rim.apply(root, kind, rim_outline)
+
+
+# the setting changed: every character on screen gets or loses its rim
+func refresh_rims() -> void:
+	for r in riders:
+		rim_apply(r["model"]["root"], Rim.FOE)
+	for b in bosses:
+		rim_apply(b["model"]["root"], Rim.FOE)
+	for c in civs:
+		rim_apply(c["model"]["root"], Rim.FRIEND)
+	for m in cheerleaders:
+		rim_apply(m["root"], Rim.FRIEND)
 
 
 func pick_one(arr: Array):
@@ -962,6 +990,7 @@ func free_phone(ph: Dictionary) -> void:
 
 
 func clear_pickups() -> void:
+	objective_sys.clear()  # the caches and the extraction point belong to the round like the pick-ups do
 	for pk in pickups:
 		pk["node"].queue_free()
 	pickups.clear()
@@ -976,6 +1005,7 @@ func start_round() -> void:
 	apply_theme(theme_idx)
 	rider_rng.seed = DailyScript.stream_seed(run_seed, round_n, "riders")
 	plan_riders()
+	objective_sys.setup_round()
 	round_t = 0.0
 	hits.clear()
 	for i in range(PER_ROUND):
@@ -1087,13 +1117,35 @@ func after_wave() -> void:
 		wait_msg = "FINAL BOSS" if is_final_round() else "BOSS FIGHT"
 		return
 	if next_idx >= PER_ROUND:
-		end_round()
+		finish_wave_set()
 	else:
 		wait = 0.75
 		wait_msg = "GOT AWAY" if wave_miss else ""
 
 
+# Every rider (and boss) of the round is down. On a generated arena the round is not over yet: the way out opens and
+# the player walks to the extraction point (objective.gd); anywhere else, or if the round was lost, it ends now.
+func finish_wave_set() -> void:
+	if (
+		objective_sys.enabled()
+		and objective_sys.has_goal()
+		and not objective_sys.extracting
+		and count_hits() >= hits_needed()
+	):
+		objective_sys.begin_extraction()
+		wait = 0.0
+		wait_msg = ""
+		return
+	end_round()
+
+
+# the player stepped into the extraction point
+func objective_reached() -> void:
+	end_round()
+
+
 func end_round() -> void:
+	objective_sys.clear()
 	var n = count_hits()
 	round_times.append(round_t)
 	print(
@@ -1142,6 +1194,7 @@ func win_run() -> void:
 
 
 func game_over(reason: String) -> void:
+	objective_sys.clear()
 	clear_riders()
 	clear_bosses()
 	clear_phones()
@@ -1510,6 +1563,7 @@ func update_game(dt: float) -> void:
 	elif hype > 0.0:
 		hype = maxf(0.0, hype - 3.0 * dt)
 	pickup_sys.update_pickups(dt)
+	objective_sys.update(dt)
 	phone_sys.update_phones(gdt)
 	boss_sys.update_bosses(gdt)
 	if riders.size() == 0 and bosses.size() == 0 and wait > 0.0:

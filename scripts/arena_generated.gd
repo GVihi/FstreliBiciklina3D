@@ -100,6 +100,126 @@ func cheer_spots(count: int) -> Array:
 	return out
 
 
+# ---------------------------------------------------------------- objectives (exploration)
+# Where the extraction point and the supply caches go. Both read only the layout (and a seeded generator the caller
+# hands in), so one seed and round give the same spots. A spot is the centre of an open cell with clearance
+# GOAL_CLEAR (or CACHE_CLEAR), so it is never against a wall, and it can be reached on foot from the start through
+# corridors at least 2 cells wide (the same rule the validation uses for the gates).
+const GOAL_CLEAR = 3  # cells of room round the extraction point
+const CACHE_CLEAR = 2  # cells of room round a supply cache
+const WALK_CLEAR = 2  # corridors narrower than this do not count as a way there
+const GOAL_TOP = 6  # the extraction point is one of the farthest this many spots (by walking distance)
+const CACHE_MIN_WALK = 18.0  # a cache is at least this many metres of walking from the start, ...
+const CACHE_APART = 22.0  # ... this far from the extraction point and from each other (straight line)
+
+var _walk_dist: PackedInt32Array = PackedInt32Array()  # steps from the start cell, -1 where it cannot be reached
+
+
+# steps on foot (4 directions, corridors with clearance >= WALK_CLEAR) from the start cell to every cell, -1 if none
+func walk_distances() -> PackedInt32Array:
+	if _walk_dist.size() > 0:
+		return _walk_dist
+	var n = int(layout["cells"])
+	var sc = layout["start"]["cell"]
+	var dist = PackedInt32Array()
+	dist.resize(n * n)
+	dist.fill(-1)
+	var s = int(sc[1]) * n + int(sc[0])
+	dist[s] = 0
+	var queue = [s]
+	var head = 0
+	while head < queue.size():
+		var i = int(queue[head])
+		head += 1
+		var x = i % n
+		var z = i / n
+		for step in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var nx = x + step.x
+			var nz = z + step.y
+			if nx < 0 or nz < 0 or nx >= n or nz >= n or dist[nz * n + nx] != -1:
+				continue
+			if ArenaGenScript.nav_clearance(layout, nx, nz) >= WALK_CLEAR:
+				dist[nz * n + nx] = dist[i] + 1
+				queue.append(nz * n + nx)
+	_walk_dist = dist
+	return _walk_dist
+
+
+# the world position of the centre of cell index i (x + z * cells)
+func cell_world(i: int) -> Vector3:
+	var n = int(layout["cells"])
+	var cell = float(layout["cell"])
+	return Vector3(
+		(float(i % n) + 0.5 - float(n) / 2.0) * cell,
+		0.0,
+		(float(i / n) + 0.5 - float(n) / 2.0) * cell
+	)
+
+
+# open cells (index list) that can be walked to and have at least `clear` cells of room round them; cells that are
+# on a road or on grass both count: only a building (clearance 0) and tunnel blocks are left out
+func _spot_cells(clear: int) -> Array:
+	var n = int(layout["cells"])
+	var dist = walk_distances()
+	var out = []
+	for i in range(n * n):
+		if dist[i] < 0:
+			continue
+		if ArenaGenScript.nav_clearance(layout, i % n, i / n) < clear:
+			continue
+		if surface_at(cell_world(i)) == "tunnel":
+			continue
+		out.append(i)
+	return out
+
+
+# The extraction point: one of the GOAL_TOP spots that are furthest to walk from the start, picked by `rng` (so each
+# round of a run can end somewhere else, and one seed and round always give the same one).
+func goal_spot(rng: RandomNumberGenerator) -> Vector3:
+	var dist = walk_distances()
+	var cells = _spot_cells(GOAL_CLEAR)
+	if cells.is_empty():
+		cells = _spot_cells(1)
+	if cells.is_empty():
+		return start_position()
+	cells.sort_custom(func(a, b): return dist[a] > dist[b] or (dist[a] == dist[b] and a < b))
+	return cell_world(int(cells[rng.randi() % mini(GOAL_TOP, cells.size())]))
+
+
+# Up to `count` cache spots, spread over the arena: far from the start (CACHE_MIN_WALK metres of walking), the
+# extraction point `goal` and each other (CACHE_APART metres), picking the spot that is furthest from everything
+# chosen so far among a random handful, so they end up in different corners. Fewer than `count` if the arena has no room.
+func cache_spots(count: int, goal: Vector3, rng: RandomNumberGenerator) -> Array:
+	var cell = float(layout["cell"])
+	var dist = walk_distances()
+	var pool = []
+	for i in _spot_cells(CACHE_CLEAR):
+		if float(dist[i]) * cell >= CACHE_MIN_WALK:
+			pool.append(i)
+	var chosen = []
+	var anchors = [start_position(), goal]
+	while chosen.size() < count and not pool.is_empty():
+		var scored = []
+		for i in pool:
+			var p = cell_world(i)
+			var nearest = INF
+			for a in anchors:
+				nearest = minf(nearest, Vector2(p.x - a.x, p.z - a.z).length())
+			if nearest >= CACHE_APART:
+				scored.append({"i": i, "d": nearest})
+		if scored.is_empty():
+			break
+		scored.sort_custom(
+			func(a, b): return a["d"] > b["d"] or (a["d"] == b["d"] and a["i"] < b["i"])
+		)
+		var pick = scored[rng.randi() % mini(8, scored.size())]
+		var spot = cell_world(int(pick["i"]))
+		chosen.append(spot)
+		anchors.append(spot)
+		pool.erase(int(pick["i"]))
+	return chosen
+
+
 # ---------------------------------------------------------------- bounds and blocking
 # Margins (metres) kept clear round a point so a body does not sink into a wall: the player, a boss (which
 # may stand a little closer to the edge) and a pickup's landing spot (kept further in so it can be reached).

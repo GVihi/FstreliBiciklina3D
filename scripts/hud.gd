@@ -15,6 +15,9 @@ const GRAY = Color(0.49, 0.48, 0.44)
 const TEXT = Color(0.96, 0.95, 0.92)
 const ACCENT = Color(1.0, 0.42, 0.17)
 const PINK = Color(1.0, 0.48, 0.72)
+const OBJ_GREEN = Color(0.35, 1.0, 0.55)  # the extraction point once it is open
+const OBJ_LOCKED = Color(1.0, 0.45, 0.3)  # ... while riders are still up
+const OBJ_GOLD = Color(0.95, 0.71, 0.19)  # supply caches
 
 
 func _ready() -> void:
@@ -773,6 +776,8 @@ const ALL_SETTING_ROWS = [
 	{"id": "vol", "label": "VOLUME", "min": 0.0, "max": 1.0, "fmt": "pct"},
 	{"id": "tads", "label": "TOGGLE AIM (RMB / LT)", "toggle": true},
 	{"id": "outline", "label": "OUTLINES", "toggle": true},
+	{"id": "rim", "label": "RIM GLOW (RED FOES, GREEN BYSTANDERS)", "toggle": true},
+	{"id": "fx", "label": "SHAKE AND FLASH", "min": 0.0, "max": 1.0, "fmt": "pct"},
 	{"id": "quality", "label": "GRAPHICS", "choices": ["HIGH", "MEDIUM", "LOW"]},
 	{"id": "fullscreen", "label": "FULLSCREEN", "toggle": true},
 	{"id": "sound", "label": "SOUND", "toggle": true},
@@ -910,9 +915,11 @@ func _draw() -> void:
 
 	# screen flashes
 	if g.flash > 0.0:
-		draw_rect(Rect2(Vector2.ZERO, size), Color(1, 1, 1, 0.08 * g.flash / 0.07))
+		draw_rect(Rect2(Vector2.ZERO, size), Color(1, 1, 1, 0.08 * g.flash / 0.07 * g.fx_scale))
 	if g.red_flash > 0.0:
-		draw_rect(Rect2(Vector2.ZERO, size), Color(0.9, 0.15, 0.1, 0.4 * g.red_flash / 0.35))
+		draw_rect(
+			Rect2(Vector2.ZERO, size), Color(0.9, 0.15, 0.1, 0.4 * g.red_flash / 0.35 * g.fx_scale)
+		)
 
 	# hype: warm glow on the screen edges
 	if state == "play" and g.hype_t > 0.0:
@@ -953,6 +960,7 @@ func _draw() -> void:
 		_draw_crosshair(k)
 		_draw_threats(k)
 		_draw_radar(k)
+		_draw_objective(k)
 		_draw_bottom(k)
 		_draw_boss_ui(k)
 		if g.riders.size() == 0 and g.bosses.size() == 0 and g.wait > 0.0 and g.wait_msg != "":
@@ -1415,7 +1423,111 @@ func _draw_radar(k: float) -> void:
 		if open_ground:
 			col.a = 0.5 + 0.5 * weight
 		draw_circle(dot, (2.4 + 1.8 * weight) * k, col)
+	_draw_radar_objectives(c, R, k)
 	draw_circle(c, 2.5 * k, Color(1, 1, 1, 0.9))
+
+
+# the extraction point (a square, green once it is open) and the caches in range (gold diamonds) on the radar
+func _draw_radar_objectives(c: Vector2, R: float, k: float) -> void:
+	var o = g.objective_sys
+	if not o.enabled() or not o.has_goal():
+		return
+	for cache in o.caches:
+		if cache["taken"] or o.dist_to(cache["pos"]) > o.SENSE_RANGE:
+			continue
+		var rel_c = _rel_angle(cache["pos"])
+		var rr_c = Threats.radar_fraction(o.dist_to(cache["pos"]), true) * (R - 4.0 * k)
+		_diamond(c + Vector2(sin(rel_c), -cos(rel_c)) * rr_c, 3.6 * k, OBJ_GOLD)
+	var gp: Vector3 = o.goal["pos"]
+	var rel = _rel_angle(gp)
+	var rr = Threats.radar_fraction(o.dist_to(gp), true) * (R - 4.0 * k)
+	var col = OBJ_GREEN if o.extracting else Color(OBJ_LOCKED, 0.55)
+	var at = c + Vector2(sin(rel), -cos(rel)) * rr
+	draw_rect(Rect2(at - Vector2(3.6, 3.6) * k, Vector2(7.2, 7.2) * k), col)
+
+
+func _diamond(at: Vector2, r: float, col: Color) -> void:
+	var pts = PackedVector2Array(
+		[at + Vector2(0, -r), at + Vector2(r, 0), at + Vector2(0, r), at + Vector2(-r, 0)]
+	)
+	draw_colored_polygon(pts, col)
+	draw_polyline(
+		PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(0, 0, 0, 0.7), 1.0
+	)
+
+
+# ---------------------------------------------------------------- objectives (objective.gd)
+# A marker for something in the world: a diamond with a distance over it when it is on screen, a pointing
+# arrow on the edge of the screen when it is off to the side or behind you.
+func _world_marker(p: Vector3, col: Color, label: String, k: float, big: bool) -> void:
+	var c = size * 0.5
+	var r = (11.0 if big else 7.0) * k
+	if not g.cam.is_position_behind(p):
+		var sp = g.cam.unproject_position(p)
+		if Rect2(Vector2(40, 90) * k, size - Vector2(80, 170) * k).has_point(sp):
+			_diamond(sp, r, col)
+			if label != "":
+				_txt(label, sp.x, sp.y - r - 6.0 * k, int(15 * k), col, 1)
+			return
+	var rel = _rel_angle(p)
+	var rx = size.x * 0.5 - 70.0 * k
+	var ry = size.y * 0.5 - 130.0 * k
+	var pos = c + Vector2(sin(rel) * rx, -cos(rel) * ry * 0.85)
+	var out = (pos - c).normalized()
+	var side = Vector2(-out.y, out.x)
+	var tip = pos + out * r * 1.6
+	var pts = PackedVector2Array(
+		[tip, pos - out * r * 0.6 + side * r, pos - out * r * 0.6 - side * r]
+	)
+	draw_colored_polygon(pts, col)
+	draw_polyline(
+		PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(0, 0, 0, 0.75), 1.5 * k
+	)
+	if label != "":
+		_txt(label, pos.x - out.x * r * 2.6, pos.y - out.y * r * 2.6 + 5.0 * k, int(14 * k), col, 1)
+
+
+func _draw_objective(k: float) -> void:
+	var o = g.objective_sys
+	if not o.enabled() or not o.has_goal():
+		return
+	var cx = size.x * 0.5
+	var gp: Vector3 = o.goal["pos"]
+	var d = int(round(o.dist_to(gp)))
+	var y = size.y * 0.115
+	if o.extracting:
+		var pulse = 0.75 + 0.25 * sin(g.time * 6.0)
+		_txt(
+			"REACH THE EXTRACTION POINT   %d M" % d, cx, y, int(22 * k), Color(OBJ_GREEN, pulse), 1
+		)
+	else:
+		_txt(
+			"EXTRACTION POINT   %d M   (DOWN EVERY RIDER TO OPEN IT)" % d,
+			cx,
+			y,
+			int(14 * k),
+			GRAY,
+			1
+		)
+	if o.caches.size() > 0:
+		_txt(
+			"CACHES %d / %d" % [o.taken, o.caches.size()],
+			cx,
+			y + 22.0 * k,
+			int(14 * k),
+			OBJ_GOLD,
+			1
+		)
+	_world_marker(
+		gp + Vector3(0, 3.5, 0),
+		OBJ_GREEN if o.extracting else Color(OBJ_LOCKED, 0.6),
+		"%d m" % d,
+		k,
+		o.extracting
+	)
+	for cache in o.caches:
+		if not cache["taken"] and o.dist_to(cache["pos"]) <= o.SENSE_RANGE:
+			_world_marker(cache["pos"] + Vector3(0, 2.4, 0), OBJ_GOLD, "", k, false)
 
 
 func _draw_crosshair(k: float) -> void:

@@ -3,6 +3,7 @@ extends RefCounted
 # Shared game state stays on main.gd (g); this file holds the logic.
 
 const Models = preload("res://scripts/models.gd")
+const Rim = preload("res://scripts/rim.gd")
 const Util = preload("res://scripts/util.gd")
 
 var g = null
@@ -125,6 +126,7 @@ func spawn_boss() -> void:
 		hp = int(round(float(hp) * FINAL_HP_MUL))
 	var m = Models.build_boss(kind, variant, Models.kit_of(0))
 	g.add_child(m["root"])
+	g.rim_apply(m["root"], Rim.FOE)
 	var sx = clampf(g.ptx() + randf_range(-14.0, 14.0), -g.arena.lim(), g.arena.lim())
 	var spawn_at = g.arena.tw(sx, -11.6)
 	if g.arena.rider_pursuit():
@@ -150,6 +152,7 @@ func spawn_runner(r: Dictionary) -> void:
 	var hp = (3 if r["max_hp"] > 2 else 2) + int(floor(float(maxi(0, g.round_n - 2)) / 2.0))
 	var m = Models.build_boss("runner", 0, r["kit"])
 	g.add_child(m["root"])
+	g.rim_apply(m["root"], Rim.FOE)
 	var b = make_boss_dict("runner", "ANGRY CYCLIST", 0, hp, m, g.rider_world(r, 0.0), "charge")
 	b["wyaw"] = atan2(g.player.position.x - b["wp"].x, g.player.position.z - b["wp"].z)
 	g.bosses.append(b)

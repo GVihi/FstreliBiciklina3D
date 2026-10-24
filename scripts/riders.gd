@@ -3,6 +3,7 @@ extends RefCounted
 # Shared game state stays on main.gd (g); this file holds the logic.
 
 const Models = preload("res://scripts/models.gd")
+const Rim = preload("res://scripts/rim.gd")
 
 # Steering. A rider owns its world position and the way it faces ("yaw") and steers at a point on its lane
 # a little way ahead, turning no faster than TURN_RATE. On the roundabout that point is on the lane circle,
@@ -71,6 +72,7 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 		hp = 3 if g.round_n >= 5 else 2
 	var m = Models.build_rider(type, kit)
 	g.add_child(m["root"])
+	g.rim_apply(m["root"], Rim.FOE)
 	# riders start inside the tunnel block, a little before the seam, on their own lane
 	var x0 = -(g.ARENA_HX + 2.0) if dir > 0 else (g.ARENA_HX + 2.0)
 	var lane_z = g.LANE_Z[lane_idx]

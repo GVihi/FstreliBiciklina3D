@@ -156,6 +156,16 @@ func cheer_spots(_count: int) -> Array:
 	return []
 
 
+# Exploration objectives (generated arenas): the extraction point the player walks to once the riders are down,
+# and up to `count` supply caches spread over the arena. The roundabout has neither (empty / the start).
+func goal_spot(_rng: RandomNumberGenerator) -> Vector3:
+	return start_position()
+
+
+func cache_spots(_count: int, _goal: Vector3, _rng: RandomNumberGenerator) -> Array:
+	return []
+
+
 # where riders enter and leave: an Array of {"pos": Vector3 (centre of the opening, on the ground),
 # "outward": Vector3 (unit vector pointing out of the arena), "half_width": float (metres)}
 func gates() -> Array:

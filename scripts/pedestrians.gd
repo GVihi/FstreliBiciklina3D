@@ -3,6 +3,7 @@ extends RefCounted
 # Shared game state stays on main.gd (g); this file holds the logic.
 
 const Models = preload("res://scripts/models.gd")
+const Rim = preload("res://scripts/rim.gd")
 
 # Steering, the same way riders do it (riders.gd): a pedestrian owns its world position and the way it faces
 # ("yaw") and steers at a point on its lane a little way ahead, turning no faster than TURN_RATE. On the
@@ -59,6 +60,7 @@ func spawn_civ(init_x: float = 9999.0) -> void:
 	}
 	var m = Models.build_civ(kind, pal)
 	g.add_child(m["root"])
+	g.rim_apply(m["root"], Rim.FRIEND)
 	# init_x is where along the street it starts (a spawn point, not a position it keeps): by default
 	# inside the tunnel block a little before the seam
 	var x0 = init_x
