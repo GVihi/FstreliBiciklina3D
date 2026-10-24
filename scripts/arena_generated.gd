@@ -61,6 +61,45 @@ func _world_gates() -> Array:
 	return out
 
 
+# ---------------------------------------------------------------- the cheerleaders
+const CHEER_RING = 1  # cells outside the clear start square where the cheerleaders stand (the plaza is wider)
+const CHEER_ROOM = 1.0  # metres of free ground kept round each one
+
+
+# Up to `count` spots for the cheerleaders: the centres of plaza cells in a square ring just outside the clear start
+# square, with CHEER_ROOM metres of free ground round them, spread evenly round the start by angle. The ring is the
+# plaza's edge round the start, so they stand where the player can see them and never in the start area itself.
+# The layout alone decides, so one seed gives the same spots. Fewer than `count` (or none) when the plaza has no room.
+func cheer_spots(count: int) -> Array:
+	var n = int(layout["cells"])
+	var cell = float(layout["cell"])
+	var sc = layout["start"]["cell"]
+	var reach = int(layout["start"]["half"]) + CHEER_RING
+	var home = start_position()
+	var spots = []
+	for dz in range(-reach, reach + 1):
+		for dx in range(-reach, reach + 1):
+			if maxi(absi(dx), absi(dz)) != reach:
+				continue
+			var cx = int(sc[0]) + dx
+			var cz = int(sc[1]) + dz
+			if cx < 0 or cz < 0 or cx >= n or cz >= n:
+				continue
+			var p = Vector3(
+				(float(cx) + 0.5 - float(n) / 2.0) * cell,
+				0.0,
+				(float(cz) + 0.5 - float(n) / 2.0) * cell
+			)
+			if surface_at(p) == "plaza" and _clear(p, CHEER_ROOM):
+				spots.append({"p": p, "a": atan2(p.z - home.z, p.x - home.x)})
+	spots.sort_custom(func(a, b): return a["a"] < b["a"])
+	var out = []
+	var take = mini(count, spots.size())
+	for i in range(take):
+		out.append(spots[int(float(i) * float(spots.size()) / float(take))]["p"])
+	return out
+
+
 # ---------------------------------------------------------------- bounds and blocking
 # Margins (metres) kept clear round a point so a body does not sink into a wall: the player, a boss (which
 # may stand a little closer to the edge) and a pickup's landing spot (kept further in so it can be reached).

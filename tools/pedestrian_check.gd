@@ -10,6 +10,13 @@ extends SceneTree
 # model is where "pos" says, that the street keys x and z are gone (from pedestrians and cheerleaders), and
 # that a pedestrian steers round an obstacle in its way and goes on past it.
 #
+# On open ground (an arena where rider_pursuit() is true) pedestrians have no street. The check puts in 12
+# real generated arenas and spawns pedestrians on each: every one must start hidden in a gate's tunnel (1 m
+# out from the gate, facing in) with a goal gate (a different one where there is another), come out of the
+# tunnel within 10 s, never stand deep inside a building while visible, and leave the arena by being back in
+# a gate's tunnel (90 % of them within 150 s of walking; the rest may be stuck behind a building, which is
+# what the walls do to a pedestrian that has no path search).
+#
 # Run from the project folder:
 #   godot --headless --path . --script res://tools/pedestrian_check.gd
 # Pass a frame rate after "--" to try another one (default 60).
@@ -21,12 +28,23 @@ const TOL_YAW = 0.12
 const FLEE_SPEED = 6.6  # street metres per second after a hit (the old constant in pedestrians.gd)
 const LEAVE_X = 2.4  # street metres past the seam where the old code removed a pedestrian
 
+const ArenaGenScript = preload("res://scripts/arena_gen.gd")
+const GeneratedArena = preload("res://scripts/arena_generated.gd")
+const OPEN_ARENAS = 12  # generated arenas the open-ground check walks pedestrians on
+const OPEN_PER_ARENA = 6  # pedestrians spawned on each
+const OPEN_SECONDS = 150.0  # how long they get to leave
+const OPEN_DT = 1.0 / 20.0
+const OPEN_EMERGE = 10.0  # seconds: a pedestrian is out of its start tunnel by then
+const OPEN_MIN_LEFT = 0.9  # the share that must have left within OPEN_SECONDS
+const WALL_DEPTH = 0.3  # metres: a pedestrian this far inside a building (all four ways) is "deep in a wall"
+
 var bad: Array = []
 var fps = 60.0
 var dt = 1.0 / 60.0
 var steps = 2400
 var max_pos_err = 0.0
 var max_yaw_err = 0.0
+var open_summary = ""
 
 
 func _init() -> void:
@@ -126,6 +144,7 @@ func _init() -> void:
 		bad.append("no pedestrian was startled, fled and left (check is not covering it)")
 	_check_cheerleaders(main)
 	_check_avoidance(main)
+	_check_open_ground(main)
 	if bad.is_empty():
 		print(
 			(
@@ -136,6 +155,7 @@ func _init() -> void:
 				% [steps, left_arena, fled, max_pos_err, max_yaw_err]
 			)
 		)
+		print("pedestrian_check: " + open_summary)
 		quit(0)
 	else:
 		for line in bad.slice(0, 10):
@@ -265,3 +285,164 @@ func _check_avoidance(main) -> void:
 				)
 			)
 		)
+
+
+# Open ground: real generated arenas, pedestrians spawned with the arena's own rules (see the header).
+func _check_open_ground(main) -> void:
+	var rules = ArenaGenScript.load_rules()
+	var real_arena = main.arena
+	var rs = main.rider_sys
+	var spawned = 0
+	var left = 0
+	var left_hidden = 0
+	var arenas = 0
+	var gates_used = {}
+	var slowest = 0.0
+	var deep_steps = 0
+	var fled = 0
+	for k in range(OPEN_ARENAS):
+		var layout = ArenaGenScript.generate(5000 + k * 101, rules)
+		if layout.is_empty():
+			continue
+		arenas += 1
+		var arena = GeneratedArena.new(layout, rules)
+		main.arena = arena
+		_clear_civs(main)
+		for n in range(OPEN_PER_ARENA):
+			main.civ_sys.spawn_civ()
+		var mine: Array = main.civs.duplicate()
+		var tag = "open ground, seed %d: " % (5000 + k * 101)
+		if mine.size() != OPEN_PER_ARENA:
+			bad.append(tag + "spawned %d pedestrians, asked for %d" % [mine.size(), OPEN_PER_ARENA])
+		var out_at = {}
+		var gone_at = {}
+		for c in mine:
+			spawned += 1
+			if c.has("x") or c.has("z"):
+				bad.append(tag + "a pedestrian has the street keys x or z")
+			var gate = _nearest_gate(arena, c["pos"])
+			gates_used[str(k) + str(gate["pos"])] = true
+			var d = Vector2(c["pos"].x - gate["pos"].x, c["pos"].z - gate["pos"].z).length()
+			if absf(d - rs.GATE_SPAWN) > 0.01 or not c["hidden"]:
+				bad.append(
+					tag + "a pedestrian starts %.2f m from a gate, hidden %s" % [d, c["hidden"]]
+				)
+			if rs.heading_vec(c["yaw"]).dot(gate["outward"]) > -0.99:
+				bad.append(tag + "a pedestrian does not start facing into the arena")
+			if not arena.gates().has(c["goal"]):
+				bad.append(tag + "a pedestrian has a goal that is not one of the gates")
+			elif arena.gates().size() > 1 and c["goal"]["pos"] == gate["pos"]:
+				bad.append(tag + "a pedestrian's goal is the gate it started at")
+		# startle one that is out in the open: it must then run for the gate nearest to where it was hit
+		var t = 0.0
+		var startled = null
+		var startled_gate = {}
+		while t < OPEN_SECONDS and gone_at.size() < mine.size():
+			if startled == null and t > 12.0:
+				for c in mine:
+					if main.civs.has(c) and not c["hidden"] and c["state"] == "walk":
+						startled = c
+						startled_gate = _nearest_gate(arena, c["pos"])
+						main.civ_sys.hit_civ(c)
+						main.hearts = 5
+						main.state = "play"
+						break
+			main.civ_t = 99.0
+			main.civ_sys.update_civs(OPEN_DT)
+			t += OPEN_DT
+			for c in mine:
+				if gone_at.has(c):
+					continue
+				if not main.civs.has(c):
+					gone_at[c] = t
+					if c["entered"] and c["hidden"]:
+						left_hidden += 1
+					else:
+						bad.append(tag + "a pedestrian was removed while not in a gate's tunnel")
+					continue
+				if not c["hidden"]:
+					out_at[c] = true
+				elif t > OPEN_EMERGE and not out_at.has(c) and not c["entered"]:
+					bad.append(
+						tag + "a pedestrian is still in its start tunnel after %d s" % int(t)
+					)
+					out_at[c] = true
+				if not c["hidden"] and _deep_in_wall(arena, c["pos"]):
+					deep_steps += 1
+					if deep_steps <= 3:
+						bad.append(
+							tag + "a pedestrian stands deep inside a building at %s" % c["pos"]
+						)
+				var model: Node3D = c["model"]["root"]
+				if (
+					Vector2(model.position.x - c["pos"].x, model.position.z - c["pos"].z).length()
+					> 0.0001
+				):
+					bad.append(tag + "a pedestrian's model is not at its pos")
+		if startled != null:
+			fled += 1
+			if startled["state"] != "flee" or startled["goal"]["pos"] != startled_gate["pos"]:
+				bad.append(tag + "a startled pedestrian does not run for the nearest gate")
+			if not gone_at.has(startled):
+				bad.append(tag + "a startled pedestrian never got away")
+		for c in mine:
+			if gone_at.has(c):
+				left += 1
+				slowest = maxf(slowest, gone_at[c])
+		_clear_civs(main)
+	main.arena = real_arena
+	_clear_civs(main)
+	if arenas < OPEN_ARENAS - 2:
+		bad.append(
+			(
+				"open ground: only %d of %d seeds gave an arena (check is not covering it)"
+				% [arenas, OPEN_ARENAS]
+			)
+		)
+	if spawned > 0 and float(left) / float(spawned) < OPEN_MIN_LEFT:
+		bad.append(
+			(
+				"open ground: only %d of %d pedestrians left within %d s"
+				% [left, spawned, int(OPEN_SECONDS)]
+			)
+		)
+	if gates_used.size() < arenas:
+		bad.append("open ground: pedestrians used too few gates (check is not covering it)")
+	if fled < arenas / 2:
+		bad.append(
+			"open ground: only %d pedestrians were startled (check is not covering it)" % fled
+		)
+	open_summary = (
+		"open ground: %d pedestrians on %d generated arenas, %d left through a gate tunnel, %d startled ones ran for the nearest gate (slowest %.0f s)"
+		% [spawned, arenas, left_hidden, fled, slowest]
+	)
+
+
+func _nearest_gate(arena, pos: Vector3) -> Dictionary:
+	var best = {}
+	var best_d = INF
+	for gate in arena.gates():
+		var d = Vector2(gate["pos"].x - pos.x, gate["pos"].z - pos.z).length()
+		if d < best_d:
+			best_d = d
+			best = gate
+	return best
+
+
+# true if every point WALL_DEPTH metres off p (towards +x, -x, +z and -z) is a building a rider cannot ride through
+func _deep_in_wall(arena, p: Vector3) -> bool:
+	for off in [
+		Vector3(WALL_DEPTH, 0, 0),
+		Vector3(-WALL_DEPTH, 0, 0),
+		Vector3(0, 0, WALL_DEPTH),
+		Vector3(0, 0, -WALL_DEPTH)
+	]:
+		if not arena.rider_blocked(p + off):
+			return false
+	return arena.rider_blocked(p)
+
+
+func _clear_civs(main) -> void:
+	for c in main.civs:
+		c["model"]["root"].queue_free()
+	main.civs.clear()

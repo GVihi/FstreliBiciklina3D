@@ -150,6 +150,12 @@ func surface_at(_p: Vector3) -> String:
 	return ""
 
 
+# where the cheerleaders stand, as an Array of up to `count` world positions on the ground, or an empty Array when
+# the arena has its own place for them (the roundabout's far sidewalk, which main.gd builds). They face the start.
+func cheer_spots(_count: int) -> Array:
+	return []
+
+
 # where riders enter and leave: an Array of {"pos": Vector3 (centre of the opening, on the ground),
 # "outward": Vector3 (unit vector pointing out of the arena), "half_width": float (metres)}
 func gates() -> Array:
