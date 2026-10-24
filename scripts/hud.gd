@@ -4,8 +4,10 @@ extends Control
 
 var g = null
 var font: Font
+var arrows: Array = []  # the edge arrows drawn on the last frame, strongest first (tools/threat_check.gd reads it)
 
 const Toon = preload("res://scripts/toon.gd")
+const Threats = preload("res://scripts/threats.gd")
 
 const GOLD = Color(0.95, 0.71, 0.19)
 const RED = Color(0.9, 0.33, 0.24)
@@ -1325,10 +1327,12 @@ func _rel_angle(world_pos: Vector3) -> float:
 
 
 func _draw_threats(k: float) -> void:
+	arrows = []
 	var list = g.threat_list()
 	if list.size() == 0:
 		return
-	list.sort_custom(func(a, b): return a["urg"] > b["urg"])
+	# strongest first; on open ground that also weighs distance and approach (threats.gd)
+	list = Threats.ranked(list, g.arena.rider_pursuit())
 	var c = size * 0.5
 	var rx = size.x * 0.5 - 30.0 * k
 	var ry = size.y * 0.5 - 80.0 * k
@@ -1338,17 +1342,18 @@ func _draw_threats(k: float) -> void:
 		var rel = _rel_angle(t["pos"])
 		if absf(rel) < half_h * 0.9:
 			continue  # on screen: you can see it
-		if drawn >= 8:
+		if drawn >= Threats.MAX_ARROWS:
 			break
 		drawn += 1
-		var urg: float = t["urg"]
+		arrows.append({"kind": t["kind"], "dist": t["dist"], "strength": t["strength"]})
+		var urg: float = t["strength"]
 		var pos = c + Vector2(sin(rel) * rx, -cos(rel) * ry * 0.85)
 		var out = (pos - c).normalized()
 		var side = Vector2(-out.y, out.x)
 		var sz = (9.0 + 11.0 * urg) * k
 		var col: Color = THREAT_COL[t["kind"]]
 		col.a = 0.55 + 0.4 * urg
-		if urg >= 0.9:
+		if t["urg"] >= 0.9:  # something about to hit you flashes, however far away
 			col.a *= 0.65 + 0.35 * sin(g.time * 18.0)
 		var tip = pos + out * sz
 		var b1 = pos - out * sz * 0.4 + side * sz * 0.8
