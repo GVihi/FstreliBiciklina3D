@@ -173,9 +173,16 @@ func phone_origin(r: Dictionary) -> Vector3:
 
 
 # one of the arena's gates, chosen with the layout's random numbers so a seed gives the same riders
+# On a generated arena only the gates the node leaves open (its content "gates", indexes into the arena's gates).
 func pick_gate() -> Dictionary:
 	var gates = g.arena.gates()
-	return gates[g.layout_i(gates.size())]
+	var usable = []
+	for i in g.node_setup().get("gates", []):
+		if int(i) >= 0 and int(i) < gates.size():
+			usable.append(gates[int(i)])
+	if usable.is_empty():
+		usable = gates
+	return usable[g.layout_i(usable.size())]
 
 
 # the gate nearest to world point pos
