@@ -29,7 +29,7 @@ const WorldGen = preload("res://scripts/world_gen.gd")
 const WorldDress = preload("res://scripts/world_dress.gd")
 
 const EPS = 0.001
-const MAX_TRIS = 9000
+const MAX_TRIS = 16000  # was 9000 on the 48-cell arena; the 72-cell arena has about 2.4 times the ground
 const MAX_DRAW_CALLS = 12
 const OUTWARD = [Vector3(0, 0, -1), Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(-1, 0, 0)]  # N E S W
 

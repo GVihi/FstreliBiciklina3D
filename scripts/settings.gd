@@ -92,6 +92,8 @@ func load_settings() -> void:
 	g.aim_assist = clampf(float(cf.get_value("game", "assist", g.aim_assist)), 0.0, 1.0)
 	g.volume = clampf(float(cf.get_value("game", "volume", g.volume)), 0.0, 1.0)
 	g.outlines = bool(cf.get_value("game", "outlines", g.outlines))
+	g.rim_outline = bool(cf.get_value("game", "rim_outline", g.rim_outline))
+	g.fx_scale = clampf(float(cf.get_value("game", "fx_scale", g.fx_scale)), 0.0, 1.0)
 	g.quality = clampi(int(cf.get_value("game", "quality", g.quality)), 0, 2)
 	_muted = bool(cf.get_value("game", "muted", _muted))
 	_voices = bool(cf.get_value("game", "voices", _voices))
@@ -108,6 +110,8 @@ func save_settings() -> void:
 	cf.set_value("game", "assist", g.aim_assist)
 	cf.set_value("game", "volume", g.volume)
 	cf.set_value("game", "outlines", g.outlines)
+	cf.set_value("game", "rim_outline", g.rim_outline)
+	cf.set_value("game", "fx_scale", g.fx_scale)
 	cf.set_value("game", "quality", g.quality)
 	cf.set_value("game", "muted", g.sfx.muted)
 	cf.set_value("game", "voices", g.sfx.voices_on)
@@ -129,6 +133,10 @@ func get_setting(id: String):
 		return g.toggle_ads
 	if id == "outline":
 		return g.outlines
+	if id == "rim":
+		return g.rim_outline
+	if id == "fx":
+		return g.fx_scale
 	if id == "quality":
 		return g.quality
 	if id == "sound":
@@ -156,6 +164,11 @@ func set_setting(id: String, v) -> void:
 	elif id == "outline":
 		g.outlines = bool(v)
 		apply_quality()
+	elif id == "rim":
+		g.rim_outline = bool(v)
+		g.refresh_rims()
+	elif id == "fx":
+		g.fx_scale = clampf(float(v), 0.0, 1.0)
 	elif id == "quality":
 		g.quality = clampi(int(v), 0, 2)
 		apply_quality()

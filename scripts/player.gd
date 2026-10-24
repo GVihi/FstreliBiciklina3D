@@ -192,7 +192,7 @@ func update_player(dt: float, captured: bool) -> void:
 	if g.slide_t > 0.0:
 		g.cam.rotation.z = 0.04
 	if g.shake > 0.0:
-		g.cam.rotation.z += randf_range(-1.0, 1.0) * g.shake * 0.03
+		g.cam.rotation.z += randf_range(-1.0, 1.0) * g.shake * 0.03 * g.fx_scale
 	var kick = 9.0 * clampf(g.dash_t / g.DASH_TIME, 0.0, 1.0)
 	g.cam.fov = lerpf(g.fov_hip, g.fov_hip * g.FOV_ADS / g.FOV_HIP, g.ads_t) + kick
 	g.spread_deg = current_spread()
