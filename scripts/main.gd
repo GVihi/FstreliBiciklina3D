@@ -1182,17 +1182,17 @@ func street_vel(x: float, vx: float, vy: float, vz: float) -> Vector3:
 	return arena.tangent(x) * vx + Vector3(0.0, vy, 0.0) + arena.inward(x) * vz
 
 
-# things that can hurt you or that you can shoot: the edge arrows and the radar read this
+# things that can hurt you or that you can shoot: the edge arrows and the radar read this. Each entry has the world
+# position "pos", the "kind" ("rider", "boss" or "phone"), "urg" (how pressing it is, 0 to 1), "dist" (metres to the
+# player over the ground) and "closing" (metres per second it moves towards the player over the ground: negative
+# when it moves away; only riders have a velocity, the rest are 0)
 func threat_list() -> Array:
 	var out = []
 	for r in riders:
 		if (r["mode"] == "fly" or r["mode"] == "away") and not r["hidden"]:
+			var vel = rider_sys.heading_vec(r["yaw"]) * r["ride_speed"]
 			out.append(
-				{
-					"pos": rider_world(r, 1.0),
-					"kind": "rider",
-					"urg": 0.45 if r["can_throw"] else 0.3
-				}
+				threat_entry(rider_world(r, 1.0), "rider", 0.45 if r["can_throw"] else 0.3, vel)
 			)
 	for b in bosses:
 		if boss_sys.boss_hittable(b):
@@ -1201,13 +1201,23 @@ func threat_list() -> Array:
 				urg = 1.0
 			elif b["mode"] == "stagger":
 				urg = 0.35
-			out.append({"pos": boss_world(b, 1.0), "kind": "boss", "urg": urg})
+			out.append(threat_entry(boss_world(b, 1.0), "boss", urg))
 	for ph in phones:
 		if not ph["ret"]:
-			out.append(
-				{"pos": ph["pos"], "kind": "phone", "urg": 0.55 + 0.45 * clampf(ph["p"], 0.0, 1.0)}
-			)
+			out.append(threat_entry(ph["pos"], "phone", 0.55 + 0.45 * clampf(ph["p"], 0.0, 1.0)))
 	return out
+
+
+# one threat: see threat_list. vel is its velocity (zero when it has none).
+func threat_entry(
+	pos: Vector3, kind: String, urg: float, vel: Vector3 = Vector3.ZERO
+) -> Dictionary:
+	var to = Vector3(player.position.x - pos.x, 0.0, player.position.z - pos.z)
+	var dist = to.length()
+	var closing = 0.0
+	if dist > 0.01:
+		closing = (to / dist).dot(Vector3(vel.x, 0.0, vel.z))
+	return {"pos": pos, "kind": kind, "urg": urg, "dist": dist, "closing": closing}
 
 
 # keep a point on the walkable ground (sliding along an edge, not stopping dead): the arena decides where
