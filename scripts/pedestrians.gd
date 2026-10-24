@@ -165,10 +165,17 @@ func move_civ(c: Dictionary, speed_street: float, dt: float) -> void:
 
 
 # a startled pedestrian runs away: turn round at once and head for the nearer end of the street (it can only
-# be startled while visible, so its street x is not wrapped round the seam)
+# be startled while visible, so its street x is not wrapped round the seam); on open ground it heads for the
+# nearest gate and the steering turns it round at the usual rate
 func turn_to_flee(c: Dictionary) -> void:
-	var street_x = g.arena.to_track(c["pos"]).x
 	c["state"] = "flee"
+	c["hop"] = 0.0
+	if c["open"]:
+		# open ground: run for the gate nearest to where it stands, steering round whatever is in the way
+		c["goal"] = g.rider_sys.nearest_gate(c["pos"])
+		c["left"] = goal_left(c)
+		return
+	var street_x = g.arena.to_track(c["pos"]).x
 	c["dir"] = -1 if street_x < 0.0 else 1
 	c["yaw"] = g.arena.yaw(street_x) + (0.0 if c["dir"] > 0 else PI)
 	c["left"] = street_left(street_x, c["dir"])

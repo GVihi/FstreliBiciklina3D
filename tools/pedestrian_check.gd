@@ -299,6 +299,7 @@ func _check_open_ground(main) -> void:
 	var gates_used = {}
 	var slowest = 0.0
 	var deep_steps = 0
+	var fled = 0
 	for k in range(OPEN_ARENAS):
 		var layout = ArenaGenScript.generate(5000 + k * 101, rules)
 		if layout.is_empty():
@@ -332,8 +333,20 @@ func _check_open_ground(main) -> void:
 				bad.append(tag + "a pedestrian has a goal that is not one of the gates")
 			elif arena.gates().size() > 1 and c["goal"]["pos"] == gate["pos"]:
 				bad.append(tag + "a pedestrian's goal is the gate it started at")
+		# startle one that is out in the open: it must then run for the gate nearest to where it was hit
 		var t = 0.0
+		var startled = null
+		var startled_gate = {}
 		while t < OPEN_SECONDS and gone_at.size() < mine.size():
+			if startled == null and t > 12.0:
+				for c in mine:
+					if main.civs.has(c) and not c["hidden"] and c["state"] == "walk":
+						startled = c
+						startled_gate = _nearest_gate(arena, c["pos"])
+						main.civ_sys.hit_civ(c)
+						main.hearts = 5
+						main.state = "play"
+						break
 			main.civ_t = 99.0
 			main.civ_sys.update_civs(OPEN_DT)
 			t += OPEN_DT
@@ -366,6 +379,12 @@ func _check_open_ground(main) -> void:
 					> 0.0001
 				):
 					bad.append(tag + "a pedestrian's model is not at its pos")
+		if startled != null:
+			fled += 1
+			if startled["state"] != "flee" or startled["goal"]["pos"] != startled_gate["pos"]:
+				bad.append(tag + "a startled pedestrian does not run for the nearest gate")
+			if not gone_at.has(startled):
+				bad.append(tag + "a startled pedestrian never got away")
 		for c in mine:
 			if gone_at.has(c):
 				left += 1
@@ -389,9 +408,13 @@ func _check_open_ground(main) -> void:
 		)
 	if gates_used.size() < arenas:
 		bad.append("open ground: pedestrians used too few gates (check is not covering it)")
+	if fled < arenas / 2:
+		bad.append(
+			"open ground: only %d pedestrians were startled (check is not covering it)" % fled
+		)
 	open_summary = (
-		"open ground: %d pedestrians on %d generated arenas, %d left through a gate tunnel (slowest %.0f s)"
-		% [spawned, arenas, left_hidden, slowest]
+		"open ground: %d pedestrians on %d generated arenas, %d left through a gate tunnel, %d startled ones ran for the nearest gate (slowest %.0f s)"
+		% [spawned, arenas, left_hidden, fled, slowest]
 	)
 
 
