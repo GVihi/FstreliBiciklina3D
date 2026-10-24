@@ -35,6 +35,7 @@ func _initialize() -> void:
 	main.hits.fill(false)
 	_check_list()
 	_check_ranking()
+	_check_radar_scale()
 	await _check_hud()
 	if problems.is_empty():
 		print(
@@ -163,6 +164,40 @@ func _check_ranking() -> void:
 	var r2 = Threats.ranked(tie, true)
 	if r2[0]["kind"] != "boss" or tie[0].has("strength"):
 		_fail("a tie does not keep the list's order, or ranked changed its input")
+
+
+# Step 3, the radar scale (Threats.radar_fraction): the roundabout keeps its straight 26 m scale; on open ground the
+# scale reaches 60 m, never goes backwards, stays between 0 and 1, and gives a rider 10 m off more room from one 20 m
+# off than the straight scale would.
+func _check_radar_scale() -> void:
+	for dist in [0.0, 5.0, 13.0, 26.0, 40.0, 500.0]:
+		var want = minf(dist / 26.0, 1.0)
+		if absf(Threats.radar_fraction(dist, false) - want) > 0.0001:
+			_fail(
+				(
+					"on the roundabout the radar puts %.0f m at %.3f, not %.3f"
+					% [dist, Threats.radar_fraction(dist, false), want]
+				)
+			)
+	var last = -1.0
+	for i in range(0, 121):
+		var v = Threats.radar_fraction(float(i) * 2.0, true)
+		if v < 0.0 or v > 1.0001:
+			_fail("the open ground radar puts %.0f m at %.3f, outside 0 to 1" % [float(i) * 2.0, v])
+		if v < last - 0.0001:
+			_fail("the open ground radar goes backwards at %.0f m" % [float(i) * 2.0])
+		last = v
+	if Threats.radar_fraction(0.0, true) > 0.0001:
+		_fail("a threat on top of the player is not at the radar's centre")
+	if Threats.radar_fraction(Threats.RADAR_RANGE_OPEN, true) < 0.9999:
+		_fail("a threat at the open ground range is not on the rim")
+	# a far rider is on the radar, not piled on the rim: 40 m is inside the rim on open ground (it is on the rim on
+	# the roundabout), and two riders 10 m and 20 m off are farther apart than on a straight 60 m scale
+	if Threats.radar_fraction(40.0, true) >= 0.99:
+		_fail("a rider 40 m off is on the rim of the open ground radar")
+	var gap = Threats.radar_fraction(20.0, true) - Threats.radar_fraction(10.0, true)
+	if gap <= (20.0 - 10.0) / Threats.RADAR_RANGE_OPEN:
+		_fail("near riders have no more room on the open ground radar than on a straight scale")
 
 
 # the real HUD draws the edge arrows: twelve riders all behind the player (off screen), at 12 to 56 m, all riding at

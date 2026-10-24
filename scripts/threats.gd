@@ -18,6 +18,8 @@ const APPROACH_BONUS = 0.35
 const AWAY_PENALTY = 0.3
 const MIN_STRENGTH = 0.15
 const MAX_ARROWS = 8
+const RADAR_RANGE_STREET = 26.0  # metres from the centre to the rim of the radar on the roundabout
+const RADAR_RANGE_OPEN = 60.0  # the same on open ground, where riders start up to 96 m off
 
 
 # how strongly the arrow for threat t is drawn, 0 to 1
@@ -46,3 +48,13 @@ static func ranked(list: Array, open_ground: bool) -> Array:
 			return a["order"] < b["order"]
 	)
 	return out
+
+
+# how far from the radar's centre a threat dist metres away is drawn, 0 (on top of the player) to 1 (the rim).
+# The roundabout is as it always was: a straight scale out to RADAR_RANGE_STREET, everything farther on the rim.
+# On open ground the scale reaches RADAR_RANGE_OPEN and is squeezed (square root), so the riders close by, which
+# matter most, still have room between them and the far ones are on the radar instead of piled on its rim.
+static func radar_fraction(dist: float, open_ground: bool) -> float:
+	if not open_ground:
+		return minf(dist / RADAR_RANGE_STREET, 1.0)
+	return sqrt(minf(dist / RADAR_RANGE_OPEN, 1.0))

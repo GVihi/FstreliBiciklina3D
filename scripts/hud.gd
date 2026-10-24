@@ -1376,15 +1376,16 @@ func _draw_radar(k: float) -> void:
 		draw_line(
 			c, c + Vector2(sin(sgn * half_h), -cos(sgn * half_h)) * R, Color(1, 1, 1, 0.22), 1.0 * k
 		)
-	var me = g.player.position
+	var open_ground = g.arena.rider_pursuit()
 	for t in g.threat_list():
-		var d: Vector3 = t["pos"] - me
-		var dist = Vector2(d.x, d.z).length()
 		var rel = _rel_angle(t["pos"])
-		var rr = minf(dist / 26.0, 1.0) * (R - 4.0 * k)
+		var rr = Threats.radar_fraction(t["dist"], open_ground) * (R - 4.0 * k)
 		var dot = c + Vector2(sin(rel), -cos(rel)) * rr
 		var col: Color = THREAT_COL[t["kind"]]
-		draw_circle(dot, (2.4 + 1.8 * t["urg"]) * k, col)
+		var weight: float = Threats.strength(t, open_ground)  # the roundabout: the urgency, as before
+		if open_ground:
+			col.a = 0.5 + 0.5 * weight
+		draw_circle(dot, (2.4 + 1.8 * weight) * k, col)
 	draw_circle(c, 2.5 * k, Color(1, 1, 1, 0.9))
 
 
