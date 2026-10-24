@@ -76,6 +76,10 @@ Mostly vibe coded Godot game
   - [x] Separate "Daily Run" entry on the title menu; normal Play stays fully random
   - [x] Seed only the run layout (rider mix, shop and upgrade offers, starting boss and lighting theme), not moment-to-moment combat
 - [ ] Add dedicated daily-run scoreboard
+- [ ] Make the Daily Run feel different from a normal run
+  - [ ] One shared daily modifier for everybody that day (chosen from the seed, shown on the title screen and in the run bar), such as double riders, rain or fast riders
+  - [ ] Shareable result card: the date, seed, score, time, rounds and caches, as an image or text the player can copy
+  - [ ] Optional ghost: the best path of the day's top run shown as a faint line or marker, if replays can be recorded cheaply (decide after the balance harness in Tooling & QA says how big a recorded run is)
 
 ### Deferred
 
@@ -94,6 +98,9 @@ Mostly vibe coded Godot game
   - [x] Earn from score
   - [x] Earn from boss kills (5 coins for a lawnmower, wifi adapter or minister, 1 for the angry cyclist, 20 for the final boss; counted when the boss dies and paid out with the score coins when the run ends, so a run you quit pays nothing, same as the score coins; the run summary says how many came from bosses; `COINS_*` tuning constants and `add_boss_kill` in `scripts/meta.gd`, hook in `kill_boss` in `scripts/bosses.gd`. Written without running Godot, only parse-checked and linted; waiting for your in-game check: kill a boss and look at the META COINS row on the run summary. Built on the save-file versioning branch because both change `meta.gd`)
   - [ ] Earn from challenges
+    - [ ] Write the challenge list (a data table like `data/items.json`, each with a condition, a reward in meta coins and a counter in the save file, see `docs/SAVE_FILES.md`): clear a round without using the gun, take every cache before the last rider falls, perfect-dodge five riders in a row, clear a round without losing a life, finish a run in under 20 minutes
+    - [ ] Show them on the run summary (done, new, progress) and on a page of the title menu
+    - [ ] Optional: achievements for the same list, with a name and a small icon
 
 - [x] Keep meta currency separate from run cash
 
@@ -231,6 +238,7 @@ Mostly vibe coded Godot game
 
 - [ ] Subtitle support for voice lines
 - [ ] Colourblind-safe telegraphs
+- [ ] Directional warning sounds for riders: a bike bell or horn from a rider that is close and approaching from behind or the side (louder and panned by its direction, louder the closer it gets and the faster it closes), so a player can hear what the threat arrows and the radar show; also helps players who miss visual cues. Builds on the 3D audio item S7 and `closing` and `dist` in `threat_list` (`scripts/main.gd`); a setting to turn it off or make it quieter
 - [ ] English localization
 - [ ] Slovenian localization review
 - [x] Screen shake and screen flash intensity options (reduced-motion / photosensitivity) (new SHAKE AND FLASH slider in settings, 0 to 100 %, saved as `fx_scale` in the settings file and read by `load_settings` / `save_settings` / `get_setting` / `set_setting` in `scripts/settings.gd`; `fx_scale` multiplies the camera shake in `update_player` in `scripts/player.gd` and the white hit flash and the red damage flash in `scripts/hud.gd`, so 0 switches all three off and 100 % is the old look. Built on the exploration branch `rework/caches-extraction-point-fresnel-wip-crash-on-round-end`. Waiting for your in-game check: turn the slider to 0 and to 100 % and take a hit, shoot and dash. Not done: other screen effects (hype, shield and slow-motion screen effects in F10) do not exist yet, so they do not read `fx_scale`)
@@ -538,6 +546,24 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [ ] Playtest the objectives: do the caches pull the player across the map, is the extraction walk too long on a 144 m arena once the riders are down, do `CACHE_CASH`, `CACHE_SCORE`, `CACHE_COUNT` and the 45 m sense range feel right (first guesses in `scripts/objective.gd`)
 - [ ] Riders and pickups on the bigger arena: riders spawn at the gates and ride at the player over a map about twice as wide, so check that a round is not too slow, and whether the extraction point should open earlier or the arena be smaller for the early rounds
 - [ ] Extraction on other nodes: shop, rest, event and elite nodes (Milestone D) have no riders to put down, so decide what, if anything, they use the extraction point for
+- [ ] Ambush when the extraction point opens: the walk to the point is quiet today because every rider is already down, so send a short last wave or reinforcements through the gates once it opens (a few riders, or a boss node's escort), so the walk is a moment of its own and the caches become a trade-off between the gold detour and the straight run out. Decide the size and the timing while building it, and keep the round clear rule (`finish_wave_set`, `objective_reached`) and the perfect-round rule working
+- [ ] Caches with a catch (today they are pure reward): some of the 4 caches get a variant, chosen by the same seeded stream so the Daily Run gives everybody the same ones
+  - [ ] Cursed cache: pays more but calls riders from the nearest gate when taken
+  - [ ] Locked cache: needs a key that is found at another cache or dropped by a rider
+  - [ ] Vanishing cache: a countdown starts when the player comes within range, so it has to be taken quickly
+  - [ ] Mark the variants on the HUD and the radar so the player can tell them apart (colour and shape, not colour alone)
+- [ ] Choose your exit: the arena has several gates and the run map branches, so the extraction point could be one per exit gate, each matching a next node on the map (the player leaves through the gate of the node they want), instead of one fixed point. Needs the node choice (`pick_node`, Milestone D) to be made on the way out instead of on the map screen, and the HUD, radar and world markers to show more than one point
+- [ ] Pause-screen map: a top-down view of the arena from the pause menu showing the layout the player has explored, the start, the gates, the caches (taken and not) and the extraction point; a cache or the point is revealed when the player first comes within sense range, so exploring is rewarded and nothing is shown that the player has not found. Reuse the drawing from `tools/viewer/arena_viewer.tscn`
+
+## Rider variety and arena hazards
+
+> Riders ride at the player, pass, turn and come back (`scripts/riders.gd`). On the bigger arena a few more patterns would make fights different from each other, and the buildings the arena already has could be part of the fight. Ideas to decide on before building; each must keep `rider_pursuit_check` and `round_clear_check` working (a round still ends when every rider is down, so no pattern may leave a rider that cannot be reached).
+
+- [ ] Riders that flank in pairs: two riders that come in by different gates and reach the player from two sides, or one that peels off to the side while the other rides straight on
+- [ ] Ambush rider: waits behind a building near the player's path and rides out when the player comes within range (needs `Arena.rider_blocked` and the sight rule `Threats.sight_clear` to pick the spot; show it on the radar only once it moves, and decide how it reads with the rim glow)
+- [ ] Heavy rider that blocks a road: slow, tough and wide, it rides along a road and forces the player to go round or shoot it down; check that the other riders' obstacle avoidance (`avoid_obstacles`) copes with it
+- [ ] Riders crash on the arena: a rider that hits a building, lamp post or tree at speed crashes (the crash and falling-parts effects of F4 and F10 are the model), and a startled pedestrian group can be ridden into, so the player can use the arena as a weapon. Decide what a crash pays (score, style, a `kill` for the round count) and make sure a rider that crashed by itself still counts as down
+- [ ] Add the new rider kinds to the map content (`scripts/map_content.gd`, `rider_plan`) and the rider mix numbers in `data/map_rules.json`, so the node decides which of them appear
 
 ## Scale, variety and polish
 
@@ -569,6 +595,7 @@ Jumping on Space, so the movement feels like a modern FPS. Space is the dash key
 # Tooling & QA
 
 - [ ] Playtest pass of everything built in Milestone A (title, pause, settings, run, win / lose, leaderboard, name entry). It was written without running the game
+- [ ] Bot playthrough balance harness: a headless script (`tools/bot_run.gd` with a `tools\\run_bot_run.bat` next to it, as the testing rule asks) where a simple bot plays whole runs on many seeds (aims at the nearest rider, dashes away from a threat that is about to hit, takes the nearest cache, walks to the extraction point) and logs, for every round, the time, lives lost, damage taken, kills, caches taken and whether it reached the extraction point; a summary per seed and across seeds gives real numbers for the playtest and balance items in Milestone K, the 10-round difficulty curve and the run length target. Reuse `tools/generated_run_check.gd` for the scripted run; the bot does not have to be good, only the same every time, so changes show as changes in the numbers
 - [x] CI check on every pull request: GDScript lint / format (gdtoolkit) and a headless Godot project load (`.github/workflows/ci.yml`, three jobs: `gdlint` uses the rules in `.gdlintrc`; `gdformat --check` fails if a script is not formatted (fix with `gdformat scripts/ tools/viewer/`); the Godot job imports the project and runs it headless for 120 frames, and fails on any script or load error, since Godot exits with 0 even when a script does not parse. Tested here with Godot 4.7 against a clean copy and a copy with a syntax error; the workflow itself has not run on GitHub yet)
 - [x] Save-file safety: version the settings and score files so later changes do not break old saves (settings, scores and meta currency files now carry a version, old files load as version 0 and are upgraded on the next save; unreadable files and files from a newer game version are copied to a `.bak` file before they are overwritten; helpers in `scripts/save_util.gd`, rules in `docs/SAVE_FILES.md`. Written without running Godot, only parse-checked and linted; waiting for your in-game check: start the game with your existing saves, finish a run and look at `user://` for the new version fields)
 
