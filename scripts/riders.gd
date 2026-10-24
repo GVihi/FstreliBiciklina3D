@@ -410,7 +410,12 @@ func update_rider(r: Dictionary, dt: float) -> void:
 		elif r["can_throw"] and r["entered"] and not r["hidden"] and g.phones.size() < 3:
 			r["throw_t"] -= dt
 			if r["throw_t"] <= 0.0:
-				if g.throw_cool <= 0.0 and g.state == "play":
+				# on open ground only with a clear line to the player (phones.gd, throw_clear)
+				if (
+					g.throw_cool <= 0.0
+					and g.state == "play"
+					and g.phone_sys.throw_clear(phone_origin(r))
+				):
 					g.phone_sys.start_throw(r)
 				else:
 					r["throw_t"] = 0.3
