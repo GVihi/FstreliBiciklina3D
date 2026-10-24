@@ -51,6 +51,11 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 		type = "courier"
 	if g.round_n >= 2 and g.layout_f() < minf(0.36, 0.12 + g.round_n * 0.04):
 		type = "tough"
+	# a node's plan (on a generated arena) decides the kind; the draws above still happen, so the other draws of the
+	# round do not depend on whether there is a plan
+	var planned = g.planned_rider_type(g.next_idx)
+	if planned != "":
+		type = planned
 	var kit_i = g.layout_i(4)
 	if type == "sprinter":
 		kit_i = 4

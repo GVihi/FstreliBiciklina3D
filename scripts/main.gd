@@ -72,8 +72,11 @@ const RED = Color(0.9, 0.33, 0.24)
 const PINK = Color(1.0, 0.7, 0.9)
 const ACCENT = Color(1.0, 0.42, 0.17)
 
+# riders in a round without a node that says otherwise (the roundabout, a run without a map)
+const DEFAULT_PER_ROUND = 10
+
 # values the HUD reads (vars so they are reachable from another script)
-var PER_ROUND = 10
+var PER_ROUND = 10  # riders in this round: DEFAULT_PER_ROUND, or what the node says (plan_riders)
 var MAX_ROUNDS = 10  # a run is this many rounds; clearing the last one wins the run
 var NEED = 6  # hits that clear a round where riders can get away (the roundabout); see hits_needed()
 var MAXSHELLS = int(Content.WEAPONS["dart_gun"]["start_clip"])
@@ -137,6 +140,7 @@ var over_reason = ""
 var hits = []
 var next_idx = 0
 var riders = []
+var rider_plan: Array = []  # the kind of each rider of this round when the node plans them (plan_riders)
 var civs = []
 var bosses = []
 var phones = []
@@ -801,6 +805,32 @@ func round_theme() -> int:
 	return (round_n - 1 + seed_shift(THEMES.size())) % THEMES.size()
 
 
+# The riders of this round from the node's content: how many (PER_ROUND) and of which kinds, in a shuffled order
+# (rider_plan, one kind per rider, read by rider_sys.spawn_rider). Without a node's content a round has
+# DEFAULT_PER_ROUND riders and no plan, so riders are drawn as they always were.
+func plan_riders() -> void:
+	rider_plan = []
+	PER_ROUND = DEFAULT_PER_ROUND
+	var setup = node_setup()
+	if not setup.has("riders"):
+		return
+	var mix: Dictionary = setup["riders"]["mix"]
+	for kind in mix:
+		for k in range(int(mix[kind])):
+			rider_plan.append(str(kind))
+	if rider_plan.is_empty():
+		return
+	layout_shuffle(rider_plan)
+	PER_ROUND = rider_plan.size()
+
+
+# the kind the node plans for rider number i of this round, or "" when it plans none (draw it as usual)
+func planned_rider_type(i: int) -> String:
+	if i >= 0 and i < rider_plan.size():
+		return rider_plan[i]
+	return ""
+
+
 # the lanes of the next floor the player may pick: every node of floor 1 at the start, otherwise the nodes the
 # current one connects to
 func next_lanes() -> Array:
@@ -903,6 +933,7 @@ func start_round() -> void:
 	theme_idx = round_theme()
 	apply_theme(theme_idx)
 	rider_rng.seed = DailyScript.stream_seed(run_seed, round_n, "riders")
+	plan_riders()
 	round_t = 0.0
 	hits.clear()
 	for i in range(PER_ROUND):
