@@ -36,6 +36,7 @@ func _initialize() -> void:
 	_check_list()
 	_check_ranking()
 	_check_radar_scale()
+	_check_aim_assist()
 	await _check_hud()
 	if problems.is_empty():
 		print(
@@ -198,6 +199,98 @@ func _check_radar_scale() -> void:
 	var gap = Threats.radar_fraction(20.0, true) - Threats.radar_fraction(10.0, true)
 	if gap <= (20.0 - 10.0) / Threats.RADAR_RANGE_OPEN:
 		_fail("near riders have no more room on the open ground radar than on a straight scale")
+
+
+# Step 4, aim assist (Threats.assist_cone, Threats.sight_clear, Player.apply_aim_assist): the roundabout keeps the
+# fixed 8 degree cone and has no sight rule; on open ground the cone narrows with distance (never wider than 8
+# degrees, never reaching more than ASSIST_REACH metres to the side), a target behind a building does not pull the
+# crosshair and one in the open does.
+func _check_aim_assist() -> void:
+	for dist in [1.0, 10.0, 40.0, 90.0]:
+		if absf(Threats.assist_cone(dist, false) - deg_to_rad(8.0)) > 0.0001:
+			_fail("the roundabout's assist cone at %.0f m is not 8 degrees" % dist)
+		var cone = Threats.assist_cone(dist, true)
+		if cone > deg_to_rad(8.0) + 0.0001:
+			_fail("the open ground assist cone at %.0f m is wider than 8 degrees" % dist)
+		if tan(cone) * dist > Threats.ASSIST_REACH + 0.0001:
+			_fail(
+				(
+					"the open ground assist cone at %.0f m reaches %.2f m to the side"
+					% [dist, tan(cone) * dist]
+				)
+			)
+	if Threats.assist_cone(90.0, true) >= Threats.assist_cone(40.0, true):
+		_fail("the open ground assist cone does not narrow with distance")
+	# the real arena: a rider in the open pulls the crosshair, the same rider behind a building does not
+	main.clear_riders()
+	main.clear_bosses()
+	main.state = "play"
+	main.aim_assist = 1.0
+	var arena = main.arena
+	var found = false
+	for seed_value in [0x9E378A43, 1, 2, 3, 4, 5, 6, 7]:
+		main.start_game(false, seed_value)
+		main.state = "check"
+		arena = main.arena
+		var spot = _wall_spot(arena)
+		if spot.is_empty():
+			continue
+		found = true
+		var eye = spot["open"] + Vector3(0.0, 1.5, 0.0)
+		var target = spot["behind"] + Vector3(0.0, 1.2, 0.0)
+		var clear_target = spot["open_far"] + Vector3(0.0, 1.2, 0.0)
+		if Threats.sight_clear(arena, eye, target):
+			_fail("seed %X: a point behind a building is in sight" % seed_value)
+		if not Threats.sight_clear(arena, eye, clear_target):
+			_fail("seed %X: a point in the open is not in sight" % seed_value)
+		break
+	if not found:
+		_fail("no generated arena in 8 seeds had a spot with a building between two open points")
+	main.aim_assist = 0.6
+	# back to the arena the other steps use
+	main.start_game(false, 0x9E378A43)
+	main.state = "check"
+	main.hits.resize(400)
+	main.hits.fill(false)
+
+
+# a point on open ground, a point 4 m or more from it behind a building and a third point in the open the same
+# distance away; empty if the arena has none (found by walking the grid, never random)
+func _wall_spot(arena) -> Dictionary:
+	var step = 2.0
+	var start: Vector3 = arena.start_position()
+	for ix in range(-20, 21):
+		for iz in range(-20, 21):
+			var a = start + Vector3(float(ix) * step, 0.0, float(iz) * step)
+			if arena.obstacle_at(a):
+				continue
+			for dir in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)]:
+				var wall_at = -1.0
+				var behind_at = -1.0
+				var l = 1.0
+				while l < 20.0:
+					var p = a + dir * l
+					if wall_at < 0.0 and arena.ray_blocked(Vector3(p.x, 1.5, p.z)):
+						wall_at = l
+					elif (
+						wall_at > 0.0
+						and not arena.ray_blocked(Vector3(p.x, 1.2, p.z))
+						and not arena.obstacle_at(p)
+					):
+						behind_at = l
+						break
+					l += 1.0
+				if wall_at > 0.0 and behind_at > wall_at:
+					# the open point in the opposite direction, the same distance away
+					var far = a - dir * behind_at
+					if (
+						not arena.obstacle_at(far)
+						and Threats.sight_clear(
+							arena, a + Vector3(0, 1.5, 0), far + Vector3(0, 1.2, 0)
+						)
+					):
+						return {"open": a, "behind": a + dir * behind_at, "open_far": far}
+	return {}
 
 
 # the real HUD draws the edge arrows: twelve riders all behind the player (off screen), at 12 to 56 m, all riding at

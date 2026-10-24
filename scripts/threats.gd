@@ -20,6 +20,9 @@ const MIN_STRENGTH = 0.15
 const MAX_ARROWS = 8
 const RADAR_RANGE_STREET = 26.0  # metres from the centre to the rim of the radar on the roundabout
 const RADAR_RANGE_OPEN = 60.0  # the same on open ground, where riders start up to 96 m off
+const ASSIST_CONE_DEG = 8.0  # stick aim assist: how far off the crosshair a target may be and still pull it
+const ASSIST_REACH = 2.0  # on open ground the pull is limited to targets within this many metres of the crosshair
+const SIGHT_STEP = 1.0  # metres between the points sampled along a line of sight
 
 
 # how strongly the arrow for threat t is drawn, 0 to 1
@@ -58,3 +61,32 @@ static func radar_fraction(dist: float, open_ground: bool) -> float:
 	if not open_ground:
 		return minf(dist / RADAR_RANGE_STREET, 1.0)
 	return sqrt(minf(dist / RADAR_RANGE_OPEN, 1.0))
+
+
+# the half angle in radians of the stick aim assist's cone for a target dist metres away. The roundabout keeps
+# its fixed cone. On open ground a target 60 m off is a speck, and a fixed 8 degree cone would reach 8 m to each
+# side of it, so the cone is also limited to targets within ASSIST_REACH metres of where the crosshair points.
+static func assist_cone(dist: float, open_ground: bool) -> float:
+	var cone = deg_to_rad(ASSIST_CONE_DEG)
+	if not open_ground:
+		return cone
+	return minf(cone, atan2(ASSIST_REACH, maxf(dist, 0.01)))
+
+
+# true if a dart flying from `from` to `to` is not stopped by the arena on the way (the arena's ray_blocked, which
+# looks at the height too, sampled every SIGHT_STEP metres; the end points are not tested, a target stands next to
+# a wall now and then). The stick aim assist uses it on open ground so the crosshair is not pulled onto a rider
+# behind a building.
+static func sight_clear(arena, from: Vector3, to: Vector3) -> bool:
+	var d = to - from
+	var dist = d.length()
+	if dist < SIGHT_STEP:
+		return true
+	var n = int(dist / SIGHT_STEP)
+	for i in range(1, n + 1):
+		var f = float(i) * SIGHT_STEP / dist
+		if f >= 1.0:
+			break
+		if arena.ray_blocked(from + d * f):
+			return false
+	return true

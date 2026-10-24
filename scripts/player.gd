@@ -2,6 +2,8 @@ extends RefCounted
 # Player: movement, dash and slide, perfect dodges, aim assist, spread and gun handling.
 # Shared game state stays on main.gd (g); this file holds the logic.
 
+const Threats = preload("res://scripts/threats.gd")
+
 var g = null
 
 # gun motion (update_gun): how far the gun lags behind turning, and the look angles of the last frame
@@ -198,14 +200,16 @@ func update_player(dt: float, captured: bool) -> void:
 		g.combat_sys.fire()
 
 
-# stick aim help: drifts the crosshair onto whatever is close to it
+# stick aim help: drifts the crosshair onto whatever is close to it. On open ground (Threats.assist_cone and
+# Threats.sight_clear) a far target has a narrower cone, and a target behind a building does not pull at all.
 func apply_aim_assist(dt: float) -> void:
 	if g.aim_assist <= 0.0:
 		return
+	var open_ground = g.arena.rider_pursuit()
 	var org = g.cam.global_position
 	var fwd = -g.cam.global_transform.basis.z
 	var best = null
-	var best_ang = deg_to_rad(8.0)
+	var best_ang = deg_to_rad(Threats.ASSIST_CONE_DEG)
 	var cands = []
 	for r in g.riders:
 		if (r["mode"] == "fly" or r["mode"] == "away") and not r["hidden"]:
@@ -218,9 +222,15 @@ func apply_aim_assist(dt: float) -> void:
 			cands.append(ph["pos"])
 	for c in cands:
 		var ang = fwd.angle_to((c - org).normalized())
-		if ang < best_ang:
-			best_ang = ang
-			best = c
+		if ang >= best_ang:
+			continue
+		if open_ground:
+			if ang >= Threats.assist_cone(org.distance_to(c), true):
+				continue
+			if not Threats.sight_clear(g.arena, org, c):
+				continue
+		best_ang = ang
+		best = c
 	if best == null:
 		return
 	var to = (best - org).normalized()
