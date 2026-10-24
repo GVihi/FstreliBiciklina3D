@@ -51,6 +51,11 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 		type = "courier"
 	if g.round_n >= 2 and g.layout_f() < minf(0.36, 0.12 + g.round_n * 0.04):
 		type = "tough"
+	# a node's plan (on a generated arena) decides the kind; the draws above still happen, so the other draws of the
+	# round do not depend on whether there is a plan
+	var planned = g.planned_rider_type(g.next_idx)
+	if planned != "":
+		type = planned
 	var kit_i = g.layout_i(4)
 	if type == "sprinter":
 		kit_i = 4
@@ -131,6 +136,8 @@ func spawn_wave() -> void:
 	var n = 1
 	if g.round_n >= 2 and remaining >= 2 and g.layout_f() < minf(0.55, 0.12 + g.round_n * 0.08):
 		n = 2
+	if g.has_modifier("double_riders") and remaining >= 2:
+		n = 2  # the node's "double riders" modifier: every wave is a pair
 	var order = [0, 1, 2]
 	g.layout_shuffle(order)
 	var dir = 1 if g.layout_f() < 0.5 else -1
@@ -173,9 +180,16 @@ func phone_origin(r: Dictionary) -> Vector3:
 
 
 # one of the arena's gates, chosen with the layout's random numbers so a seed gives the same riders
+# On a generated arena only the gates the node leaves open (its content "gates", indexes into the arena's gates).
 func pick_gate() -> Dictionary:
 	var gates = g.arena.gates()
-	return gates[g.layout_i(gates.size())]
+	var usable = []
+	for i in g.node_setup().get("gates", []):
+		if int(i) >= 0 and int(i) < gates.size():
+			usable.append(gates[int(i)])
+	if usable.is_empty():
+		usable = gates
+	return usable[g.layout_i(usable.size())]
 
 
 # the gate nearest to world point pos

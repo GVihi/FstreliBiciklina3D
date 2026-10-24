@@ -72,8 +72,11 @@ const RED = Color(0.9, 0.33, 0.24)
 const PINK = Color(1.0, 0.7, 0.9)
 const ACCENT = Color(1.0, 0.42, 0.17)
 
+# riders in a round without a node that says otherwise (the roundabout, a run without a map)
+const DEFAULT_PER_ROUND = 10
+
 # values the HUD reads (vars so they are reachable from another script)
-var PER_ROUND = 10
+var PER_ROUND = 10  # riders in this round: DEFAULT_PER_ROUND, or what the node says (plan_riders)
 var MAX_ROUNDS = 10  # a run is this many rounds; clearing the last one wins the run
 var NEED = 6  # hits that clear a round where riders can get away (the roundabout); see hits_needed()
 var MAXSHELLS = int(Content.WEAPONS["dart_gun"]["start_clip"])
@@ -137,6 +140,8 @@ var over_reason = ""
 var hits = []
 var next_idx = 0
 var riders = []
+var round_modifiers: Array = []  # the node's round modifiers ("rain", "double_riders"), see plan_riders
+var rider_plan: Array = []  # the kind of each rider of this round when the node plans them (plan_riders)
 var civs = []
 var bosses = []
 var phones = []
@@ -784,6 +789,56 @@ func current_node() -> Dictionary:
 	return run_map["floors"][map_floor][map_lane]
 
 
+# What the node being played says about the round (its "content", docs/MAP_GENERATION.md), or {} when there is none.
+# Only on an arena with rider pursuit (the generated arena): the content is made for it (its gate numbers are the
+# layout's), so the roundabout plays every node as it always did.
+func node_setup() -> Dictionary:
+	if not arena.rider_pursuit():
+		return {}
+	return current_node().get("content", {})
+
+
+# the theme of the round: the node's, where it has one, otherwise the old rule (round number and run seed)
+func round_theme() -> int:
+	var setup = node_setup()
+	if setup.has("theme"):
+		return int(setup["theme"]) % THEMES.size()
+	return (round_n - 1 + seed_shift(THEMES.size())) % THEMES.size()
+
+
+# The riders of this round from the node's content: how many (PER_ROUND) and of which kinds, in a shuffled order
+# (rider_plan, one kind per rider, read by rider_sys.spawn_rider). Without a node's content a round has
+# DEFAULT_PER_ROUND riders and no plan, so riders are drawn as they always were.
+func plan_riders() -> void:
+	rider_plan = []
+	round_modifiers = []
+	PER_ROUND = DEFAULT_PER_ROUND
+	var setup = node_setup()
+	if not setup.has("riders"):
+		return
+	round_modifiers = setup.get("modifiers", [])
+	var mix: Dictionary = setup["riders"]["mix"]
+	for kind in mix:
+		for k in range(int(mix[kind])):
+			rider_plan.append(str(kind))
+	if rider_plan.is_empty():
+		return
+	layout_shuffle(rider_plan)
+	PER_ROUND = rider_plan.size()
+
+
+# true if the node being played has this round modifier
+func has_modifier(name: String) -> bool:
+	return round_modifiers.has(name)
+
+
+# the kind the node plans for rider number i of this round, or "" when it plans none (draw it as usual)
+func planned_rider_type(i: int) -> String:
+	if i >= 0 and i < rider_plan.size():
+		return rider_plan[i]
+	return ""
+
+
 # the lanes of the next floor the player may pick: every node of floor 1 at the start, otherwise the nodes the
 # current one connects to
 func next_lanes() -> Array:
@@ -883,9 +938,10 @@ func start_round() -> void:
 	clear_bosses()
 	clear_phones()
 	clear_pickups()
-	theme_idx = (round_n - 1 + seed_shift(THEMES.size())) % THEMES.size()
+	theme_idx = round_theme()
 	apply_theme(theme_idx)
 	rider_rng.seed = DailyScript.stream_seed(run_seed, round_n, "riders")
+	plan_riders()
 	round_t = 0.0
 	hits.clear()
 	for i in range(PER_ROUND):
@@ -921,6 +977,8 @@ func start_round() -> void:
 	state_t = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	sfx.say("round_start")
+	if has_modifier("double_riders"):
+		add_note("DOUBLE RIDERS", GOLD)
 
 
 func count_hits() -> int:
@@ -965,6 +1023,17 @@ func is_final_round() -> bool:
 func need_boss() -> bool:
 	if round_n < 2 or bosses.size() > 0 or pending_boss:
 		return false
+	# a fight node on a generated arena decides for itself: a boss node has its boss after the riders (and only
+	# once, when they are all down), any other fight node has none. Nodes without riders (shop, rest, event) and
+	# the roundabout keep the old rule below.
+	var setup = node_setup()
+	if setup.has("riders"):
+		return (
+			setup.has("boss")
+			and boss_count == 0
+			and next_idx >= PER_ROUND
+			and count_hits() >= hits_needed()
+		)
 	if is_final_round():
 		# the last round has no ordinary bosses: after the riders comes the final boss, if you got far enough to face it
 		return boss_count == 0 and next_idx >= PER_ROUND and count_hits() >= hits_needed()

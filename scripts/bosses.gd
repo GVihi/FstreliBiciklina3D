@@ -105,10 +105,13 @@ const OPEN_MARK_Y = 0.14
 
 
 func spawn_boss() -> void:
-	var final = g.is_final_round()
+	var setup = g.node_setup()  # a boss node on a generated arena says which boss comes
+	var final = g.is_final_round() or bool(setup.get("final", false))
 	var kind = g.BOSS_KINDS[
 		(g.round_n + g.boss_count + g.seed_shift(g.BOSS_KINDS.size())) % g.BOSS_KINDS.size()
 	]
+	if g.BOSS_INFO.has(str(setup.get("boss", ""))):
+		kind = str(setup["boss"])
 	var variant = (g.round_n + g.boss_count) % 2
 	if final:
 		kind = "minister"  # the golden president is the final boss
