@@ -71,12 +71,16 @@ func setup_round() -> void:
 
 func clear() -> void:
 	for c in caches:
-		var n: Node = c["node"]
-		n.queue_free()
+		# a taken cache was already queue_free()d in _take(), and once it is really freed the
+		# dictionary holds a dead reference that cannot even be assigned to a typed variable
+		var n = c["node"]
+		if is_instance_valid(n):
+			n.queue_free()
 	caches.clear()
 	if not goal.is_empty():
-		var gn: Node = goal["node"]
-		gn.queue_free()
+		var gn = goal["node"]
+		if is_instance_valid(gn):
+			gn.queue_free()
 	goal = {}
 	extracting = false
 	taken = 0
