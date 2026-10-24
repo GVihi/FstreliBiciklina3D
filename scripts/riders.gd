@@ -27,6 +27,8 @@ const GATE_SPAWN = 1.0  # metres from a gate's pos towards the outside where a r
 const GATE_DEPTH = 2.0  # metres: with the mouth, how far a rider that gave up rides out (see gate_exit_point)
 const OBSTACLE_BRAKE = 2.3  # per second: a rider with free ground ahead of L metres rides no faster than this times L
 const BRAKE_MIN_SPEED = 3.0  # metres per second: the slowest it brakes to for something close ahead
+const BOXED_FREE = 1.0  # metres: with less than this free ahead a rider is boxed in and may brake below BRAKE_MIN_SPEED
+const CRAWL_SPEED = 0.5  # metres per second: the slowest a boxed-in rider goes while it turns on the spot to a clear heading
 const AWAY_REACH = 2.0  # metres from the exit point at which a rider that gave up counts as out
 const NEVER_GIVES_UP = 1.0e9  # seconds: the time limit of a rider that cannot get away (g.riders_can_escape())
 const AGE_SPEED_CAP = 6.0  # seconds: the longest a rider speeds up for, where it has no time limit
@@ -241,6 +243,10 @@ func pursuit_turn_rate(speed: float) -> float:
 # Where the arena has rider pursuit, steer at the player instead (pursuit_target) with the sideways limit.
 func move_rider(r: Dictionary, dt: float) -> void:
 	var pursuit = g.arena.rider_pursuit()
+	if pursuit and not r["hidden"] and g.arena.rider_blocked(r["pos"]):
+		# inside a wall (a rider cannot ride out of one: it has no speed there, and a dart cannot reach it): put
+		# it on the nearest free ground
+		r["pos"] = g.arena.clamp_walk(r["pos"], "boss")
 	var lane_z = g.LANE_Z[r["ln"]]
 	# metres per second over the ground: on open ground the surface under the rider sets its share of the speed
 	var speed = (
@@ -252,7 +258,10 @@ func move_rider(r: Dictionary, dt: float) -> void:
 		var look = speed / OBSTACLE_BRAKE + 1.0
 		var free = clear_distance(r["pos"], r["yaw"], look)
 		if free < look:
-			speed = minf(speed, maxf(BRAKE_MIN_SPEED, OBSTACLE_BRAKE * free))
+			speed = minf(
+				speed,
+				maxf(BRAKE_MIN_SPEED if free >= BOXED_FREE else CRAWL_SPEED, OBSTACLE_BRAKE * free)
+			)
 	var target: Vector3
 	var turn_rate = TURN_RATE
 	if pursuit:
