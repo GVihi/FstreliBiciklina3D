@@ -199,6 +199,21 @@ func _check_lots(layout: Dictionary, built: Dictionary, found: Array) -> Diction
 	var cell = float(layout["cell"])
 	var half_world = float(n) * cell / 2.0
 	var heights = {}
+	# the lowest and highest roof the layout's style allows: its "dress" numbers (the plain ones without a style)
+	var dress: Dictionary = layout.get("dress", {})
+	var h_lo = float(dress.get("h_base", WorldDress.H_MIN))
+	var h_hi = (
+		h_lo
+		+ (
+			float(maxi(1, int(dress.get("h_steps", WorldDress.H_STEPS))) - 1)
+			* float(dress.get("h_step", WorldDress.H_STEP))
+		)
+	)
+	if h_lo < 6.0 or h_hi > 16.0:
+		found.append(
+			"the style's roofs are %.2f to %.2f m, 6 to 16 m is the sensible range" % [h_lo, h_hi]
+		)
+		return {}
 	var covered = PackedInt32Array()
 	covered.resize(n * n)
 	var drawn = []  # [x0, z0, x1, z1, h, dark] of each lot's top
@@ -218,8 +233,8 @@ func _check_lots(layout: Dictionary, built: Dictionary, found: Array) -> Diction
 				return {}
 			var r = [sp["lo"].x, sp["lo"].z, sp["hi"].x, sp["hi"].z]
 			drawn.append([r[0], r[1], r[2], r[3], h, part_name == "walls_dark"])
-			if h < 6.0 or h > 12.0:
-				found.append("a building is %.2f m high, 6 to 12 m expected" % h)
+			if h < h_lo - EPS or h > h_hi + EPS:
+				found.append("a building is %.2f m high, %.2f to %.2f m expected" % [h, h_lo, h_hi])
 				return {}
 			# the four sides: vertical, from the ground to the top, standing on the lot's edge
 			for s in range(4):

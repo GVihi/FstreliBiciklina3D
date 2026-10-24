@@ -18,6 +18,10 @@ extends RefCounted
 #                centre of the tunnel block), "outward": [x, z] (unit vector), "half_width": metres}]
 #   "start":     {"cell": [cx, cz], "pos": [x, z], "half": cells} a clear (2 * half + 1) square of plaza
 #   "walkable_m2": ground a player or rider can stand on (everything but buildings and tunnels)
+#   "style":     the arena style the seed picked ("plaza", "canyon", "market", "park"; "" when the rules have no
+#                styles), see "styles" in data/arena_rules.json
+#   "dress":     how world_dress.gd dresses this style: {"h_base", "h_steps", "h_step" (building heights) and
+#                "tree_every"}; empty when the style gives none
 # Nothing in a layout reads the scene or the global random state.
 
 const DailyScript = preload("res://scripts/daily.gd")
@@ -63,12 +67,72 @@ static func generate(run_seed: int, rules: Dictionary = {}) -> Dictionary:
 	if rules.is_empty():
 		return {}
 	var tries = int(rules.get("max_attempts", 8))
+	# the style belongs to the seed, not to the attempt: a retry changes the layout, never the style
+	var style = pick_style(run_seed, rules)
+	var style_rules = rules_for_style(rules, style)
+	var dress = {}
+	if style != "":
+		dress = rules["styles"][style].get("dress", {}).duplicate(true)
 	for attempt in range(tries):
-		var layout = _attempt(run_seed, attempt, rules)
+		var layout = _attempt(run_seed, attempt, style_rules)
 		if not layout.is_empty():
+			layout["style"] = style
+			layout["dress"] = dress
 			return layout
 	push_error("arena: seed %08X gave no usable layout in %d attempts" % [run_seed, tries])
 	return {}
+
+
+# The names of the styles in the rules, in a fixed (sorted) order; empty when the rules have none.
+static func style_names(rules: Dictionary) -> Array:
+	var names = rules.get("styles", {}).keys()
+	names.sort()
+	return names
+
+
+# The style a run seed gets: drawn from its own stream (attempt 0), by the "weight" of each style. "" when the
+# rules have no styles, which gives the plain numbers of the rules.
+static func pick_style(run_seed: int, rules: Dictionary) -> String:
+	var names = style_names(rules)
+	if names.is_empty():
+		return ""
+	var styles = rules["styles"]
+	var total = 0.0
+	for name in names:
+		total += maxf(0.0, float(styles[name].get("weight", 1.0)))
+	var rng = _rng(run_seed, 0, str(rules.get("streams", {}).get("style", "arena_style")))
+	var roll = rng.randf() * total
+	for name in names:
+		roll -= maxf(0.0, float(styles[name].get("weight", 1.0)))
+		if roll < 0.0:
+			return str(name)
+	return str(names[names.size() - 1])
+
+
+# The rules with the numbers of a style laid over them: every key a style names replaces the key in the
+# rules, dictionaries are merged key by key (so a style can change only road["vertical"]). The "styles" table
+# itself is left out of the result. A style that is not in the rules ("" too) gives the rules as they are.
+static func rules_for_style(rules: Dictionary, style: String) -> Dictionary:
+	var styles = rules.get("styles", {})
+	if style == "" or not styles.has(style):
+		return rules
+	var out = _merged(rules, styles[style].get("rules", {}))
+	out.erase("styles")
+	return out
+
+
+static func _merged(base: Dictionary, over: Dictionary) -> Dictionary:
+	var out = base.duplicate(true)
+	for key in over:
+		if (
+			out.has(key)
+			and typeof(out[key]) == TYPE_DICTIONARY
+			and typeof(over[key]) == TYPE_DICTIONARY
+		):
+			out[key] = _merged(out[key], over[key])
+		else:
+			out[key] = over[key]
+	return out
 
 
 static func _rng(run_seed: int, attempt: int, part: String) -> RandomNumberGenerator:
