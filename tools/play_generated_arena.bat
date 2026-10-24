@@ -1,5 +1,6 @@
 @echo off
-rem Plays the game in a window on a generated arena (the --generated-arena flag, README Milestone K).
+rem Plays the game in a window on a generated arena (README Milestone K). This is now what the game does by default;
+rem the flag is kept so the old way of starting still works. tools\play_roundabout.bat plays the old roundabout.
 rem Usage:  tools\play_generated_arena.bat [path\to\godot.exe]
 rem If no path is given, the default Steam folder is searched.
 rem The title screen shows the arena of today's daily seed; every run plays on the arena of its run seed.

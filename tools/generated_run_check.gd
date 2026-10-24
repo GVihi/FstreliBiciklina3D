@@ -36,6 +36,7 @@ func _initialize() -> void:
 	var args = OS.get_cmdline_user_args()
 	if args.size() > 0:
 		count = int(args[0])
+	_check_arena_choice()
 	await _check_flag_off()
 	main = load(MAIN_SCENE).instantiate()
 	main.generated_arena = true
@@ -63,7 +64,45 @@ func _fail(text: String) -> void:
 	problems.append(text)
 
 
-# the flag is off unless asked for: the roundabout is the arena, with its pedestrians and cheerleaders
+# which arena a starting game plays on: the generated one, unless --roundabout is given; a check's own main (not
+# started as the game) keeps the roundabout unless the check asks for the generated arena
+func _check_arena_choice() -> void:
+	var main_script = load("res://scripts/main.gd")
+	var none = PackedStringArray()
+	var cases = [
+		["the game with no arguments", none, true, false, true],
+		["the game with --roundabout", PackedStringArray(["--roundabout"]), true, false, false],
+		[
+			"the game with --generated-arena",
+			PackedStringArray(["--generated-arena"]),
+			true,
+			false,
+			true
+		],
+		["a check's main", none, false, false, false],
+		["a check's main that asks for the generated arena", none, false, true, true],
+		[
+			"--roundabout over a check's request",
+			PackedStringArray(["--roundabout"]),
+			false,
+			true,
+			false
+		],
+		[
+			"--generated-arena on a check's main",
+			PackedStringArray(["--generated-arena"]),
+			false,
+			false,
+			true
+		],
+	]
+	for c in cases:
+		var got = main_script.wants_generated_arena(c[1], c[2], c[3])
+		if got != c[4]:
+			_fail("%s: generated arena is %s, expected %s" % [c[0], got, c[4]])
+
+
+# the flag is off unless asked for in a check's own main: the roundabout is the arena, with its pedestrians and cheerleaders
 func _check_flag_off() -> void:
 	var m = load(MAIN_SCENE).instantiate()
 	root.add_child(m)
