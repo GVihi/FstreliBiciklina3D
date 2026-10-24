@@ -8,7 +8,11 @@ extends SceneTree
 #   - the round's theme is the node's theme (theme_idx);
 #   - the round has the node's number of riders (PER_ROUND, the HUD icons and hits array follow it) and the plan of
 #     kinds adds up to the node's mix, and the riders spawned have exactly those kinds;
-#   - riders only come in by the gates the node leaves open, and by any gate when the node lists none.
+#   - riders only come in by the gates the node leaves open, and by any gate when the node lists none;
+#   - a boss node has its boss only after every rider is down and only once, and the boss is the node's kind (the
+#     last node's is the final minister); a fight node without a boss never asks for one, even where the old rule
+#     would have (after 4 riders);
+#   - the "double_riders" modifier makes every wave a pair of riders.
 # On the roundabout (the arena the game starts with) none of it applies: node_setup() is empty, a round has 10
 # riders, no plan, and the theme follows the old rule (round number and run seed).
 
@@ -113,6 +117,7 @@ func _check_generated() -> void:
 			)
 		main.clear_riders()
 		_check_gates(tag, content)
+		_check_bosses_and_modifiers(tag)
 	main.queue_free()
 	await process_frame
 
@@ -167,3 +172,101 @@ func _check_roundabout() -> void:
 			bad.append("roundabout: theme %d, the old rule gives %d" % [main.theme_idx, want])
 	main.queue_free()
 	await process_frame
+
+
+# puts the run on node (floor index f, lane) and starts its round
+func _play_node(f: int, lane: int) -> void:
+	main.map_floor = f
+	main.map_lane = lane
+	main.round_n = f + 1
+	main.start_round()
+	main.hits.fill(true)  # every rider of the round counts as hit, so only the riders still to come matter
+
+
+func _check_bosses_and_modifiers(tag: String) -> void:
+	var floors = main.run_map["floors"]
+	var boss_nodes = 0
+	var plain_nodes = 0
+	for f in range(floors.size()):
+		for lane in range(floors[f].size()):
+			var node = floors[f][lane]
+			var where = "%s floor %d lane %d" % [tag, f + 1, lane]
+			if node["type"] == "boss":
+				boss_nodes += 1
+				_play_node(f, lane)
+				var content: Dictionary = node["content"]
+				main.next_idx = 4
+				if main.need_boss():
+					bad.append(
+						(
+							"%s: a boss was asked for after 4 riders, before the others are down"
+							% where
+						)
+					)
+				main.next_idx = main.PER_ROUND
+				if not main.need_boss():
+					bad.append("%s: no boss was asked for with every rider down" % where)
+				main.clear_bosses()
+				main.boss_sys.spawn_boss()
+				var b = main.bosses.back()
+				if b["kind"] != str(content["boss"]):
+					bad.append(
+						(
+							"%s: the boss is a %s, the node says %s"
+							% [where, b["kind"], str(content["boss"])]
+						)
+					)
+				if bool(b["final"]) != bool(content.get("final", false)):
+					bad.append(
+						(
+							"%s: the boss's final flag is %s, the node says %s"
+							% [where, str(b["final"]), str(content.get("final", false))]
+						)
+					)
+				if content.get("final", false) and b["kind"] != "minister":
+					bad.append("%s: the final boss is a %s, not the minister" % [where, b["kind"]])
+				main.clear_bosses()
+				if main.need_boss():
+					bad.append("%s: a second boss was asked for after the first" % where)
+			elif plain_nodes < 2 and f >= 1 and ["normal", "elite"].has(node["type"]):
+				plain_nodes += 1
+				_play_node(f, lane)
+				for n in [4, main.PER_ROUND]:
+					main.next_idx = n
+					if main.need_boss():
+						bad.append(
+							(
+								"%s: a fight node without a boss asked for one with %d riders out"
+								% [where, n]
+							)
+						)
+	if boss_nodes < 2:
+		bad.append(
+			"%s: %d boss nodes on the map, expected the mid and the final boss" % [tag, boss_nodes]
+		)
+	# the double riders modifier, on the first node (round 1, where a wave is one rider unless the node says so)
+	var first: Dictionary = floors[0][0]["content"]
+	var saved = first["modifiers"]
+	first["modifiers"] = []
+	_play_node(0, 0)
+	main.clear_riders()
+	main.next_idx = 0
+	main.rider_sys.spawn_wave()
+	if main.riders.size() != 1:
+		bad.append(
+			(
+				"%s: a wave without the modifier has %d riders in round 1, expected 1"
+				% [tag, main.riders.size()]
+			)
+		)
+	first["modifiers"] = ["double_riders"]
+	_play_node(0, 0)
+	main.clear_riders()
+	main.next_idx = 0
+	main.rider_sys.spawn_wave()
+	if not main.has_modifier("double_riders") or main.riders.size() != 2:
+		bad.append(
+			"%s: a wave with double riders has %d riders, expected 2" % [tag, main.riders.size()]
+		)
+	first["modifiers"] = saved
+	main.clear_riders()

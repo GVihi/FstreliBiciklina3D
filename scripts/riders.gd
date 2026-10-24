@@ -136,6 +136,8 @@ func spawn_wave() -> void:
 	var n = 1
 	if g.round_n >= 2 and remaining >= 2 and g.layout_f() < minf(0.55, 0.12 + g.round_n * 0.08):
 		n = 2
+	if g.has_modifier("double_riders") and remaining >= 2:
+		n = 2  # the node's "double riders" modifier: every wave is a pair
 	var order = [0, 1, 2]
 	g.layout_shuffle(order)
 	var dir = 1 if g.layout_f() < 0.5 else -1

@@ -140,6 +140,7 @@ var over_reason = ""
 var hits = []
 var next_idx = 0
 var riders = []
+var round_modifiers: Array = []  # the node's round modifiers ("rain", "double_riders"), see plan_riders
 var rider_plan: Array = []  # the kind of each rider of this round when the node plans them (plan_riders)
 var civs = []
 var bosses = []
@@ -810,10 +811,12 @@ func round_theme() -> int:
 # DEFAULT_PER_ROUND riders and no plan, so riders are drawn as they always were.
 func plan_riders() -> void:
 	rider_plan = []
+	round_modifiers = []
 	PER_ROUND = DEFAULT_PER_ROUND
 	var setup = node_setup()
 	if not setup.has("riders"):
 		return
+	round_modifiers = setup.get("modifiers", [])
 	var mix: Dictionary = setup["riders"]["mix"]
 	for kind in mix:
 		for k in range(int(mix[kind])):
@@ -822,6 +825,11 @@ func plan_riders() -> void:
 		return
 	layout_shuffle(rider_plan)
 	PER_ROUND = rider_plan.size()
+
+
+# true if the node being played has this round modifier
+func has_modifier(name: String) -> bool:
+	return round_modifiers.has(name)
 
 
 # the kind the node plans for rider number i of this round, or "" when it plans none (draw it as usual)
@@ -969,6 +977,8 @@ func start_round() -> void:
 	state_t = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	sfx.say("round_start")
+	if has_modifier("double_riders"):
+		add_note("DOUBLE RIDERS", GOLD)
 
 
 func count_hits() -> int:
@@ -1013,6 +1023,17 @@ func is_final_round() -> bool:
 func need_boss() -> bool:
 	if round_n < 2 or bosses.size() > 0 or pending_boss:
 		return false
+	# a fight node on a generated arena decides for itself: a boss node has its boss after the riders (and only
+	# once, when they are all down), any other fight node has none. Nodes without riders (shop, rest, event) and
+	# the roundabout keep the old rule below.
+	var setup = node_setup()
+	if setup.has("riders"):
+		return (
+			setup.has("boss")
+			and boss_count == 0
+			and next_idx >= PER_ROUND
+			and count_hits() >= hits_needed()
+		)
 	if is_final_round():
 		# the last round has no ordinary bosses: after the riders comes the final boss, if you got far enough to face it
 		return boss_count == 0 and next_idx >= PER_ROUND and count_hits() >= hits_needed()
