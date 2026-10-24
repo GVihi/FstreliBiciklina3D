@@ -13,7 +13,8 @@ extends SceneTree
 #     a second, the player walking a circle round the start, aiming at the nearest rider and firing) nothing
 #     breaks: the player stays on ground it can stand on, riders and bosses stay finite and near the arena, a
 #     rider that is not in a gate's tunnel is never inside a wall, riders come out of the gates, pedestrians come
-#     out of the gates too and never stand deep inside a wall, and the cheerleaders stay hidden
+#     out of the gates too and never stand deep inside a wall, and the cheerleaders stand on the start plaza,
+#     facing the start, each on its own spot
 # Exits with status 1 and prints the first problems.
 
 const ArenaGenScript = preload("res://scripts/arena_gen.gd")
@@ -99,8 +100,7 @@ func _check_title() -> void:
 	_check_one_world("on the title screen")
 	if main.player.position != main.arena.start_position():
 		_fail("on the title screen the player is not on the start")
-	if main.cheerleaders.any(func(c): return c["root"].visible):
-		_fail("a cheerleader shows on a generated arena")
+	_check_cheerleaders("on the title screen")
 	if main.civs.size() != 2:
 		_fail(
 			(
@@ -240,8 +240,7 @@ func _play(seed_value: int) -> String:
 	var civs_seen = seen.keys().filter(func(k): return k is String and k.begins_with("civ")).size()
 	if civs_seen == 0:
 		_fail("%s: no pedestrian came out in %.0f seconds" % [tag, float(played) * DT])
-	if main.cheerleaders.any(func(c): return c["root"].visible):
-		_fail("%s: a cheerleader showed on a generated arena" % tag)
+	_check_cheerleaders(tag)
 	return (
 		"%s: %d gates, %.1f s played, %d riders and %d pedestrians seen, %d shots, state %s"
 		% [
@@ -322,6 +321,40 @@ func _deep_in_wall(arena, p: Vector3) -> bool:
 		if not arena.rider_blocked(p + off):
 			return false
 	return arena.rider_blocked(p)
+
+
+# the cheerleaders on a generated arena are where cheer_spots says (the ones it has a spot for, visible, the rest
+# hidden), on plaza near the start, facing it, and each model is where its "pos" says
+func _check_cheerleaders(tag: String) -> void:
+	var arena = main.arena
+	var spots = arena.cheer_spots(main.cheerleaders.size())
+	if spots.size() < 3:
+		_fail("%s: the arena has only %d cheerleader spots" % [tag, spots.size()])
+	for i in range(main.cheerleaders.size()):
+		var m = main.cheerleaders[i]
+		var cr: Node3D = m["root"]
+		if cr.visible != (i < spots.size()):
+			_fail(
+				(
+					"%s: cheerleader %d is %s but the arena has %d spots"
+					% [tag, i, "visible" if cr.visible else "hidden", spots.size()]
+				)
+			)
+			continue
+		if not cr.visible:
+			continue
+		if m["pos"] != spots[i]:
+			_fail("%s: cheerleader %d is not on its spot" % [tag, i])
+		if Vector2(cr.position.x - m["pos"].x, cr.position.z - m["pos"].z).length() > 0.0001:
+			_fail("%s: cheerleader %d's model is not at its pos" % [tag, i])
+		var want = main.rider_sys.heading_vec(
+			main.rider_sys.yaw_of(arena.start_position() - m["pos"])
+		)
+		var facing = (cr.transform.basis * Vector3.RIGHT).normalized()
+		if facing.distance_to(want) > 0.001:
+			_fail("%s: cheerleader %d does not face the start" % [tag, i])
+		if arena.surface_at(m["pos"]) != "plaza":
+			_fail("%s: cheerleader %d is on %s" % [tag, i, arena.surface_at(m["pos"])])
 
 
 func _finite(v: Vector3) -> bool:

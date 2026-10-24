@@ -12,6 +12,7 @@ const GeneratedArena = preload("res://scripts/arena_generated.gd")
 
 var bad: Array = []
 var seeds = 200
+var full_cheer = 0  # arenas with a spot for all six cheerleaders
 
 
 func _init() -> void:
@@ -32,6 +33,7 @@ func _init() -> void:
 		_check_blocking(arena, layout, i)
 		_check_clamp(arena, layout, i)
 		_check_stubs(arena, layout, i)
+		_check_cheer_spots(arena, layout, i)
 		checked += 1
 	if bad.size() > 0:
 		print("arena_generated_check: %d problem(s)" % bad.size())
@@ -39,7 +41,12 @@ func _init() -> void:
 			print("  " + b)
 		quit(1)
 		return
-	print("arena_generated_check: %d arenas agree with their layouts" % checked)
+	print(
+		(
+			"arena_generated_check: %d arenas agree with their layouts (%d of them have all six cheerleader spots)"
+			% [checked, full_cheer]
+		)
+	)
 	quit(0)
 
 
@@ -271,8 +278,16 @@ func _check_interface_covered() -> void:
 	for name in used:
 		if name == "gd":  # "arena.gd" in a path or a comment
 			continue
-		if not probe.has_method(name) and not consts.has(name):
+		if not probe.has_method(name) and not consts.has(name) and not _has_variable(probe, name):
 			bad.append("%s reads arena.%s, which GeneratedArena does not have" % [used[name], name])
+
+
+# true if the object has a member variable of this name (the check above looks for methods and constants too)
+func _has_variable(obj: Object, name: String) -> bool:
+	for prop in obj.get_property_list():
+		if prop["name"] == name:
+			return true
+	return false
 
 
 # the street-coordinate stubs give safe values: inside the arena, on ground a boss can stand on, never an error
@@ -370,3 +385,49 @@ func _check_stubs(arena, layout: Dictionary, tag: int) -> void:
 				"arena %d: exit_distance is %.2f, the nearest gate is %.2f away" % [tag, got, want]
 			)
 			return
+
+
+# the cheerleaders' spots: up to the number asked for, all different, each on a plaza cell with a metre of free ground
+# round it, outside the clear start square and not far from the start, the same for the same layout, and the
+# roundabout (the base class) leaves the choice to main.gd by giving none
+func _check_cheer_spots(arena, layout: Dictionary, tag: int) -> void:
+	var spots = arena.cheer_spots(6)
+	if spots.size() > 6:
+		bad.append("arena %d: %d cheerleader spots for 6 cheerleaders" % [tag, spots.size()])
+	if spots.size() == 6:
+		full_cheer += 1
+	if spots.size() < 3:
+		bad.append(
+			(
+				"arena %d: only %d cheerleader spots (the start plaza has room for more)"
+				% [tag, spots.size()]
+			)
+		)
+	if arena.cheer_spots(0).size() != 0:
+		bad.append("arena %d: spots given for no cheerleaders" % tag)
+	var again = GeneratedArena.new(layout, arena.rules).cheer_spots(6)
+	if again != spots:
+		bad.append("arena %d: the same layout gave different cheerleader spots" % tag)
+	var start = arena.start_position()
+	var clear_m = (float(layout["start"]["half"]) + 0.5) * float(layout["cell"])
+	var seen = {}
+	for p in spots:
+		if seen.has(p):
+			bad.append("arena %d: two cheerleaders on one spot %s" % [tag, p])
+		seen[p] = true
+		if arena.surface_at(p) != "plaza":
+			bad.append(
+				(
+					"arena %d: a cheerleader spot %s is on %s, not plaza"
+					% [tag, p, arena.surface_at(p)]
+				)
+			)
+		if not arena._clear(p, arena.CHEER_ROOM):
+			bad.append("arena %d: a cheerleader spot %s has no free ground round it" % [tag, p])
+		var off = Vector2(absf(p.x - start.x), absf(p.z - start.z))
+		if maxf(off.x, off.y) < clear_m:
+			bad.append(
+				"arena %d: a cheerleader spot %s is inside the clear start square" % [tag, p]
+			)
+		if maxf(off.x, off.y) > clear_m + 2.0 * float(layout["cell"]) + 0.01:
+			bad.append("arena %d: a cheerleader spot %s is far from the start" % [tag, p])

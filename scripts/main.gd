@@ -351,6 +351,8 @@ func _ready() -> void:
 		var cr: Node3D = m["root"]
 		cr.position = m["pos"]
 		cr.rotation = Vector3(0.0, -PI * 0.5 + arena.yaw(cx), 0.0)
+		m["home_pos"] = m["pos"]  # the roundabout's place for it, which update_arena_dressing goes back to
+		m["home_yaw"] = cr.rotation.y
 		cheerleaders.append(m)
 
 	var layer = CanvasLayer.new()
@@ -492,8 +494,8 @@ var arena = ArenaRoundaboutScript.new()  # arena.gd: the space the run is played
 # The generated arena flag (README Milestone K): off by default, so the game is the roundabout as always. Turn it
 # on by starting the game with the user argument --generated-arena (godot --path . -- --generated-arena). Then the
 # title screen shows the arena made from today's daily seed and every run plays on the arena made from its run
-# seed (arena_generated.gd, world_generated.gd). Work in progress: cheerleaders are left out of a generated arena
-# and bosses come out of a gate; pedestrians come out of a gate and walk to another one.
+# seed (arena_generated.gd, world_generated.gd). Work in progress: bosses come out of a gate; pedestrians come out
+# of a gate and walk to another one; the cheerleaders stand on the start plaza.
 const GENERATED_ARENA_ARG = "--generated-arena"
 var generated_arena = false
 var world_root: Node3D = null  # the generated arena's world (the roundabout's is built straight into this node)
@@ -579,11 +581,24 @@ func use_generated_arena(seed_value: int) -> bool:
 	return true
 
 
-# what stands on the ground that the arena does not place yet: the cheerleaders are the roundabout's, on its far
-# sidewalk, so they are hidden on an arena where riders chase over open ground (until they are placed on it)
+# what stands on the ground that depends on the arena: the cheerleaders. The roundabout has them on its far sidewalk
+# (where they were built). A generated arena says where they stand (arena.cheer_spots, on its start plaza) and they
+# face the start; one it has no spot for is hidden.
 func update_arena_dressing() -> void:
-	for m in cheerleaders:
-		m["root"].visible = not arena.rider_pursuit()
+	var spots = arena.cheer_spots(cheerleaders.size())
+	for i in range(cheerleaders.size()):
+		var m = cheerleaders[i]
+		var cr: Node3D = m["root"]
+		if arena.rider_pursuit():
+			cr.visible = i < spots.size()
+			if cr.visible:
+				m["pos"] = spots[i]
+				cr.rotation = Vector3(0.0, rider_sys.yaw_of(arena.start_position() - spots[i]), 0.0)
+		else:
+			cr.visible = true
+			m["pos"] = m["home_pos"]
+			cr.rotation = Vector3(0.0, m["home_yaw"], 0.0)
+		cr.position = m["pos"]
 
 
 func apply_theme(i: int) -> void:
