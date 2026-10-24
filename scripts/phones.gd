@@ -4,6 +4,11 @@ extends RefCounted
 
 const Models = preload("res://scripts/models.gd")
 const Util = preload("res://scripts/util.gd")
+const Threats = preload("res://scripts/threats.gd")
+
+# the height the sight line to the player ends at (a phone comes down about knee high, but below the lowest
+# roof every height is blocked alike, so this only matters at a wall's edge)
+const SIGHT_Y = 1.0
 
 var g = null
 
@@ -22,7 +27,22 @@ func start_throw(r: Dictionary) -> void:
 func launch_phone(r: Dictionary) -> void:
 	if r["mode"] != "fly":
 		return
-	throw_phone(g.rider_sys.phone_origin(r), r)
+	var origin: Vector3 = g.rider_sys.phone_origin(r)
+	if not throw_clear(origin):
+		# a building came between the wind-up and the throw: the rider holds it and tries again soon
+		r["throw_t"] = 0.3
+		return
+	throw_phone(origin, r)
+
+
+# On open ground a phone is only thrown when nothing solid is between the thrower and the player (the arena's
+# ray_blocked along the line, Threats.sight_clear), the way a boss only starts a lunge with a clear line.
+# The roundabout throws as it always did.
+func throw_clear(start: Vector3) -> bool:
+	if not g.arena.rider_pursuit():
+		return true
+	var tgt = Vector3(g.player.position.x, SIGHT_Y, g.player.position.z)
+	return Threats.sight_clear(g.arena, start, tgt)
 
 
 # src is whoever threw it (a rider or a boss): a deflected phone flies back to it
@@ -88,6 +108,10 @@ func update_phones(dt: float) -> void:
 			lerpf(s.y, tg.y, pow(p, 1.35)) + sin(p * PI) * 0.9,
 			lerpf(s.z, tg.z, p)
 		)
+		var prev: Vector3 = ph["pos"]
+		if g.arena.rider_pursuit() and flight_blocked(prev, pos):
+			wall_smash(ph, i, prev)
+			continue
 		ph["pos"] = pos
 		var node: Node3D = ph["node"]
 		node.position = pos
@@ -109,6 +133,19 @@ func update_phones(dt: float) -> void:
 				g.add_popup(Vector3(tg.x, 1.4, tg.z), "DODGED!", g.GOLD)
 				g.sfx.play3d("phone_smash", tg)
 				g.free_phone(ph)
+
+
+# true if a phone moving from prev to pos meets a building (open ground only: the caller checks the arena)
+func flight_blocked(prev: Vector3, pos: Vector3) -> bool:
+	return g.arena.ray_blocked(pos) or not Threats.sight_clear(g.arena, prev, pos)
+
+
+# a phone that meets a building smashes against it, at the last clear point: no hit, no "dodged" popup and no score
+func wall_smash(ph: Dictionary, i: int, at: Vector3) -> void:
+	g.phones.remove_at(i)
+	g.fx_sys.plastic_burst(at)
+	g.sfx.play3d("phone_smash", at)
+	g.free_phone(ph)
 
 
 func shoot_phone(ph: Dictionary) -> void:

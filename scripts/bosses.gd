@@ -517,8 +517,12 @@ func boss_throws(b: Dictionary, dt: float) -> void:
 		return
 	b["throw_t"] -= dt
 	if b["throw_t"] <= 0.0 and g.phones.size() < 3 and g.state == "play":
+		var start = g.boss_world(b, float(g.BOSS_INFO[b["kind"]]["cy"]) + 0.7)
+		if not g.phone_sys.throw_clear(start):
+			b["throw_t"] = 0.3  # a building is in the way: wait for a clear line
+			return
 		b["throw_t"] = 3.4 if b["phase"] == 2 else 2.4
-		g.phone_sys.throw_phone(g.boss_world(b, float(g.BOSS_INFO[b["kind"]]["cy"]) + 0.7), b)
+		g.phone_sys.throw_phone(start, b)
 
 
 func update_bosses(dt: float) -> void:
