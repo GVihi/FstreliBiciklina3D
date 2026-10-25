@@ -3,6 +3,7 @@
 		{
 			"id": "no_gun_round",
 			"name": "HANDS ON",
+			"icon": "no_gun",
 			"desc": "Clear a round without firing the dart gun",
 			"condition": "round_no_gun",
 			"scope": "round",
@@ -13,6 +14,7 @@
 		{
 			"id": "all_caches",
 			"name": "GRAB EVERYTHING",
+			"icon": "crate",
 			"desc": "Take every cache before the last rider falls",
 			"condition": "all_caches_before_last_rider",
 			"scope": "round",
@@ -23,6 +25,7 @@
 		{
 			"id": "dodge_streak",
 			"name": "NEAR MISS KING",
+			"icon": "chevrons",
 			"desc": "Perfect-dodge five riders in a row",
 			"condition": "perfect_dodge_streak",
 			"scope": "run",
@@ -33,6 +36,7 @@
 		{
 			"id": "no_life_lost",
 			"name": "UNTOUCHED",
+			"icon": "heart",
 			"desc": "Clear a round without losing a life",
 			"condition": "round_no_life_lost",
 			"scope": "round",
@@ -43,6 +47,7 @@
 		{
 			"id": "fast_run",
 			"name": "SPEED RUN",
+			"icon": "clock",
 			"desc": "Finish a run in under 20 minutes",
 			"condition": "run_time_under",
 			"scope": "run",

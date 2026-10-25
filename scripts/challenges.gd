@@ -15,6 +15,8 @@ const CONDITIONS = [
 	"run_time_under"
 ]
 const SCOPES = ["round", "run"]
+# the small badge drawn for each challenge by hud.gd (_draw_badge); "star" is used when an entry has no icon
+const ICONS = ["no_gun", "crate", "chevrons", "heart", "clock", "star"]
 
 var g = null
 var table: Array = []  # the cleaned entries, in file order
@@ -89,9 +91,14 @@ static func _clean(raw, ids: Dictionary, counters: Dictionary) -> Dictionary:
 	if float(raw["target"]) <= 0.0 or float(raw["reward"]) < 0.0:
 		push_error("challenges: %s needs a target above 0 and a reward of 0 or more" % raw["id"])
 		return {}
+	var icon = raw.get("icon", "star")
+	if typeof(icon) != TYPE_STRING or not ICONS.has(icon):
+		push_error('challenges: %s has unknown icon "%s", using "star"' % [raw["id"], str(icon)])
+		icon = "star"
 	return {
 		"id": raw["id"],
 		"name": raw["name"],
+		"icon": icon,
 		"desc": raw["desc"],
 		"condition": raw["condition"],
 		"scope": raw["scope"],
@@ -193,6 +200,15 @@ func award() -> int:
 # how many times the challenge was done over all runs
 func count_of(c: Dictionary) -> int:
 	return int(g.meta.challenge_counts.get(c["counter"], 0))
+
+
+# achievements: a challenge done at least once, ever, is an unlocked achievement (name and icon from the table)
+func unlocked_count() -> int:
+	var n = 0
+	for c in table:
+		if count_of(c) > 0:
+			n += 1
+	return n
 
 
 # progress of a challenge that was not done in this run, "3 / 5", or "" when there is nothing to show
