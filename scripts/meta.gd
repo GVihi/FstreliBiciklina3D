@@ -4,7 +4,9 @@ extends RefCounted
 # gone when the run ends, while the meta balance only ever goes up from finished runs. It will be the
 # currency for permanent unlocks, cosmetics and Heat rewards (roadmap, Milestone B).
 
-# File format: {"version": 1, "balance", "total_earned"}. Version 0 (before versioning) had no "version" field.
+# File format: {"version": 1, "balance", "total_earned", "challenges"}. Version 0 (before versioning) had no "version" field.
+# "challenges" is {counter name: times done} for the challenges in data/challenges.json (scripts/challenges.gd). It was
+# added with a default (no counts), so it needed no version bump.
 const SaveUtil = preload("res://scripts/save_util.gd")
 const PATH = "user://meta.json"
 const VERSION = 1
@@ -17,6 +19,7 @@ const COINS_FINAL_BOSS = 20  # the golden president
 var g = null
 var balance = 0  # coins available to spend
 var total_earned = 0  # coins earned over all runs, for stats
+var challenge_counts = {}  # challenge counter name -> how many runs it was done in
 var awarded = false  # a run pays out once, however many end paths it passes through
 var boss_coins = 0  # coins this run's boss kills are worth; paid out with the run (a quit run pays nothing)
 
@@ -29,6 +32,7 @@ func _init(game) -> void:
 func load_meta() -> void:
 	balance = 0
 	total_earned = 0
+	challenge_counts = {}
 	if not FileAccess.file_exists(PATH):
 		return
 	var f = FileAccess.open(PATH, FileAccess.READ)
@@ -40,6 +44,10 @@ func load_meta() -> void:
 		SaveUtil.backup_if_newer(PATH, SaveUtil.version_of(data), VERSION)
 		balance = maxi(0, int(data.get("balance", 0)))
 		total_earned = maxi(balance, int(data.get("total_earned", 0)))
+		var counts = data.get("challenges", {})
+		if counts is Dictionary:
+			for key in counts:
+				challenge_counts[str(key)] = maxi(0, int(counts[key]))
 	else:
 		SaveUtil.backup(PATH, "bad")  # unreadable: keep a copy before the next save replaces it
 
@@ -48,7 +56,14 @@ func save_meta() -> void:
 	var f = FileAccess.open(PATH, FileAccess.WRITE)
 	if f:
 		f.store_string(
-			JSON.stringify({"version": VERSION, "balance": balance, "total_earned": total_earned})
+			JSON.stringify(
+				{
+					"version": VERSION,
+					"balance": balance,
+					"total_earned": total_earned,
+					"challenges": challenge_counts
+				}
+			)
 		)
 		f.close()
 
@@ -84,9 +99,10 @@ func award_run() -> int:
 	if awarded:
 		return 0
 	awarded = true
-	var n = reward_for_score(g.score) + boss_coins
+	var challenge_coins = g.challenges.award()  # also counts the challenges done, saved below
+	var n = reward_for_score(g.score) + boss_coins + challenge_coins
 	g.meta_earned = n
-	if n > 0:
+	if n > 0 or g.challenges.done.size() > 0:
 		balance += n
 		total_earned += n
 		save_meta()
