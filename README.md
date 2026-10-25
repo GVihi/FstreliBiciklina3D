@@ -245,7 +245,7 @@ Mostly vibe coded Godot game
 
 ## Release Readiness
 
-- [ ] Rename the game from FstreliBiciklina3D to FB3D (window title, title screen and logo text, Godot project name in `project.godot`, export preset and executable name, `README.txt`, `CREDITS.md`, the docs and the headings in this README; decide separately whether the GitHub repository is renamed too, since that changes the clone URL and the CI links; save files in `user://` follow the project name in Godot, so check that old settings, scores and meta currency still load after the rename, see `docs/SAVE_FILES.md`)
+- [ ] Rename the game from FstreliBiciklina3D to FB3D everywhere the player can see it: the title screen and logo text, the window title, the credits screen and any other in-game text that shows the name. This is a small change. The internal name stays as it is: the GitHub repository, the folder and file names, the project files and the docs keep "FstreliBiciklina3D", so no clone URLs, CI links or save files change (the Godot project name in `project.godot` also stays, because `user://` follows it and the old settings, scores and meta currency must keep loading, see `docs/SAVE_FILES.md`)
 - [ ] Create app icon
 - [ ] Add credits screen (include audio, font and voice-recording credits)
 - [ ] Configure Windows export presets (the current export path points at a personal Desktop folder: make it relative)
