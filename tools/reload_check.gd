@@ -45,6 +45,7 @@ func _initialize() -> void:
 	_check_empty_gun_is_not_interrupted()
 	_check_hooks_full_reload()
 	_check_hooks_interrupted_reload()
+	_check_reload_display()
 	_finish()
 
 
@@ -217,6 +218,61 @@ func _check_hooks_interrupted_reload() -> void:
 		)
 	main.dash_t = 0.0
 	main.dash_cd = 0.0
+
+
+# the display: `is_reloading` is true while loading and false under rapid fire, and the number on the gun blinks
+# while loading but holds its colour when the gun is not loading (the HUD uses `is_reloading` and `reload_pulse`)
+func _check_reload_display() -> void:
+	_reset_gun(4)
+	if main.combat_sys.is_reloading():
+		_fail("is_reloading is true for a gun that is not loading")
+	main.combat_sys.start_load()
+	if not main.combat_sys.is_reloading():
+		_fail("is_reloading is false for a gun that is loading")
+	main.buffs["rapid"] = 5.0
+	if main.combat_sys.is_reloading():
+		_fail("is_reloading is true under rapid fire, which does not use the magazine")
+	main.buffs["rapid"] = 0.0
+	var pulse_low = 1.0
+	var pulse_high = 0.0
+	for i in range(60):
+		main.time = float(i) / 60.0
+		var p = main.combat_sys.reload_pulse()
+		pulse_low = minf(pulse_low, p)
+		pulse_high = maxf(pulse_high, p)
+	if pulse_low < 0.0 or pulse_high > 1.0 or pulse_high - pulse_low < 0.5:
+		_fail(
+			(
+				"the reload pulse does not blink between 0 and 1 (%.2f to %.2f)"
+				% [pulse_low, pulse_high]
+			)
+		)
+	var label = main.gun.get("ammo")
+	if label == null:
+		return  # no ammo label on the gun (the gun model is switched off), nothing more to check
+	var base = Color(0.22, 0.91, 1.0)
+	_reset_gun(4)
+	var still_ok = true
+	for i in range(20):
+		main._process(DT)
+		still_ok = still_ok and label.modulate.is_equal_approx(base)
+	if not still_ok:
+		_fail("the number on the gun changed colour while the gun was not loading")
+	_reset_gun(4)
+	main.combat_sys.start_load()
+	var lowest = 1.0
+	var highest = 0.0
+	for i in range(25):  # shorter than the first dart takes, so the number stays at 4 and the colour stays cyan based
+		main._process(DT)
+		lowest = minf(lowest, label.modulate.r)
+		highest = maxf(highest, label.modulate.r)
+	if highest - lowest < 0.1:
+		_fail(
+			(
+				"the number on the gun did not blink while the gun was loading (red %.2f to %.2f)"
+				% [lowest, highest]
+			)
+		)
 
 
 func _reset_events() -> void:

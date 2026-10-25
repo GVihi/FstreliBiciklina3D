@@ -60,6 +60,17 @@ func finish_load() -> void:
 	reload_finished.emit()
 
 
+# True while the gun is visibly reloading: what the HUD ammo and the number on the gun show. Rapid fire does not use
+# the magazine, so a reload that runs under it is not shown.
+func is_reloading() -> bool:
+	return g.loading and g.buffs["rapid"] <= 0.0
+
+
+# 0 to 1 and back, about 2 times a second: the blink of the reload display
+func reload_pulse() -> float:
+	return 0.5 + 0.5 * sin(g.time * 14.0)
+
+
 func _on_shell_loaded() -> void:
 	g.sfx.play("shell_tick")
 
