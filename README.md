@@ -468,7 +468,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 # Milestone J: Manual Reload
 
-- [ ] Remove the automatic reload after a few seconds
+- [x] Remove the automatic reload after a few seconds (the top-up between waves is gone: the gun used to start loading by itself whenever no rider or boss was left and the next wave was still a moment away, so a part-empty gun was always full again for free; that branch of the shotgun block in `_process` in `scripts/main.gd` is removed. Loading now starts only from R or gamepad X (`scripts/input.gd`, which already worked), from a click on an empty gun, or by itself when the magazine reaches 0, which is the next item and was left as it is. Not touched: the style rank 4 regeneration (one dart every 3 s, `regen_t` in `main.gd`), which is a style reward and not a reload, and ammo pickups and caches. Written without running Godot, only `gdformat` and `gdlint` were run on `scripts/main.gd`; waiting for your in-game check: empty part of the magazine, clear a wave and wait, the gun should stay as it is until you press R, and an empty gun should still reload by itself)
 - [ ] Press R to reload manually
 - [ ] Automatically reload when the magazine reaches 0
 - [ ] Cannot shoot while reloading; reloading can be interrupted by dashing or switching to melee (decide the exact rule when building it)

@@ -1526,15 +1526,9 @@ func update_game(dt: float) -> void:
 			pump_fired = true
 			sfx.play("pump")
 	if state == "play":
+		# Loading only starts here when the magazine is empty. The old top-up between waves (no riders left,
+		# waiting for the next one) is gone: a part-empty gun is reloaded by hand (R / gamepad X, `input.gd`)
 		if shells == 0 and not loading and pump_t <= 0.15:
-			combat_sys.start_load()
-		if (
-			riders.size() == 0
-			and bosses.size() == 0
-			and wait > 0.0
-			and shells < MAXSHELLS
-			and not loading
-		):
 			combat_sys.start_load()
 	if loading and pump_t <= 0.0:
 		load_t -= dt
