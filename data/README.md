@@ -79,3 +79,28 @@ Still in code, because they are not weapon tuning or are shared with other syste
 ## `map_rules.json`
 
 Numbers for the procedural run map (floors, widths, boss and prep floors, node type weights). Read by `scripts/map_gen.gd` (the run map generator; rounds do not follow the map yet). What each key means is in [`docs/MAP_GENERATION.md`](../docs/MAP_GENERATION.md).
+
+## `challenges.json`
+
+The meta challenges: small goals that pay meta coins (Milestone B, "Earn from challenges"). **Nothing reads this file yet.** The code that tracks the conditions, pays the coins and shows them on the run summary and the title menu is the next roadmap items, so for now the table only fixes the list, the names and the numbers.
+
+```
+{
+  "challenges": [ {entry}, ... ]     // the order is the order a page will list them in
+}
+```
+
+| key | meaning |
+|---|---|
+| `id` | unique text id, never changed once shipped (a save counter and later achievements point at it) |
+| `name` | short shouted title, like the shop items |
+| `desc` | the goal in plain words, shown on the page and the run summary |
+| `condition` | what the game watches, as a key the code will switch on: `round_no_gun`, `all_caches_before_last_rider`, `perfect_dodge_streak`, `round_no_life_lost`, `run_time_under` |
+| `scope` | `round` (checked at the end of each round) or `run` (checked across the run, or at its end) |
+| `target` | the number to reach: 1 for yes or no goals, 5 riders in a row for `perfect_dodge_streak`, and a maximum of seconds for `run_time_under` (1200 is 20 minutes) |
+| `reward` | meta coins paid when the challenge is done |
+| `counter` | name of the field in the save file (`meta.json`) that counts how many times the challenge was done; a new field with a default needs no version bump, see [`docs/SAVE_FILES.md`](../docs/SAVE_FILES.md) |
+
+How the numbers were chosen, so they are easy to change: a boss pays 5 coins and the final boss 20, so the easy goals pay 3 to 5 and the 20 minute run pays 10. A challenge pays at most once per run (the counter still counts every run it was done in), so it cannot be farmed inside one run. Both are first guesses to tune once the challenges can be played.
+
+The export preset includes `data/*.json`, so the file ships with the game.
