@@ -1,6 +1,7 @@
 extends SceneTree
-# Checks that the title screen shows the arena style the run really gets (README Milestone K, "Show the style on the
-# run map or the title screen"): the DAILY ARENA line under the daily seed and the ARENA line on the custom seed page.
+# Checks that the title screen and the run map screen show the arena style the run really gets (README Milestone K,
+# "Show the style on the run map or the title screen"): the DAILY ARENA line under the daily seed, the ARENA line on
+# the custom seed page and the ARENA line under the heading of the run map screen.
 # Run from the project folder:
 #   godot --headless --path . --script res://tools/arena_style_title_check.gd
 # Exits with status 1 and prints the problems when a check fails.
@@ -18,6 +19,7 @@ func _initialize() -> void:
 	_check_labels_match_the_run()
 	_check_daily_line()
 	await _check_seed_page_draws()
+	await _check_map_screen()
 	_finish()
 
 
@@ -64,6 +66,37 @@ func _check_seed_page_draws() -> void:
 			await process_frame
 	main.title_page = ""
 	main.seed_buf = ""
+
+
+# a run opens on the map screen; the style the screen names is the style of the run's arena and of its seed, and the
+# screen draws at two window sizes
+func _check_map_screen() -> void:
+	for run_seed in [0x7F3A91C2, 0x00000001, 0xDEADBEEF]:
+		main.start_game(false, run_seed)
+		if main.state != "map":
+			_fail(
+				(
+					"seed %08X: a new run did not open the map screen (state %s)"
+					% [run_seed, main.state]
+				)
+			)
+			continue
+		var shown = main.arena.style_label()
+		if shown == "":
+			_fail(
+				"seed %08X: the arena of the run has no style label for the map screen" % run_seed
+			)
+		elif shown != main.arena_style_text(run_seed):
+			_fail(
+				(
+					"seed %08X: the map screen says '%s' but the seed's style is '%s'"
+					% [run_seed, shown, main.arena_style_text(run_seed)]
+				)
+			)
+		for window in [Vector2(1280.0, 720.0), Vector2(1920.0, 1080.0)]:
+			main.hud.size = window
+			main.hud.queue_redraw()
+			await process_frame
 
 
 func _finish() -> void:
