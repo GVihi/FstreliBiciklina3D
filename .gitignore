@@ -32,3 +32,5 @@ __pycache__/
 *.import
 # Output of tools/baseline.gd
 baseline_out/
+# Export output folder (export_presets.cfg writes to build/windows/)
+build/
