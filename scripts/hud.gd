@@ -473,6 +473,58 @@ func _challenge_summary_lines() -> Array:
 	return lines
 
 
+# A round badge with a small icon (the "icon" of a challenge): gold once the achievement is unlocked, dim before.
+func _draw_badge(c: Vector2, r: float, icon: String, on: bool, k: float) -> void:
+	var col = GOLD if on else Color(0.38, 0.4, 0.43)
+	var w = 2.0 * k
+	draw_circle(c, r, Color(0.13, 0.14, 0.16))
+	draw_arc(c, r, 0.0, TAU, 32, col, w)
+	if icon == "no_gun":
+		draw_rect(Rect2(c + Vector2(-0.55, -0.15) * r, Vector2(1.1, 0.3) * r), col)
+		draw_line(
+			c + Vector2(-0.6, 0.6) * r, c + Vector2(0.6, -0.6) * r, Color(0.13, 0.14, 0.16), 4.0 * k
+		)
+		draw_line(c + Vector2(-0.6, 0.6) * r, c + Vector2(0.6, -0.6) * r, col, w)
+	elif icon == "crate":
+		draw_rect(Rect2(c + Vector2(-0.5, -0.5) * r, Vector2(1.0, 1.0) * r), col, false, w)
+		draw_line(c + Vector2(-0.5, -0.5) * r, c + Vector2(0.5, 0.5) * r, col, w)
+		draw_line(c + Vector2(-0.5, 0.5) * r, c + Vector2(0.5, -0.5) * r, col, w)
+	elif icon == "chevrons":
+		for dx in [-0.4, 0.1]:
+			var pts = PackedVector2Array(
+				[
+					c + Vector2(dx, -0.5) * r,
+					c + Vector2(dx + 0.4, 0.0) * r,
+					c + Vector2(dx, 0.5) * r
+				]
+			)
+			draw_polyline(pts, col, w)
+	elif icon == "heart":
+		draw_circle(c + Vector2(-0.25, -0.15) * r, 0.3 * r, col)
+		draw_circle(c + Vector2(0.25, -0.15) * r, 0.3 * r, col)
+		draw_colored_polygon(
+			PackedVector2Array(
+				[
+					c + Vector2(-0.53, -0.02) * r,
+					c + Vector2(0.53, -0.02) * r,
+					c + Vector2(0.0, 0.6) * r
+				]
+			),
+			col
+		)
+	elif icon == "clock":
+		draw_arc(c, 0.55 * r, 0.0, TAU, 24, col, w)
+		draw_line(c, c + Vector2(0.0, -0.4) * r, col, w)
+		draw_line(c, c + Vector2(0.3, 0.0) * r, col, w)
+	else:
+		var star = PackedVector2Array()
+		for i in range(10):
+			var a = -PI * 0.5 + i * PI / 5.0
+			var rr = (0.6 if i % 2 == 0 else 0.26) * r
+			star.append(c + Vector2(cos(a), sin(a)) * rr)
+		draw_colored_polygon(star, col)
+
+
 func _draw_challenges_page(k: float, cx: float) -> void:
 	_txt("CHALLENGES", cx, size.y * 0.14, int(56 * k), GOLD, 1)
 	_txt(
@@ -481,6 +533,15 @@ func _draw_challenges_page(k: float, cx: float) -> void:
 		size.y * 0.2,
 		int(16 * k),
 		GRAY,
+		1
+	)
+	var unlocked = g.challenges.unlocked_count()
+	_txt(
+		"ACHIEVEMENTS  %d / %d" % [unlocked, g.challenges.table.size()],
+		cx,
+		size.y * 0.25,
+		int(20 * k),
+		GOLD if unlocked > 0 else GRAY,
 		1
 	)
 	var left = cx - 330.0 * k
@@ -495,8 +556,9 @@ func _draw_challenges_page(k: float, cx: float) -> void:
 		var y = y0 + i * step
 		var n = g.challenges.count_of(c)
 		draw_rect(Rect2(left, y + 34.0 * k, right - left, 1.0 * k), Color(1, 1, 1, 0.1))
-		_txt(c["name"], left, y, int(24 * k), GOLD if n > 0 else TEXT)
-		_txt(c["desc"], left, y + 26.0 * k, int(16 * k), GRAY)
+		_draw_badge(Vector2(left + 24.0 * k, y + 8.0 * k), 22.0 * k, c["icon"], n > 0, k)
+		_txt(c["name"], left + 62.0 * k, y, int(24 * k), GOLD if n > 0 else TEXT)
+		_txt(c["desc"], left + 62.0 * k, y + 26.0 * k, int(16 * k), GRAY)
 		_txt("+%d COINS" % c["reward"], right, y, int(20 * k), GOLD, 2)
 		var status = "NOT DONE YET"
 		if n == 1:
