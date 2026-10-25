@@ -133,9 +133,7 @@ func collect_pickup(pk: Dictionary) -> void:
 	elif t == "shield":
 		g.buffs["shield"] = 1.0
 	elif t == "ammo":
-		g.shells = mini(g.MAXSHELLS, g.shells + (4 if g.perks.has("scavenger") else 2))
-		if g.shells >= g.MAXSHELLS:
-			g.combat_sys.finish_load()
+		g.combat_sys.add_shells(4 if g.perks.has("scavenger") else 2)
 	else:
 		g.score += 500 * (2 if g.hype_t > 0.0 else 1)
 		g.hi_check()

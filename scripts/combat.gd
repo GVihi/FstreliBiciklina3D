@@ -45,9 +45,20 @@ func start_load() -> void:
 # One dart goes into the magazine (called from the shotgun block of `_process` in main.gd when `load_t` runs out).
 # The reload ends when the magazine is full.
 func load_one_shell() -> void:
+	if g.shells >= g.MAXSHELLS:  # something filled the magazine meanwhile: the reload is simply over
+		finish_load()
+		return
 	g.shells += 1
 	g.load_t = reload_step()
 	reload_shell_loaded.emit()
+	if g.shells >= g.MAXSHELLS:
+		finish_load()
+
+
+# Darts that come from an ammo pickup or a perk (not from reloading), never past the size of the magazine. When they
+# fill it while the gun is loading the reload is over: without this the reload would go on and put one dart too many in.
+func add_shells(n: int) -> void:
+	g.shells = mini(g.MAXSHELLS, g.shells + n)
 	if g.shells >= g.MAXSHELLS:
 		finish_load()
 
@@ -118,13 +129,16 @@ func fire() -> void:
 	if g.loading:  # only rapid fire and free shots get here while loading: the shot stops the reload
 		g.loading = false
 		reload_interrupted.emit()
+	var used_magazine = false  # false for rapid fire and free darts: they do not take a dart out of the magazine
 	if g.buffs["rapid"] <= 0.0:
 		if g.free_shots > 0:
 			g.free_shots -= 1
 		else:
 			g.shells -= 1
+			used_magazine = true
 	var dart_dmg = int(g.WEAPONS["dart_gun"]["damage"])
-	var lastshot = g.perks.has("lastshell") and g.shells == 0 and g.buffs["rapid"] <= 0.0
+	# LAST SHELL is the last dart of the magazine: a free dart or a rapid fire shot from an empty gun is not that
+	var lastshot = g.perks.has("lastshell") and used_magazine and g.shells == 0
 	g.pump_dur = g.player_sys.cur_pump()
 	g.pump_t = g.pump_dur
 	g.pump_fired = false
@@ -365,7 +379,7 @@ func deflect_phone(ph: Dictionary) -> void:
 	if g.shop_sys.has_duo("RICOCHET"):
 		ph["chain"] = 4
 	if g.perks.has("counter"):
-		g.shells = mini(g.MAXSHELLS, g.shells + 1)
+		add_shells(1)
 	ph["rspd"] = 14.0
 	var ring_node: Node3D = ph["ring"]
 	ring_node.visible = false

@@ -773,7 +773,7 @@ func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -
 	if weak and g.shop_sys.has_duo("SNIPER") and g.shells == 0:
 		total += 2
 	if weak and g.shop_sys.has_duo("HEADHUNTER"):
-		g.shells = mini(g.MAXSHELLS, g.shells + 2)
+		g.combat_sys.add_shells(2)
 	b["hp"] -= total
 	b["flash"] = 0.12
 	g.set_flash(b["model"]["root"], true)

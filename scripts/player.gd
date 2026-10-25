@@ -291,7 +291,7 @@ func perfect_dodge() -> void:
 	g.hitstop = 0.12
 	g.sfx.play("clank2", -6.0)
 	if g.shop_sys.has_duo("MATADOR"):
-		g.shells = mini(g.MAXSHELLS, g.shells + 3)
+		g.combat_sys.add_shells(3)
 	if g.perks.has("closeshave") and g.perfect_dodges % 2 == 0 and g.hearts < g.MAXHEARTS:
 		g.hearts += 1
 		g.add_note("CLOSE SHAVE  +1 LIFE", g.RED)
