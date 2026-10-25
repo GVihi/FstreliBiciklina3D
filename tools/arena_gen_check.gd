@@ -195,6 +195,21 @@ func _style_problems(seed_value: int, layout: Dictionary, rules: Dictionary) -> 
 				% [style, 100.0 * float(used) / inner, 100.0 * float(bl["max_share"])]
 			)
 		)
+	# a style that walls in its grass leaves none beyond its verge: every grass cell has a sidewalk, road, plaza
+	# or tunnel cell within `verge` cells
+	if eff.has("enclose"):
+		var verge = int(eff["enclose"].get("verge", 0))
+		var loose = _loose_grass(layout, verge)
+		if loose != Vector2i(-1, -1):
+			(
+				found
+				. append(
+					(
+						"%s: the grass at %d,%d is more than %d cells from any way, it should be walled in"
+						% [style, loose.x, loose.y, verge]
+					)
+				)
+			)
 	if (
 		JSON.stringify(layout.get("dress", {}))
 		!= JSON.stringify(rules["styles"][style].get("dress", {}))
@@ -203,17 +218,43 @@ func _style_problems(seed_value: int, layout: Dictionary, rules: Dictionary) -> 
 	return found
 
 
+# the first grass cell with no sidewalk, road, plaza or tunnel cell within `verge` cells, or (-1, -1) if none
+func _loose_grass(layout: Dictionary, verge: int) -> Vector2i:
+	var n = int(layout["cells"])
+	for z in range(n):
+		for x in range(n):
+			if _cell(layout, x, z) != "g":
+				continue
+			var near = false
+			for dz in range(-verge, verge + 1):
+				for dx in range(-verge, verge + 1):
+					var nx = x + dx
+					var nz = z + dz
+					if nx < 0 or nz < 0 or nx >= n or nz >= n:
+						continue
+					if "srpt".contains(_cell(layout, nx, nz)):
+						near = true
+			if not near:
+				return Vector2i(x, z)
+	return Vector2i(-1, -1)
+
+
 # every style turns up and is told apart from the others; a layout with another style's name on it is named;
 # rules without styles give the plain layout; a style with all the weight is the style every seed gets
 func _check_styles(rules: Dictionary, style_count: Dictionary, count: int) -> void:
 	var names = ArenaGen.style_names(rules)
-	if names.size() < 4:
-		_fail(0, "the rules have %d styles, at least 4 expected" % names.size())
+	# the styles the roadmap names: arena styles chosen by the seed (Milestone K)
+	var wanted = ["bridge", "canyon", "market", "park", "plaza", "tunnel"]
+	if names != wanted:
+		_fail(0, "the rules have the styles %s, %s expected" % [names, wanted])
 		return
 	for name in names:
 		var got = int(style_count.get(name, 0))
-		# equal weights: each style should get about count / styles of the seeds, 60% of that at least
-		if count >= 400 and float(got) < 0.6 * float(count) / float(names.size()):
+		# equal weights: each style should get about count / styles of the seeds, 60% of that at least (with 400
+		# seeds or more, so a short run does not fail on chance), and every style at least once from 60 on
+		if count >= 60 and got == 0:
+			_fail(0, "style %s never came up in %d seeds" % [name, count])
+		elif count >= 400 and float(got) < 0.6 * float(count) / float(names.size()):
 			_fail(
 				0,
 				(
@@ -257,6 +298,19 @@ func _check_styles(rules: Dictionary, style_count: Dictionary, count: int) -> vo
 			if _style_problems(seed_value, broken, rules).is_empty():
 				_fail(seed_value, "a canyon with one road less was not named")
 			break
+	# grass left outside a walled-in style is named (a bridge with a meadow beside the deck)
+	for k in range(60):
+		var seed_value = k * 15485863 + 29
+		var layout = ArenaGen.generate(seed_value, rules)
+		if str(layout["style"]) == "bridge":
+			var wild: Dictionary = layout.duplicate(true)
+			var line: String = wild["rows"][10]
+			wild["rows"][10] = line.substr(0, 20) + "g" + line.substr(21)
+			if _loose_grass(wild, 1) == Vector2i(-1, -1):
+				_fail(seed_value, "grass far from the bridge deck was not found")
+			if _style_problems(seed_value, wild, rules).is_empty():
+				_fail(seed_value, "a bridge with a meadow beside it was not named")
+			break
 	# rules without styles: no style, no dress, and the layout is the plain one
 	var plain = rules.duplicate(true)
 	plain.erase("styles")
@@ -282,7 +336,10 @@ func _cell(layout: Dictionary, x: int, z: int) -> String:
 	return str(layout["rows"][z])[x]
 
 
-func _check_layout(sv: int, layout: Dictionary, rules: Dictionary) -> void:
+func _check_layout(sv: int, layout: Dictionary, base_rules: Dictionary) -> void:
+	# a layout is held to the rules of its own style laid over the plain ones (the bridge has 2 gates and a
+	# quarter of the ground, the tunnel walls in its grass)
+	var rules = ArenaGen.rules_for_style(base_rules, str(layout.get("style", "")))
 	var n = int(rules["cells"])
 	var border = int(rules["border"])
 	var rows = layout["rows"]
@@ -511,8 +568,18 @@ func _check_nav(sv: int, layout: Dictionary, rules: Dictionary) -> void:
 
 # every generated layout passes validate (generate throws the others away); and validate must notice what
 # it is for: each case below damages a good layout by hand and expects the matching problem
-func _check_validation(rules: Dictionary) -> void:
-	var good = ArenaGen.generate(7, rules)
+func _check_validation(base_rules: Dictionary) -> void:
+	# the damage cases need open ground to make a pocket in, so they start from the first seed after 7 that
+	# gets the plaza style, held to that style's rules
+	var rules = ArenaGen.rules_for_style(base_rules, "plaza")
+	var good = {}
+	for sv0 in range(7, 400):
+		if ArenaGen.pick_style(sv0, base_rules) == "plaza":
+			good = ArenaGen.generate(sv0, base_rules)
+			break
+	if good.is_empty():
+		_fail(7, "no seed under 400 gets the plaza style")
+		return
 	var problems = ArenaGen.validate(good, rules)
 	if not problems.is_empty():
 		_fail(7, "a generated layout fails validate: %s" % problems)

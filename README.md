@@ -220,9 +220,9 @@ Mostly vibe coded Godot game
 
 > These become arena styles of the procedural arena generator (Milestone K), chosen once per run, instead of hand-built scenes.
 
-- [ ] Bridge arena
-- [ ] Market arena
-- [ ] Tunnel arena
+- [x] Bridge arena (now the `bridge` arena style, see Milestone K "Arena styles chosen by the seed")
+- [x] Market arena (now the `market` arena style)
+- [x] Tunnel arena (now the `tunnel` arena style)
 
 ---
 
@@ -573,7 +573,10 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 ## Scale, variety and polish
 
 - [ ] Performance pass for the bigger arena (draw distance, culling, shadow and light counts) on the minimum-spec machine (the arena is now 144 m square, about 8 to 12 times the roundabout instead of 4, so the walkable ground, the buildings, the lamps and the gates all grew, and the 4 gold and 1 green light column of the objectives are new draw cost; frame time on weak hardware is not known)
-- [ ] Arena styles chosen by the seed: plaza, street canyon, market, bridge, tunnel, park (replaces the hand-built arenas in Milestone D)
+- [x] Arena styles chosen by the seed: plaza, street canyon, market, bridge, tunnel, park (replaces the hand-built arenas in Milestone D) (the run seed picks one of six styles, once per run, from its own stream `arena_style` (`ArenaGen.pick_style`, all weights 1, so about one seed in six each); a style in `data/arena_rules.json` is `rules` laid over the plain rules (`rules_for_style`), a `dress` for `scripts/world_dress.gd` and a `label`, and the layout carries `style`, `style_label` and `dress`. `plaza`: one road each way, a big start plaza and 1 to 2 big plazas, few small blocks; `canyon`: 2 north-south roads, big blocks and roofs of 8.5 to 14.1 m; `market`: many small blocks (stalls) and 2 to 3 plazas; `park`: grass, few blocks, a tree in 9 cells; `bridge`: one road 7 cells wide from end to end with exactly 2 gates, everything else walled in, 3,500 to 6,500 m², blank dark girders 12 to 15 m high; `tunnel`: 2 to 3 corridors each way 3 cells wide, 3 to 6 gates and 2 to 3 chambers, everything else walled in, 5,500 to 11,000 m², blank dark walls 9 to 11 m high, validated with a quarter of the ground in view instead of a half. Two generator rules were added for the last two (`enclose` with a `verge`, and `touch` on plazas) and two dress keys (`windows: false`, `dark_all: true`); each road in the layout now carries its `width`, which the centre-line paint in `scripts/world_gen.gd` uses. The round banner shows the style under ROUND n (`Arena.style_name()` and `style_label()`), and the viewer shows it on its first line. The numbers and what each style plays like are in `docs/PROCEDURAL_ARENAS.md`, "Arena styles". Checks: `tools/arena_gen_check.gd` holds every layout to its style and names a wrong style, a canyon with a road missing and a bridge with a meadow; `tools/world_dress_check.gd` dresses all six, checks that blank styles have no windows and dark styles no brick (two new damage cases) and keeps the triangle limit of 16,000 (the park is the most, about 15,300); `tools/world_gen_check.gd`, `tools/world_generated_check.gd`, `tools/arena_generated_check.gd` (a long throw out of a thick wall is held to the nearest free ground, not 25 m) and `tools/rider_corner_check.gd` (its test point is found in the layout) were made to cope with the new styles. Every seed, the daily seed too, gets a different arena than before the styles. Waiting for your in-game check: ride and shoot on a bridge and in a tunnel, and look at all six styles in the viewer (W view))
+  - [ ] Look and feel of the bridge and the tunnel: they are walled placeholder boxes with no water edge, no roof or ceiling and the same ground surfaces as the other styles; decide on water or a drop beside the deck, a roof or ceiling lights for the tunnel and a different ground (planks, tiles)
+  - [ ] Playtest and balance each style: rider speed, sightlines and run length per style, how a bridge with only 2 gates plays against 3 to 6 riders, whether a tunnel's short sightlines are fair, and the weights (all 1 now; a style can be made rarer by lowering its `weight`)
+  - [ ] Show the style on the run map or the title screen (today only the round banner and the viewer show it)
 - [ ] Playtest and balance: rider speed, run length and sightlines on the bigger arena
 
 ---

@@ -37,6 +37,15 @@ func rider_avoidance() -> bool:
 
 
 # ---------------------------------------------------------------- the start and the gates
+# the style the seed picked and its name on the screen (see Arena.style_name)
+func style_name() -> String:
+	return str(layout.get("style", ""))
+
+
+func style_label() -> String:
+	return str(layout.get("style_label", ""))
+
+
 # the middle of the clear start area, on the ground
 func start_position() -> Vector3:
 	var s = layout["start"]["pos"]

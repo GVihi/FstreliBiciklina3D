@@ -161,7 +161,25 @@ func _check_rescue() -> void:
 	var arena = GeneratedArenaScript.new(layout)
 	main.arena = arena
 	main.clear_riders()
-	var inside = Vector3(-4.0, 0.0, -17.0)  # in the building block north of the start corridor
+	# a point in the middle of a building (a building cell with a building cell on all four sides), found in
+	# the layout so a change of the generator's styles does not move it out of the building
+	var inside = Vector3.ZERO
+	var rows: Array = layout["rows"]
+	var cells = int(layout["cells"])
+	var cell_m = float(layout["cell"])
+	for cz in range(2, cells - 2):
+		for cx in range(2, cells - 2):
+			if (
+				str(rows[cz])[cx] == "b"
+				and str(rows[cz - 1])[cx] == "b"
+				and str(rows[cz + 1])[cx] == "b"
+				and str(rows[cz])[cx - 1] == "b"
+				and str(rows[cz])[cx + 1] == "b"
+			):
+				inside = Vector3(_cx(cx, cells, cell_m), 0.0, _cx(cz, cells, cell_m))
+				break
+		if inside != Vector3.ZERO:
+			break
 	if arena.surface_at(inside) != "building":
 		_fail("rescue: the test point is not in a building (the layout changed, move it)")
 		return

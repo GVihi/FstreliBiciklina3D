@@ -433,17 +433,21 @@ func _on_seed_submitted(text: String) -> void:
 
 
 func _update_info() -> void:
-	var problems = ArenaGen.validate(layout, rules)
+	# a layout is validated against the rules of its own style (the tunnel needs less view than a plaza)
+	var problems = ArenaGen.validate(
+		layout, ArenaGen.rules_for_style(rules, str(layout.get("style", "")))
+	)
 	var gates = []
 	var number = 1
 	for gt in layout["gates"]:
 		gates.append("%d%s" % [number, str(gt["side"]).to_upper()])
 		number += 1
 	info.text = (
-		"Seed %s%s   attempt %d   ground %d m2 (%d x %d cells of %.0f m)\nroads %d   plazas %d   buildings %d   gates %d (%s)   start at %.0f, %.0f m   validation: %s\nLeft/Right: seed -/+ 1   C: %s   W: %s   drag: orbit   wheel: zoom   R: reset"
+		"Seed %s%s   style %s   attempt %d   ground %d m2 (%d x %d cells of %.0f m)\nroads %d   plazas %d   buildings %d   gates %d (%s)   start at %.0f, %.0f m   validation: %s\nLeft/Right: seed -/+ 1   C: %s   W: %s   drag: orbit   wheel: zoom   R: reset"
 		% [
 			DailyScript.seed_text(seed_value),
 			"  (today's daily seed)" if seed_value == DailyScript.today_seed() else "",
+			str(layout.get("style_label", "none")),
 			int(layout["attempt"]) + 1,
 			int(layout["walkable_m2"]),
 			int(layout["cells"]),

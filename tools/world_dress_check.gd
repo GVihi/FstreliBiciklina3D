@@ -42,6 +42,7 @@ var lamps_min = 1000000
 var lamps_max = 0
 var trees_min = 1000000
 var trees_max = 0
+var styles_seen = {}
 
 
 func _initialize() -> void:
@@ -68,11 +69,20 @@ func _initialize() -> void:
 			problems.append("seed %08X: %s" % [seed_value, p])
 		if found.is_empty():
 			_check_repeat(seed_value, layout, built)
+		styles_seen[str(layout.get("style", ""))] = (
+			int(styles_seen.get(str(layout.get("style", "")), 0)) + 1
+		)
 		tri_min = mini(tri_min, int(built["tris"]))
 		tri_max = maxi(tri_max, int(built["tris"]))
 		lot_min = mini(lot_min, built["buildings"].size())
 		lot_max = maxi(lot_max, built["buildings"].size())
-		if first_layout.is_empty():
+		# the damage tests need a layout with brick walls and windows (not a bridge or a tunnel)
+		var dressed: Dictionary = layout.get("dress", {})
+		if (
+			first_layout.is_empty()
+			and bool(dressed.get("windows", true))
+			and not bool(dressed.get("dark_all", false))
+		):
 			first_layout = layout
 		built["root"].free()
 		built_count += 1
@@ -80,10 +90,15 @@ func _initialize() -> void:
 		_check_damage(first_layout)
 	if not WorldDress.build({}).is_empty():
 		problems.append("an empty layout did not give an empty result")
+	# every style of the rules has to have been dressed, or the check says nothing about it
+	if count >= 60:
+		for name in ArenaGen.style_names(rules):
+			if not styles_seen.has(name):
+				problems.append("no arena of style %s was dressed" % name)
 	if problems.is_empty():
 		print(
 			(
-				"world_dress_check: %d arenas dressed, %d to %d lots, %d to %d lamps, %d to %d trees, %d to %d triangles; every building cell is under one lot, windows and tunnel bands are on the faces that look onto open ground, tunnels are black blocks over the tunnel cells, lamps and trees stand where the cells say, and fourteen kinds of damage are caught"
+				"world_dress_check: %d arenas dressed, %d to %d lots, %d to %d lamps, %d to %d trees, %d to %d triangles; every building cell is under one lot, windows and tunnel bands are on the faces that look onto open ground, tunnels are black blocks over the tunnel cells, lamps and trees stand where the cells say, and sixteen kinds of damage are caught (styles dressed: %s)"
 				% [
 					built_count,
 					lot_min,
@@ -93,7 +108,8 @@ func _initialize() -> void:
 					trees_min,
 					trees_max,
 					tri_min,
-					tri_max
+					tri_max,
+					", ".join(PackedStringArray(_style_tally()))
 				]
 			)
 		)
@@ -321,6 +337,12 @@ func _check_lots(layout: Dictionary, built: Dictionary, found: Array) -> Diction
 		if not seen.has(key):
 			found.append("the building data has a lot that is not drawn like that: %s" % str(b))
 			return {}
+	# a style whose dress says "dark_all" has no brick building at all
+	if bool(dress.get("dark_all", false)):
+		for d in drawn:
+			if not d[5]:
+				found.append("the style dresses every building dark, a brick one is drawn")
+				return {}
 	return heights
 
 
@@ -332,9 +354,10 @@ func _check_windows(
 	var half_world = float(n) * cell / 2.0
 	# how many windows the layout asks for: a column on every building cell face that looks onto open ground
 	var expected = 0
+	var wants_windows = bool(layout.get("dress", {}).get("windows", true))
 	for cz in range(n):
 		for cx in range(n):
-			if str(layout["rows"][cz])[cx] != "b":
+			if not wants_windows or str(layout["rows"][cz])[cx] != "b":
 				continue
 			var h = float(heights[cz * n + cx])
 			var rows_fit = 0
@@ -591,6 +614,16 @@ func _check_meshes(layout: Dictionary, built: Dictionary, found: Array) -> void:
 
 
 # sizes the dressing is built from must stay sensible, whatever they are set to
+# "bridge 14, canyon 17, ..." for the summary line
+func _style_tally() -> Array:
+	var names = styles_seen.keys()
+	names.sort()
+	var out = []
+	for name in names:
+		out.append("%s %d" % [name, int(styles_seen[name])])
+	return out
+
+
 func _check_sizes() -> void:
 	# name: [the value, lowest allowed, highest allowed]
 	var limits = {
@@ -768,6 +801,7 @@ func _part_matches(
 
 func _check_props(layout: Dictionary, built: Dictionary, found: Array) -> void:
 	var props: Dictionary = built["props"]
+	var n = int(layout["cells"])
 	# ---- lamps: the data against the rules
 	var want_cells = _lamp_cells(layout)
 	var seen = {}
@@ -899,7 +933,22 @@ func _check_props(layout: Dictionary, built: Dictionary, found: Array) -> void:
 		_part_matches(built, "tree_tops", tops, 5, tree_count, found)
 	elif built["parts"].has("tree_trunks"):
 		found.append("tree check: tree parts drawn with no trees")
-	if lamp_count == 0 or tree_count == 0:
+	# an arena with room for trees (many grass cells with only grass and sidewalk round them) must have some; the
+	# bridge and the tunnel have no such cells and no trees
+	var room = 0
+	for cz in range(n):
+		for cx in range(n):
+			if str(layout["rows"][cz])[cx] != "g":
+				continue
+			var open_round = true
+			for dz in range(-1, 2):
+				for dx in range(-1, 2):
+					var around = WorldGen.cell_at(layout["rows"], n, cx + dx, cz + dz)
+					if around != "g" and around != "s":
+						open_round = false
+			if open_round:
+				room += 1
+	if lamp_count == 0 or (tree_count == 0 and room >= 60):
 		found.append("an arena with %d lamps and %d trees is bare" % [lamp_count, tree_count])
 	lamps_min = mini(lamps_min, lamp_count)
 	lamps_max = maxi(lamps_max, lamp_count)
@@ -1000,6 +1049,24 @@ func _check_damage(layout: Dictionary) -> void:
 	var bands: MeshInstance3D = no_band["parts"]["tunnel_bands"]
 	bands.mesh = _drop_last(bands.mesh, 1)
 	_expect_caught("a tunnel band missing", "tunnel bands", layout, no_band)
+	# a style that says "no windows" or "all dark" is held to it: the same dressing checked against such a style
+	var blank_dress: Dictionary = layout.get("dress", {}).duplicate(true)
+	blank_dress["windows"] = false
+	var blank: Dictionary = layout.duplicate(true)
+	blank["dress"] = blank_dress
+	_expect_caught(
+		"windows on a style that has none", "the layout asks for 0", blank, WorldDress.build(layout)
+	)
+	var dark_dress: Dictionary = layout.get("dress", {}).duplicate(true)
+	dark_dress["dark_all"] = true
+	var all_dark: Dictionary = layout.duplicate(true)
+	all_dark["dress"] = dark_dress
+	_expect_caught(
+		"brick walls on an all-dark style",
+		"dresses every building dark",
+		all_dark,
+		WorldDress.build(layout)
+	)
 	# windows lit all the time
 	var lit = WorldDress.build(layout)
 	lit["win_mat"].emission_energy_multiplier = 2.0

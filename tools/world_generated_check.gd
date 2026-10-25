@@ -23,7 +23,7 @@ const WorldDress = preload("res://scripts/world_dress.gd")
 const Lighting = preload("res://scripts/lighting.gd")
 const Content = preload("res://scripts/content.gd")
 
-const MAX_HEIGHT = 12.0  # the tallest thing is a building, 11.3 m
+const MAX_HEIGHT = 16.0  # the tallest thing is a building: 15 m for the bridge girders, 16 m is the most a style may ask
 
 var problems = []
 
