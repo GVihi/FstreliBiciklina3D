@@ -245,6 +245,7 @@ Mostly vibe coded Godot game
 
 ## Release Readiness
 
+- [ ] Rename the game from FstreliBiciklina3D to FB3D (window title, title screen and logo text, Godot project name in `project.godot`, export preset and executable name, `README.txt`, `CREDITS.md`, the docs and the headings in this README; decide separately whether the GitHub repository is renamed too, since that changes the clone URL and the CI links; save files in `user://` follow the project name in Godot, so check that old settings, scores and meta currency still load after the rename, see `docs/SAVE_FILES.md`)
 - [ ] Create app icon
 - [ ] Add credits screen (include audio, font and voice-recording credits)
 - [ ] Configure Windows export presets (the current export path points at a personal Desktop folder: make it relative)
@@ -578,17 +579,35 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 Jumping on Space, so the movement feels like a modern FPS. Space is the dash key today (and the gamepad A button), so the first step is to give dash a new key.
 
 > Feel goal: fast-paced, like a Quake game. Sprints, jumps and dashes chain into each other, and the player can aim and shoot while airborne. Every decision below should be judged against that.
+>
+> Movement inspiration: the game S4 League (fast, acrobatic third-person shooter movement with wall-jumps, dashes and dodges that chain into each other). Take the feel of the movement, not the exact rules or numbers.
 
 - [ ] Decide the new dash key and gamepad button (Space and A are taken by jumping), and move dash there in the input map, the key rebinding list, the Controls page, `README.txt` and the HUD hint under the dash bar
 - [ ] Jump on Space: a short hop with gravity, a fixed jump height and some air control (decide the numbers while building it; coyote time and jump buffering make it feel right)
 - [ ] Jump on the gamepad (A) and add it to the key rebinding list and the Controls page
 - [ ] Decide how jumping mixes with sprint, crouch, slide and dash (can you jump out of a slide, dash in the air, shoot and aim while airborne)
 - [ ] Fast, Quake-like movement flow: sprint into a jump without losing speed, start a dash from the air or out of a jump, keep momentum through the landing, and aim, shoot and throw while airborne with no penalty to aim; tune it so chaining sprint, jump and dash is clearly faster than walking and every step of it can be cancelled into the next (decide the numbers while building it, and check it does not make riders, bosses or the arena size feel too small)
+- [ ] Wall-jumps (S4 League style): jump off a wall or other solid surface while airborne next to it to get pushed away from it and upwards, with a short window after contact, a limit on how many wall-jumps can chain before touching the ground, and momentum kept through the jump so a run of them climbs or crosses a gap; decide which arena surfaces allow it (buildings and walls yes, the fountain and props to be decided), and check the `Arena` bounds queries (`clamp_walk`, `obstacle_at`) so a wall-jump can never lift the player over the arena edge, which is covered by the "Keep the player inside the arena" item below
+- [ ] Side dash / dodge (S4 League style): a quick sideways burst to the left or right, taken from the ground or from the air, with its own short cooldown and key or double-tap input (decide with the dash key above), that can be chained out of a jump, a wall-jump or a sprint and into the next move; decide how it relates to the existing dash and its bar (a separate charge or the same one), and whether a side dash at the right moment counts as a PERFECT DODGE (see the dodge item below)
 - [ ] Decide whether jumping over a passing rider counts as a dodge, and keep the PERFECT DODGE rule working as it does now
 - [ ] Keep the player inside the arena while jumping: the height must not let the player clear buildings, props or the fountain, so the `Arena` bounds queries (`clamp_walk`, `obstacle_at`) still hold in the air
 - [ ] Camera and gun feedback for take-off and landing (viewmodel dip, a small camera kick) and the jump and landing sounds (builds on "Footsteps, landing, slide and dash" in S2)
 - [ ] Check darts, melee, hit boxes, aim assist and the radar while airborne
-- [ ] Playtest and tune the feel: jump height, gravity and air control
+- [ ] Playtest and tune the feel: jump height, gravity, air control, wall-jump push and side dash distance
+
+---
+
+# Milestone M: First and Third Person View
+
+Today the game is first person only (the camera is the player's eyes and the gun and club are a separate viewmodel, see F2). This milestone adds a third-person view and a way to switch between the two at any time. It pairs well with the acrobatic movement in Milestone L, because wall-jumps and side dashes read much better when the player can see their own body, but it does not depend on it.
+
+- [ ] Toggle between first and third person with a key and a gamepad button (decide which, for example a key near the camera and mouse controls), add it to the key rebinding list and the Controls page, and remember the choice in the settings file (see `docs/SAVE_FILES.md`); the switch works mid-round, in the air and while shooting, and pauses nothing
+- [ ] Build the third-person camera: behind and over the shoulder, with the camera pulled in when a wall or prop is in the way (so it never clips through the arena), smooth follow and a short blend when switching from first person, plus a FOV and distance that keep riders and bosses readable
+- [ ] Player body model for the third-person view (needs a model, since the player has no visible body in first person) built with the model pipeline in `tools/models/`, with idle, walk, sprint, slide, jump, dash and hit animations (the movement ones follow Milestone L); hidden or reduced in first person so it never blocks the view
+- [ ] Weapons in third person: the dart gun and the jelly club held by the player model instead of the first-person viewmodel (`scripts/viewmodel.gd` is off in this view), with the muzzle flash, shell ejection, pump animation and club swing still working; the ammo count on the gun and the HUD ammo stay readable
+- [ ] Aiming in third person: the crosshair shows where the dart really lands (no mismatch between the camera and the gun), aim-down-sights works with a closer camera, and aim assist, hit boxes and melee reach behave the same as in first person; decide whether a third-person shot starts at the gun or at the camera ray
+- [ ] Check every system in both views: threat arrows and the radar, the damage and hit flashes, PERFECT DODGE, the caches and the extraction point, the map and menus, and the screen shake option (`fx_scale`); riders and bosses must not be able to hide behind the camera
+- [ ] Playtest and tune both views: camera distance and height, blend speed and whether third person feels fair against riders coming from behind (it must not be a clear advantage or a clear disadvantage compared to first person)
 
 ---
 
@@ -635,4 +654,5 @@ Jumping on Space, so the movement feels like a modern FPS. Space is the dash key
 - [ ] Milestone I: Roguelite progression (builds on the meta currency and unlocks in Milestone B)
 - [ ] Milestone J: Manual reload (small and independent, can be done at any time)
 - [ ] Milestone K: Procedural arenas (big: replaces how riders and bosses move; start with the "Foundation" steps, which keep the roundabout playing as today)
-- [ ] Milestone L: Jumping (small and independent; Space is the dash key today, so dash moves to another key first)
+- [ ] Milestone L: Jumping (small and independent; Space is the dash key today, so dash moves to another key first); now also holds the fast S4 League style movement: wall-jumps and the side dash / dodge
+- [ ] Milestone M: First and third person view (needs a player body model; best after Milestone L, so the new movement can be seen on the character)
