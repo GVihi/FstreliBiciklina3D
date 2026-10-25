@@ -436,14 +436,16 @@ func _draw_scores_page(k: float, cx: float) -> void:
 	var c_rank = cx - 300.0 * k
 	var c_name = cx - 262.0 * k
 	var c_score = cx + 20.0 * k
-	var c_round = cx + 110.0 * k
-	var c_kills = cx + 195.0 * k
-	var c_date = cx + 300.0 * k
+	var c_round = cx + 100.0 * k
+	var c_kills = cx + 170.0 * k
+	var c_time = cx + 255.0 * k
+	var c_date = cx + 365.0 * k
 	_txt("#", c_rank, y0, int(14 * k), GRAY)
 	_txt("NAME", c_name, y0, int(14 * k), GRAY)
 	_txt("SCORE", c_score, y0, int(14 * k), GRAY, 2)
 	_txt("ROUND", c_round, y0, int(14 * k), GRAY, 2)
 	_txt("KILLS", c_kills, y0, int(14 * k), GRAY, 2)
+	_txt("TIME", c_time, y0, int(14 * k), GRAY, 2)
 	_txt("DATE", c_date, y0, int(14 * k), GRAY, 2)
 	var list = g.scores.entries
 	if list.is_empty():
@@ -471,6 +473,9 @@ func _draw_scores_page(k: float, cx: float) -> void:
 		_txt(str(e["score"]).pad_zeros(6), c_score, y, int(22 * k), col, 2)
 		_txt(str(e["round"]), c_round, y, int(20 * k), col, 2)
 		_txt(str(e["kills"]), c_kills, y, int(20 * k), col, 2)
+		# runs saved before the time was kept (or with no time) show a dash
+		var t = int(e.get("time", 0))
+		_txt(g.fmt_time(float(t)) if t > 0 else "-", c_time, y, int(20 * k), col, 2)
 		_txt(str(e["date"]), c_date, y, int(16 * k), GRAY, 2)
 	if not list.is_empty():
 		var r = scores_reset_rect()
