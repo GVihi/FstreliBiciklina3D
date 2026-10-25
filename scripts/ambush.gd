@@ -10,9 +10,10 @@ extends RefCounted
 #   Timing   The first rider comes out DELAY seconds after the way opens, then one every GAP seconds. A note and a
 #            sound say it started; the threat arrows and the radar show the riders as they ride in.
 #   Where    Gates the node leaves open that are far from the player (`riders.gd` `ambush_gate`), so there is time to
-#            see them. The riders, their kinds and the lane they take come from the round's rider stream (layout_f /
-#            layout_i), which is seeded by the run seed and the round: the Daily Run gives everybody the same count,
-#            kinds and order. Which gate depends on where the player stands when the rider is sent.
+#            see them. The riders, their kinds and the lane they take come from a stream of their own (`rng`, seeded by
+#            the run seed and the round), not from the round's rider stream: the Daily Run gives everybody the same
+#            count, kinds and order, and the ambush never changes the riders of the round's own waves. Which gate
+#            depends on where the player stands when the rider is sent.
 #   Rules    Ambush riders are not among the round's PER_ROUND riders: they are not in `hits`, they do not move
 #            `next_idx` and do not change what clears the round (reaching the point still does). When the last one
 #            is down the round does NOT end (`after_wave` in main.gd returns while the way out is open). A life lost to
@@ -20,6 +21,8 @@ extends RefCounted
 #
 # One round at a time: `start()` is called by `finish_wave_set` when the way opens, `clear()` when the round ends or
 # the run is lost. The roundabout has no extraction point and so no ambush.
+
+const DailyScript = preload("res://scripts/daily.gd")
 
 const DELAY = 2.0  # seconds from the way opening to the first rider
 const GAP = 1.6  # seconds between riders
@@ -30,6 +33,7 @@ const WARN = Color(0.9, 0.33, 0.24)
 var g = null
 var left = 0  # riders still to send
 var sent = 0  # riders sent this round
+var rng = RandomNumberGenerator.new()  # kinds, lanes and gates of the ambush riders (seeded by the run seed and the round)
 var _wait = 0.0
 
 
@@ -54,6 +58,7 @@ func start() -> void:
 		return
 	left = count_for_round(g.round_n)
 	_wait = DELAY
+	rng.seed = DailyScript.stream_seed(g.run_seed, g.round_n, "ambush")
 
 
 func clear() -> void:
@@ -74,7 +79,7 @@ func update(dt: float) -> void:
 	if sent == 0:
 		g.add_note("AMBUSH - RIDERS AT THE GATES", WARN)
 		g.sfx.play("boss_intro", -4.0)
-	g.rider_sys.spawn_rider(g.layout_i(3), 1, true)
+	g.rider_sys.spawn_rider(rng.randi() % 3, 1, true, rng)
 	left -= 1
 	sent += 1
 	_wait = GAP

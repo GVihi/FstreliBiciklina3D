@@ -44,10 +44,29 @@ func _init(game) -> void:
 
 
 # ================================================================== riders
-# `ambush` is a rider of the ambush when the extraction point opens (ambush.gd): it is not one of the round's PER_ROUND
-# riders, so it takes no place in `hits` ("idx" is -1) and does not move `next_idx`, it follows no node plan, it is
-# never an armoured rider (no runner to chase after), and it comes out of a gate far from the player (ambush_gate).
-func spawn_rider(lane_idx: int, dir: int, ambush: bool = false) -> Dictionary:
+# `ambush` marks an extra rider: one of the ambush when the extraction point opens (ambush.gd) or one a cursed cache
+# calls (objective.gd). Such a rider is not one of the round's PER_ROUND riders, so it takes no place in `hits` ("idx"
+# is -1) and does not move `next_idx`, it follows no node plan, it is never an armoured rider (no runner to chase
+# after), and it comes out of `gate_override`, or else of a gate far from the player (ambush_gate). `rng` is the
+# random stream of whoever sends it: the draws of the spawn come from it instead of the round's rider stream, so when
+# the player takes a cursed cache, or how long the ambush takes, never changes which riders the round's own waves
+# bring (the Daily Run must give everybody the same riders).
+func spawn_rider(
+	lane_idx: int,
+	dir: int,
+	ambush: bool = false,
+	rng: RandomNumberGenerator = null,
+	gate_override: Dictionary = {}
+) -> Dictionary:
+	var saved = g.rider_rng
+	if rng != null:
+		g.rider_rng = rng
+	var r = _spawn_rider(lane_idx, dir, ambush, gate_override)
+	g.rider_rng = saved
+	return r
+
+
+func _spawn_rider(lane_idx: int, dir: int, ambush: bool, gate_override: Dictionary) -> Dictionary:
 	var roll = g.layout_f()
 	var type = "pro"
 	if g.round_n >= 2 and roll < 0.2:
@@ -86,7 +105,9 @@ func spawn_rider(lane_idx: int, dir: int, ambush: bool = false) -> Dictionary:
 	var start_yaw = g.arena.yaw(x0) + (0.0 if dir > 0 else PI)
 	if g.arena.rider_pursuit():
 		# open ground: in a gate's tunnel, facing out of it; "dir" stays 1 so parts fly the way it rides
-		var gate = ambush_gate() if ambush else pick_gate()
+		var gate = gate_override
+		if gate.is_empty():
+			gate = ambush_gate() if ambush else pick_gate()
 		start_pos = gate_spawn_point(gate)
 		start_yaw = yaw_of(-gate["outward"])
 		dir = 1

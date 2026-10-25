@@ -156,7 +156,7 @@ The walk to the extraction point used to be quiet, because every rider was alrea
 | Riders | 2 in rounds 1 to 4, 3 in rounds 5 to 7, 4 from round 8 |
 | Timing | the first rider 2 s after the way opens (with an AMBUSH note and a sound), then one every 1.6 s |
 | Gates | the gates the node leaves open that are at least 35 m from the player; the farthest one if none is |
-| Kinds | pro, sprinter or courier from the round's rider stream (same seed, same kinds in the same order); never the armoured rider |
+| Kinds | pro, sprinter or courier from a random stream of the ambush's own (same seed, same kinds in the same order, and the round's own riders are never shifted by it); never the armoured rider |
 | Round clear | unchanged: they are not among the round's riders, the last one going down does not end the round, reaching the point does and clears the riders still on the road |
 | Perfect round | a life lost to an ambush rider still counts against it |
 
