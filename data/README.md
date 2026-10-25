@@ -93,7 +93,8 @@ The meta challenges: small goals that pay meta coins (Milestone B, "Earn from ch
 | key | meaning |
 |---|---|
 | `id` | unique text id, never changed once shipped (a save counter and later achievements point at it) |
-| `name` | short shouted title, like the shop items |
+| `name` | short shouted title, like the shop items; it is also the name of the achievement |
+| `icon` | optional, the small badge drawn next to the name on the CHALLENGES page: `no_gun`, `crate`, `chevrons`, `heart`, `clock` or `star` (the default; an unknown name is logged and becomes `star`). A new icon needs a drawing in `_draw_badge` in `scripts/hud.gd` |
 | `desc` | the goal in plain words, shown on the page and the run summary |
 | `condition` | what the game watches, one of the keys below; a new key needs code in `challenges.gd` |
 | `scope` | `round` (checked at the end of each round) or `run` (checked across the run, or at its end) |
@@ -108,6 +109,8 @@ The meta challenges: small goals that pay meta coins (Milestone B, "Earn from ch
 | `perfect_dodge_streak` | `target` perfect dodges happen with no life lost in between (a lost life ends the streak) |
 | `round_no_life_lost` | a round is cleared with no life lost in it |
 | `run_time_under` | the run is won in fewer than `target` seconds (fighting and shopping, the RUN TIME of the summary) |
+
+Achievements are the same list: a challenge done at least once, ever, is an unlocked achievement (the badge turns gold and the page counts them), so they need no save field of their own.
 
 The coins are paid when the run ends, together with the score and boss coins (a run that is quit pays nothing). Challenges done in a run are counted in `meta.json` under `challenges`, by `counter`; the run summary marks a challenge NEW the first time it is ever done.
 
