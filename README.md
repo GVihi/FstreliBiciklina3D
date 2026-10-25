@@ -253,7 +253,7 @@ Mostly vibe coded Godot game
 - [ ] Create app icon
 - [ ] Add credits screen (include audio, font and voice-recording credits)
 - [ ] Configure Windows export presets (the current export path points at a personal Desktop folder: make it relative)
-- [ ] Show the game version on the title screen
+- [x] Show the game version on the title screen (shown as "v0.1.0" in small grey text in the bottom right corner of the title menu, `_draw_title_menu` in `scripts/hud.gd`; the number is written in one place, `config/version` in `project.godot`, and read into `game_version` in `scripts/main.gd`, so a release only changes that one line; nothing is drawn if it is empty. Decision: 0.1.0 as the first number, since the project had none (`README.txt` still says v10); bump it per release. Not done: the Windows export metadata (`application/product_version` in `export_presets.cfg`, still empty) is part of "Configure Windows export presets" below. `tools/version_check.gd` (`tools\run_version_check.bat`) checks that `config/version` looks like 0.1.0, that the game reads it, and that the title screen draws at two window sizes and with no version. Written in a session without Godot, only gdformat and gdlint were run, so run `tools\run_version_check.bat` once; waiting for your in-game check: look at the bottom right of the title screen at your window size and in fullscreen, the text should be readable and clear of the controls lines)
 - [ ] Bring `README.txt` up to date (it still describes v10 controls and the old click-to-start / click-to-resume flow)
 
 ---
