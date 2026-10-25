@@ -68,7 +68,7 @@ func _check_no_top_up() -> void:
 		_fail("a gun with 1 dart changed to %d darts without a reload" % main.shells)
 
 
-# R and gamepad X call start_load
+# R and gamepad X call `input_sys.manual_reload`, which calls start_load
 func _check_manual_reload() -> void:
 	_reset_gun(1)
 	main.combat_sys.start_load()
@@ -78,6 +78,18 @@ func _check_manual_reload() -> void:
 	main.combat_sys.start_load()
 	if main.loading:
 		_fail("a manual reload started on a full magazine")
+	# the key and button entry point
+	_reset_gun(1)
+	main.melee = false
+	main.input_sys.manual_reload()
+	if not main.loading:
+		_fail("manual_reload (R / X) did not start a reload with the gun in hand")
+	_reset_gun(1)
+	main.melee = true
+	main.input_sys.manual_reload()
+	if main.loading:
+		_fail("manual_reload (R / X) started a reload while the melee weapon is held")
+	main.melee = false
 
 
 # an empty magazine starts loading without any input and fills up again
