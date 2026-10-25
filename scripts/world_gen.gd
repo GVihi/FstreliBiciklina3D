@@ -217,8 +217,8 @@ static func _road_edges(rows: Array, n: int, cell: float) -> Array:
 
 
 # The dashed centre line of one road ({"dir", "centre"} from the layout): dashes along the middle of the
-# road through every stretch that is plain road (no crossing road: the cells two out from the middle are
-# not road), centred in the stretch, DASH_MARGIN short of each end. Returns [[x0, z0, x1, z1]].
+# road through every stretch that is plain road (no crossing road: the cells just beyond the road's width,
+# half a width and one out from the middle, are not road), centred in the stretch, DASH_MARGIN short of each end. Returns [[x0, z0, x1, z1]].
 static func _dashes(rows: Array, n: int, cell: float, rd: Dictionary) -> Array:
 	var out = []
 	var c = int(rd["centre"])
@@ -230,8 +230,9 @@ static func _dashes(rows: Array, n: int, cell: float, rd: Dictionary) -> Array:
 		if a < n:
 			var x = c if ns else a
 			var z = a if ns else c
-			var dx = 2 if ns else 0
-			var dz = 0 if ns else 2
+			var beyond = int(rd.get("width", 3)) / 2 + 1
+			var dx = beyond if ns else 0
+			var dz = 0 if ns else beyond
 			plain = (
 				cell_at(rows, n, x, z) == "r"
 				and cell_at(rows, n, x - dx, z - dz) != "r"

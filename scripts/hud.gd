@@ -965,6 +965,9 @@ func _draw() -> void:
 		_draw_boss_ui(k)
 		if g.riders.size() == 0 and g.bosses.size() == 0 and g.wait > 0.0 and g.wait_msg != "":
 			_txt(g.wait_msg, cx, size.y * 0.30, int(46 * k), TEXT, 1)
+			# at the start of a round on a generated arena, the style the seed picked for it
+			if g.wait_msg.begins_with("ROUND ") and g.arena.style_label() != "":
+				_txt(g.arena.style_label(), cx, size.y * 0.30 + 50.0 * k, int(24 * k), GRAY, 1)
 		if g.buffs["shield"] > 0.0:
 			draw_arc(
 				Vector2(cx, size.y + 230.0 * k),

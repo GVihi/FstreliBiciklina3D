@@ -9,17 +9,19 @@ extends RefCounted
 #
 # What it makes, all in world metres (x east, z south, y up), standing on the ground at y = 0:
 #   buildings   every 'b' cell is under exactly one lot, a box at most LOT_CELLS cells long on each side,
-#               H_MIN to H_MIN + 4 * H_STEP high by a hash of the lot's cells; brick or dark by the same hash;
-#               windows (WIN_W by WIN_H) on every cell face that looks onto open ground, in rows from WIN_ROW0
-#               up every WIN_ROW_STEP while they fit WIN_TOP_GAP under the roof
+#               H_MIN to H_MIN + 4 * H_STEP high by a hash of the lot's cells (a layout's "dress" can change the
+#               base, the number of steps and the step: the arena style, see arena_gen.gd); brick or dark by the same hash
+#               (all dark when the "dress" says "dark_all"); windows (WIN_W by WIN_H) on every cell face that looks
+#               onto open ground, in rows from WIN_ROW0 up every WIN_ROW_STEP while they fit WIN_TOP_GAP under the
+#               roof (none when the "dress" says "windows": false)
 #   tunnels     every 't' cell is under one black block TUNNEL_H high, with a hazard-yellow band round the top
 #               of each face that looks onto open ground
 #   lamps       on a sidewalk cell that touches a road (never a corner, never near a tunnel), every LAMP_EVERY
 #               cells along the road, one side offset half a spacing from the other: a pole LAMP_SETBACK from the
 #               cell centre towards the road, an arm over the kerb, a glowing head, and a hidden OmniLight3D
 #   trees       on a grass cell whose eight neighbours are all grass or sidewalk (so none stands against a
-#               building, a road, a plaza or a tunnel), one cell in TREE_EVERY by a hash of the cell: a trunk and
-#               two blocks of leaves, centred in the cell
+#               building, a road, a plaza or a tunnel), one cell in TREE_EVERY (or the layout's "dress" tree_every) by
+#               a hash of the cell: a trunk and two blocks of leaves, centred in the cell
 #   Props are decoration: they have no collision and the layout does not know about them, so riders and the
 #   player pass through trunks and poles. Making them solid is for the rider pursuit item.
 # Meshes are merged per material, so the whole dressing is a handful of draw calls.
@@ -102,10 +104,13 @@ static func build(layout: Dictionary) -> Dictionary:
 	var brick = _Mesh.new()
 	var dark = _Mesh.new()
 	var glass = _Mesh.new()
+	var windows_on = windows_wanted(layout)
 	for lot in lots:
 		var c = lot["cells"]
 		var rect = _rect(n, cell, c)
 		(dark if lot["dark"] else brick).box(rect, 0.0, float(lot["h"]), false)
+		if not windows_on:
+			continue
 		for side in range(4):
 			for cell_face in _faces_onto_open_ground(rows, n, c, side):
 				_window_column(glass, n, cell, cell_face, side, float(lot["h"]))
@@ -223,9 +228,20 @@ static func build(layout: Dictionary) -> Dictionary:
 
 # ---------------------------------------------------------------- lots
 # The lots of a layout: every 'b' cell is in exactly one. Each merged rectangle of building cells is cut into
+# whether the buildings of this layout get windows: yes unless the layout's "dress" says "windows": false (the
+# bridge's girders and the tunnel's walls are blank)
+static func windows_wanted(layout: Dictionary) -> bool:
+	return bool(layout.get("dress", {}).get("windows", true))
+
+
 # pieces of at most LOT_CELLS cells across, as even as it goes. [{"cells": [cx0, cz0, cx1, cz1], "h", "dark"}]
 static func lots_of(layout: Dictionary) -> Array:
 	var n = int(layout["cells"])
+	var dress: Dictionary = layout.get("dress", {})
+	var h_base = float(dress.get("h_base", H_MIN))
+	var h_steps = maxi(1, int(dress.get("h_steps", H_STEPS)))
+	var h_step = float(dress.get("h_step", H_STEP))
+	var all_dark = bool(dress.get("dark_all", false))
 	var out = []
 	for r in WorldGen.merge_cells(layout["rows"], n, "b"):
 		for xs in _cut(int(r[0]), int(r[2])):
@@ -236,8 +252,8 @@ static func lots_of(layout: Dictionary) -> Array:
 					. append(
 						{
 							"cells": [xs[0], zs[0], xs[1], zs[1]],
-							"h": H_MIN + float(key % H_STEPS) * H_STEP,
-							"dark": (key / 7) % 3 == 1,
+							"h": h_base + float(key % h_steps) * h_step,
+							"dark": all_dark or (key / 7) % 3 == 1,
 						}
 					)
 				)
@@ -251,6 +267,7 @@ static func props_of(layout: Dictionary) -> Dictionary:
 	var n = int(layout["cells"])
 	var cell = float(layout["cell"])
 	var rows: Array = layout["rows"]
+	var every = maxi(1, int(layout.get("dress", {}).get("tree_every", TREE_EVERY)))
 	var lamps = []
 	var trees = []
 	for cz in range(n):
@@ -272,7 +289,7 @@ static func props_of(layout: Dictionary) -> Dictionary:
 							"head": centre + d * (LAMP_SETBACK + LAMP_ARM_REACH)
 						}
 					)
-			elif here == "g" and _tree_cell(rows, n, cx, cz):
+			elif here == "g" and _tree_cell(rows, n, cx, cz, every):
 				trees.append({"cell": Vector2i(cx, cz), "pos": centre})
 	return {"lamps": lamps, "trees": trees}
 
@@ -298,14 +315,14 @@ static func lamp_side(rows: Array, n: int, cx: int, cz: int) -> Vector2i:
 	return found if (along + phase) % LAMP_EVERY == 0 else Vector2i.ZERO
 
 
-# a tree stands on a grass cell with only grass and sidewalk round it, one in TREE_EVERY by a hash of the cell
-static func _tree_cell(rows: Array, n: int, cx: int, cz: int) -> bool:
+# a tree stands on a grass cell with only grass and sidewalk round it, one in `every` by a hash of the cell
+static func _tree_cell(rows: Array, n: int, cx: int, cz: int, every: int) -> bool:
 	for dz in range(-1, 2):
 		for dx in range(-1, 2):
 			var around = WorldGen.cell_at(rows, n, cx + dx, cz + dz)
 			if around != "g" and around != "s":
 				return false
-	return _hash([cx, cz, 4141]) % TREE_EVERY == 0
+	return _hash([cx, cz, 4141]) % every == 0
 
 
 # [from, to) cut into pieces of at most LOT_CELLS, the long ones first

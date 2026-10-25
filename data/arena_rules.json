@@ -13,5 +13,80 @@
   "nav": {"max_clearance": 9},
   "validate": {"min_clear": 2, "view_radius": 20, "min_view": 0.5},
   "max_attempts": 8,
-  "streams": {"roads": "arena_roads", "plazas": "arena_plazas", "blocks": "arena_blocks"}
+  "streams": {"roads": "arena_roads", "plazas": "arena_plazas", "blocks": "arena_blocks", "style": "arena_style"},
+  "styles": {
+    "plaza": {
+      "label": "PLAZA",
+      "weight": 1,
+      "rules": {
+        "road": {"vertical": {"min": 1, "max": 1}, "horizontal": {"min": 1, "max": 1}},
+        "start": {"plaza_min": 12, "plaza_max": 16},
+        "plazas": {"extra_min": 1, "extra_max": 2, "size_min": 8, "size_max": 12},
+        "buildings": {"size_min": 4, "size_max": 7, "max_share": 0.14}
+      },
+      "dress": {"h_base": 6.5, "h_steps": 4, "h_step": 1.2, "tree_every": 14}
+    },
+    "canyon": {
+      "label": "STREET CANYON",
+      "weight": 1,
+      "rules": {
+        "road": {"vertical": {"min": 2, "max": 2}, "horizontal": {"min": 0, "max": 1}},
+        "start": {"plaza_min": 9, "plaza_max": 11},
+        "plazas": {"extra_min": 0, "extra_max": 1, "size_min": 6, "size_max": 8},
+        "buildings": {"size_min": 5, "size_max": 10, "max_share": 0.27}
+      },
+      "dress": {"h_base": 8.5, "h_steps": 5, "h_step": 1.4, "tree_every": 30}
+    },
+    "market": {
+      "label": "MARKET",
+      "weight": 1,
+      "rules": {
+        "road": {"vertical": {"min": 1, "max": 1}, "horizontal": {"min": 1, "max": 1}},
+        "start": {"plaza_min": 11, "plaza_max": 13},
+        "plazas": {"extra_min": 2, "extra_max": 3, "size_min": 7, "size_max": 10},
+        "buildings": {"tries": 900, "size_min": 3, "size_max": 4, "max_share": 0.16}
+      },
+      "dress": {"h_base": 6.5, "h_steps": 2, "h_step": 0.8, "tree_every": 20}
+    },
+    "park": {
+      "label": "PARK",
+      "weight": 1,
+      "rules": {
+        "road": {"vertical": {"min": 1, "max": 1}, "horizontal": {"min": 1, "max": 1}},
+        "start": {"plaza_min": 9, "plaza_max": 11},
+        "plazas": {"extra_min": 0, "extra_max": 1, "size_min": 6, "size_max": 9},
+        "buildings": {"size_min": 3, "size_max": 5, "max_share": 0.115}
+      },
+      "dress": {"h_base": 6.5, "h_steps": 3, "h_step": 1.2, "tree_every": 9}
+    },
+    "bridge": {
+      "label": "BRIDGE",
+      "weight": 1,
+      "rules": {
+        "road": {"width": 7, "sidewalk": 1, "min_gap": 16, "margin": 11, "vertical": {"min": 0, "max": 0}, "horizontal": {"min": 1, "max": 1}},
+        "gates": {"min": 2, "max": 2, "depth": 2},
+        "start": {"plaza_min": 11, "plaza_max": 13, "touch": true},
+        "plazas": {"extra_min": 0, "extra_max": 1, "size_min": 8, "size_max": 10, "touch": true},
+        "buildings": {"tries": 0},
+        "enclose": {"verge": 1},
+        "walkable_m2": {"min": 3000, "max": 6500}
+      },
+      "dress": {"h_base": 12.0, "h_steps": 3, "h_step": 1.5, "tree_every": 14, "windows": false, "dark_all": true}
+    },
+    "tunnel": {
+      "label": "TUNNEL",
+      "weight": 1,
+      "rules": {
+        "road": {"width": 3, "sidewalk": 1, "min_gap": 12, "margin": 8, "vertical": {"min": 2, "max": 3}, "horizontal": {"min": 2, "max": 3}},
+        "gates": {"min": 3, "max": 6, "depth": 2},
+        "start": {"plaza_min": 9, "plaza_max": 11, "touch": true},
+        "plazas": {"extra_min": 2, "extra_max": 3, "size_min": 7, "size_max": 10, "touch": true},
+        "buildings": {"tries": 0},
+        "enclose": {"verge": 0},
+        "walkable_m2": {"min": 5500, "max": 11000},
+        "validate": {"min_view": 0.25}
+      },
+      "dress": {"h_base": 9.0, "h_steps": 3, "h_step": 1.0, "tree_every": 14, "windows": false, "dark_all": true}
+    }
+  }
 }

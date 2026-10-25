@@ -67,7 +67,11 @@ func _initialize() -> void:
 		tri_min = mini(tri_min, int(built["tris"]))
 		tri_max = maxi(tri_max, int(built["tris"]))
 		call_max = maxi(call_max, int(built["draw_calls"]))
-		if first_layout.is_empty():
+		# the damage tests (a hole in the grass, ...) need a layout with a good deal of grass: not a bridge or a tunnel
+		var grass_cells = 0
+		for row in layout["rows"]:
+			grass_cells += str(row).count("g")
+		if first_layout.is_empty() and grass_cells >= 200:
 			first_layout = layout
 		built["root"].free()
 		built_count += 1
@@ -439,12 +443,13 @@ func _check_paint(layout: Dictionary, built: Dictionary, found: Array) -> void:
 					return
 
 
-# is the point `along` the road (in metres along it) on plain road: road itself and no road two cells to
-# either side?
+# is the point `along` the road (in metres along it) on plain road: road itself and no road just beyond the
+# road's width to either side (two cells for a road 3 wide)?
 func _plain_road(layout: Dictionary, rd: Dictionary, mid: float, along: float) -> bool:
 	var ns = str(rd["dir"]) == "ns"
 	var cell = float(layout["cell"])
-	for side in [-2.0, 0.0, 2.0]:
+	var beyond = float(int(rd.get("width", 3)) / 2 + 1)
+	for side in [-beyond, 0.0, beyond]:
 		var x = mid + side * cell if ns else along
 		var z = along if ns else mid + side * cell
 		var is_road = ArenaGen.surface_at(layout, x, z) == "road"

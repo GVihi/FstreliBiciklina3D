@@ -198,7 +198,7 @@ func _check_clamp(arena, layout: Dictionary, tag: int) -> void:
 	rng.seed = 4242 + tag
 	var moved_free = 0
 	var fixed = 0
-	var far = 0.0
+	var far_cases = []  # [point, answer, who] where the answer is over 25 m from the point
 	for k in range(300):
 		var p = Vector3(
 			rng.randf_range(-half - 2.0, half + 2.0), 0.0, rng.randf_range(-half - 2.0, half + 2.0)
@@ -219,11 +219,33 @@ func _check_clamp(arena, layout: Dictionary, tag: int) -> void:
 					moved_free += 1
 			else:
 				fixed += 1
-				far = maxf(far, Vector2(q.x - p.x, q.z - p.z).length())
+				if Vector2(q.x - p.x, q.z - p.z).length() > 25.0:
+					far_cases.append([p, q, who])
 	if moved_free > 0:
 		bad.append("arena %d: clamp_walk moved %d free points" % [tag, moved_free])
-	if far > 25.0:
-		bad.append("arena %d: clamp_walk threw a point %.1f m away" % [tag, far])
+	# A point deep inside walls (the bridge and the tunnel have walls dozens of metres thick) may really be far
+	# from free ground, so a long throw is held to the nearest free cell centre (found by brute force) plus one
+	# search step and one cell, not to a fixed distance.
+	for c in far_cases.slice(0, 12):
+		var margin = float(arena.MARGINS[c[2]])
+		var nearest = INF
+		for cz in range(int(layout["cells"])):
+			for cx in range(int(layout["cells"])):
+				var centre = Vector3(
+					(float(cx) + 0.5 - float(layout["cells"]) / 2.0) * cell,
+					0.0,
+					(float(cz) + 0.5 - float(layout["cells"]) / 2.0) * cell
+				)
+				if arena._clear(centre, margin):
+					nearest = minf(nearest, Vector2(centre.x - c[0].x, centre.z - c[0].z).length())
+		var thrown = Vector2(c[1].x - c[0].x, c[1].z - c[0].z).length()
+		if thrown > nearest + float(arena.SLIDE_COARSE_STEP) + cell:
+			bad.append(
+				(
+					"arena %d: clamp_walk threw a point %.1f m away, free ground is %.1f m away"
+					% [tag, thrown, nearest]
+				)
+			)
 	# the start and a pickup spot are free for every kind
 	for who in ["player", "boss", "pickup"]:
 		if arena.clamp_walk(arena.start_position(), who) != arena.start_position():

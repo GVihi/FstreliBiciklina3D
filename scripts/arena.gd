@@ -107,6 +107,17 @@ func rider_avoidance() -> bool:
 	return false
 
 
+# The arena style the run seed picked (README Milestone K, "Arena styles chosen by the seed"): "plaza", "canyon",
+# "market", "park", "bridge" or "tunnel" on a generated arena, "" on the roundabout, and its name for the screen
+# ("STREET CANYON"; "" where there is no style).
+func style_name() -> String:
+	return ""
+
+
+func style_label() -> String:
+	return ""
+
+
 # true if riders chase the player over open ground (README Milestone K, rider pursuit): they ride at the player
 # on any surface, pass, turn round in an arc and come back, and they come out of the gates. False keeps the
 # lane steering the roundabout needs. Generated arenas say yes.

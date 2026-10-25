@@ -11,13 +11,20 @@ extends RefCounted
 #   "nav":       Array of `cells` Strings like "rows", the navigation grid: '#' where nothing can go (building),
 #                otherwise a digit 1 to 9, the clearance: how many cells away the nearest building is, counting
 #                diagonals (1 = touching one, so a rider there has no room to swing), capped at nav.max_clearance
-#   "roads":     [{"dir": "ns" or "ew", "centre": cell index across the road}] (ns roads run north to south)
+#   "roads":     [{"dir": "ns" or "ew", "centre": cell index across the road, "width": cells (the road itself,
+#                without sidewalks)}] (ns roads run north to south)
 #   "plazas":    [{"x", "z", "w", "h", "start": bool}] in cells; the first one holds the start area
 #   "buildings": [{"x", "z", "w", "h"}] block rectangles in cells (the border ring is not listed)
 #   "gates":     [{"side": "n", "s", "w" or "e", "lo", "hi" (cells along that side), "pos": [x, z] (metres,
 #                centre of the tunnel block), "outward": [x, z] (unit vector), "half_width": metres}]
 #   "start":     {"cell": [cx, cz], "pos": [x, z], "half": cells} a clear (2 * half + 1) square of plaza
 #   "walkable_m2": ground a player or rider can stand on (everything but buildings and tunnels)
+#   "style":     the arena style the seed picked ("plaza", "canyon", "market", "park", "bridge", "tunnel"; "" when the rules have no
+#                styles), see "styles" in data/arena_rules.json
+#   "style_label": the style's name for the screen ("STREET CANYON"), "label" in the rules; "" without a style
+#   "dress":     how world_dress.gd dresses this style: {"h_base", "h_steps", "h_step" (building heights),
+#                "tree_every", "windows" (false = no windows) and "dark_all" (true = every building dark)};
+#                empty when the style gives none
 # Nothing in a layout reads the scene or the global random state.
 
 const DailyScript = preload("res://scripts/daily.gd")
@@ -63,12 +70,80 @@ static func generate(run_seed: int, rules: Dictionary = {}) -> Dictionary:
 	if rules.is_empty():
 		return {}
 	var tries = int(rules.get("max_attempts", 8))
+	# the style belongs to the seed, not to the attempt: a retry changes the layout, never the style
+	var style = pick_style(run_seed, rules)
+	var style_rules = rules_for_style(rules, style)
+	var dress = {}
+	if style != "":
+		dress = rules["styles"][style].get("dress", {}).duplicate(true)
 	for attempt in range(tries):
-		var layout = _attempt(run_seed, attempt, rules)
+		var layout = _attempt(run_seed, attempt, style_rules)
 		if not layout.is_empty():
+			layout["style"] = style
+			layout["style_label"] = style_label(rules, style)
+			layout["dress"] = dress
 			return layout
 	push_error("arena: seed %08X gave no usable layout in %d attempts" % [run_seed, tries])
 	return {}
+
+
+# What a style is called on the screen: its "label" in the rules, else its name in capitals; "" without a style.
+static func style_label(rules: Dictionary, style: String) -> String:
+	if style == "" or not rules.get("styles", {}).has(style):
+		return ""
+	return str(rules["styles"][style].get("label", style.to_upper()))
+
+
+# The names of the styles in the rules, in a fixed (sorted) order; empty when the rules have none.
+static func style_names(rules: Dictionary) -> Array:
+	var names = rules.get("styles", {}).keys()
+	names.sort()
+	return names
+
+
+# The style a run seed gets: drawn from its own stream (attempt 0), by the "weight" of each style. "" when the
+# rules have no styles, which gives the plain numbers of the rules.
+static func pick_style(run_seed: int, rules: Dictionary) -> String:
+	var names = style_names(rules)
+	if names.is_empty():
+		return ""
+	var styles = rules["styles"]
+	var total = 0.0
+	for name in names:
+		total += maxf(0.0, float(styles[name].get("weight", 1.0)))
+	var rng = _rng(run_seed, 0, str(rules.get("streams", {}).get("style", "arena_style")))
+	var roll = rng.randf() * total
+	for name in names:
+		roll -= maxf(0.0, float(styles[name].get("weight", 1.0)))
+		if roll < 0.0:
+			return str(name)
+	return str(names[names.size() - 1])
+
+
+# The rules with the numbers of a style laid over them: every key a style names replaces the key in the
+# rules, dictionaries are merged key by key (so a style can change only road["vertical"]). The "styles" table
+# itself is left out of the result. A style that is not in the rules ("" too) gives the rules as they are.
+static func rules_for_style(rules: Dictionary, style: String) -> Dictionary:
+	var styles = rules.get("styles", {})
+	if style == "" or not styles.has(style):
+		return rules
+	var out = _merged(rules, styles[style].get("rules", {}))
+	out.erase("styles")
+	return out
+
+
+static func _merged(base: Dictionary, over: Dictionary) -> Dictionary:
+	var out = base.duplicate(true)
+	for key in over:
+		if (
+			out.has(key)
+			and typeof(out[key]) == TYPE_DICTIONARY
+			and typeof(over[key]) == TYPE_DICTIONARY
+		):
+			out[key] = _merged(out[key], over[key])
+		else:
+			out[key] = over[key]
+	return out
 
 
 static func _rng(run_seed: int, attempt: int, part: String) -> RandomNumberGenerator:
@@ -105,6 +180,10 @@ static func _attempt(run_seed: int, attempt: int, rules: Dictionary) -> Dictiona
 			plaza["start"] = false
 			plazas.append(plaza)
 	var buildings = _place_buildings(grid, n, border, rules["buildings"], block_rng)
+	# a style that wants walls instead of open grass (the bridge, the tunnel): grass further than `verge` cells
+	# from any road, sidewalk or plaza becomes building, so the way through is all there is
+	if rules.has("enclose"):
+		_enclose(grid, n, int(rules["enclose"].get("verge", 0)))
 	var cell = float(rules["cell"])
 	var walkable = 0
 	for c in grid:
@@ -150,6 +229,31 @@ static func _world(n: int, cell: float, cx: float, cz: float) -> Vector2:
 	return Vector2((cx - float(n) / 2.0) * cell, (cz - float(n) / 2.0) * cell)
 
 
+# Grass with no sidewalk, road, plaza or tunnel cell within `verge` cells (square distance) becomes building.
+# Only the grass that is left over is touched, so nothing walkable is cut off from what it was joined to.
+static func _enclose(grid: PackedByteArray, n: int, verge: int) -> void:
+	var keep = PackedByteArray()
+	keep.resize(n * n)
+	for z in range(n):
+		for x in range(n):
+			if grid[z * n + x] != G:
+				continue
+			var near = false
+			for dz in range(-verge, verge + 1):
+				for dx in range(-verge, verge + 1):
+					var nx = x + dx
+					var nz = z + dz
+					if nx < 0 or nz < 0 or nx >= n or nz >= n:
+						continue
+					var c = grid[nz * n + nx]
+					if c == S or c == R or c == P or c == T:
+						near = true
+			keep[z * n + x] = 1 if near else 0
+	for i in range(n * n):
+		if grid[i] == G and keep[i] == 0:
+			grid[i] = B
+
+
 static func _place_roads(
 	grid: PackedByteArray, n: int, rules: Dictionary, rng: RandomNumberGenerator
 ) -> Array:
@@ -164,9 +268,9 @@ static func _place_roads(
 	var n_ew = rng.randi_range(int(road["horizontal"]["min"]), int(road["horizontal"]["max"]))
 	var roads = []
 	for c in _pick_centres(n_ns, lo, hi, gap, rng):
-		roads.append({"dir": "ns", "centre": c})
+		roads.append({"dir": "ns", "centre": c, "width": rw})
 	for c in _pick_centres(n_ew, lo, hi, gap, rng):
-		roads.append({"dir": "ew", "centre": c})
+		roads.append({"dir": "ew", "centre": c, "width": rw})
 	# sidewalks first, then the roads over them, so a crossing is all road
 	for pass_n in range(2):
 		for rd in roads:
@@ -262,10 +366,31 @@ static func _place_plaza(
 	for _try in range(80):
 		var x0 = rng.randi_range(border, n - border - w)
 		var z0 = rng.randi_range(border, n - border - h)
-		if _all_grass(grid, n, border, x0, z0, w, h, false):
-			_fill(grid, n, x0, z0, w, h, P)
-			return {"x": x0, "z": z0, "w": w, "h": h}
+		if not _all_grass(grid, n, border, x0, z0, w, h, false):
+			continue
+		# with "touch" the plaza has to join the road network (or an earlier plaza), so a style that walls in
+		# its leftover grass never leaves a plaza on an island
+		if bool(sizes.get("touch", false)) and not _touches_walkable(grid, n, x0, z0, w, h):
+			continue
+		_fill(grid, n, x0, z0, w, h, P)
+		return {"x": x0, "z": z0, "w": w, "h": h}
 	return {}
+
+
+# true if a sidewalk, road or plaza cell lies in the ring of cells just outside the rectangle
+static func _touches_walkable(
+	grid: PackedByteArray, n: int, x0: int, z0: int, w: int, h: int
+) -> bool:
+	for z in range(z0 - 1, z0 + h + 1):
+		for x in range(x0 - 1, x0 + w + 1):
+			if x >= x0 and x < x0 + w and z >= z0 and z < z0 + h:
+				continue
+			if x < 0 or z < 0 or x >= n or z >= n:
+				continue
+			var c = grid[z * n + x]
+			if c == S or c == R or c == P:
+				return true
+	return false
 
 
 static func _place_buildings(
