@@ -57,7 +57,7 @@ func handle_input(event: InputEvent) -> void:
 			if g.state == "shop":
 				g.shop_sys.reroll()
 			else:
-				g.combat_sys.start_load()
+				manual_reload()
 		elif kc == KEY_Q:
 			if g.state == "play":
 				toggle_weapon()
@@ -172,7 +172,7 @@ func on_pad_button(btn: int) -> void:
 		if btn == JOY_BUTTON_A:
 			g.player_sys.try_dash()
 		elif btn == JOY_BUTTON_X:
-			g.combat_sys.start_load()
+			manual_reload()
 		elif (
 			btn == JOY_BUTTON_Y
 			or btn == JOY_BUTTON_RIGHT_SHOULDER
@@ -527,6 +527,15 @@ func on_click() -> void:
 					pause_activate(pi)
 		else:
 			g.combat_sys.fire()
+
+
+# R and gamepad X: reload the dart gun by hand. Does nothing while the melee weapon is held (a reload would run
+# unseen and switching to melee stops one anyway); a full magazine, a gun already loading and a state other than
+# play are handled by `start_load`. The automatic reload at 0 calls `start_load` itself and is not affected.
+func manual_reload() -> void:
+	if g.melee:
+		return
+	g.combat_sys.start_load()
 
 
 func toggle_weapon(to = null) -> void:
