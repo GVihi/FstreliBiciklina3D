@@ -1,0 +1,54 @@
+{
+	"challenges": [
+		{
+			"id": "no_gun_round",
+			"name": "HANDS ON",
+			"desc": "Clear a round without firing the dart gun",
+			"condition": "round_no_gun",
+			"scope": "round",
+			"target": 1,
+			"reward": 5,
+			"counter": "no_gun_rounds"
+		},
+		{
+			"id": "all_caches",
+			"name": "GRAB EVERYTHING",
+			"desc": "Take every cache before the last rider falls",
+			"condition": "all_caches_before_last_rider",
+			"scope": "round",
+			"target": 1,
+			"reward": 5,
+			"counter": "all_caches_rounds"
+		},
+		{
+			"id": "dodge_streak",
+			"name": "NEAR MISS KING",
+			"desc": "Perfect-dodge five riders in a row",
+			"condition": "perfect_dodge_streak",
+			"scope": "run",
+			"target": 5,
+			"reward": 3,
+			"counter": "dodge_streaks"
+		},
+		{
+			"id": "no_life_lost",
+			"name": "UNTOUCHED",
+			"desc": "Clear a round without losing a life",
+			"condition": "round_no_life_lost",
+			"scope": "round",
+			"target": 1,
+			"reward": 3,
+			"counter": "untouched_rounds"
+		},
+		{
+			"id": "fast_run",
+			"name": "SPEED RUN",
+			"desc": "Finish a run in under 20 minutes",
+			"condition": "run_time_under",
+			"scope": "run",
+			"target": 1200,
+			"reward": 10,
+			"counter": "fast_runs"
+		}
+	]
+}
