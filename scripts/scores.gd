@@ -96,12 +96,21 @@ func submit_run() -> int:
 	return idx
 
 
+# The best score on the list, 0 when it is empty: the HI score in the HUD and the "NEW HIGH SCORE" line use it.
+func best() -> int:
+	var top = 0
+	for e in entries:
+		top = maxi(top, int(e.get("score", 0)))
+	return top
+
+
 # Erases the whole leaderboard (RESET LEADERBOARD on the High Scores page, after a confirmation).
 # The old file is first copied to scores.json.reset.bak, so one mistaken reset can be undone by hand.
 func reset() -> void:
 	SaveUtil.backup(PATH, "reset")
 	entries = []
 	g.last_rank = -1
+	g.hi = 0  # the HI score is the best entry, and there is none now
 	save_scores()
 
 

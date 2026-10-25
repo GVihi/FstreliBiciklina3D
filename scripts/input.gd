@@ -134,9 +134,6 @@ func handle_input(event: InputEvent) -> void:
 		elif kc == KEY_F10 and Toon.ENABLED:
 			g.settings.set_setting("outline", not g.outlines)
 			g.add_note("OUTLINES " + ("ON" if g.outlines else "OFF"), g.GOLD)
-		elif kc == KEY_F8:
-			g.hi = 0
-			g.settings.save_hi(0)
 		elif kc == KEY_ESCAPE:
 			if g.state == "play" and g.paused:
 				pause_back()

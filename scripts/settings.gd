@@ -1,5 +1,5 @@
 extends RefCounted
-# Settings (saved to user://settings.cfg), graphics quality (F9) and the high score file (user://hi.dat).
+# Settings (saved to user://settings.cfg), and graphics quality (F9).
 # The values themselves stay on main.gd (g) because the HUD reads them there; this file only holds the logic.
 
 const SaveUtil = preload("res://scripts/save_util.gd")
@@ -200,20 +200,3 @@ func click_setting(sid: String) -> bool:
 		g.drag_id = sid
 		g.hud.apply_slider(sid, g.get_viewport().get_mouse_position())
 	return true
-
-
-func load_hi() -> int:
-	if FileAccess.file_exists("user://hi.dat"):
-		var f = FileAccess.open("user://hi.dat", FileAccess.READ)
-		if f:
-			var v = f.get_as_text().to_int()
-			f.close()
-			return v
-	return 0
-
-
-func save_hi(v: int) -> void:
-	var f = FileAccess.open("user://hi.dat", FileAccess.WRITE)
-	if f:
-		f.store_string(str(v))
-		f.close()

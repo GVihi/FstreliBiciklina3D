@@ -1,13 +1,14 @@
 # Save files
 
-The game keeps four small files in Godot's `user://` folder (on Windows: `%APPDATA%\Godot\app_userdata\<project name>\`).
+The game keeps three small files in Godot's `user://` folder (on Windows: `%APPDATA%\Godot\app_userdata\<project name>\`).
 
 | File | Written by | Format | Version |
 |---|---|---|---|
 | `settings.cfg` | `scripts/settings.gd` | ConfigFile; the version is `[meta] version` | 1 |
 | `scores.json` | `scripts/scores.gd` | `{"version": 1, "entries": [...]}` | 1 |
 | `meta.json` | `scripts/meta.gd` | `{"version": 1, "balance": n, "total_earned": n}` | 1 |
-| `hi.dat` | `scripts/settings.gd` | plain number (to be retired, see the roadmap) | none |
+
+`hi.dat` (a plain number, the old single high score) is no longer read or written: the HI score is the best entry of `scores.json`. An old `hi.dat` in the folder does nothing and can be deleted by hand; its score is not moved to the leaderboard, because it has no name or date.
 
 A file written before versioning has no version number and counts as **version 0**. Loading it works as before, and the next save writes version 1.
 
