@@ -570,6 +570,21 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [ ] Riders crash on the arena: a rider that hits a building, lamp post or tree at speed crashes (the crash and falling-parts effects of F4 and F10 are the model), and a startled pedestrian group can be ridden into, so the player can use the arena as a weapon. Decide what a crash pays (score, style, a `kill` for the round count) and make sure a rider that crashed by itself still counts as down
 - [ ] Add the new rider kinds to the map content (`scripts/map_content.gd`, `rider_plan`) and the rider mix numbers in `data/map_rules.json`, so the node decides which of them appear
 
+## Height: hills, walkways and stairs
+
+> Every arena is flat today: the ground is made of flat meshes at y 0 (`WorldGen.build_ground`), and `Arena.surface_at` only says what the ground is made of, not how high it is. Small hills, raised walkways and stairs would turn the arena into real 3D ground to fight on. It is a big change because height touches the layout, the ground, the `Arena` interface, riders, aiming and jumping, so it is split into small steps, and the flat arenas and the roundabout must keep playing exactly as they do now until a step says otherwise. Milestone L (jumping) and this section affect each other (jump height, "Keep the player inside the arena while jumping"), so decide the numbers together.
+
+- [ ] Raised terrain: small hills, walkways and stairs, so the arena is not just a flat map
+  - [ ] Decide the height model before building anything: a height per cell beside the ground grid (steps of about 0.5 m, smooth for hills, stepped for stairs and ledges), how much height there is (small, up to about 3 to 4 m, so sightlines and the radar still work), what counts as walkable (a maximum slope and a maximum step), and whether bikes can ride slopes and stairs
+  - [ ] Layout: `ArenaGen.generate` adds a height per cell from the seed (hills on grass and parks, raised walkways over roads and plazas, stairs where two heights meet), with the numbers in `data/arena_rules.json`; the same seed still gives the same arena, and a rule can switch height off so the flat arenas stay
+  - [ ] Navigation and validation: the nav grid and `ArenaGen.validate` know climbable and not climbable (a slope or step too steep is a wall), and every gate, cache and the extraction point must still be reachable on foot and by riders, with no cache or start spot inside a hill
+  - [ ] Build the ground from the heights in `WorldGen` (hill meshes, stair treads and risers, walkway decks with edges or railings, retaining walls), and stand buildings, props and lamps at the right height in `WorldDress`; the surface, curbs and markings must follow the slope
+  - [ ] Height in the `Arena` interface: a `height_at(p)` query, the roundabout and flat arenas answering 0; `clamp_walk`, `obstacle_at`, `surface_at` and `start_position` use it, and the player walks up slopes and stairs smoothly (step-up, no jitter) and stands on the ground height
+  - [ ] Riders, pedestrians, bosses and pickups follow the ground height (steering and speed on slopes, spawning at the right height, `rider_speed_at` on stairs), and decide where a rider cannot go (stairs) and how `avoid_obstacles` treats it
+  - [ ] Combat and sight with height: darts, aim assist, `ray_blocked`, `Threats.sight_clear`, the radar and the threat arrows, thrown phones and the boss attacks (strips, slam circles, volleys) still work when the rider is above or below the player
+  - [ ] Show height in the tools: the arena viewer (`tools/viewer/arena_viewer.tscn`) shades or draws contour lines by height, and a check over many seeds (with a `.bat` script) tests reachability, slopes and that nothing clips into a hill
+  - [ ] Playtest and balance: does height make fights better or does it hide riders, are stairs and walkways fun to use, and the cost in frame time on the minimum-spec machine
+
 ## Scale, variety and polish
 
 - [ ] Performance pass for the bigger arena (draw distance, culling, shadow and light counts) on the minimum-spec machine (the arena is now 144 m square, about 8 to 12 times the roundabout instead of 4, so the walkable ground, the buildings, the lamps and the gates all grew, and the 4 gold and 1 green light column of the objectives are new draw cost; frame time on weak hardware is not known)
