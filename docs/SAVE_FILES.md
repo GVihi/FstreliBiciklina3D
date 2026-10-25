@@ -15,6 +15,7 @@ A file written before versioning has no version number and counts as **version 0
 
 - A file that cannot be read is copied to `<file>.bad.bak` before the game saves over it.
 - A file with a version **higher** than the game knows (for example after going back to an older build) is copied to `<file>.v<N>.bak` before the game saves over it.
+- RESET LEADERBOARD on the High Scores page copies `scores.json` to `scores.json.reset.bak` before it erases the list, so one mistaken reset can be undone by copying that file back.
 - The game never deletes a save file. Every value is clamped or cast on load, so a hand-edited file cannot crash it.
 
 ## Changing a save format
