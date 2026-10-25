@@ -5,7 +5,7 @@ extends SceneTree
 #   - every unlock gets a row, the rows are inside the screen, do not overlap and stay clear of the detail text,
 #     at two window sizes, and the page draws at both,
 #   - Up / Down walk the list and wrap, Left / Right switch the column, the mouse picks and hovers a row,
-#     Enter does nothing and Esc goes back,
+#     Enter without coins says so and changes nothing, Esc goes back, the BUY button is on the page,
 #   - the state of a row: owned, coming soon, can afford, or locked,
 #   - an empty table still draws.
 # Not checked: how it looks (spacing, text clipping), which needs a look in game.
@@ -107,6 +107,14 @@ func _check_layout() -> void:
 				_fail(
 					"a click in the middle of row %d picks %d" % [i, hud.unlock_at(r.get_center())]
 				)
+		var br = hud.unlock_buy_rect()
+		if br.position.x < 0.0 or br.end.x > s.x or br.end.y > s.y:
+			_fail("the BUY button is off the page at %s: %s" % [str(s), str(br)])
+		for r in rows:
+			if r.intersects(br):
+				_fail("the BUY button covers a row at %s" % str(s))
+		if br.position.y < s.y * 0.8 + 30.0 * s.y / 720.0:
+			_fail("the BUY button sits on the detail text at %s" % str(s))
 		for f in range(2):
 			hud.queue_redraw()
 			await process_frame
@@ -154,12 +162,21 @@ func _check_navigation() -> void:
 	inp.hover_menu(rows[7].get_center())
 	if main.unlock_sel != 7:
 		_fail("hovering row 7 selected %d" % main.unlock_sel)
-	# Enter and A do nothing, Esc and B go back
+	# Enter and A try to buy: with no coins they say so and change nothing; Esc and B go back
+	main.meta.balance = 0
 	var before = main.unlock_sel
 	inp.menu_confirm()
 	inp.title_activate(main.title_sel)
 	if main.title_page != "unlocks" or main.unlock_sel != before:
 		_fail("Enter changed the page ('%s') or the selection" % main.title_page)
+	if (
+		main.unlock_msg != "NOT ENOUGH COINS"
+		or main.meta.balance != 0
+		or not main.meta.owned.is_empty()
+	):
+		_fail(
+			"Enter without coins: message '%s', balance %d" % [main.unlock_msg, main.meta.balance]
+		)
 	inp.title_back()
 	if main.title_page != "":
 		_fail("going back left the page open ('%s')" % main.title_page)
