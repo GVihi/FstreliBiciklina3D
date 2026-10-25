@@ -905,7 +905,9 @@ func map_point(p: Vector3, r: Rect2) -> Vector2:
 
 
 # one map symbol (also used by the legend); `dir` is the way "you" points, in screen space
-func _map_symbol(kind: String, at: Vector2, k: float, col: Color, dir: Vector2 = Vector2(0, -1)) -> void:
+func _map_symbol(
+	kind: String, at: Vector2, k: float, col: Color, dir: Vector2 = Vector2(0, -1)
+) -> void:
 	var edge = Color(0, 0, 0, 0.8)
 	if kind == "start":
 		draw_circle(at, 6.5 * k, col)
@@ -917,7 +919,13 @@ func _map_symbol(kind: String, at: Vector2, k: float, col: Color, dir: Vector2 =
 	elif kind == "taken":
 		var r = 7.0 * k
 		var pts = PackedVector2Array(
-			[at + Vector2(0, -r), at + Vector2(r, 0), at + Vector2(0, r), at + Vector2(-r, 0), at + Vector2(0, -r)]
+			[
+				at + Vector2(0, -r),
+				at + Vector2(r, 0),
+				at + Vector2(0, r),
+				at + Vector2(-r, 0),
+				at + Vector2(0, -r)
+			]
 		)
 		draw_polyline(pts, col, 2.0 * k)
 	elif kind == "exit":
@@ -926,7 +934,13 @@ func _map_symbol(kind: String, at: Vector2, k: float, col: Color, dir: Vector2 =
 		draw_rect(r, edge, false, 1.5 * k)
 	elif kind == "you":
 		var side = Vector2(-dir.y, dir.x)
-		var pts = PackedVector2Array([at + dir * 10.0 * k, at - dir * 6.0 * k + side * 6.5 * k, at - dir * 6.0 * k - side * 6.5 * k])
+		var pts = PackedVector2Array(
+			[
+				at + dir * 10.0 * k,
+				at - dir * 6.0 * k + side * 6.5 * k,
+				at - dir * 6.0 * k - side * 6.5 * k
+			]
+		)
 		draw_colored_polygon(pts, col)
 		draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), edge, 1.5 * k)
 
@@ -990,7 +1004,9 @@ func _draw_pause_map(k: float, cx: float) -> void:
 	if ex.goal_found and o.has_goal():
 		var gp = map_point(o.goal["pos"], r)
 		_map_symbol("exit", gp, k, OBJ_GREEN if o.extracting else Color(OBJ_LOCKED, 0.85))
-		_txt("EXIT", gp.x, gp.y - 12.0 * k, int(13 * k), OBJ_GREEN if o.extracting else OBJ_LOCKED, 1)
+		_txt(
+			"EXIT", gp.x, gp.y - 12.0 * k, int(13 * k), OBJ_GREEN if o.extracting else OBJ_LOCKED, 1
+		)
 	# you
 	var pp = map_point(g.player.position, r)
 	pp = Vector2(clampf(pp.x, r.position.x, r.end.x), clampf(pp.y, r.position.y, r.end.y))
