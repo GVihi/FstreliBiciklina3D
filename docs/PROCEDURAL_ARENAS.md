@@ -133,6 +133,20 @@ Two things were added to the generator for the last two. `enclose: {"verge": k}`
 
 The effect on the numbers elsewhere: the ground of an arena is now between about 3,500 m² (bridge) and 16,400 m² (park) instead of one range, the dressing is 5,500 to 15,500 triangles (the park's trees are the most), and a seed gets a different style and layout than before the styles were added (the daily seed too). `tools/arena_gen_check.gd` holds every layout to its own style's numbers (roads, gates, plazas, blocks, ground, the walled-in grass, the dress numbers), checks that each style turns up and that the style is the one the seed picks, and names a layout with the wrong style, a bridge with a meadow and a canyon with a road missing. `tools/world_dress_check.gd` checks that a style with no windows has none, that an all-dark style has no brick, and that all six styles were dressed.
 
+## Extraction on the node types of the run map
+
+Decided as the working rule (built on how the code behaves today; the owner can change it): **the extraction point belongs to rounds with riders.**
+
+| Node | Plays in the arena? | Extraction point and caches |
+|---|---|---|
+| normal, elite, boss | yes | as built: the point opens when every rider (and the boss) is down, caches are spread over the arena. An elite changes the riders and the pay, not this rule (Milestone D "Elite encounter") |
+| shop, rest | no, a screen | none. There is nothing to put down and nothing to explore, so a walk to a point would only be a chore. The shop is already a screen today |
+| event | no, a screen with a choice | none, for the same reason. Revisit it only if an event needs the player to walk somewhere |
+
+Why: the point is the end of a fight (README Milestone K, "Exploration and extraction"). A node without riders has no fight to end, and its own screen already is its end. This also keeps one rule for the code (`finish_wave_set` in `scripts/main.gd` opens the point after the last rider) and means the shop, rest and event items of Milestone D do not have to touch `scripts/objective.gd`.
+
+Safeguard for later: if a node without riders is ever played in the arena (an event that needs a walk, say), its extraction point must be open from the first second, never locked behind zero riders, or the round could not end. Nothing in the game does this yet: today a shop, rest or event node has no `riders` in its content, so `plan_riders` gives it the default rider count and it plays an ordinary round, which the Milestone D node items replace. No code was changed for this decision.
+
 ## Open questions
 
 - **Can bosses and riders see and attack from far away?** A bigger open arena changes sightlines and what a threat arrow means.
