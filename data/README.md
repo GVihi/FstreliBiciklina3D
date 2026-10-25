@@ -82,7 +82,7 @@ Numbers for the procedural run map (floors, widths, boss and prep floors, node t
 
 ## `unlocks.json`
 
-What the player can buy with meta coins (see `scripts/meta.gd`) and the price of each thing. Loaded by `scripts/unlocks.gd`; bad entries are skipped and logged with `push_error`, so check the Godot output panel after editing. Only the Unlocks page of the title menu reads it so far (`g.UNLOCKS`, from `Content.UNLOCK_TABLE`); buying, the Loadout page, the saving of purchases and the shop filter are separate items of Milestone I in the README.
+What the player can buy with meta coins (see `scripts/meta.gd`) and the price of each thing. Loaded by `scripts/unlocks.gd`; bad entries are skipped and logged with `push_error`, so check the Godot output panel after editing. Only the Unlocks page of the title menu reads it so far (`g.UNLOCKS`, from `Content.UNLOCK_TABLE`); buying happens there too (the ids bought are saved in `meta.json`, see `docs/SAVE_FILES.md`). Buying has no effect in a run yet: the Loadout page (choosing starting perks) and the shop filter are separate items of Milestone I in the README.
 
 ```
 {
