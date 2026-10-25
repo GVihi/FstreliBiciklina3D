@@ -270,6 +270,7 @@ func try_dash() -> void:
 	g.dash_inv = g.DASH_TIME + 0.18 + (0.15 if g.shop_sys.has_duo("GHOST") else 0.0)
 	g.dash_cd = dash_cooldown()
 	g.slide_t = 0.0
+	g.combat_sys.interrupt_load()
 	grant_free_shots()
 	g.sfx.play("whoosh", -4.0)
 
@@ -464,7 +465,8 @@ func update_gun(dt: float) -> void:
 		flash_node.scale = Vector3.ONE * lerpf(0.5, 1.15, fl) * (1.0 - g.ads_t * 0.5)
 		flash_node.rotation = Vector3(0.0, 0.0, flash_roll)
 
-	# ammo count on the gun: cyan, amber when nearly empty, red when empty, INF with the rapid-fire pickup
+	# ammo count on the gun: cyan, amber when nearly empty, red when empty, INF with the rapid-fire pickup;
+	# while the gun is loading the number blinks towards white and counts up as each dart goes in
 	var ammo_label = g.gun.get("ammo")
 	if ammo_label != null:
 		var unlimited = g.buffs["rapid"] > 0.0
@@ -477,6 +479,8 @@ func update_gun(dt: float) -> void:
 			ac = Color(1.0, 0.29, 0.23)
 		elif not unlimited and g.shells <= 2:
 			ac = Color(1.0, 0.69, 0.18)
+		if g.combat_sys.is_reloading():
+			ac = ac.lerp(Color.WHITE, g.combat_sys.reload_pulse() * 0.7)
 		ammo_label.modulate = ac
 
 	# shell ejection: when the pump pulls the slide back, the spent shell flies out of the right side

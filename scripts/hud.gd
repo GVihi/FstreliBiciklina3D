@@ -15,6 +15,7 @@ const GRAY = Color(0.49, 0.48, 0.44)
 const TEXT = Color(0.96, 0.95, 0.92)
 const ACCENT = Color(1.0, 0.42, 0.17)
 const PINK = Color(1.0, 0.48, 0.72)
+const RELOAD_CYAN = Color(0.22, 0.91, 1.0)  # the RELOAD label while the gun loads, same cyan as the ammo number on the gun
 const OBJ_GREEN = Color(0.35, 1.0, 0.55)  # the extraction point once it is open
 const OBJ_LOCKED = Color(1.0, 0.45, 0.3)  # ... while riders are still up
 const OBJ_GOLD = Color(0.95, 0.71, 0.19)  # supply caches
@@ -1063,19 +1064,26 @@ func _draw_top_bar(k: float) -> void:
 	draw_rect(Rect2(0, bar_h - 2.0, size.x, 2.0), Color(0.29, 0.26, 0.22))
 	var fs = int(13 * k)
 
-	# ammo
-	_txt("DARTS", 14.0 * k, 17.0 * k, fs, GOLD)
+	# ammo: while the gun is loading the label says RELOAD and the next dart to go in blinks
+	var reloading = g.combat_sys.is_reloading()
+	_txt(
+		"RELOAD" if reloading else "DARTS",
+		14.0 * k,
+		17.0 * k,
+		fs,
+		RELOAD_CYAN if reloading else GOLD
+	)
+	var pulse = g.combat_sys.reload_pulse()
 	for i in range(g.MAXSHELLS):
 		var sx = (14.0 + i * 10.0) * k
 		var on = i < g.shells or g.buffs["rapid"] > 0.0
-		draw_rect(
-			Rect2(sx, 29.0 * k, 7.0 * k, 15.0 * k),
-			Color(1.0, 0.48, 0.1) if on else Color(0.21, 0.19, 0.16)
-		)
-		draw_rect(
-			Rect2(sx, 25.0 * k, 7.0 * k, 5.0 * k),
-			Color(0.11, 0.39, 0.78) if on else Color(0.29, 0.26, 0.22)
-		)
+		var body_col = Color(1.0, 0.48, 0.1) if on else Color(0.21, 0.19, 0.16)
+		var cap_col = Color(0.11, 0.39, 0.78) if on else Color(0.29, 0.26, 0.22)
+		if reloading and i == g.shells:
+			body_col = Color(0.21, 0.19, 0.16).lerp(Color(1.0, 0.48, 0.1), pulse)
+			cap_col = Color(0.29, 0.26, 0.22).lerp(Color(0.11, 0.39, 0.78), pulse)
+		draw_rect(Rect2(sx, 29.0 * k, 7.0 * k, 15.0 * k), body_col)
+		draw_rect(Rect2(sx, 25.0 * k, 7.0 * k, 5.0 * k), cap_col)
 
 	# lives
 	_txt("LIVES", 160.0 * k, 17.0 * k, fs, GOLD)
@@ -1547,7 +1555,7 @@ func _draw_crosshair(k: float) -> void:
 	var col = Color(1, 1, 1, lerpf(0.92, 0.55, g.ads_t))
 	if g.buffs["big"] > 0.0:
 		col = Color(0.55, 0.95, 0.6, col.a + 0.03)
-	# out of darts: red; loading shells (firing still stops the reload): a little dimmer
+	# out of darts: red; loading shells (the gun cannot fire until it is done, or a dash or melee stops it): a little dimmer
 	var empty = g.shells <= 0 and g.buffs["rapid"] <= 0.0 and g.free_shots <= 0
 	if empty:
 		col = Color(1.0, 0.36, 0.3, 0.95)
