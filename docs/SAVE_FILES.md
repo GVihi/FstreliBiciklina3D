@@ -6,7 +6,7 @@ The game keeps three small files in Godot's `user://` folder (on Windows: `%APPD
 |---|---|---|---|
 | `settings.cfg` | `scripts/settings.gd` | ConfigFile; the version is `[meta] version` | 1 |
 | `scores.json` | `scripts/scores.gd` | `{"version": 1, "entries": [...]}` | 1 |
-| `meta.json` | `scripts/meta.gd` | `{"version": 1, "balance": n, "total_earned": n, "owned": [unlock ids]}` | 1 |
+| `meta.json` | `scripts/meta.gd` | `{"version": 1, "balance": n, "total_earned": n, "owned": [unlock ids], "start_perk": unlock id}` | 1 |
 
 `hi.dat` (a plain number, the old single high score) is no longer read or written: the HI score is the best entry of `scores.json`. An old `hi.dat` in the folder does nothing and can be deleted by hand; its score is not moved to the leaderboard, because it has no name or date.
 
@@ -28,4 +28,4 @@ A file written before versioning has no version number and counts as **version 0
 
 Adding a new field with a default (`data.get("field", default)`) does not need a version bump; changing or removing a field does.
 
-Example: `owned` in `meta.json` (the ids of the unlocks bought on the Unlocks page, see `data/unlocks.json`) was added this way. A file written before it has no `owned` and loads with nothing owned; a value that is not a list is ignored; an id the unlock table no longer has stays in the list, so a purchase is never lost. Spending coins saves `balance` and `owned` together.
+Example: `owned` in `meta.json` (the ids of the unlocks bought on the Unlocks page, see `data/unlocks.json`) was added this way. A file written before it has no `owned` and loads with nothing owned; a value that is not a list is ignored; an id the unlock table no longer has stays in the list, so a purchase is never lost. Spending coins saves `balance` and `owned` together. `start_perk` (the unlock id chosen on the Loadout page, `""` for none) works the same way: a file without it, or with a value that is not text, loads as none, and a perk that is no longer owned is simply not given.
