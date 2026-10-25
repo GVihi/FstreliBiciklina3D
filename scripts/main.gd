@@ -258,6 +258,8 @@ var outlines = true
 var rim_outline = true  # fresnel rim on characters: red on foes, green on bystanders (rim.gd)
 var fx_scale = 1.0  # 0 to 1: how strong screen shake and screen flashes are (accessibility setting)
 var drag_id = ""
+# the game version, written in one place: `config/version` in project.godot (shown on the title screen)
+var game_version = str(ProjectSettings.get_setting("application/config/version", ""))
 var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / scores
 var pause_page = ""  # "" = pause menu, "settings" = settings panel, "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
