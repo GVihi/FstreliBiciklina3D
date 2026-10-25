@@ -147,6 +147,21 @@ Why: the point is the end of a fight (README Milestone K, "Exploration and extra
 
 Safeguard for later: if a node without riders is ever played in the arena (an event that needs a walk, say), its extraction point must be open from the first second, never locked behind zero riders, or the round could not end. Nothing in the game does this yet: today a shop, rest or event node has no `riders` in its content, so `plan_riders` gives it the default rider count and it plays an ordinary round, which the Milestone D node items replace. No code was changed for this decision.
 
+## The ambush when the extraction point opens
+
+The walk to the extraction point used to be quiet, because every rider was already down. Now `scripts/ambush.gd` lines up a few more riders the moment the way out opens (README Milestone K, "Exploration and extraction"), so the walk is a moment of its own and the caches become a choice between the gold detour and the straight run out.
+
+| Rule | Value (first guesses, all constants in `scripts/ambush.gd` and `scripts/riders.gd`) |
+|---|---|
+| Riders | 2 in rounds 1 to 4, 3 in rounds 5 to 7, 4 from round 8 |
+| Timing | the first rider 2 s after the way opens (with an AMBUSH note and a sound), then one every 1.6 s |
+| Gates | the gates the node leaves open that are at least 35 m from the player; the farthest one if none is |
+| Kinds | pro, sprinter or courier from the round's rider stream (same seed, same kinds in the same order); never the armoured rider |
+| Round clear | unchanged: they are not among the round's riders, the last one going down does not end the round, reaching the point does and clears the riders still on the road |
+| Perfect round | a life lost to an ambush rider still counts against it |
+
+Left for later: a boss node's escort (more or tougher riders after a boss), and moving the numbers into a data table.
+
 ## Open questions
 
 - **Can bosses and riders see and attack from far away?** A bigger open arena changes sightlines and what a threat arrow means.
