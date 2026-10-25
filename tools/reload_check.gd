@@ -13,6 +13,7 @@ const DT = 1.0 / 60.0
 
 var problems = []
 var main
+var events = {"started": 0, "shell": 0, "finished": 0, "interrupted": 0}
 
 
 func _initialize() -> void:
@@ -30,6 +31,10 @@ func _initialize() -> void:
 		_fail("the magazine holds %d darts, the check needs at least 2" % main.MAXSHELLS)
 		_finish()
 		return
+	main.combat_sys.reload_started.connect(func(): events["started"] += 1)
+	main.combat_sys.reload_shell_loaded.connect(func(): events["shell"] += 1)
+	main.combat_sys.reload_finished.connect(func(): events["finished"] += 1)
+	main.combat_sys.reload_interrupted.connect(func(): events["interrupted"] += 1)
 	_check_no_top_up()
 	_check_manual_reload()
 	_check_empty_reloads_by_itself()
@@ -38,6 +43,8 @@ func _initialize() -> void:
 	_check_dash_interrupts()
 	_check_melee_switch_interrupts()
 	_check_empty_gun_is_not_interrupted()
+	_check_hooks_full_reload()
+	_check_hooks_interrupted_reload()
 	_finish()
 
 
@@ -163,6 +170,58 @@ func _check_empty_gun_is_not_interrupted() -> void:
 	main.melee = false
 	main.dash_t = 0.0
 	main.dash_cd = 0.0
+
+
+# a whole reload gives one start, one event per dart that went in and one finish, and no interrupt
+func _check_hooks_full_reload() -> void:
+	_reset_gun(0)
+	_reset_events()
+	var frames = 0
+	while main.shells < main.MAXSHELLS and frames < 60 * 20:
+		main._process(DT)
+		frames += 1
+	if events["started"] != 1:
+		_fail("a full reload gave %d reload_started events instead of 1" % events["started"])
+	if events["shell"] != main.MAXSHELLS:
+		_fail(
+			(
+				"a full reload gave %d reload_shell_loaded events instead of %d"
+				% [events["shell"], main.MAXSHELLS]
+			)
+		)
+	if events["finished"] != 1:
+		_fail("a full reload gave %d reload_finished events instead of 1" % events["finished"])
+	if events["interrupted"] != 0:
+		_fail("a full reload gave %d reload_interrupted events" % events["interrupted"])
+	# a full magazine has nothing to reload: no events at all
+	_reset_events()
+	main.combat_sys.start_load()
+	if events["started"] != 0:
+		_fail("a reload on a full magazine gave a reload_started event")
+
+
+# a reload stopped by a dash gives a start and an interrupt, and no finish
+func _check_hooks_interrupted_reload() -> void:
+	_reset_gun(2)
+	_reset_events()
+	main.combat_sys.start_load()
+	main.dash_cd = 0.0
+	main.dash_t = 0.0
+	main.player_sys.try_dash()
+	if events["started"] != 1 or events["interrupted"] != 1 or events["finished"] != 0:
+		_fail(
+			(
+				"an interrupted reload gave events %s, expected one start, one interrupt and no finish"
+				% str(events)
+			)
+		)
+	main.dash_t = 0.0
+	main.dash_cd = 0.0
+
+
+func _reset_events() -> void:
+	for k in events.keys():
+		events[k] = 0
 
 
 func _reset_gun(count: int) -> void:

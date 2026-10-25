@@ -2,6 +2,14 @@ extends RefCounted
 # Combat: shotgun and reload, melee swing, deflecting phones and the dart projectiles.
 # Shared game state stays on main.gd (g); this file holds the logic.
 
+# Reload hooks: anything that wants to react to the dart gun's reload (a sound, a gun animation, the HUD) connects
+# to these instead of looking at `g.loading` every frame. Today `_on_shell_loaded` and `_on_reload_finished` below
+# play the sounds and the finishing jolt; the other two have nothing connected yet.
+signal reload_started  # the gun started loading (R, gamepad X, a click on an empty gun, or empty by itself)
+signal reload_shell_loaded  # one dart went into the magazine
+signal reload_finished  # the magazine is full
+signal reload_interrupted  # the reload was stopped before it finished (dash, melee switch, or a shot with rapid fire)
+
 const Util = preload("res://scripts/util.gd")
 
 var g = null
@@ -14,6 +22,8 @@ const DART_MODEL_PATH = "res://assets/models/dart.glb"
 
 func _init(game) -> void:
 	g = game
+	reload_shell_loaded.connect(_on_shell_loaded)
+	reload_finished.connect(_on_reload_finished)
 
 
 # ================================================================== shotgun + melee
@@ -29,6 +39,35 @@ func start_load() -> void:
 		return
 	g.loading = true
 	g.load_t = reload_step() + float(g.WEAPONS["dart_gun"]["reload_extra"])
+	reload_started.emit()
+
+
+# One dart goes into the magazine (called from the shotgun block of `_process` in main.gd when `load_t` runs out).
+# The reload ends when the magazine is full.
+func load_one_shell() -> void:
+	g.shells += 1
+	g.load_t = reload_step()
+	reload_shell_loaded.emit()
+	if g.shells >= g.MAXSHELLS:
+		finish_load()
+
+
+# The reload is over because the magazine is full (also when an ammo pickup fills it).
+func finish_load() -> void:
+	if not g.loading:
+		return
+	g.loading = false
+	reload_finished.emit()
+
+
+func _on_shell_loaded() -> void:
+	g.sfx.play("shell_tick")
+
+
+# the last dart is in: the slide closes with a quiet chambering sound and the gun gives a small jolt
+func _on_reload_finished() -> void:
+	g.sfx.play("pump", -22.0)
+	g.player_sys.kick_dip_v -= g.player_sys.SHELL_DIP_SPEED * 1.5
 
 
 # Dashing or switching to the melee weapon stops a reload that is in progress. The darts that are already in
@@ -38,6 +77,7 @@ func interrupt_load() -> void:
 	if g.loading and g.shells > 0:
 		g.loading = false
 		g.load_t = 0.0
+		reload_interrupted.emit()
 
 
 func ray_dir_with_spread() -> Vector3:
@@ -64,7 +104,9 @@ func fire() -> void:
 	# Rapid fire and free shots do not use the magazine, so they still fire (and stop the reload, as before)
 	if g.loading and g.buffs["rapid"] <= 0.0 and g.free_shots <= 0:
 		return
-	g.loading = false
+	if g.loading:  # only rapid fire and free shots get here while loading: the shot stops the reload
+		g.loading = false
+		reload_interrupted.emit()
 	if g.buffs["rapid"] <= 0.0:
 		if g.free_shots > 0:
 			g.free_shots -= 1

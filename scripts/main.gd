@@ -1533,11 +1533,7 @@ func update_game(dt: float) -> void:
 	if loading and pump_t <= 0.0:
 		load_t -= dt
 		if load_t <= 0.0:
-			shells += 1
-			sfx.play("shell_tick")
-			load_t = combat_sys.reload_step()
-			if shells >= MAXSHELLS:
-				loading = false
+			combat_sys.load_one_shell()
 
 	if state != "play":
 		return
