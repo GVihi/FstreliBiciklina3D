@@ -419,7 +419,7 @@ func pause_activate(i: int) -> void:
 	var id = g.hud.PAUSE_ITEMS[i]["id"]
 	if id == "resume":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	elif id == "settings" or id == "controls":
+	elif id == "settings" or id == "controls" or id == "map":
 		g.pause_page = id
 		g.sfx.play("click")
 	elif id == "restart" or id == "title":  # both lose the run, so ask first (NO is the default)
@@ -516,8 +516,8 @@ func on_click() -> void:
 				var ci = g.hud.confirm_at(pmp)
 				if ci >= 0:
 					confirm_activate(ci)
-			elif g.pause_page == "controls":
-				pause_back()  # a click anywhere closes the controls page
+			elif g.pause_page == "controls" or g.pause_page == "map":
+				pause_back()  # a click anywhere closes the controls page and the map
 			else:
 				var pi = g.hud.pause_at(pmp)
 				if pi >= 0:

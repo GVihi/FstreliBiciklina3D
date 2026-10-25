@@ -830,6 +830,7 @@ func _draw_map_screen(k: float, cx: float) -> void:
 # ---------------------------------------------------------------- pause menu
 const PAUSE_ITEMS = [
 	{"id": "resume", "label": "RESUME"},
+	{"id": "map", "label": "MAP"},
 	{"id": "settings", "label": "SETTINGS"},
 	{"id": "controls", "label": "CONTROLS"},
 	{"id": "restart", "label": "RESTART RUN"},
@@ -841,7 +842,7 @@ func pause_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var w = 320.0 * k
 	var h = 46.0 * k
-	return Rect2((size.x - w) * 0.5, size.y * 0.36 + i * (h + 10.0 * k), w, h)
+	return Rect2((size.x - w) * 0.5, size.y * 0.325 + i * (h + 10.0 * k), w, h)
 
 
 func pause_at(pos: Vector2) -> int:
@@ -869,6 +870,165 @@ func _draw_pause_menu(k: float, cx: float) -> void:
 			1
 		)
 	_txt("ESC TO RESUME", cx, size.y * 0.80, int(16 * k), GRAY, 1)
+
+
+# ---------------------------------------------------------------- pause-screen map (explore_map.gd)
+# A top-down view of the part of the arena the player has explored: north (-z) is up, east (+x) is right. Ground the
+# player has not been near is not drawn, and a supply cache or the extraction point only appears once the player has
+# come within sense range of it. Shapes carry the meaning as well as colours: a circle is the start, a bar a gate, a
+# diamond a cache (hollow once taken), a square the way out, a triangle you.
+const MAP_START = Color("#FF2D95")
+const MAP_GATE = Color("#19D3E6")
+const MAP_TAKEN = Color(0.62, 0.62, 0.58)
+const MAP_FOG = Color(0.05, 0.055, 0.065)
+const MAP_LEGEND = [
+	["you", "YOU"],
+	["start", "START"],
+	["gate", "GATE"],
+	["cache", "CACHE"],
+	["taken", "TAKEN"],
+	["exit", "EXIT"]
+]
+
+
+# the square the map is drawn in
+func map_rect() -> Rect2:
+	var side = minf(size.y * 0.7, size.x * 0.9)
+	return Rect2((size.x - side) * 0.5, size.y * 0.17, side, side)
+
+
+# the screen point of a world point on the map
+func map_point(p: Vector3, r: Rect2) -> Vector2:
+	var ex = g.explore_sys
+	var span = float(ex.n) * ex.cell
+	return r.position + Vector2(p.x / span + 0.5, p.z / span + 0.5) * r.size.x
+
+
+# one map symbol (also used by the legend); `dir` is the way "you" points, in screen space
+func _map_symbol(kind: String, at: Vector2, k: float, col: Color, dir: Vector2 = Vector2(0, -1)) -> void:
+	var edge = Color(0, 0, 0, 0.8)
+	if kind == "start":
+		draw_circle(at, 6.5 * k, col)
+		draw_arc(at, 6.5 * k, 0.0, TAU, 20, edge, 1.5 * k)
+	elif kind == "gate":
+		draw_rect(Rect2(at - Vector2(8, 2.5) * k, Vector2(16, 5) * k), col)
+	elif kind == "cache":
+		_diamond(at, 7.5 * k, col)
+	elif kind == "taken":
+		var r = 7.0 * k
+		var pts = PackedVector2Array(
+			[at + Vector2(0, -r), at + Vector2(r, 0), at + Vector2(0, r), at + Vector2(-r, 0), at + Vector2(0, -r)]
+		)
+		draw_polyline(pts, col, 2.0 * k)
+	elif kind == "exit":
+		var r = Rect2(at - Vector2(7, 7) * k, Vector2(14, 14) * k)
+		draw_rect(r, col)
+		draw_rect(r, edge, false, 1.5 * k)
+	elif kind == "you":
+		var side = Vector2(-dir.y, dir.x)
+		var pts = PackedVector2Array([at + dir * 10.0 * k, at - dir * 6.0 * k + side * 6.5 * k, at - dir * 6.0 * k - side * 6.5 * k])
+		draw_colored_polygon(pts, col)
+		draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), edge, 1.5 * k)
+
+
+func _draw_pause_map(k: float, cx: float) -> void:
+	_txt("MAP", cx, size.y * 0.1, int(56 * k), GOLD, 1)
+	var ex = g.explore_sys
+	if not ex.enabled() or ex.n <= 0:
+		_txt("THIS ARENA HAS NO MAP", cx, size.y * 0.5, int(24 * k), GRAY, 1)
+		_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
+		return
+	var o = g.objective_sys
+	var r = map_rect()
+	var cs = r.size.x / float(ex.n)
+	draw_rect(r, MAP_FOG)
+	# the ground that has been seen, one rectangle per run of cells with the same ground
+	var rows = ex.layout()["rows"]
+	for iz in range(ex.n):
+		var row = str(rows[iz])
+		var run_from = 0
+		var run_ch = ""
+		for ix in range(ex.n + 1):
+			var ch = ""
+			if ix < ex.n and ex.cell_seen(ix, iz):
+				ch = row[ix]
+			if ch == run_ch:
+				continue
+			if run_ch != "":
+				draw_rect(
+					Rect2(
+						r.position.x + float(run_from) * cs,
+						r.position.y + float(iz) * cs,
+						float(ix - run_from) * cs,
+						cs + 0.5
+					),
+					ex.GROUND_COLORS.get(run_ch, Color(1, 0, 1))
+				)
+			run_ch = ch
+			run_from = ix
+	draw_rect(r, Color(0.29, 0.31, 0.33), false, 3.0 * k)
+	# the start, and the gates in the part that has been seen
+	_map_symbol("start", map_point(g.arena.start_position(), r), k, MAP_START)
+	for gate in g.arena.gates():
+		if not ex.gate_seen(gate):
+			continue
+		var at = map_point(gate["pos"], r)
+		var out = Vector2(gate["outward"].x, gate["outward"].z)
+		var along = Vector2(-out.y, out.x)
+		var half = float(gate["half_width"]) * cs / ex.cell
+		draw_line(at - along * half, at + along * half, MAP_GATE, 5.0 * k)
+	# the caches the player has found (taken ones hollow) and the extraction point once found
+	for i in range(mini(ex.cache_found.size(), o.caches.size())):
+		if not ex.cache_found[i]:
+			continue
+		var cache: Dictionary = o.caches[i]
+		var cp = map_point(cache["pos"], r)
+		if cache["taken"]:
+			_map_symbol("taken", cp, k, MAP_TAKEN)
+		else:
+			_map_symbol("cache", cp, k, OBJ_GOLD)
+	if ex.goal_found and o.has_goal():
+		var gp = map_point(o.goal["pos"], r)
+		_map_symbol("exit", gp, k, OBJ_GREEN if o.extracting else Color(OBJ_LOCKED, 0.85))
+		_txt("EXIT", gp.x, gp.y - 12.0 * k, int(13 * k), OBJ_GREEN if o.extracting else OBJ_LOCKED, 1)
+	# you
+	var pp = map_point(g.player.position, r)
+	pp = Vector2(clampf(pp.x, r.position.x, r.end.x), clampf(pp.y, r.position.y, r.end.y))
+	var fwd = Vector2(-sin(g.yaw), -cos(g.yaw))  # the way the player looks, on the map (north is up)
+	_map_symbol("you", pp, k, TEXT, fwd)
+	_txt(
+		(
+			"EXPLORED %d%%     CACHES TAKEN %d / %d     %s"
+			% [
+				int(round(ex.explored_fraction() * 100.0)),
+				o.taken,
+				o.caches.size(),
+				"WAY OUT OPEN" if o.extracting else "WAY OUT LOCKED"
+			]
+		),
+		cx,
+		size.y * 0.145,
+		int(16 * k),
+		GRAY,
+		1
+	)
+	# the legend, in the same shapes and colours
+	var lw = minf(size.x * 0.7, 920.0 * k)
+	var step = lw / float(MAP_LEGEND.size())
+	var ly = r.end.y + 26.0 * k
+	var colors = {
+		"you": TEXT,
+		"start": MAP_START,
+		"gate": MAP_GATE,
+		"cache": OBJ_GOLD,
+		"taken": MAP_TAKEN,
+		"exit": OBJ_GREEN
+	}
+	for i in range(MAP_LEGEND.size()):
+		var lx = cx - lw * 0.5 + step * float(i) + 14.0 * k
+		_map_symbol(MAP_LEGEND[i][0], Vector2(lx, ly - 5.0 * k), k, colors[MAP_LEGEND[i][0]])
+		_txt(MAP_LEGEND[i][1], lx + 18.0 * k, ly, int(15 * k), TEXT)
+	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 
 
 # Restart Run and Quit to Title lose the run, so they ask first. NO is the first button and the default.
@@ -1198,6 +1358,9 @@ func _draw() -> void:
 		elif g.pause_page == "controls":
 			_dim(0.86)
 			_draw_controls(k, cx)
+		elif g.pause_page == "map":
+			_dim(0.9)
+			_draw_pause_map(k, cx)
 		else:
 			_dim(0.6)
 			_draw_pause_menu(k, cx)
