@@ -2,7 +2,7 @@ extends SceneTree
 # Checks the meta challenges (README Milestone B, "Earn from challenges"): the table in data/challenges.json loads,
 # bad entries are refused, each condition is judged the way data/README.md says, a run pays the coins once and
 # counts the challenges in user://meta.json, an old or hand-edited meta.json still loads, and the CHALLENGES
-# title page and the run summary lines draw.
+# title page (with its achievement badges) and the run summary lines draw.
 # The "challenges: ..." errors printed while it runs come from the bad entries it feeds in on purpose.
 # It keeps the real meta.json first and puts it back at the end.
 # Run from the project folder:
@@ -62,6 +62,8 @@ func _check_table() -> void:
 		if seen.has(c["counter"]):
 			_fail("counter %s is used twice" % c["counter"])
 		seen[c["counter"]] = true
+		if not ChallengesScript.ICONS.has(c["icon"]):
+			_fail("%s has the icon %s, which hud.gd cannot draw" % [c["id"], c["icon"]])
 		if c["target"] <= 0 or c["reward"] <= 0:
 			_fail("%s has target %d and reward %d" % [c["id"], c["target"], c["reward"]])
 
@@ -99,6 +101,14 @@ func _check_bad_entries() -> void:
 		_fail("a duplicate counter was accepted")
 	if not ChallengesScript._clean("not an object", {}, {}).is_empty():
 		_fail("an entry that is not an object was accepted")
+	# a missing or unknown icon falls back to the star instead of refusing the entry
+	if ChallengesScript._clean(_good_entry(), {}, {}).get("icon") != "star":
+		_fail("an entry with no icon did not get the star")
+	var odd = ChallengesScript._clean(_with("icon", "nonsense"), {}, {})
+	if odd.is_empty() or odd["icon"] != "star":
+		_fail("an entry with an unknown icon was refused or kept the icon: %s" % str(odd))
+	if ChallengesScript._clean(_with("icon", "heart"), {}, {}).get("icon") != "heart":
+		_fail("a known icon was not kept")
 
 
 func _with(key: String, value) -> Dictionary:
@@ -216,6 +226,13 @@ func _check_award() -> void:
 		_fail("two challenges paid %d coins, expected 8" % coins)
 	if main.challenges.award() != 8 or int(main.meta.challenge_counts.get("no_gun_rounds", 0)) != 1:
 		_fail("paying the same run twice counted twice")
+	if main.challenges.unlocked_count() != 2:
+		_fail(
+			(
+				"two challenges done once give %d achievements, expected 2"
+				% main.challenges.unlocked_count()
+			)
+		)
 	var new_ids = main.challenges.new_ids.duplicate()
 	new_ids.sort()
 	if new_ids != ["no_gun_round", "no_life_lost"]:
@@ -329,6 +346,10 @@ func _check_screens() -> void:
 	var lines = hud._challenge_summary_lines()
 	if lines.size() != 2 or not str(lines[0][0]).begins_with("NEW "):
 		_fail("the summary lines after two new challenges are %s" % str(lines))
+	# the page again, now with two achievements unlocked (gold badges) and three still locked
+	main.title_page = "challenges"
+	await _draw_at_two_sizes()
+	main.title_page = ""
 	_new_run()
 	main.challenges.on_all_caches(true)
 	main.challenges.on_round_cleared()
