@@ -736,6 +736,9 @@ func _draw_map_screen(k: float, cx: float) -> void:
 	_dim(0.84)
 	var floors = g.run_map["floors"]
 	_txt("CHOOSE YOUR NEXT STOP", cx, size.y * 0.09, int(46 * k), GOLD, 1)
+	# the arena the whole run is played in (one style per run); the roundabout has none
+	if g.arena.style_label() != "":
+		_txt("ARENA: " + g.arena.style_label(), cx, size.y * 0.135, int(18 * k), GRAY, 1)
 	var next_f = g.map_floor + 1
 	# edges: grey, the path taken in gold, the edges you can take now in white
 	for f in range(floors.size() - 1):
