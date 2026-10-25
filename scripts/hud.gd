@@ -365,14 +365,14 @@ const TITLE_ITEMS = [
 	{"id": "play", "label": "PLAY"},
 	{"id": "daily", "label": "DAILY RUN"},
 	{"id": "seed", "label": "CUSTOM SEED"},
-	{"id": "loadout", "label": "LOADOUT", "soon": true},
+	{"id": "loadout", "label": "LOADOUT"},
 	{"id": "unlocks", "label": "UNLOCKS"},
 	{"id": "scores", "label": "HIGH SCORES"},
 	{"id": "controls", "label": "CONTROLS"},
 	{"id": "settings", "label": "SETTINGS"},
 	{"id": "quit", "label": "QUIT"}
 ]
-const TITLE_PAGES = {"loadout": ["LOADOUT", "PICK YOUR STARTING WEAPON AND PERK BEFORE A RUN."]}
+const TITLE_PAGES = {}
 
 
 func title_rect(i: int) -> Rect2:
@@ -670,6 +670,73 @@ func _draw_controls(k: float, cx: float) -> void:
 	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 
 
+# ---------------------------------------------------------------- loadout page (title menu)
+func loadout_rect(i: int) -> Rect2:
+	var k = size.y / 720.0
+	var w = 460.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.25 + i * 26.0 * k, w, 24.0 * k)
+
+
+# the row under a point of the Loadout page, -1 for none
+func loadout_at(pos: Vector2) -> int:
+	if g == null or g.state != "title" or g.title_page != "loadout":
+		return -1
+	for i in range(g.loadout_options().size()):
+		if loadout_rect(i).has_point(pos):
+			return i
+	return -1
+
+
+func _draw_loadout(k: float, cx: float) -> void:
+	_txt("LOADOUT", cx, size.y * 0.12, int(56 * k), GOLD, 1)
+	_txt("PICK THE PERK YOUR RUNS START WITH", cx, size.y * 0.185, int(18 * k), TEXT, 1)
+	var opts = g.loadout_options()
+	var sel = clampi(g.loadout_sel, 0, opts.size() - 1)
+	for i in range(opts.size()):
+		var r = loadout_rect(i)
+		var chosen = opts[i]["id"] == g.meta.start_perk
+		if i == sel:
+			draw_rect(r, Color(0.176, 0.196, 0.22))
+			draw_rect(r, ACCENT, false, 2.0 * k)
+		var base = r.position.y + 17.0 * k
+		_txt(
+			opts[i]["name"],
+			r.position.x + 10.0 * k,
+			base,
+			int(15 * k),
+			TEXT if i == sel or chosen else GRAY
+		)
+		if chosen:
+			_txt("CHOSEN", r.end.x - 10.0 * k, base, int(14 * k), GOLD, 2)
+	if opts.size() == 1:
+		_txt(
+			"YOU OWN NO STARTING PERKS YET: BUY THEM ON THE UNLOCKS PAGE",
+			cx,
+			size.y * 0.42,
+			int(16 * k),
+			GRAY,
+			1
+		)
+	_txt(opts[sel]["name"], cx, size.y * 0.84, int(26 * k), TEXT, 1)
+	_txt(opts[sel]["desc"], cx, size.y * 0.84 + 26.0 * k, int(16 * k), TEXT, 1)
+	_txt(
+		"DAILY RUNS AND CUSTOM SEEDS START WITHOUT A STARTING PERK",
+		cx,
+		size.y * 0.9,
+		int(14 * k),
+		ACCENT,
+		1
+	)
+	_txt(
+		"ARROWS OR D-PAD TO LOOK   ENTER, A OR A CLICK TO CHOOSE   ESC, B OR A CLICK BESIDE THE LIST TO GO BACK",
+		cx,
+		size.y * 0.955,
+		int(14 * k),
+		GRAY,
+		1
+	)
+
+
 # ---------------------------------------------------------------- unlocks page (title menu)
 const UnlocksTable = preload("res://scripts/unlocks.gd")
 const UNLOCK_GROUPS = {
@@ -821,6 +888,9 @@ func _draw_title_page(k: float, cx: float) -> void:
 		return
 	if g.title_page == "unlocks":
 		_draw_unlocks(k, cx)
+		return
+	if g.title_page == "loadout":
+		_draw_loadout(k, cx)
 		return
 	var info = TITLE_PAGES.get(g.title_page, ["", ""])
 	_txt(info[0], cx, size.y * 0.24, int(60 * k), GOLD, 1)
