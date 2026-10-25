@@ -412,6 +412,8 @@ func _draw_title_menu(k: float, cx: float) -> void:
 	if g.game_version != "":
 		_txt("v" + g.game_version, size.x - 18.0 * k, size.y * 0.975, int(14 * k), GRAY, 2)
 	_txt(g.daily_label, size.x - 18.0 * k, 30.0 * k, int(14 * k), GRAY, 2)
+	if g.daily_arena != "":
+		_txt("DAILY ARENA: " + g.daily_arena, size.x - 18.0 * k, 50.0 * k, int(14 * k), GRAY, 2)
 	if g.hi > 0:
 		_txt("HIGH SCORE " + str(g.hi).pad_zeros(6), cx, size.y * 0.885, int(20 * k), GOLD, 1)
 	_txt(
@@ -586,6 +588,10 @@ func _draw_seed_page(k: float, cx: float) -> void:
 		GRAY,
 		1
 	)
+	if g.seed_buf != "":
+		var arena = g.arena_style_text(g.seed_buf.hex_to_int())
+		if arena != "":
+			_txt("ARENA: " + arena, cx, size.y * 0.595, int(18 * k), TEXT, 1)
 	var r = seed_start_rect()
 	var ready = g.seed_buf != ""
 	draw_rect(r, Color(0.176, 0.196, 0.22) if ready else Color(0.13, 0.14, 0.16))
@@ -730,6 +736,9 @@ func _draw_map_screen(k: float, cx: float) -> void:
 	_dim(0.84)
 	var floors = g.run_map["floors"]
 	_txt("CHOOSE YOUR NEXT STOP", cx, size.y * 0.09, int(46 * k), GOLD, 1)
+	# the arena the whole run is played in (one style per run); the roundabout has none
+	if g.arena.style_label() != "":
+		_txt("ARENA: " + g.arena.style_label(), cx, size.y * 0.135, int(18 * k), GRAY, 1)
 	var next_f = g.map_floor + 1
 	# edges: grey, the path taken in gold, the edges you can take now in white
 	for f in range(floors.size() - 1):

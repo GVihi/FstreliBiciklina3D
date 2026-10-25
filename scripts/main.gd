@@ -112,6 +112,8 @@ var hi = 0
 var daily_date = ""  # UTC date the daily seed belongs to, "YYYY-MM-DD"
 var daily_seed = 0  # same for every player on that date (daily.gd); a Daily Run uses it as its run seed
 var daily_label = ""  # title-screen text for the above
+var daily_arena = ""  # the arena style of the daily seed, shown under it on the title screen
+var arena_rules_cache = {}  # `data/arena_rules.json`, read on first use by `arena_style_text`
 var daily_mode = false  # true while a Daily Run is in progress (own scoreboard later, no normal high score)
 var custom_seed_run = false  # true while a run with a seed typed in on the title screen is in progress (kept off the normal high score and Top 10, like a Daily Run; a restart replays the same seed)
 var run_seed = 0  # the seed this run started with: today's daily seed in a Daily Run, a random one in a normal run
@@ -556,6 +558,17 @@ func refresh_daily_seed() -> void:
 	daily_date = DailyScript.date_string()
 	daily_seed = DailyScript.seed_for(daily_date)
 	daily_label = "DAILY SEED %s   %s UTC" % [DailyScript.seed_text(daily_seed), daily_date]
+	daily_arena = arena_style_text(daily_seed)
+
+
+# What the arena style of a run seed is called on the screen (STREET CANYON, MARKET, ...), the same style the run
+# gets: `ArenaGen.generate` takes it from `pick_style` with the run seed as it is. "" when the rules have no styles.
+# The rules are read once, because the seed page asks on every frame.
+func arena_style_text(run_seed: int) -> String:
+	if arena_rules_cache.is_empty():
+		arena_rules_cache = ArenaGenScript.load_rules()
+	var style = ArenaGenScript.pick_style(run_seed, arena_rules_cache)
+	return ArenaGenScript.style_label(arena_rules_cache, style)
 
 
 # the HUD calls these two on main, so they stay as thin wrappers
