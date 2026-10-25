@@ -69,7 +69,7 @@ Mostly vibe coded Godot game
 - [x] Implement local Top 10 leaderboard
 - [x] Add player name entry
 - [ ] Support separate leaderboards per difficulty (needs a difficulty system first: build it together with Heat in Milestone B, then split the boards by Heat level)
-- [ ] Show run time on the leaderboard (it is already saved with each entry)
+- [x] Show run time on the leaderboard (it is already saved with each entry) (new TIME column on the High Scores page between KILLS and DATE, shown as m:ss with `fmt_time`; entries saved with no time show a dash; the other columns moved a little to make room, `_draw_scores_page` in `scripts/hud.gd`. Written without running Godot, only gdformat and gdlint were run; waiting for your in-game check: open High Scores from the title screen, the TIME column should line up and nothing should overlap at other window sizes, and finish a run to see its time on the new entry)
 - [ ] Reset leaderboard option (F8 still only resets the old single high score)
 - [ ] Use the leaderboard's best entry for the HI score shown in the HUD, and retire `hi.dat`
 
