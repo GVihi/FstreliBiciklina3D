@@ -1527,8 +1527,16 @@ func update_game(dt: float) -> void:
 			sfx.play("pump")
 	if state == "play":
 		# Loading only starts here when the magazine is empty. The old top-up between waves (no riders left,
-		# waiting for the next one) is gone: a part-empty gun is reloaded by hand (R / gamepad X, `input.gd`)
-		if shells == 0 and not loading and pump_t <= 0.15:
+		# waiting for the next one) is gone: a part-empty gun is reloaded by hand (R / gamepad X, `input.gd`).
+		# While rapid fire or free darts can still shoot, an empty gun waits: every shot stops a reload, so it
+		# would only start again after each shot (and fire reload_started / reload_interrupted every time).
+		if (
+			shells == 0
+			and not loading
+			and pump_t <= 0.15
+			and buffs["rapid"] <= 0.0
+			and free_shots <= 0
+		):
 			combat_sys.start_load()
 	if loading and pump_t <= 0.0:
 		load_t -= dt

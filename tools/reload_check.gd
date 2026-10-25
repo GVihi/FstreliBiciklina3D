@@ -2,7 +2,9 @@ extends SceneTree
 # Checks the reload rules of the dart gun (README Milestone J, manual reload):
 #   - an empty magazine reloads by itself and fills up again,
 #   - a part-empty magazine is NOT topped up between waves (only R / gamepad X reloads it),
-#   - a manual reload (`combat_sys.start_load`, what R and gamepad X call) starts.
+#   - a manual reload (`combat_sys.start_load`, what R and gamepad X call) starts,
+#   - darts that a perk or an ammo pickup adds end a reload when they fill the magazine (never one dart too many),
+#   - an empty gun waits while rapid fire or free darts can still shoot, and reloads once they are gone.
 # Run from the project folder:
 #   godot --headless --path . --script res://tools/reload_check.gd
 # or with tools\run_reload_check.bat on Windows.
@@ -46,6 +48,9 @@ func _initialize() -> void:
 	_check_hooks_full_reload()
 	_check_hooks_interrupted_reload()
 	_check_reload_display()
+	_check_added_darts_end_the_reload()
+	_check_empty_gun_with_free_darts()
+	_check_empty_gun_with_rapid_fire()
 	_finish()
 
 
@@ -273,6 +278,125 @@ func _check_reload_display() -> void:
 				% [lowest, highest]
 			)
 		)
+
+
+# darts from a perk or an ammo pickup (`add_shells`) that fill the magazine end the reload, and a reload never
+# puts one dart too many into the magazine
+func _check_added_darts_end_the_reload() -> void:
+	if main.MAXSHELLS < 3:
+		return
+	_reset_gun(main.MAXSHELLS - 1)
+	_reset_events()
+	main.combat_sys.start_load()
+	main.combat_sys.add_shells(3)
+	if main.shells != main.MAXSHELLS:
+		_fail(
+			(
+				"add_shells(3) on a magazine one dart short gave %d darts, not %d"
+				% [main.shells, main.MAXSHELLS]
+			)
+		)
+	if main.loading:
+		_fail("darts that filled the magazine did not end the reload")
+	if events["finished"] != 1:
+		_fail(
+			(
+				"darts that filled the magazine gave %d reload_finished events instead of 1"
+				% events["finished"]
+			)
+		)
+	for f in range(60 * 3):
+		main._process(DT)
+	if main.shells != main.MAXSHELLS:
+		_fail(
+			(
+				"the magazine held %d darts three seconds after a perk filled it, its size is %d"
+				% [main.shells, main.MAXSHELLS]
+			)
+		)
+	# darts that do not fill the magazine leave the reload running
+	_reset_gun(1)
+	main.combat_sys.start_load()
+	main.combat_sys.add_shells(1)
+	if main.shells != 2 or not main.loading:
+		_fail(
+			(
+				"one extra dart on a gun with 1 dart gave %d darts, loading %s"
+				% [main.shells, main.loading]
+			)
+		)
+	# a gun that still says "loading" with a full magazine ends the reload instead of adding a dart
+	_reset_gun(main.MAXSHELLS)
+	main.loading = true
+	main.load_t = 0.0
+	main.combat_sys.load_one_shell()
+	if main.shells != main.MAXSHELLS or main.loading:
+		_fail(
+			(
+				"load_one_shell on a full magazine gave %d darts, loading %s"
+				% [main.shells, main.loading]
+			)
+		)
+	_reset_gun(main.MAXSHELLS)
+
+
+# an empty gun that still has free darts (SLIDE SHOT, FREE DARTS pack) waits instead of starting a reload that the next
+# free dart would stop, and starts it once the free darts are used up
+func _check_empty_gun_with_free_darts() -> void:
+	_reset_gun(0)
+	main.free_shots = 2
+	_reset_events()
+	for f in range(30):
+		main._process(DT)
+	if main.loading or events["started"] != 0:
+		_fail("an empty gun with free darts started loading (%d starts)" % events["started"])
+	main.combat_sys.fire()
+	main.pump_t = 0.0
+	main.combat_sys.fire()
+	if main.free_shots != 0 or main.shells != 0:
+		_fail(
+			(
+				"two free darts left free_shots %d and %d darts in the magazine, expected 0 and 0"
+				% [main.free_shots, main.shells]
+			)
+		)
+	main.pump_t = 0.0
+	for f in range(10):
+		main._process(DT)
+	if not main.loading or events["started"] != 1 or events["interrupted"] != 0:
+		_fail(
+			(
+				"after the free darts the empty gun gave events %s with loading %s, expected one start and no interrupt"
+				% [str(events), main.loading]
+			)
+		)
+	_reset_gun(main.MAXSHELLS)
+
+
+# the same for rapid fire: an empty gun does not reload under it (a shot would stop it again and again), and does
+# once the buff is over
+func _check_empty_gun_with_rapid_fire() -> void:
+	_reset_gun(0)
+	main.buffs["rapid"] = 5.0
+	_reset_events()
+	for f in range(30):
+		main._process(DT)
+	if main.loading or events["started"] != 0:
+		_fail("an empty gun under rapid fire started loading (%d starts)" % events["started"])
+	main.combat_sys.fire()
+	if main.shells != 0 or main.pump_t <= 0.0:
+		_fail(
+			(
+				"rapid fire from an empty gun did not shoot (darts %d, pump %.2f)"
+				% [main.shells, main.pump_t]
+			)
+		)
+	main.buffs["rapid"] = 0.0
+	main.pump_t = 0.0
+	main._process(DT)
+	if not main.loading:
+		_fail("an empty gun did not start loading once rapid fire was over")
+	_reset_gun(main.MAXSHELLS)
 
 
 func _reset_events() -> void:
