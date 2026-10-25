@@ -4,8 +4,10 @@ extends RefCounted
 # gone when the run ends, while the meta balance only ever goes up from finished runs. It will be the
 # currency for permanent unlocks, cosmetics and Heat rewards (roadmap, Milestone B).
 
-# File format: {"version": 1, "balance", "total_earned"}. Version 0 (before versioning) had no "version" field.
+# File format: {"version": 1, "balance", "total_earned", "owned": [unlock ids]}. Version 0 (before versioning) had no
+# "version" field; a file without "owned" (written before unlocks could be bought) loads with nothing owned.
 const SaveUtil = preload("res://scripts/save_util.gd")
+const UnlocksTable = preload("res://scripts/unlocks.gd")
 const PATH = "user://meta.json"
 const VERSION = 1
 const SCORE_PER_COIN = 100  # tuning knob: 100 points of score = 1 meta coin
@@ -29,6 +31,7 @@ func _init(game) -> void:
 func load_meta() -> void:
 	balance = 0
 	total_earned = 0
+	owned = {}
 	if not FileAccess.file_exists(PATH):
 		return
 	var f = FileAccess.open(PATH, FileAccess.READ)
@@ -40,6 +43,11 @@ func load_meta() -> void:
 		SaveUtil.backup_if_newer(PATH, SaveUtil.version_of(data), VERSION)
 		balance = maxi(0, int(data.get("balance", 0)))
 		total_earned = maxi(balance, int(data.get("total_earned", 0)))
+		var ids = data.get("owned", [])
+		if ids is Array:
+			for id in ids:
+				if typeof(id) == TYPE_STRING and str(id) != "":
+					owned[str(id)] = true  # an id the table no longer has stays owned, so a purchase is never lost
 	else:
 		SaveUtil.backup(PATH, "bad")  # unreadable: keep a copy before the next save replaces it
 
@@ -47,8 +55,12 @@ func load_meta() -> void:
 func save_meta() -> void:
 	var f = FileAccess.open(PATH, FileAccess.WRITE)
 	if f:
+		var ids = owned.keys()
+		ids.sort()
 		f.store_string(
-			JSON.stringify({"version": VERSION, "balance": balance, "total_earned": total_earned})
+			JSON.stringify(
+				{"version": VERSION, "balance": balance, "total_earned": total_earned, "owned": ids}
+			)
 		)
 		f.close()
 
@@ -93,10 +105,21 @@ func award_run() -> int:
 	return n
 
 
-# ids of the unlocks the player owns, read by the Unlocks page. Nothing buys them yet and they are not saved:
-# buying and saving them are the next items of Milestone I.
+# ids of the unlocks the player owns (data/unlocks.json), saved in meta.json
 var owned = {}
 
 
 func owns(id: String) -> bool:
 	return owned.has(id)
+
+
+# Buys an unlock with meta coins and saves at once. Returns "bought", or why not: "owned", "soon" (its target is not in
+# the game yet) or "locked" (not enough coins). Nothing is spent unless it returns "bought".
+func buy(u: Dictionary) -> String:
+	var state = UnlocksTable.state_of(u, owns(u["id"]), balance)
+	if state != "afford":
+		return state
+	balance -= int(u["cost"])
+	owned[str(u["id"])] = true
+	save_meta()
+	return "bought"

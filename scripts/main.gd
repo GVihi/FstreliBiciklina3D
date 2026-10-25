@@ -272,6 +272,8 @@ var confirm_t0 = 0.0  # g.time when the confirmation opened; YES is ignored for 
 var seed_buf = ""  # the hex digits typed on the custom seed page of the title screen (up to 8)
 var title_sel = 0  # highlighted title-menu entry (keyboard / gamepad)
 var unlock_sel = 0  # highlighted entry (index into UNLOCKS) of the Unlocks page of the title screen
+var unlock_msg = ""  # the last result shown on the Unlocks page ("BOUGHT", "NOT ENOUGH COINS", ...)
+var unlock_msg_t0 = -10.0  # g.time when unlock_msg was set; it fades after a few seconds
 
 var cheerleaders = []
 var melee_ring: MeshInstance3D
