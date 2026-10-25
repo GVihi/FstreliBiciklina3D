@@ -96,6 +96,15 @@ func submit_run() -> int:
 	return idx
 
 
+# Erases the whole leaderboard (RESET LEADERBOARD on the High Scores page, after a confirmation).
+# The old file is first copied to scores.json.reset.bak, so one mistaken reset can be undone by hand.
+func reset() -> void:
+	SaveUtil.backup(PATH, "reset")
+	entries = []
+	g.last_rank = -1
+	save_scores()
+
+
 func set_name(idx: int, nm: String) -> void:
 	if idx >= 0 and idx < entries.size():
 		entries[idx]["name"] = nm

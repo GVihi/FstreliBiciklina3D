@@ -472,7 +472,72 @@ func _draw_scores_page(k: float, cx: float) -> void:
 		_txt(str(e["round"]), c_round, y, int(20 * k), col, 2)
 		_txt(str(e["kills"]), c_kills, y, int(20 * k), col, 2)
 		_txt(str(e["date"]), c_date, y, int(16 * k), GRAY, 2)
-	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
+	if not list.is_empty():
+		var r = scores_reset_rect()
+		var on = r.has_point(get_local_mouse_position())
+		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
+		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 2.0 * k)
+		_txt(
+			"RESET LEADERBOARD",
+			r.position.x + r.size.x * 0.5,
+			r.position.y + 25.0 * k,
+			int(16 * k),
+			TEXT if on else GRAY,
+			1
+		)
+	_txt(
+		"CLICK ANYWHERE OR PRESS ESC TO GO BACK   DELETE OR X TO RESET",
+		cx,
+		size.y * 0.94,
+		int(18 * k),
+		GRAY,
+		1
+	)
+
+
+# the RESET LEADERBOARD button at the bottom of the High Scores page (the click is handled in input.gd)
+func scores_reset_rect() -> Rect2:
+	var k = size.y / 720.0
+	var w = 260.0 * k
+	var h = 36.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.85, w, h)
+
+
+# the NO / YES buttons of the reset confirmation (same place as the pause menu confirmation)
+func scores_confirm_at(pos: Vector2) -> int:
+	if g == null or g.state != "title" or g.title_page != "scores_confirm":
+		return -1
+	for i in range(2):
+		if confirm_rect(i).has_point(pos):
+			return i
+	return -1
+
+
+func _draw_scores_confirm(k: float, cx: float) -> void:
+	_txt("ERASE ALL HIGH SCORES?", cx, size.y * 0.26, int(60 * k), TEXT, 1)
+	_txt(
+		"THE WHOLE TOP 10 WILL BE CLEARED (A BACKUP FILE IS KEPT)",
+		cx,
+		size.y * 0.36,
+		int(20 * k),
+		RED,
+		1
+	)
+	var labels = ["NO, GO BACK", "YES, ERASE"]
+	for i in range(2):
+		var r = confirm_rect(i)
+		var on = g.confirm_sel == i  # the mouse updates confirm_sel in input.gd (hover_menu)
+		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
+		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
+		_txt(
+			labels[i],
+			r.position.x + r.size.x * 0.5,
+			r.position.y + 31.0 * k,
+			int(22 * k),
+			TEXT if on else GRAY,
+			1
+		)
+	_txt("ESC TO GO BACK", cx, size.y * 0.80, int(16 * k), GRAY, 1)
 
 
 # the START button of the custom seed page (the click is handled in input.gd)
@@ -541,6 +606,9 @@ func _draw_seed_page(k: float, cx: float) -> void:
 func _draw_title_page(k: float, cx: float) -> void:
 	if g.title_page == "scores":
 		_draw_scores_page(k, cx)
+		return
+	if g.title_page == "scores_confirm":
+		_draw_scores_confirm(k, cx)
 		return
 	if g.title_page == "seed":
 		_draw_seed_page(k, cx)

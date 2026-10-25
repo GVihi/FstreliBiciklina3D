@@ -202,6 +202,8 @@ func on_pad_button(btn: int) -> void:
 			menu_confirm()
 	elif btn == JOY_BUTTON_B and g.state == "title":
 		title_back()
+	elif btn == JOY_BUTTON_X and g.state == "title":
+		scores_reset_open()
 	elif btn == JOY_BUTTON_B and g.state == "shop":
 		g.shop_sys.leave_shop()
 	elif btn == JOY_BUTTON_X and g.state == "shop":
@@ -318,6 +320,9 @@ func hover_menu(pos: Vector2) -> void:
 	var ci = g.hud.confirm_at(pos)
 	if ci >= 0:
 		g.confirm_sel = ci
+	var si = g.hud.scores_confirm_at(pos)
+	if si >= 0:
+		g.confirm_sel = si
 	if g.state == "map":
 		var mi = g.hud.map_choice_at(pos)
 		if mi >= 0:
@@ -333,11 +338,15 @@ func title_move(d: int) -> void:
 
 func title_back() -> void:
 	if g.state == "title" and g.title_page != "":
-		g.title_page = ""
+		# from the reset confirmation go back to the list, from any other page to the menu
+		g.title_page = "scores" if g.title_page == "scores_confirm" else ""
 		g.sfx.play("click")
 
 
 func title_activate(i: int) -> void:
+	if g.title_page == "scores_confirm":
+		scores_confirm_activate(g.confirm_sel)  # Enter / A on the highlighted NO or YES
+		return
 	if g.title_page != "":
 		title_back()
 		return
@@ -358,6 +367,30 @@ func title_activate(i: int) -> void:
 	else:
 		g.title_page = id  # loadout / unlocks / scores / settings
 		g.sfx.play("click")
+
+
+# ---- reset leaderboard (High Scores page of the title screen; texts and buttons are in hud.gd)
+# Delete, gamepad X or a click on RESET LEADERBOARD opens a "NO / YES" page. NO is the default, and YES ignores
+# input for a moment after the page opens, like the restart confirmation, so a double click cannot erase the list.
+func scores_reset_open() -> void:
+	if g.state != "title" or g.title_page != "scores" or g.scores.entries.is_empty():
+		return
+	g.confirm_sel = 0
+	g.confirm_t0 = g.time
+	g.title_page = "scores_confirm"
+	g.sfx.play("click")
+
+
+func scores_confirm_activate(i: int) -> void:
+	if i == 0:
+		title_back()  # NO: back to the list
+		return
+	if g.time - g.confirm_t0 < 0.3:
+		return
+	g.confirm_sel = i
+	g.scores.reset()
+	g.title_page = "scores"
+	g.sfx.play("click")
 
 
 # ---- pause menu (entries are listed in hud.gd PAUSE_ITEMS)
@@ -402,7 +435,8 @@ func pause_activate(i: int) -> void:
 
 # ---- restart / quit confirmation (texts and buttons are in hud.gd CONFIRM_TEXT)
 func confirm_move() -> void:
-	if g.state == "play" and g.paused and g.pause_page == "confirm":
+	var asking = g.state == "play" and g.paused and g.pause_page == "confirm"
+	if asking or (g.state == "title" and g.title_page == "scores_confirm"):
 		g.confirm_sel = 1 - g.confirm_sel
 		g.sfx.play("click")
 
@@ -437,6 +471,12 @@ func on_click() -> void:
 				seed_start()
 			else:
 				title_back()
+		elif g.title_page == "scores_confirm":
+			var si = g.hud.scores_confirm_at(mp)
+			if si >= 0:
+				scores_confirm_activate(si)  # a click beside the buttons does nothing
+		elif g.title_page == "scores" and g.hud.scores_reset_rect().has_point(mp):
+			scores_reset_open()  # does nothing when the list is empty (the button is not drawn then)
 		elif g.title_page != "":
 			title_back()
 		else:
