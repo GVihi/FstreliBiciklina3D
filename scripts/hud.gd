@@ -368,6 +368,7 @@ const TITLE_ITEMS = [
 	{"id": "loadout", "label": "LOADOUT", "soon": true},
 	{"id": "unlocks", "label": "UNLOCKS", "soon": true},
 	{"id": "scores", "label": "HIGH SCORES"},
+	{"id": "controls", "label": "CONTROLS"},
 	{"id": "settings", "label": "SETTINGS"},
 	{"id": "quit", "label": "QUIT"}
 ]
@@ -380,8 +381,8 @@ const TITLE_PAGES = {
 func title_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var w = 320.0 * k
-	var h = 38.0 * k
-	return Rect2((size.x - w) * 0.5, size.y * 0.35 + i * (h + 6.0 * k), w, h)
+	var h = 34.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.345 + i * (h + 5.0 * k), w, h)
 
 
 func title_at(pos: Vector2) -> int:
@@ -402,7 +403,7 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		var on = g.title_sel == i  # the mouse updates title_sel in input.gd (hover_menu)
 		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
 		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
-		var base = r.position.y + 27.0 * k
+		var base = r.position.y + 25.0 * k
 		_txt(
 			item["label"], r.position.x + r.size.x * 0.5, base, int(22 * k), TEXT if on else GRAY, 1
 		)
@@ -607,6 +608,64 @@ func _draw_seed_page(k: float, cx: float) -> void:
 	)
 
 
+# ---------------------------------------------------------------- controls page (title menu and pause menu)
+# {key, action} rows; keep them in step with input.gd and player.gd when a control changes
+const CONTROLS_KEYBOARD = [
+	["WASD", "MOVE"],
+	["SHIFT", "SPRINT (WHILE MOVING FORWARD)"],
+	["CTRL / C", "CROUCH (WHILE SPRINTING: SLIDE)"],
+	["SPACE", "DASH (A NEAR MISS IS A PERFECT DODGE)"],
+	["MOUSE", "AIM"],
+	["LEFT CLICK", "SHOOT / SWING THE MELEE WEAPON"],
+	["RIGHT CLICK", "AIM DOWN SIGHTS (HOLD, OR TOGGLE IN SETTINGS)"],
+	["R", "RELOAD (IN THE SHOP: REROLL)"],
+	["Q / WHEEL / 1 / 2", "SWITCH DART GUN AND MELEE (1 GUN, 2 MELEE)"],
+	["ESC", "PAUSE"],
+	["TAB", "SETTINGS"],
+	["M / V", "SOUND / VOICES ON OFF"],
+	["F9", "GRAPHICS QUALITY"],
+	["F11", "FULLSCREEN"]
+]
+const CONTROLS_GAMEPAD = [
+	["LEFT STICK", "MOVE"],
+	["LEFT STICK CLICK", "SPRINT"],
+	["RIGHT STICK", "AIM (WITH AIM ASSIST)"],
+	["RT", "SHOOT / SWING THE MELEE WEAPON"],
+	["LT", "AIM DOWN SIGHTS (HOLD)"],
+	["A", "DASH"],
+	["B", "CROUCH / SLIDE"],
+	["X", "RELOAD (IN THE SHOP: REROLL)"],
+	["Y / BUMPERS", "SWITCH DART GUN AND MELEE"],
+	["START", "PAUSE"],
+	["D-PAD + A / B", "MENUS: PICK / BACK"]
+]
+const CONTROLS_SCREENS = [
+	["1 - 4 OR CLICK", "BUY IN THE SHOP (UPGRADES AND MAP: 1 - 3)"],
+	["LEFT / RIGHT + ENTER", "PICK A NODE ON THE RUN MAP"],
+	["SPACE / ENTER", "LEAVE THE SHOP"]
+]
+
+
+func _draw_controls_rows(rows: Array, x_key: float, x_text: float, y: float, k: float) -> float:
+	for row in rows:
+		_txt(row[0], x_key, y, int(17 * k), ACCENT)
+		_txt(row[1], x_text, y, int(17 * k), TEXT)
+		y += 26.0 * k
+	return y
+
+
+func _draw_controls(k: float, cx: float) -> void:
+	_txt("CONTROLS", cx, size.y * 0.12, int(56 * k), GOLD, 1)
+	var y0 = size.y * 0.255
+	_txt("KEYBOARD AND MOUSE", cx - 600.0 * k, y0 - 30.0 * k, int(16 * k), GOLD)
+	_draw_controls_rows(CONTROLS_KEYBOARD, cx - 600.0 * k, cx - 410.0 * k, y0, k)
+	_txt("GAMEPAD", cx + 40.0 * k, y0 - 30.0 * k, int(16 * k), GOLD)
+	var y = _draw_controls_rows(CONTROLS_GAMEPAD, cx + 40.0 * k, cx + 230.0 * k, y0, k)
+	_txt("SHOP, UPGRADES AND MAP", cx + 40.0 * k, y + 14.0 * k, int(16 * k), GOLD)
+	_draw_controls_rows(CONTROLS_SCREENS, cx + 40.0 * k, cx + 280.0 * k, y + 44.0 * k, k)
+	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
+
+
 # placeholder pages for the screens that are still on the roadmap
 func _draw_title_page(k: float, cx: float) -> void:
 	if g.title_page == "scores":
@@ -617,6 +676,9 @@ func _draw_title_page(k: float, cx: float) -> void:
 		return
 	if g.title_page == "seed":
 		_draw_seed_page(k, cx)
+		return
+	if g.title_page == "controls":
+		_draw_controls(k, cx)
 		return
 	var info = TITLE_PAGES.get(g.title_page, ["", ""])
 	_txt(info[0], cx, size.y * 0.24, int(60 * k), GOLD, 1)
@@ -759,6 +821,7 @@ func _draw_map_screen(k: float, cx: float) -> void:
 const PAUSE_ITEMS = [
 	{"id": "resume", "label": "RESUME"},
 	{"id": "settings", "label": "SETTINGS"},
+	{"id": "controls", "label": "CONTROLS"},
 	{"id": "restart", "label": "RESTART RUN"},
 	{"id": "title", "label": "QUIT TO TITLE"}
 ]
@@ -1122,6 +1185,9 @@ func _draw() -> void:
 		elif g.pause_page == "confirm":
 			_dim(0.6)
 			_draw_confirm(k, cx)
+		elif g.pause_page == "controls":
+			_dim(0.86)
+			_draw_controls(k, cx)
 		else:
 			_dim(0.6)
 			_draw_pause_menu(k, cx)

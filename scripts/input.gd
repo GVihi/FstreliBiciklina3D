@@ -71,7 +71,7 @@ func handle_input(event: InputEvent) -> void:
 				g.title_page = "" if g.title_page == "settings" else "settings"
 			elif g.state == "play":
 				if g.paused:
-					if g.pause_page != "confirm":
+					if g.pause_page == "" or g.pause_page == "settings":
 						g.pause_page = "" if g.pause_page == "settings" else "settings"
 				else:
 					Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -422,8 +422,8 @@ func pause_activate(i: int) -> void:
 	var id = g.hud.PAUSE_ITEMS[i]["id"]
 	if id == "resume":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	elif id == "settings":
-		g.pause_page = "settings"
+	elif id == "settings" or id == "controls":
+		g.pause_page = id
 		g.sfx.play("click")
 	elif id == "restart" or id == "title":  # both lose the run, so ask first (NO is the default)
 		g.confirm_id = id
@@ -519,6 +519,8 @@ func on_click() -> void:
 				var ci = g.hud.confirm_at(pmp)
 				if ci >= 0:
 					confirm_activate(ci)
+			elif g.pause_page == "controls":
+				pause_back()  # a click anywhere closes the controls page
 			else:
 				var pi = g.hud.pause_at(pmp)
 				if pi >= 0:
