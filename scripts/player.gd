@@ -270,6 +270,7 @@ func try_dash() -> void:
 	g.dash_inv = g.DASH_TIME + 0.18 + (0.15 if g.shop_sys.has_duo("GHOST") else 0.0)
 	g.dash_cd = dash_cooldown()
 	g.slide_t = 0.0
+	g.combat_sys.interrupt_load()
 	grant_free_shots()
 	g.sfx.play("whoosh", -4.0)
 

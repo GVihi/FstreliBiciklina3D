@@ -1547,7 +1547,7 @@ func _draw_crosshair(k: float) -> void:
 	var col = Color(1, 1, 1, lerpf(0.92, 0.55, g.ads_t))
 	if g.buffs["big"] > 0.0:
 		col = Color(0.55, 0.95, 0.6, col.a + 0.03)
-	# out of darts: red; loading shells (firing still stops the reload): a little dimmer
+	# out of darts: red; loading shells (the gun cannot fire until it is done, or a dash or melee stops it): a little dimmer
 	var empty = g.shells <= 0 and g.buffs["rapid"] <= 0.0 and g.free_shots <= 0
 	if empty:
 		col = Color(1.0, 0.36, 0.3, 0.95)

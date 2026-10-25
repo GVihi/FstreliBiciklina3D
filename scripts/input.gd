@@ -492,4 +492,6 @@ func toggle_weapon(to = null) -> void:
 		g.melee = not g.melee
 	else:
 		g.melee = to
+	if g.melee:
+		g.combat_sys.interrupt_load()
 	g.sfx.play("click")

@@ -33,6 +33,11 @@ func _initialize() -> void:
 	_check_no_top_up()
 	_check_manual_reload()
 	_check_empty_reloads_by_itself()
+	_check_no_shooting_while_loading()
+	_check_rapid_fire_still_shoots()
+	_check_dash_interrupts()
+	_check_melee_switch_interrupts()
+	_check_empty_gun_is_not_interrupted()
 	_finish()
 
 
@@ -78,7 +83,90 @@ func _check_empty_reloads_by_itself() -> void:
 		_fail("the gun kept loading with a full magazine")
 
 
+# a gun that is loading does not fire: no dart is used, none flies, and the reload goes on
+func _check_no_shooting_while_loading() -> void:
+	_reset_gun(1)
+	main.combat_sys.start_load()
+	var darts_before = main.darts.size()
+	main.combat_sys.fire()
+	if main.shells != 1:
+		_fail("a gun that was loading fired: %d darts left instead of 1" % main.shells)
+	if main.darts.size() != darts_before:
+		_fail("a gun that was loading made a dart fly")
+	if not main.loading:
+		_fail("trying to shoot stopped the reload")
+	# and once the reload is over it fires again
+	_reset_gun(2)
+	main.combat_sys.fire()
+	if main.shells != 1:
+		_fail("a gun that was not loading did not fire: %d darts left instead of 1" % main.shells)
+
+
+# rapid fire does not use the magazine, so loading does not hold it back (firing stops the reload, as before)
+func _check_rapid_fire_still_shoots() -> void:
+	_reset_gun(1)
+	main.combat_sys.start_load()
+	main.buffs["rapid"] = 5.0
+	main.combat_sys.fire()
+	if main.pump_t <= 0.0:
+		_fail("rapid fire did not shoot while the gun was loading")
+	if main.shells != 1:
+		_fail("rapid fire used a dart from the magazine (%d left of 1)" % main.shells)
+	main.buffs["rapid"] = 0.0
+
+
+# a dash stops a reload, and the darts that are already in stay in
+func _check_dash_interrupts() -> void:
+	_reset_gun(2)
+	main.combat_sys.start_load()
+	main.dash_cd = 0.0
+	main.dash_t = 0.0
+	main.player_sys.try_dash()
+	if main.dash_t <= 0.0:
+		_fail("the check could not start a dash")
+		return
+	if main.loading:
+		_fail("a dash did not stop the reload")
+	if main.shells != 2:
+		_fail("a dash changed the darts in the magazine: %d instead of 2" % main.shells)
+	main.dash_t = 0.0
+	main.dash_cd = 0.0
+
+
+# switching to the melee weapon stops a reload; switching back to the gun does not start one
+func _check_melee_switch_interrupts() -> void:
+	_reset_gun(2)
+	main.combat_sys.start_load()
+	main.input_sys.toggle_weapon(true)
+	if not main.melee:
+		_fail("the check could not switch to the melee weapon")
+	if main.loading:
+		_fail("switching to melee did not stop the reload")
+	main.input_sys.toggle_weapon(false)
+	if main.loading:
+		_fail("switching back to the gun started a reload")
+	main.melee = false
+
+
+# an empty gun has nothing to shoot, so a dash or a weapon switch must not take its reload away
+func _check_empty_gun_is_not_interrupted() -> void:
+	_reset_gun(0)
+	main.combat_sys.start_load()
+	main.dash_cd = 0.0
+	main.dash_t = 0.0
+	main.player_sys.try_dash()
+	if not main.loading:
+		_fail("a dash stopped the reload of an empty gun")
+	main.input_sys.toggle_weapon(true)
+	if not main.loading:
+		_fail("switching to melee stopped the reload of an empty gun")
+	main.melee = false
+	main.dash_t = 0.0
+	main.dash_cd = 0.0
+
+
 func _reset_gun(count: int) -> void:
+	main.melee = false
 	main.shells = count
 	main.loading = false
 	main.load_t = 0.0

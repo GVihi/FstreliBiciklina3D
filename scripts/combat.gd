@@ -31,6 +31,15 @@ func start_load() -> void:
 	g.load_t = reload_step() + float(g.WEAPONS["dart_gun"]["reload_extra"])
 
 
+# Dashing or switching to the melee weapon stops a reload that is in progress. The darts that are already in
+# stay in. An empty gun is not interrupted: it has nothing to shoot, so it keeps reloading (a dash would only
+# restart the reload and cost the first-dart delay again).
+func interrupt_load() -> void:
+	if g.loading and g.shells > 0:
+		g.loading = false
+		g.load_t = 0.0
+
+
 func ray_dir_with_spread() -> Vector3:
 	var sp = deg_to_rad(g.spread_deg)
 	var a = randf() * TAU
@@ -50,6 +59,10 @@ func fire() -> void:
 	if g.shells <= 0 and g.buffs["rapid"] <= 0.0 and g.free_shots <= 0:
 		g.sfx.play("click")
 		start_load()
+		return
+	# no shooting while the gun is loading: wait for it, or dash or switch to melee to stop the reload.
+	# Rapid fire and free shots do not use the magazine, so they still fire (and stop the reload, as before)
+	if g.loading and g.buffs["rapid"] <= 0.0 and g.free_shots <= 0:
 		return
 	g.loading = false
 	if g.buffs["rapid"] <= 0.0:
