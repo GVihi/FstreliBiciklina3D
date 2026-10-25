@@ -395,8 +395,7 @@ func title_at(pos: Vector2) -> int:
 
 
 func _draw_title_menu(k: float, cx: float) -> void:
-	_txt("FSTRELI", cx, size.y * 0.17, int(76 * k), ACCENT, 1)
-	_txt("BICIKLINA 3D", cx, size.y * 0.28, int(76 * k), ACCENT, 1)
+	_txt(g.GAME_TITLE, cx, size.y * 0.25, int(120 * k), ACCENT, 1)
 	for i in range(TITLE_ITEMS.size()):
 		var item = TITLE_ITEMS[i]
 		var r = title_rect(i)

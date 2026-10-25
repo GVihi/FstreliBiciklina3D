@@ -4,6 +4,11 @@ extends Node3D
 # Rules (rounds, riders, phones, bosses, hype, pickups, melee, upgrades) are ported from the
 # web game. World lives in world.gd, models in models.gd, overlay in hud.gd, sound in sfx.gd.
 
+# The name the player sees (title screen logo, window title, later the credits screen). Internal names keep
+# "FstreliBiciklina3D" on purpose: the repository, the files, project.godot (`user://` follows its name, so the
+# saves must keep loading) and the docs.
+const GAME_TITLE = "FB3D"
+
 const Lighting = preload("res://scripts/lighting.gd")
 const Util = preload("res://scripts/util.gd")
 const WorldBuilder = preload("res://scripts/world.gd")
@@ -281,6 +286,7 @@ var confetti_mats = []
 
 # ================================================================== setup
 func _ready() -> void:
+	get_window().title = GAME_TITLE
 	randomize()
 	refresh_daily_seed()
 	hi = settings.load_hi()
