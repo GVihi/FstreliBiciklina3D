@@ -17,7 +17,7 @@ extends SceneTree
 #                     --no-screens  --no-frametime  --raw (also write every single frame)
 
 const QUALITY_NAMES = ["HIGH", "MEDIUM", "LOW"]
-const SAVE_FILES = ["settings.cfg", "scores.json", "meta.json", "hi.dat"]
+const SAVE_FILES = ["settings.cfg", "scores.json", "meta.json"]
 const TITLE_PAGES = ["loadout", "unlocks", "scores", "settings"]
 const WARMUP_SECONDS = 2.0
 const BUDGET_MS = 16.67  # 60 fps

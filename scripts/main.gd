@@ -108,7 +108,7 @@ var paused = false
 var force_captured = false  # test hook: headless Godot cannot capture the mouse, so a check sets this to play a round
 var round_n = 1
 var score = 0
-var hi = 0
+var hi = 0  # the HI score: the best leaderboard entry at start-up, raised during a ranked run (`hi_check`)
 var daily_date = ""  # UTC date the daily seed belongs to, "YYYY-MM-DD"
 var daily_seed = 0  # same for every player on that date (daily.gd); a Daily Run uses it as its run seed
 var daily_label = ""  # title-screen text for the above
@@ -291,7 +291,7 @@ func _ready() -> void:
 	get_window().title = GAME_TITLE
 	randomize()
 	refresh_daily_seed()
-	hi = settings.load_hi()
+	hi = scores.best()
 	settings.load_settings()
 	hearts = MAXHEARTS
 	shells = MAXSHELLS
@@ -577,8 +577,7 @@ func hi_check() -> void:
 	if not ranked_run():  # daily and custom-seed runs stay off the normal high score
 		return
 	if score > hi:
-		hi = score
-		settings.save_hi(hi)
+		hi = score  # only for this session: the run reaches the file through the leaderboard (`Scores.submit_run`)
 
 
 # Makes the arena generated from seed_value the arena of the game and builds its world (the old generated world is
