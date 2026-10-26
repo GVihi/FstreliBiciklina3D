@@ -901,13 +901,15 @@ func _draw_controls(k: float, cx: float) -> void:
 
 
 # ---------------------------------------------------------------- loadout page (title menu)
+# Two lists side by side: the starting perks on the left and the three weapon slots (primary, melee, gadget) on the
+# right. Left / Right (D-pad) switch the active list; the weapon slot rows take the next owned weapon when chosen.
 func loadout_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
-	var w = 460.0 * k
-	return Rect2((size.x - w) * 0.5, size.y * 0.25 + i * 26.0 * k, w, 24.0 * k)
+	var w = 400.0 * k
+	return Rect2(size.x * 0.5 - 440.0 * k, size.y * 0.25 + i * 26.0 * k, w, 24.0 * k)
 
 
-# the row under a point of the Loadout page, -1 for none
+# the row under a point of the perk list of the Loadout page, -1 for none
 func loadout_at(pos: Vector2) -> int:
 	if g == null or g.state != "title" or g.title_page != "loadout":
 		return -1
@@ -917,40 +919,113 @@ func loadout_at(pos: Vector2) -> int:
 	return -1
 
 
+# a weapon slot row (i is an index into WeaponSlots.SLOTS)
+func loadout_slot_rect(i: int) -> Rect2:
+	var k = size.y / 720.0
+	return Rect2(size.x * 0.5 + 40.0 * k, size.y * 0.25 + i * 62.0 * k, 400.0 * k, 54.0 * k)
+
+
+# the weapon slot row under a point of the Loadout page, -1 for none
+func loadout_slot_at(pos: Vector2) -> int:
+	if g == null or g.state != "title" or g.title_page != "loadout":
+		return -1
+	for i in range(WeaponSlots.SLOTS.size()):
+		if loadout_slot_rect(i).has_point(pos):
+			return i
+	return -1
+
+
 func _draw_loadout(k: float, cx: float) -> void:
 	_txt("LOADOUT", cx, size.y * 0.12, int(56 * k), GOLD, 1)
-	_txt("PICK THE PERK YOUR RUNS START WITH", cx, size.y * 0.185, int(18 * k), TEXT, 1)
+	_txt(
+		"CHOOSE A STARTING PERK AND ONE WEAPON FOR EACH SLOT",
+		cx,
+		size.y * 0.185,
+		int(18 * k),
+		TEXT,
+		1
+	)
 	var opts = g.loadout_options()
 	var sel = clampi(g.loadout_sel, 0, opts.size() - 1)
+	var perk_active = g.loadout_col == 0
+	_txt("STARTING PERK", loadout_rect(0).position.x, size.y * 0.235, int(14 * k), GOLD)
+	_txt("WEAPONS", loadout_slot_rect(0).position.x, size.y * 0.235, int(14 * k), GOLD)
 	for i in range(opts.size()):
 		var r = loadout_rect(i)
 		var chosen = opts[i]["id"] == g.meta.start_perk
 		if i == sel:
 			draw_rect(r, Color(0.176, 0.196, 0.22))
-			draw_rect(r, ACCENT, false, 2.0 * k)
+			draw_rect(r, ACCENT if perk_active else GRAY, false, 2.0 * k)
 		var base = r.position.y + 17.0 * k
 		_txt(
 			opts[i]["name"],
 			r.position.x + 10.0 * k,
 			base,
 			int(15 * k),
-			TEXT if i == sel or chosen else GRAY
+			TEXT if (i == sel and perk_active) or chosen else GRAY
 		)
 		if chosen:
 			_txt("CHOSEN", r.end.x - 10.0 * k, base, int(14 * k), GOLD, 2)
 	if opts.size() == 1:
 		_txt(
 			"YOU OWN NO STARTING PERKS YET: BUY THEM ON THE UNLOCKS PAGE",
-			cx,
-			size.y * 0.42,
-			int(16 * k),
-			GRAY,
-			1
+			loadout_rect(0).position.x,
+			size.y * 0.25 + 40.0 * k,
+			int(12 * k),
+			GRAY
 		)
-	_txt(opts[sel]["name"], cx, size.y * 0.84, int(26 * k), TEXT, 1)
-	_txt(opts[sel]["desc"], cx, size.y * 0.84 + 26.0 * k, int(16 * k), TEXT, 1)
+	var detail_name = opts[sel]["name"]
+	var detail_desc = opts[sel]["desc"]
+	for n in range(WeaponSlots.SLOTS.size()):
+		var slot = WeaponSlots.SLOTS[n]
+		var wopts = g.loadout_weapon_options(slot)
+		var cur = g.loadout_weapon_id(slot)
+		var cur_at = 0
+		for m in range(wopts.size()):
+			if wopts[m]["id"] == cur:
+				cur_at = m
+		var wr = loadout_slot_rect(n)
+		var active = not perk_active and n == g.loadout_slot
+		draw_rect(wr, Color(0.176, 0.196, 0.22) if active else Color(0.1, 0.11, 0.125))
+		draw_rect(wr, ACCENT if active else Color(0.3, 0.32, 0.36), false, 2.0 * k)
+		_txt(
+			WeaponSlots.SLOT_NAMES[slot],
+			wr.position.x + 10.0 * k,
+			wr.position.y + 18.0 * k,
+			int(12 * k),
+			GOLD
+		)
+		_txt(
+			wopts[cur_at]["name"],
+			wr.position.x + 10.0 * k,
+			wr.position.y + 42.0 * k,
+			int(18 * k),
+			TEXT if active else GRAY
+		)
+		_txt(
+			"%d OF %d OWNED" % [cur_at + 1, wopts.size()],
+			wr.end.x - 10.0 * k,
+			wr.position.y + 18.0 * k,
+			int(12 * k),
+			GRAY,
+			2
+		)
+		if active:
+			detail_name = wopts[cur_at]["name"]
+			detail_desc = wopts[cur_at]["desc"]
+			if wopts.size() > 1:
+				_txt(
+					"ENTER: NEXT",
+					wr.end.x - 10.0 * k,
+					wr.position.y + 42.0 * k,
+					int(12 * k),
+					ACCENT,
+					2
+				)
+	_txt(detail_name, cx, size.y * 0.84, int(26 * k), TEXT, 1)
+	_txt(detail_desc, cx, size.y * 0.84 + 26.0 * k, int(16 * k), TEXT, 1)
 	_txt(
-		"DAILY RUNS AND CUSTOM SEEDS START WITHOUT A STARTING PERK",
+		"YOUR LOADOUT IS USED IN EVERY RUN, THE DAILY RUN AND CUSTOM SEEDS TOO",
 		cx,
 		size.y * 0.9,
 		int(14 * k),
@@ -958,7 +1033,7 @@ func _draw_loadout(k: float, cx: float) -> void:
 		1
 	)
 	_txt(
-		"ARROWS OR D-PAD TO LOOK   ENTER, A OR A CLICK TO CHOOSE   ESC, B OR A CLICK BESIDE THE LIST TO GO BACK",
+		"UP / DOWN LOOK   LEFT / RIGHT SWITCH LIST   ENTER, A OR A CLICK CHOOSE   ESC, B OR A CLICK BESIDE THE LISTS BACK",
 		cx,
 		size.y * 0.955,
 		int(14 * k),
@@ -978,7 +1053,7 @@ const UNLOCK_GROUPS = {
 const UNLOCK_KIND_TEXT = {
 	"starting_perk": "START A RUN WITH THIS PERK",
 	"shop_item": "JOINS THE SHOP",
-	"weapon": "JOINS THE SHOP",
+	"weapon": "A WEAPON FOR THE LOADOUT PAGE",
 	"cosmetic": "A COSMETIC"
 }
 

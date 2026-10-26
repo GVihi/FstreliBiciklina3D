@@ -286,6 +286,8 @@ var saved_run_rounds = 0  # how many rounds that run has, for the CONTINUE butto
 var run_save_enabled = false  # true in the game itself: a check that builds a main leaves user://run.json alone
 var unlock_sel = 0  # highlighted entry (index into UNLOCKS) of the Unlocks page of the title screen
 var loadout_sel = 0  # highlighted row of the Loadout page (index into loadout_options)
+var loadout_col = 0  # which list of the Loadout page is active: 0 = starting perks, 1 = the three weapon slots
+var loadout_slot = 0  # highlighted weapon slot of the Loadout page (index into WeaponSlots.SLOTS)
 var unlock_msg = ""  # the last result shown on the Unlocks page ("BOUGHT", "NOT ENOUGH COINS", ...)
 var unlock_msg_t0 = -10.0  # g.time when unlock_msg was set; it fades after a few seconds
 
@@ -617,6 +619,53 @@ func loadout_options() -> Array:
 		if u["kind"] == "starting_perk" and meta.owns(u["id"]):
 			out.append({"id": u["id"], "perk": u["target"], "name": u["name"], "desc": u["desc"]})
 	return out
+
+
+# true when the player may use a weapon: every weapon is available from the first run unless data/unlocks.json
+# holds it back as a "weapon" unlock, and then it has to be bought
+func weapon_owned(id: String) -> bool:
+	for u in UNLOCKS:
+		if u["kind"] == "weapon" and u["target"] == id:
+			return meta.owns(u["id"])
+	return true
+
+
+# the rows of one weapon slot on the Loadout page: the weapons the player owns that fit the slot, the slot's
+# default first (the gadget slot starts with "NO GADGET"). Each row is {"id", "name", "desc"}.
+func loadout_weapon_options(slot: String) -> Array:
+	var out = []
+	var first = WeaponSlots.default_of(slot)
+	var ids = [first]
+	for id in WeaponSlots.table_of(slot):
+		if id != first:
+			ids.append(id)
+	for id in ids:
+		if id == first or (weapon_owned(id) and WEAPONS.has(id)):
+			out.append(
+				{
+					"id": id,
+					"name": WeaponSlots.display_name(slot, id),
+					"desc": WeaponSlots.display_desc(slot, id)
+				}
+			)
+	return out
+
+
+# the weapon a run starts with in a slot: the one chosen on the Loadout page while it is still owned, otherwise
+# the slot's default
+func loadout_weapon_id(slot: String) -> String:
+	var want = str(meta.weapon_choice.get(slot, ""))
+	for o in loadout_weapon_options(slot):
+		if o["id"] == want:
+			return want
+	return WeaponSlots.default_of(slot)
+
+
+# puts the three chosen weapons in their slots (every run, the Daily Run and a typed seed too)
+func apply_loadout() -> void:
+	equip_primary(loadout_weapon_id(WeaponSlots.PRIMARY))
+	equip_melee(loadout_weapon_id(WeaponSlots.MELEE))
+	equip_gadget(loadout_weapon_id(WeaponSlots.GADGET))
 
 
 # the perk a normal run starts with: the one chosen on the Loadout page while it is still owned, "" for none
@@ -1018,8 +1067,9 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	player.position = arena.start_position()
 	pvel = Vector3.ZERO
 	var start_perk_name = start_perk_id()
-	if start_perk_name != "" and ranked_run():  # a Daily Run or a typed seed starts the same for everybody
+	if start_perk_name != "":  # the Daily Run and a typed seed start with the chosen perk and weapons too
 		perks[start_perk_name] = true
+	apply_loadout()
 	if run_map.is_empty():
 		start_round()  # no map (it could not be generated): play the rounds in a line, as before
 	else:

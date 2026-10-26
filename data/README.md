@@ -114,7 +114,7 @@ Every entry has `id` (unique), `kind`, `target` and `tier` (1 to the length of t
 |---|---|---|---|
 | `starting_perk` | a perk id from `perks.json` | taken from the perk | the perk can be chosen to start a run with |
 | `shop_item` | an item id from `items.json` (not the heal, which is always on sale) | taken from the item | the item joins the shop pool |
-| `weapon` | a new id, for a weapon that does not exist yet | `name` and `desc` are written in the entry | the weapon joins the shop pool (Milestone C) |
+| `weapon` | a new id, for a weapon that does not exist yet | `name` and `desc` are written in the entry | the weapon can be chosen on the Loadout page for its slot once bought (Milestone C); it does not join the shop pool |
 | `cosmetic` | a new id | `name` and `desc` are written in the entry | the skin can be equipped (Milestone B); no entries yet, each one is added with its art |
 
 `planned: true` marks an entry whose target is not in the game yet (all four weapons today); the Unlocks page should show those as coming soon or leave them out. It is refused on a perk or an item, which exist. A thing can be unlocked once.
