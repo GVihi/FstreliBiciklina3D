@@ -270,6 +270,7 @@ var game_version = str(ProjectSettings.get_setting("application/config/version",
 var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / scores
 var pause_page = ""  # "" = pause menu, "settings" = settings panel, "controls", "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
+var setting_sel = 0  # highlighted row of the settings panel (keyboard / gamepad / mouse hover)
 var confirm_id = ""  # what the confirmation asks about: "restart" or "title"
 var confirm_sel = 0  # highlighted confirmation button: 0 = NO (the safe default), 1 = YES
 var confirm_t0 = 0.0  # g.time when the confirmation opened; YES is ignored for a moment after (double clicks)
