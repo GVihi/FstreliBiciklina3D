@@ -653,7 +653,7 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 - [ ] Offline and skip: if the website cannot be reached, the launcher screen says so and lets the player continue offline with the local save (see "Playing without an account" above); the login stays one click away in the title menu or settings (LOG IN / ACCOUNT entry) for a player who skipped it, so they can log in later without restarting
 - [ ] Show what is missed without an account in a small, non-nagging way (for example a grey "Online features off: log in" line on the title menu), and never block, delay or repeatedly ask the player
 - [ ] Build the launcher login against the REST API, with clear messages for a wrong password, no connection and a server error
-- [ ] After login the game knows the account (name, token) for the whole session, so saves, scores and XP go to the right account without asking again; a log out or an expired token drops the game back to playing without an account (and shows the login form again only on the next start), it never interrupts a run
+- [ ] After login the game knows the account (name, token) for the whole session, so saves, scores and XP go to the right account without asking again; a log out or an expired token drops the game back to playing without an account, it never interrupts a run, but it always tells the player: a clear "You were logged out, log in again to use online features" message (a toast or a notice on the title menu, shown right away, or as soon as the run ends if it happens mid-run) with a LOG IN button, and the login form is shown again on the next start
 - [ ] Show the account name, level and XP in the launcher after login
 
 ## API key (game to website, in the background)
