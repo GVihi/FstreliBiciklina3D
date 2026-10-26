@@ -87,7 +87,7 @@ Mostly vibe coded Godot game
 
 ### Deferred
 
-- [ ] Online leaderboard (future feature)
+- [ ] Online leaderboard (future feature; the website, the login and the API it needs are planned in Milestone N)
   - [ ] Submit scores to Django web leaderboard
     - [ ] Implement REST API on Django web service
     - [ ] Implement Seed and leaderboard display
@@ -463,6 +463,12 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [ ] Define the unlock list and price curve in a data table (like `data/items.json`)
 - [ ] Balance pass: the first runs with the starting loadout must be winnable but hard, and each unlock should feel meaningful
 - [ ] Reset progress option in Settings, with confirmation
+- [ ] XP and levels (the in-game side; the website shows the same numbers, see Milestone N)
+  - [ ] Decide what earns XP (for example score, kills, boss kills, finished rounds and runs, challenges) and write the XP table and the level curve in a data table (like `data/items.json`), so the numbers can be tuned without touching code
+  - [ ] Keep XP and level in the versioned save files (see `docs/SAVE_FILES.md`), separate from meta currency (XP is never spent, it only goes up)
+  - [ ] Show XP, level and a progress bar to the next level on the title screen, and the XP gained and any level-up on the run summary screen
+  - [ ] Decide whether a level unlocks anything (items, cosmetics, titles) or is only a number to show off
+  - [ ] Send XP and level to the website with the other progress (needs the account and API in Milestone N), and make sure the server is the one that adds up XP from the runs it is sent, so an edited number in a save file cannot raise a level
 
 ---
 
@@ -619,6 +625,94 @@ Today the game is first person only (the camera is the player's eyes and the gun
 
 ---
 
+# Milestone N: Website, Launcher & Online Services
+
+The game gets a home on the web: a new Django app on the existing website (Django + PostgreSQL + nginx + gunicorn, already running), a launcher where players log in, cloud saves, leaderboards, bug reports, and a proper installer with auto updates. Planning only for now: nothing below is built yet.
+
+> Design rules: the game talks to the website only through a REST API. The website, not the game, is the authority on accounts, XP and levels, leaderboards and which version is current. Only the superuser can publish a new game version. The game must stay playable offline: a missing network or a down website never blocks a run, it only delays syncing.
+
+## Website: Django app and REST API
+
+- [ ] Create a new Django app for the game on the existing website (decide the app name and URL prefix, for example `/fb3d/`), with its own models, migrations, templates and tests, so it does not touch the rest of the site
+- [ ] Write down the REST API in a short doc (`docs/WEBSITE_API.md`): endpoints, request and response shapes, error codes, auth headers, the API version in the URL (so an old game build keeps working after the API changes), and rate limits
+- [ ] Set up the REST API (Django REST Framework or similar) behind nginx and gunicorn, with HTTPS only, CORS closed (the game is not a browser), and request size limits (saves are small)
+- [ ] Keep the game's website code in the repo or next to it (decide which), and describe the deploy steps for Django + PostgreSQL + nginx + gunicorn (migrations, static files, restart) in `docs/`
+
+## Accounts and login
+
+- [ ] Account login through the REST API with username and password (use the website's existing accounts if there are any, and decide whether players can register in the game, on the website, or both)
+- [ ] Token-based session after login: the launcher gets a token (and a refresh token), keeps it on the player's PC in a protected place (Windows Credential Manager or an encrypted file, never the password), and sends it with every call; logging out deletes it
+- [ ] Password handling: the password only travels over HTTPS and is never stored or logged by the game, the website uses Django's password hashing, and failed logins are rate-limited
+- [ ] Password reset and email confirmation through the website (reuse what the site already has)
+- [ ] Decide what an offline player sees: the game still starts and plays with the local save, and logs in and syncs later
+
+## Launcher
+
+- [ ] Design the launcher screen: login form (username, password, remember me), a PLAY button, the installed game version, "update available" status, and a link to the website and the bug report page
+- [ ] Decide whether the launcher is a separate small program that starts the game, or the first screen inside the game (a separate program makes auto update easier because the game files are not in use while they are replaced)
+- [ ] Build the launcher login against the REST API, with clear messages for a wrong password, no connection and a server error
+- [ ] Launcher starts the game with the logged-in account, so the game knows who is playing without asking again
+- [ ] Show the account name, level and XP in the launcher after login
+
+## API key (game to website, in the background)
+
+- [ ] Create an API key for the game build and use it for the background calls between the game and the website (version check, score submit, save sync), next to the player's login token, so calls that do not come from a real build of the game can be rejected
+- [ ] Store the key encrypted: on the server only a hash (or the key in an encrypted settings value, not in the repo or in plain text in the database), and in the game build encrypted and obfuscated, not as a plain string in a script or in `project.godot`; keys are never committed to the repository (`.gitignore` and a secrets check in CI)
+- [ ] Support key rotation: the server accepts a new and an old key for a while, the game build carries the current one, and a leaked key can be switched off from the Django admin
+- [ ] Be honest about the limit in the docs: a key inside a game that runs on the player's PC can be extracted by someone determined, so it is one layer, not the only one. The server must still check the player's token, validate every submitted score and save, and rate-limit per account
+
+## Cloud saves (like Steam Cloud)
+
+- [ ] Keep the local save file exactly as it is today (see `docs/SAVE_FILES.md`): the game always reads and writes the local file, and the cloud is a copy
+- [ ] Upload the save to the website for each user after a run ends, when the player quits, and on a timer, in the background and without blocking the game (one current save per account, plus a few older versions to roll back to; decide how many)
+- [ ] On login on a new PC (or with no local save), offer to download the cloud save so the player can continue
+- [ ] Conflict handling when the local and the cloud save differ (for example two PCs played offline): compare the save version, the save time and the XP, and ask the player which one to keep ("Use cloud save / Use this PC's save"), never overwrite silently, and keep a `.bak` of whatever is replaced (same rule as the version safety in `docs/SAVE_FILES.md`)
+- [ ] Sync status in the game and launcher (synced, syncing, offline, conflict), and a manual SYNC NOW button
+- [ ] Server side: store saves per user in PostgreSQL (or on disk with the path in the database), with a size limit, a save-format version check, and the rule that a save from a newer game version is kept but never loaded by an older build
+
+## Save file protection
+
+- [ ] Check what the save files look like today (`settings`, `scores.json`, meta currency, unlocks): which ones hold anything worth cheating with (meta coins, unlocks, XP, level, scores) and which are only settings; protect the first group and leave plain settings readable
+- [ ] Encrypt the save files so they cannot be opened in a text editor and edited (Godot's `FileAccess.open_encrypted_with_pass`, or an own format with authenticated encryption), with the key kept out of plain sight in the build and, if possible, derived partly from the account
+- [ ] Add tamper detection on top of encryption: a signature or HMAC over the save contents, a check on load, and a clear rule for what happens when it fails (refuse to load that save, keep it as `.bad` for inspection, fall back to the last good backup or a fresh save, and tell the player)
+- [ ] Keep it compatible with the versioned save files (see `docs/SAVE_FILES.md`): an old plain save from before this item is read once, upgraded and written back encrypted, and a `.bak` is made first
+- [ ] Do not trust the client for anything that matters online: the server checks submitted scores, recomputes XP from the runs it is sent, and treats a cloud save that fails its signature or has impossible values as invalid
+- [ ] Be honest about the limit in the docs: a determined player can always attack a game on their own PC, so the goal is to stop casual editing in a text editor, and to keep cheated saves and scores off the website's leaderboards
+- [ ] Check: `tools/save_protection_check.gd` (with a `tools\run_save_protection_check.bat` next to it, as the testing rule asks) saves, loads, edits one byte, loads again and checks that the edit is caught
+
+## Leaderboards and the player's account page
+
+- [ ] Submit scores from the game to the website after a ranked run (builds on the local Top 10 and the Daily Run in Milestone A), with the run seed, score, time, kills, rounds and game version, and validate them on the server (sanity limits, the same seed rules as the game, and no scores from versions that are no longer allowed)
+- [ ] Website leaderboards: all-time, daily (same seed for everyone that day, see Daily Seed Mode in Milestone A) and per difficulty once Heat exists (Milestone B), with the player's own rank highlighted
+- [ ] Leaderboard in the game itself (an ONLINE tab next to the local High Scores page) that reads from the API and shows a clear message when offline
+- [ ] Account overview page on the website: account name, level, XP and progress to the next level, runs played, best scores, total kills, bosses defeated and the unlocks the account owns
+- [ ] Progression page: XP and level over time (a small chart), recent runs with their results, and challenges or achievements done (when they exist, see Milestone B)
+- [ ] Show the same XP and level in the game (see "XP and levels" in Milestone I), and make the website the source when the two disagree
+- [ ] Privacy basics: what the website stores about a player, a page that says so, and a way to delete the account and its saves
+
+## Bug reports
+
+- [ ] Bug report page on the website (logged-in players): title, what happened, what was expected, steps to repeat, game version and an optional screenshot, saved in the database and listed in the Django admin with a status (new, seen, fixed)
+- [ ] "Report a bug" button in the launcher and on the pause menu that opens the report page, or sends a report through the API with the game version, the account name and the end of the game log filled in (decide which; the log must never include the password, the token or the API key)
+- [ ] Limit abuse: one report form rate limit per account and a size limit on text and images
+- [ ] Optional: email or message to the owner when a new report comes in
+
+## Installer and auto updates
+
+- [ ] Proper Windows installer (`.exe`), built from the export in `build/windows/FB3D.exe` (see "Configure Windows export presets" in Milestone E): installs into Program Files or the user's folder, adds a Start Menu entry and a desktop shortcut, and has an uninstaller that leaves the saves alone unless asked (decide the tool, for example Inno Setup or NSIS; written as a script in the repo so the build can be repeated)
+- [ ] Fill in the Windows version information (`application/file_version` and `application/product_version` in `export_presets.cfg`, read from `config/version`) and decide about code signing the installer and the exe (without a signature Windows SmartScreen shows a warning)
+- [ ] Version check through the website: the launcher asks the API for the newest version (and the minimum version still allowed) when it starts, and shows "Update available" or "Update required"
+- [ ] Download and install updates automatically: the launcher downloads the new version from the website, checks its checksum (and signature) before using it, replaces the game files while the game is not running, keeps the saves, and can roll back if the update fails; decide between a full installer download and a smaller patch
+- [ ] Release publishing, superuser only: a page in the Django admin (or a small form) where only the superuser uploads a new build, enters its version and release notes, and marks it as the current one; the website stores the file's checksum, nobody else (not even logged-in staff) can publish, and old versions can be kept or withdrawn
+- [ ] Show the release notes (what changed) in the launcher before or after an update
+- [ ] Decide how the version number is kept in step: `config/version` in `project.godot` stays the one place the game's version is written (see "Show the game version on the title screen" in Milestone E), and the release page on the website reads or checks against it
+
+## Suggested order inside this milestone
+
+> Roughly: API doc and Django app, then accounts and login, then the launcher, then the API key, then save protection (before saves go online, so no unprotected save is ever uploaded), then cloud saves, then leaderboards, the account page and XP, then bug reports, and last the installer and auto updates (they need a stable launcher and API first).
+
+---
+
 # Tooling & QA
 
 - [ ] Playtest pass of everything built in Milestone A (title, pause, settings, run, win / lose, leaderboard, name entry). It was written without running the game
@@ -664,3 +758,4 @@ Today the game is first person only (the camera is the player's eyes and the gun
 - [ ] Milestone K: Procedural arenas (big: replaces how riders and bosses move; start with the "Foundation" steps, which keep the roundabout playing as today)
 - [ ] Milestone L: Jumping (small and independent; Space is the dash key today, so dash moves to another key first); now also holds the fast S4 League style movement: wall-jumps and the side dash / dodge
 - [ ] Milestone M: First and third person view (needs a player body model; best after Milestone L, so the new movement can be seen on the character)
+- [ ] Milestone N: Website, launcher and online services (Django app and API, login, cloud saves, save protection, leaderboards, bug reports, installer and auto updates; mostly independent of the gameplay milestones, but XP and levels live in Milestone I, and the online leaderboard builds on Milestone A)
