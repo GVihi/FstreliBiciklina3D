@@ -21,6 +21,7 @@ const AmbushScript = preload("res://scripts/ambush.gd")
 const ExploreScript = preload("res://scripts/explore_map.gd")
 const SfxScript = preload("res://scripts/sfx.gd")
 const Content = preload("res://scripts/content.gd")
+const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 const SettingsScript = preload("res://scripts/settings.gd")
 const PedestriansScript = preload("res://scripts/pedestrians.gd")
 const PickupsScript = preload("res://scripts/pickups.gd")
@@ -90,7 +91,7 @@ const DEFAULT_PER_ROUND = 10
 var PER_ROUND = 10  # riders in this round: DEFAULT_PER_ROUND, or what the node says (plan_riders)
 var MAX_ROUNDS = 10  # a run is this many rounds; clearing the last one wins the run
 var NEED = 6  # hits that clear a round where riders can get away (the roundabout); see hits_needed()
-var MAXSHELLS = int(Content.WEAPONS["dart_gun"]["start_clip"])
+var MAXSHELLS = int(Content.WEAPONS[WeaponSlots.PRIMARY_DEFAULT]["start_clip"])
 var MAXHEARTS = 3
 # game content tables live in content.gd; same names, so the HUD still reads g.NAME
 var OVER_MSG = Content.OVER_MSG
@@ -186,7 +187,10 @@ var bird_t = 3.0
 var invuln = 0.0
 
 # v4: hype, buffs, melee, upgrades
-var melee = false
+var primary = WeaponSlots.PRIMARY_DEFAULT  # the weapon in the primary slot (an id of data/weapons.json), see weapon_slots.gd
+var melee_weapon = WeaponSlots.MELEE_DEFAULT  # the weapon in the melee slot (an id of data/weapons.json)
+var gadget = WeaponSlots.NO_GADGET  # the gadget in the gadget slot (an id of data/weapons.json, "" = empty)
+var melee = false  # true while the melee weapon is the one in the player's hands
 var swing_t = 0.0
 var swing_cd = 0.0
 var swing_dir = 1.0
@@ -202,7 +206,7 @@ var shop_lvl = {}  # how many times each tiered upgrade was bought in the shop (
 var shop_buys = 0  # purchases this run: every one makes the next ones dearer
 var shop_rerolls = 0  # rerolls in the current shop
 var pending = {"rapid": 0.0, "big": 0.0, "shield": false, "hype": false, "free": 0}  # packs, used up at the start of the next round
-var pump_base = float(Content.WEAPONS["dart_gun"]["pump_start"])
+var pump_base = float(Content.WEAPONS[WeaponSlots.PRIMARY_DEFAULT]["pump_start"])
 var pump_dur = 0.2
 
 # shotgun
@@ -787,10 +791,68 @@ func pause_on_focus_loss() -> bool:
 	return true
 
 
+# ================================================================== weapon slots
+# The tuning numbers (data/weapons.json) of the weapon in the primary slot.
+func primary_stats() -> Dictionary:
+	return WEAPONS[primary]
+
+
+# The tuning numbers (data/weapons.json) of the weapon in the melee slot.
+func melee_stats() -> Dictionary:
+	return WEAPONS[melee_weapon]
+
+
+# The tuning numbers (data/weapons.json) of the gadget in the gadget slot; empty when the slot is empty.
+func gadget_stats() -> Dictionary:
+	return WEAPONS[gadget] if WeaponSlots.is_gadget(gadget) and WEAPONS.has(gadget) else {}
+
+
+# Puts a gadget in the gadget slot, or empties it (an empty id). Refuses (returns false and changes nothing) an id
+# that cannot be in the gadget slot. There are no gadgets yet, so today only emptying the slot works. Nothing
+# calls this yet but the checks.
+func equip_gadget(id) -> bool:
+	if typeof(id) == TYPE_STRING and id == WeaponSlots.NO_GADGET:
+		gadget = WeaponSlots.NO_GADGET
+		return true
+	if not WeaponSlots.is_gadget(id) or not WEAPONS.has(id):
+		return false
+	gadget = id
+	return true
+
+
+# Puts a weapon in the melee slot. Refuses (returns false and changes nothing) an id that cannot be in the melee
+# slot. A swing in progress finishes with the numbers it started with. Nothing calls this yet but the checks.
+func equip_melee(id) -> bool:
+	if not WeaponSlots.is_melee_weapon(id) or not WEAPONS.has(id):
+		return false
+	melee_weapon = id
+	return true
+
+
+# Puts a weapon in the primary slot and gives it its starting magazine and pump time. Refuses (returns false and
+# changes nothing) an id that cannot be in the primary slot. A reload in progress is stopped, because it was
+# loading the old weapon. Nothing calls this yet but the checks: choosing a starting weapon is the Loadout
+# screen (Milestone I) and finding or buying one is the Milestone C weapons.
+func equip_primary(id) -> bool:
+	if not WeaponSlots.is_primary_weapon(id) or not WEAPONS.has(id):
+		return false
+	if id == primary:
+		return true
+	combat_sys.interrupt_load()
+	primary = id
+	MAXSHELLS = int(primary_stats()["start_clip"])
+	shells = MAXSHELLS
+	pump_base = float(primary_stats()["pump_start"])
+	return true
+
+
 # ================================================================== game flow
 func reset_run() -> void:
-	MAXSHELLS = int(WEAPONS["dart_gun"]["start_clip"])
-	pump_base = float(WEAPONS["dart_gun"]["pump_start"])
+	primary = WeaponSlots.PRIMARY_DEFAULT
+	melee_weapon = WeaponSlots.MELEE_DEFAULT
+	gadget = WeaponSlots.NO_GADGET
+	MAXSHELLS = int(primary_stats()["start_clip"])
+	pump_base = float(primary_stats()["pump_start"])
 	pump_dur = 0.2
 	MAXHEARTS = 3
 	melee = false

@@ -8,6 +8,7 @@ extends RefCounted
 # File format: {"version": 1, "run": {...}}. Every value is cast and clamped on load, so a hand-edited file cannot crash.
 
 const SaveUtil = preload("res://scripts/save_util.gd")
+const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 const PATH = "user://run.json"
 const VERSION = 1
 # a check sets this to another file, so it never touches the player's own saved run (empty = the real file)
@@ -146,6 +147,9 @@ static func capture(g) -> Dictionary:
 		"hype": g.hype,
 		"hype_gain": g.hype_gain,
 		"melee": g.melee,
+		"primary": g.primary,
+		"melee_weapon": g.melee_weapon,
+		"gadget": g.gadget,
 		"score": g.score,
 		"combo": g.combo,
 		"best_combo": g.best_combo,
@@ -181,6 +185,11 @@ static func clean(raw: Dictionary) -> Dictionary:
 	for key in BOOL_KEYS:
 		out[key] = _flag(raw.get(key, BOOL_KEYS[key]))
 	out["daily_date"] = str(raw.get("daily_date", ""))
+	out["primary"] = WeaponSlots.primary_or_default(raw.get("primary", WeaponSlots.PRIMARY_DEFAULT))
+	out["melee_weapon"] = WeaponSlots.melee_or_default(
+		raw.get("melee_weapon", WeaponSlots.MELEE_DEFAULT)
+	)
+	out["gadget"] = WeaponSlots.gadget_or_none(raw.get("gadget", WeaponSlots.NO_GADGET))
 	out["run_seed"] = clampi(out["run_seed"], 0, 0xFFFFFFFF)
 	out["round_n"] = clampi(out["round_n"], 1, MAX_ROUNDS_SAVED)
 	out["map_floor"] = clampi(out["map_floor"], -1, MAX_ROUNDS_SAVED)
@@ -254,6 +263,9 @@ static func apply(g, data: Dictionary) -> void:
 	g.hype = data["hype"]
 	g.hype_gain = data["hype_gain"]
 	g.melee = data["melee"]
+	g.primary = data["primary"]
+	g.melee_weapon = data["melee_weapon"]
+	g.gadget = data["gadget"]
 	g.score = data["score"]
 	g.combo = data["combo"]
 	g.best_combo = data["best_combo"]

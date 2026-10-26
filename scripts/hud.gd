@@ -8,6 +8,7 @@ var arrows: Array = []  # the edge arrows drawn on the last frame, strongest fir
 
 const Toon = preload("res://scripts/toon.gd")
 const Threats = preload("res://scripts/threats.gd")
+const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 
 const GOLD = Color(0.95, 0.71, 0.19)
 const RED = Color(0.9, 0.33, 0.24)
@@ -1942,7 +1943,10 @@ func _draw_bottom(k: float) -> void:
 	# weapon + sound status, bottom right
 	var wcol = PINK if g.melee else TEXT
 	_txt(
-		("MELEE" if g.melee else "DARTS") + "  [Q] SWITCH",
+		(
+			(WeaponSlots.melee_label(g.melee_weapon) if g.melee else WeaponSlots.label(g.primary))
+			+ "  [Q] SWITCH"
+		),
 		size.x - 12.0 * k,
 		size.y - 14.0 * k,
 		int(13 * k),

@@ -63,7 +63,7 @@ The numbers are first guesses: a won run should be worth roughly 1,000 to 1,500 
 
 ## `weapons.json`
 
-Tuning numbers for the two player weapons, `dart_gun` and `melee` (the gummy worm). Loaded by `scripts/weapons.gd`. A missing or non-numeric value is logged with `push_error` and replaced by a built-in fallback (listed in `weapons.gd`, same values as shipped), and unknown keys are logged and ignored, so check the Godot output panel after editing. There is no new weapon type here yet: adding one still needs code.
+Tuning numbers for the two player weapons, `dart_gun` and `melee` (the gummy worm). Loaded by `scripts/weapons.gd`. A missing or non-numeric value is logged with `push_error` and replaced by a built-in fallback (listed in `weapons.gd`, same values as shipped), and unknown keys are logged and ignored, so check the Godot output panel after editing. There is no new weapon type here yet: adding one still needs code. The player carries one weapon in the **primary slot** (`scripts/weapon_slots.gd`): a weapon id from this file, `dart_gun` for now. A weapon can only be put in the slot if it is listed in `PRIMARY_WEAPONS` there, and the scripts that fire, reload and upgrade the gun read the numbers of the weapon in the slot, so a new primary weapon needs an entry here and an entry there. `melee` is not a primary weapon: the gummy worm sits in the **melee slot**, which works the same way (`MELEE_WEAPONS` in `weapon_slots.gd`, read through `melee_stats()`). The third slot, the **gadget slot** (`GADGET_WEAPONS`, read through `gadget_stats()`), is empty because no gadget exists yet.
 
 **`dart_gun`**
 

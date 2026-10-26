@@ -299,7 +299,7 @@ func perfect_dodge() -> void:
 
 
 func current_spread() -> float:
-	var w = g.WEAPONS["dart_gun"]
+	var w = g.primary_stats()
 	var s = lerpf(float(w["spread_hip"]), float(w["spread_aimed"]), g.ads_t)
 	s *= 1.0 + clampf(g.pvel.length() / g.RUN, 0.0, 1.0) * float(w["spread_move_extra"])
 	s *= lerpf(1.0, float(w["spread_crouch_mul"]), g.crouch_t)
@@ -310,9 +310,9 @@ func current_spread() -> float:
 
 func cur_pump() -> float:
 	if g.buffs["rapid"] > 0.0:
-		return float(g.WEAPONS["dart_gun"]["rapid_pump"])
+		return float(g.primary_stats()["rapid_pump"])
 	if g.hype_t > 0.0:
-		return g.pump_base * float(g.WEAPONS["dart_gun"]["hype_pump_mul"])
+		return g.pump_base * float(g.primary_stats()["hype_pump_mul"])
 	return g.pump_base
 
 
