@@ -208,7 +208,12 @@ func on_pad_button(btn: int) -> void:
 
 
 func menu_move(d: int) -> void:
-	if g.state == "map":
+	if g.state == "title" and g.title_page == "unlocks":
+		var other = g.hud.unlock_other_column(g.unlock_sel)  # Left / Right: to the other column
+		if other != g.unlock_sel:
+			g.unlock_sel = other
+			g.sfx.play("click")
+	elif g.state == "map":
 		g.map_sel = posmod(g.map_sel + d, maxi(1, g.map_choices.size()))
 	elif g.state == "upgrade":
 		g.menu_sel = posmod(g.menu_sel + d, maxi(1, g.offers.size()))
@@ -320,6 +325,12 @@ func hover_menu(pos: Vector2) -> void:
 	var si = g.hud.scores_confirm_at(pos)
 	if si >= 0:
 		g.confirm_sel = si
+	var ui = g.hud.unlock_at(pos)
+	if ui >= 0:
+		g.unlock_sel = ui
+	var li = g.hud.loadout_at(pos)
+	if li >= 0:
+		g.loadout_sel = li
 	if g.state == "map":
 		var mi = g.hud.map_choice_at(pos)
 		if mi >= 0:
@@ -330,6 +341,12 @@ func hover_menu(pos: Vector2) -> void:
 func title_move(d: int) -> void:
 	if g.state == "title" and g.title_page == "":
 		g.title_sel = posmod(g.title_sel + d, g.hud.TITLE_ITEMS.size())
+		g.sfx.play("click")
+	elif g.state == "title" and g.title_page == "loadout":
+		g.loadout_sel = posmod(g.loadout_sel + d, g.loadout_options().size())
+		g.sfx.play("click")
+	elif g.state == "title" and g.title_page == "unlocks" and not g.UNLOCKS.is_empty():
+		g.unlock_sel = posmod(g.unlock_sel + d, g.UNLOCKS.size())
 		g.sfx.play("click")
 
 
@@ -343,6 +360,12 @@ func title_back() -> void:
 func title_activate(i: int) -> void:
 	if g.title_page == "scores_confirm":
 		scores_confirm_activate(g.confirm_sel)  # Enter / A on the highlighted NO or YES
+		return
+	if g.title_page == "loadout":
+		loadout_pick()  # Enter / A chooses the highlighted row; Esc / B go back
+		return
+	if g.title_page == "unlocks":
+		unlock_buy()  # Enter / A buys the highlighted unlock; Esc / B go back
 		return
 	if g.title_page != "":
 		title_back()
@@ -362,8 +385,46 @@ func title_activate(i: int) -> void:
 		g.title_page = id
 		g.sfx.play("click")
 	else:
+		if id == "loadout":
+			g.loadout_sel = 0
+			var opts = g.loadout_options()
+			for n in range(opts.size()):
+				if opts[n]["id"] == g.meta.start_perk:
+					g.loadout_sel = n  # open on the row that is chosen now
+		if id == "unlocks":
+			g.unlock_sel = 0
+			g.unlock_msg = ""
 		g.title_page = id  # loadout / unlocks / scores / settings
 		g.sfx.play("click")
+
+
+# ---- choosing the starting perk on the Loadout page (Enter, gamepad A or a click on a row)
+func loadout_pick() -> void:
+	if g.state != "title" or g.title_page != "loadout":
+		return
+	var opts = g.loadout_options()
+	var o = opts[clampi(g.loadout_sel, 0, opts.size() - 1)]
+	g.meta.choose_start_perk(str(o["id"]))
+	g.sfx.play("click")
+
+
+# ---- buying on the Unlocks page (Enter, gamepad A or a click on the BUY button; texts are in hud.gd)
+const UNLOCK_MESSAGES = {
+	"bought": "BOUGHT",
+	"owned": "YOU ALREADY OWN THIS",
+	"soon": "NOT IN THE GAME YET",
+	"locked": "NOT ENOUGH COINS"
+}
+
+
+func unlock_buy() -> void:
+	if g.state != "title" or g.title_page != "unlocks" or g.UNLOCKS.is_empty():
+		return
+	var u = g.UNLOCKS[clampi(g.unlock_sel, 0, g.UNLOCKS.size() - 1)]
+	var result = g.meta.buy(u)
+	g.unlock_msg = UNLOCK_MESSAGES.get(result, "")
+	g.unlock_msg_t0 = g.time
+	g.sfx.play("pickup" if result == "bought" else "click")
 
 
 # ---- reset leaderboard (High Scores page of the title screen; texts and buttons are in hud.gd)
@@ -419,7 +480,7 @@ func pause_activate(i: int) -> void:
 	var id = g.hud.PAUSE_ITEMS[i]["id"]
 	if id == "resume":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	elif id == "settings" or id == "controls":
+	elif id == "settings" or id == "controls" or id == "map":
 		g.pause_page = id
 		g.sfx.play("click")
 	elif id == "restart" or id == "title":  # both lose the run, so ask first (NO is the default)
@@ -466,6 +527,22 @@ func on_click() -> void:
 		elif g.title_page == "seed":
 			if g.hud.seed_start_rect().has_point(mp):
 				seed_start()
+			else:
+				title_back()
+		elif g.title_page == "loadout":
+			var li = g.hud.loadout_at(mp)
+			if li >= 0:
+				g.loadout_sel = li
+				loadout_pick()
+			else:
+				title_back()
+		elif g.title_page == "unlocks":
+			var ui = g.hud.unlock_at(mp)
+			if g.hud.unlock_buy_rect().has_point(mp):
+				unlock_buy()
+			elif ui >= 0:
+				g.unlock_sel = ui
+				g.sfx.play("click")
 			else:
 				title_back()
 		elif g.title_page == "scores_confirm":
@@ -516,8 +593,8 @@ func on_click() -> void:
 				var ci = g.hud.confirm_at(pmp)
 				if ci >= 0:
 					confirm_activate(ci)
-			elif g.pause_page == "controls":
-				pause_back()  # a click anywhere closes the controls page
+			elif g.pause_page == "controls" or g.pause_page == "map":
+				pause_back()  # a click anywhere closes the controls page and the map
 			else:
 				var pi = g.hud.pause_at(pmp)
 				if pi >= 0:

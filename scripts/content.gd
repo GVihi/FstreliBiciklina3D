@@ -2,6 +2,7 @@ extends RefCounted
 const Items = preload("res://scripts/items.gd")
 const Perks = preload("res://scripts/perks.gd")
 const Weapons = preload("res://scripts/weapons.gd")
+const Unlocks = preload("res://scripts/unlocks.gd")
 # Game content tables: round messages, rider types, themes, boss stats, drops, perks, duos and upgrades.
 # Shop items, packs and upgrade tiers live in data/items.json (items.gd); perks and duos in data/perks.json (perks.gd);
 # weapon tuning (dart gun, melee) in data/weapons.json (weapons.gd).
@@ -156,3 +157,5 @@ static var SHOP_POOL = ITEM_TABLE["items"] + PERKS
 static var DUOS = PERK_TABLE["duos"]
 static var UPGRADES = ITEM_TABLE["upgrades"]
 static var WEAPONS = Weapons.load_table()
+# what meta coins can buy, from data/unlocks.json (unlocks.gd); only the Unlocks page reads it so far
+static var UNLOCK_TABLE = Unlocks.load_table()

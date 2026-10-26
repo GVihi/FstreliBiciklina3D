@@ -293,8 +293,15 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	if g.shots_fired > 0:
 		acc = int(round(100.0 * g.shots_hit / g.shots_fired))
 	var coin_label = "META COINS"
-	if g.meta.boss_coins > 0:
+	var challenge_coins = g.challenges.coins
+	if g.meta.boss_coins > 0 and challenge_coins > 0:
+		coin_label = (
+			"META COINS (%d FROM BOSSES, %d FROM CHALLENGES)" % [g.meta.boss_coins, challenge_coins]
+		)
+	elif g.meta.boss_coins > 0:
 		coin_label = "META COINS (%d FROM BOSSES)" % g.meta.boss_coins
+	elif challenge_coins > 0:
+		coin_label = "META COINS (%d FROM CHALLENGES)" % challenge_coins
 	var rcols = [GRAY, TEXT, Color(0.35, 0.7, 0.42), GOLD, ACCENT]
 	var letters = ["D", "C", "B", "A", "S"]
 	var lx = cx - 190.0 * k
@@ -309,6 +316,11 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		["ROUND REACHED", "%d / %d" % [g.round_n, g.MAX_ROUNDS], TEXT],
 		["RUN TIME", g.fmt_time(g.play_time + g.shop_time), TEXT],
 		["BEST COMBO", "x%d" % g.best_combo, TEXT],
+		[
+			"CHALLENGES",
+			"%d / %d" % [g.challenges.done.size(), g.challenges.table.size()],
+			GOLD if g.challenges.done.size() > 0 else TEXT
+		],
 		[coin_label, "+%d" % g.meta_earned, GOLD]
 	]
 	for i in range(rows.size()):
@@ -317,6 +329,9 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		_txt(rows[i][0], lx, y, int(20 * k), GRAY)
 		_txt(rows[i][1], rx, y, int(24 * k), rows[i][2], 2)
 	var uy = y0 + rows.size() * step + 14.0 * k
+	for line in _challenge_summary_lines():
+		_txt(line[0], cx, uy, int(18 * k), line[1], 1)
+		uy += 24.0 * k
 	if g.score > 0 and g.score >= g.hi and g.ranked_run():
 		_txt("NEW HIGH SCORE", cx, uy, int(24 * k), GOLD, 1)
 		uy += 34.0 * k
@@ -365,24 +380,22 @@ const TITLE_ITEMS = [
 	{"id": "play", "label": "PLAY"},
 	{"id": "daily", "label": "DAILY RUN"},
 	{"id": "seed", "label": "CUSTOM SEED"},
-	{"id": "loadout", "label": "LOADOUT", "soon": true},
-	{"id": "unlocks", "label": "UNLOCKS", "soon": true},
+	{"id": "loadout", "label": "LOADOUT"},
+	{"id": "unlocks", "label": "UNLOCKS"},
+	{"id": "challenges", "label": "CHALLENGES"},
 	{"id": "scores", "label": "HIGH SCORES"},
 	{"id": "controls", "label": "CONTROLS"},
 	{"id": "settings", "label": "SETTINGS"},
 	{"id": "quit", "label": "QUIT"}
 ]
-const TITLE_PAGES = {
-	"loadout": ["LOADOUT", "PICK YOUR STARTING WEAPON AND PERK BEFORE A RUN."],
-	"unlocks": ["UNLOCKS", "SPEND WHAT YOU EARN ON PERMANENT UNLOCKS BETWEEN RUNS."]
-}
+const TITLE_PAGES = {}
 
 
 func title_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var w = 320.0 * k
-	var h = 34.0 * k
-	return Rect2((size.x - w) * 0.5, size.y * 0.345 + i * (h + 5.0 * k), w, h)
+	var h = 31.0 * k  # ten buttons: 31 high with a gap of 4 end where nine of 34 and 5 did
+	return Rect2((size.x - w) * 0.5, size.y * 0.345 + i * (h + 4.0 * k), w, h)
 
 
 func title_at(pos: Vector2) -> int:
@@ -402,9 +415,9 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		var on = g.title_sel == i  # the mouse updates title_sel in input.gd (hover_menu)
 		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
 		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
-		var base = r.position.y + 25.0 * k
+		var base = r.position.y + 23.0 * k
 		_txt(
-			item["label"], r.position.x + r.size.x * 0.5, base, int(22 * k), TEXT if on else GRAY, 1
+			item["label"], r.position.x + r.size.x * 0.5, base, int(20 * k), TEXT if on else GRAY, 1
 		)
 		if item.get("soon", false):
 			_txt("SOON", r.position.x + r.size.x - 12.0 * k, base - 2.0 * k, int(12 * k), GRAY, 2)
@@ -432,6 +445,125 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		GRAY,
 		1
 	)
+
+
+# Lines under the run summary table: the challenges done in this run (NEW for the first time ever, with the
+# coins) and then the progress of the ones that were not done. Three lines at most, the rest is counted.
+const CHALLENGE_LINES = 3
+
+
+func _challenge_summary_lines() -> Array:
+	var lines = []
+	var ch = g.challenges
+	for c in ch.table:
+		if ch.done.has(c["id"]):
+			var tag = "NEW  " if ch.new_ids.has(c["id"]) else ""
+			lines.append(["%s%s  +%d" % [tag, c["name"], c["reward"]], GOLD])
+	for c in ch.table:
+		var p = ch.progress_text(c)
+		if p != "" and not ch.done.has(c["id"]):
+			lines.append(["%s  %s" % [c["name"], p], GRAY])
+	if lines.size() > CHALLENGE_LINES:
+		var more = lines.size() - (CHALLENGE_LINES - 1)
+		lines = lines.slice(0, CHALLENGE_LINES - 1)
+		lines.append(["AND %d MORE" % more, GRAY])
+	return lines
+
+
+# A round badge with a small icon (the "icon" of a challenge): gold once the achievement is unlocked, dim before.
+func _draw_badge(c: Vector2, r: float, icon: String, on: bool, k: float) -> void:
+	var col = GOLD if on else Color(0.38, 0.4, 0.43)
+	var w = 2.0 * k
+	draw_circle(c, r, Color(0.13, 0.14, 0.16))
+	draw_arc(c, r, 0.0, TAU, 32, col, w)
+	if icon == "no_gun":
+		draw_rect(Rect2(c + Vector2(-0.55, -0.15) * r, Vector2(1.1, 0.3) * r), col)
+		draw_line(
+			c + Vector2(-0.6, 0.6) * r, c + Vector2(0.6, -0.6) * r, Color(0.13, 0.14, 0.16), 4.0 * k
+		)
+		draw_line(c + Vector2(-0.6, 0.6) * r, c + Vector2(0.6, -0.6) * r, col, w)
+	elif icon == "crate":
+		draw_rect(Rect2(c + Vector2(-0.5, -0.5) * r, Vector2(1.0, 1.0) * r), col, false, w)
+		draw_line(c + Vector2(-0.5, -0.5) * r, c + Vector2(0.5, 0.5) * r, col, w)
+		draw_line(c + Vector2(-0.5, 0.5) * r, c + Vector2(0.5, -0.5) * r, col, w)
+	elif icon == "chevrons":
+		for dx in [-0.4, 0.1]:
+			var pts = PackedVector2Array(
+				[
+					c + Vector2(dx, -0.5) * r,
+					c + Vector2(dx + 0.4, 0.0) * r,
+					c + Vector2(dx, 0.5) * r
+				]
+			)
+			draw_polyline(pts, col, w)
+	elif icon == "heart":
+		draw_circle(c + Vector2(-0.25, -0.15) * r, 0.3 * r, col)
+		draw_circle(c + Vector2(0.25, -0.15) * r, 0.3 * r, col)
+		draw_colored_polygon(
+			PackedVector2Array(
+				[
+					c + Vector2(-0.53, -0.02) * r,
+					c + Vector2(0.53, -0.02) * r,
+					c + Vector2(0.0, 0.6) * r
+				]
+			),
+			col
+		)
+	elif icon == "clock":
+		draw_arc(c, 0.55 * r, 0.0, TAU, 24, col, w)
+		draw_line(c, c + Vector2(0.0, -0.4) * r, col, w)
+		draw_line(c, c + Vector2(0.3, 0.0) * r, col, w)
+	else:
+		var star = PackedVector2Array()
+		for i in range(10):
+			var a = -PI * 0.5 + i * PI / 5.0
+			var rr = (0.6 if i % 2 == 0 else 0.26) * r
+			star.append(c + Vector2(cos(a), sin(a)) * rr)
+		draw_colored_polygon(star, col)
+
+
+func _draw_challenges_page(k: float, cx: float) -> void:
+	_txt("CHALLENGES", cx, size.y * 0.14, int(56 * k), GOLD, 1)
+	_txt(
+		"EACH ONE PAYS META COINS ONCE PER RUN, WHEN THE RUN ENDS",
+		cx,
+		size.y * 0.2,
+		int(16 * k),
+		GRAY,
+		1
+	)
+	var unlocked = g.challenges.unlocked_count()
+	_txt(
+		"ACHIEVEMENTS  %d / %d" % [unlocked, g.challenges.table.size()],
+		cx,
+		size.y * 0.25,
+		int(20 * k),
+		GOLD if unlocked > 0 else GRAY,
+		1
+	)
+	var left = cx - 330.0 * k
+	var right = cx + 330.0 * k
+	var y0 = size.y * 0.3
+	var step = 62.0 * k
+	var table = g.challenges.table
+	if table.is_empty():
+		_txt("NO CHALLENGES LOADED", cx, size.y * 0.5, int(22 * k), GRAY, 1)
+	for i in range(table.size()):
+		var c = table[i]
+		var y = y0 + i * step
+		var n = g.challenges.count_of(c)
+		draw_rect(Rect2(left, y + 34.0 * k, right - left, 1.0 * k), Color(1, 1, 1, 0.1))
+		_draw_badge(Vector2(left + 24.0 * k, y + 8.0 * k), 22.0 * k, c["icon"], n > 0, k)
+		_txt(c["name"], left + 62.0 * k, y, int(24 * k), GOLD if n > 0 else TEXT)
+		_txt(c["desc"], left + 62.0 * k, y + 26.0 * k, int(16 * k), GRAY)
+		_txt("+%d COINS" % c["reward"], right, y, int(20 * k), GOLD, 2)
+		var status = "NOT DONE YET"
+		if n == 1:
+			status = "DONE 1 TIME"
+		elif n > 1:
+			status = "DONE %d TIMES" % n
+		_txt(status, right, y + 26.0 * k, int(16 * k), TEXT if n > 0 else GRAY, 2)
+	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 
 
 func _draw_scores_page(k: float, cx: float) -> void:
@@ -673,6 +805,208 @@ func _draw_controls(k: float, cx: float) -> void:
 	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 
 
+# ---------------------------------------------------------------- loadout page (title menu)
+func loadout_rect(i: int) -> Rect2:
+	var k = size.y / 720.0
+	var w = 460.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.25 + i * 26.0 * k, w, 24.0 * k)
+
+
+# the row under a point of the Loadout page, -1 for none
+func loadout_at(pos: Vector2) -> int:
+	if g == null or g.state != "title" or g.title_page != "loadout":
+		return -1
+	for i in range(g.loadout_options().size()):
+		if loadout_rect(i).has_point(pos):
+			return i
+	return -1
+
+
+func _draw_loadout(k: float, cx: float) -> void:
+	_txt("LOADOUT", cx, size.y * 0.12, int(56 * k), GOLD, 1)
+	_txt("PICK THE PERK YOUR RUNS START WITH", cx, size.y * 0.185, int(18 * k), TEXT, 1)
+	var opts = g.loadout_options()
+	var sel = clampi(g.loadout_sel, 0, opts.size() - 1)
+	for i in range(opts.size()):
+		var r = loadout_rect(i)
+		var chosen = opts[i]["id"] == g.meta.start_perk
+		if i == sel:
+			draw_rect(r, Color(0.176, 0.196, 0.22))
+			draw_rect(r, ACCENT, false, 2.0 * k)
+		var base = r.position.y + 17.0 * k
+		_txt(
+			opts[i]["name"],
+			r.position.x + 10.0 * k,
+			base,
+			int(15 * k),
+			TEXT if i == sel or chosen else GRAY
+		)
+		if chosen:
+			_txt("CHOSEN", r.end.x - 10.0 * k, base, int(14 * k), GOLD, 2)
+	if opts.size() == 1:
+		_txt(
+			"YOU OWN NO STARTING PERKS YET: BUY THEM ON THE UNLOCKS PAGE",
+			cx,
+			size.y * 0.42,
+			int(16 * k),
+			GRAY,
+			1
+		)
+	_txt(opts[sel]["name"], cx, size.y * 0.84, int(26 * k), TEXT, 1)
+	_txt(opts[sel]["desc"], cx, size.y * 0.84 + 26.0 * k, int(16 * k), TEXT, 1)
+	_txt(
+		"DAILY RUNS AND CUSTOM SEEDS START WITHOUT A STARTING PERK",
+		cx,
+		size.y * 0.9,
+		int(14 * k),
+		ACCENT,
+		1
+	)
+	_txt(
+		"ARROWS OR D-PAD TO LOOK   ENTER, A OR A CLICK TO CHOOSE   ESC, B OR A CLICK BESIDE THE LIST TO GO BACK",
+		cx,
+		size.y * 0.955,
+		int(14 * k),
+		GRAY,
+		1
+	)
+
+
+# ---------------------------------------------------------------- unlocks page (title menu)
+const UnlocksTable = preload("res://scripts/unlocks.gd")
+const UNLOCK_GROUPS = {
+	"starting_perk": "STARTING PERKS",
+	"shop_item": "SHOP ITEMS",
+	"weapon": "WEAPONS",
+	"cosmetic": "COSMETICS"
+}
+const UNLOCK_KIND_TEXT = {
+	"starting_perk": "START A RUN WITH THIS PERK",
+	"shop_item": "JOINS THE SHOP",
+	"weapon": "JOINS THE SHOP",
+	"cosmetic": "A COSMETIC"
+}
+
+
+# Where each unlock sits: the starting perks fill the left column, everything else the right column under a
+# heading per kind. Returns {"rows": Array of Rect2, one per entry of g.UNLOCKS in the same order, "heads": Array of
+# {"text", "pos"}}; drawing, the mouse and the keyboard all use it.
+func unlocks_layout() -> Dictionary:
+	var k = size.y / 720.0
+	var rows = []
+	var heads = []
+	var y = {"left": size.y * 0.25, "right": size.y * 0.25}
+	var last_kind = {"left": "", "right": ""}
+	for u in g.UNLOCKS:
+		var side = "left" if u["kind"] == "starting_perk" else "right"
+		var x = size.x * 0.5 - 440.0 * k if side == "left" else size.x * 0.5 + 20.0 * k
+		if last_kind[side] != u["kind"]:
+			if last_kind[side] != "":
+				y[side] += 10.0 * k
+			var text = UNLOCK_GROUPS.get(u["kind"], str(u["kind"]).to_upper())
+			heads.append({"text": text, "pos": Vector2(x, y[side] + 18.0 * k)})
+			y[side] += 30.0 * k
+			last_kind[side] = u["kind"]
+		rows.append(Rect2(x, y[side], 420.0 * k, 24.0 * k))
+		y[side] += 24.0 * k
+	return {"rows": rows, "heads": heads}
+
+
+# the BUY button under the detail text (it also shows OWNED, COMING SOON or what is missing)
+func unlock_buy_rect() -> Rect2:
+	var k = size.y / 720.0
+	var w = 260.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.885, w, 30.0 * k)
+
+
+# the unlock under a point of the Unlocks page, -1 for none
+func unlock_at(pos: Vector2) -> int:
+	if g == null or g.state != "title" or g.title_page != "unlocks":
+		return -1
+	var rows = unlocks_layout()["rows"]
+	for i in range(rows.size()):
+		if rows[i].has_point(pos):
+			return i
+	return -1
+
+
+# the entry in the other column that sits closest to entry i (Left / Right on the page), i when there is none
+func unlock_other_column(i: int) -> int:
+	var rows = unlocks_layout()["rows"]
+	if i < 0 or i >= rows.size():
+		return i
+	var best = i
+	var best_d = INF
+	for j in range(rows.size()):
+		if absf(rows[j].position.x - rows[i].position.x) < 1.0:
+			continue
+		var d = absf(rows[j].position.y - rows[i].position.y)
+		if d < best_d:
+			best_d = d
+			best = j
+	return best
+
+
+func _draw_unlocks(k: float, cx: float) -> void:
+	_txt("UNLOCKS", cx, size.y * 0.12, int(56 * k), GOLD, 1)
+	_txt("META COINS %d" % g.meta.balance, cx, size.y * 0.185, int(18 * k), GOLD, 1)
+	if g.UNLOCKS.is_empty():
+		_txt("NOTHING TO UNLOCK YET", cx, size.y * 0.45, int(24 * k), GRAY, 1)
+		_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
+		return
+	var lay = unlocks_layout()
+	for h in lay["heads"]:
+		_txt(h["text"], h["pos"].x, h["pos"].y, int(16 * k), GOLD)
+	for i in range(g.UNLOCKS.size()):
+		var u = g.UNLOCKS[i]
+		var r = lay["rows"][i]
+		var st = UnlocksTable.state_of(u, g.meta.owns(u["id"]), g.meta.balance)
+		var on = g.unlock_sel == i  # the mouse updates unlock_sel in input.gd (hover_menu)
+		if on:
+			draw_rect(r, Color(0.176, 0.196, 0.22))
+			draw_rect(r, ACCENT, false, 2.0 * k)
+		var base = r.position.y + 17.0 * k
+		var name_col = TEXT if (on or st == "owned" or st == "afford") else GRAY
+		_txt(u["name"], r.position.x + 10.0 * k, base, int(15 * k), name_col)
+		var tag = "%d COINS" % u["cost"]
+		var tag_col = GOLD if st == "afford" else GRAY
+		if st == "owned":
+			tag = "OWNED"
+			tag_col = GOLD
+		elif st == "soon":
+			tag = "SOON"
+		_txt(tag, r.position.x + r.size.x - 10.0 * k, base, int(14 * k), tag_col, 2)
+	var cur = g.UNLOCKS[clampi(g.unlock_sel, 0, g.UNLOCKS.size() - 1)]
+	var cur_st = UnlocksTable.state_of(cur, g.meta.owns(cur["id"]), g.meta.balance)
+	var y = size.y * 0.8
+	_txt(cur["name"], cx, y, int(26 * k), TEXT, 1)
+	_txt(cur["desc"], cx, y + 28.0 * k, int(16 * k), TEXT, 1)
+	_txt(UNLOCK_KIND_TEXT.get(cur["kind"], ""), cx, y + 50.0 * k, int(15 * k), GRAY, 1)
+	var br = unlock_buy_rect()
+	var can_buy = cur_st == "afford"
+	draw_rect(br, Color(0.176, 0.196, 0.22) if can_buy else Color(0.13, 0.14, 0.16))
+	draw_rect(br, ACCENT if can_buy else Color(0.29, 0.31, 0.33), false, 3.0 * k)
+	var label = "BUY  %d COINS" % cur["cost"]
+	if cur_st == "owned":
+		label = "OWNED"
+	elif cur_st == "soon":
+		label = "COMING SOON"
+	elif cur_st == "locked":
+		label = "NEED %d MORE" % (cur["cost"] - g.meta.balance)
+	_txt(label, cx, br.position.y + 22.0 * k, int(18 * k), TEXT if can_buy else GRAY, 1)
+	if g.unlock_msg != "" and g.time - g.unlock_msg_t0 < 3.0:
+		var bought = g.unlock_msg == "BOUGHT"
+		_txt(g.unlock_msg, cx, size.y * 0.225, int(18 * k), GOLD if bought else ACCENT, 1)
+	_txt(
+		"ARROWS OR D-PAD TO LOOK   ENTER, A OR THE BUTTON TO BUY   ESC, B OR A CLICK BESIDE THE LIST TO GO BACK",
+		cx,
+		size.y * 0.955,
+		int(14 * k),
+		GRAY,
+		1
+	)
+
+
 # placeholder pages for the screens that are still on the roadmap
 func _draw_title_page(k: float, cx: float) -> void:
 	if g.title_page == "scores":
@@ -681,11 +1015,20 @@ func _draw_title_page(k: float, cx: float) -> void:
 	if g.title_page == "scores_confirm":
 		_draw_scores_confirm(k, cx)
 		return
+	if g.title_page == "challenges":
+		_draw_challenges_page(k, cx)
+		return
 	if g.title_page == "seed":
 		_draw_seed_page(k, cx)
 		return
 	if g.title_page == "controls":
 		_draw_controls(k, cx)
+		return
+	if g.title_page == "unlocks":
+		_draw_unlocks(k, cx)
+		return
+	if g.title_page == "loadout":
+		_draw_loadout(k, cx)
 		return
 	var info = TITLE_PAGES.get(g.title_page, ["", ""])
 	_txt(info[0], cx, size.y * 0.24, int(60 * k), GOLD, 1)
@@ -830,6 +1173,7 @@ func _draw_map_screen(k: float, cx: float) -> void:
 # ---------------------------------------------------------------- pause menu
 const PAUSE_ITEMS = [
 	{"id": "resume", "label": "RESUME"},
+	{"id": "map", "label": "MAP"},
 	{"id": "settings", "label": "SETTINGS"},
 	{"id": "controls", "label": "CONTROLS"},
 	{"id": "restart", "label": "RESTART RUN"},
@@ -841,7 +1185,7 @@ func pause_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var w = 320.0 * k
 	var h = 46.0 * k
-	return Rect2((size.x - w) * 0.5, size.y * 0.36 + i * (h + 10.0 * k), w, h)
+	return Rect2((size.x - w) * 0.5, size.y * 0.325 + i * (h + 10.0 * k), w, h)
 
 
 func pause_at(pos: Vector2) -> int:
@@ -869,6 +1213,181 @@ func _draw_pause_menu(k: float, cx: float) -> void:
 			1
 		)
 	_txt("ESC TO RESUME", cx, size.y * 0.80, int(16 * k), GRAY, 1)
+
+
+# ---------------------------------------------------------------- pause-screen map (explore_map.gd)
+# A top-down view of the part of the arena the player has explored: north (-z) is up, east (+x) is right. Ground the
+# player has not been near is not drawn, and a supply cache or the extraction point only appears once the player has
+# come within sense range of it. Shapes carry the meaning as well as colours: a circle is the start, a bar a gate, a
+# diamond a cache (hollow once taken), a square the way out, a triangle you.
+const MAP_START = Color("#FF2D95")
+const MAP_GATE = Color("#19D3E6")
+const MAP_TAKEN = Color(0.62, 0.62, 0.58)
+const MAP_FOG = Color(0.05, 0.055, 0.065)
+const MAP_LEGEND = [
+	["you", "YOU"],
+	["start", "START"],
+	["gate", "GATE"],
+	["cache", "CACHE"],
+	["taken", "TAKEN"],
+	["exit", "EXIT"]
+]
+
+
+# the square the map is drawn in
+func map_rect() -> Rect2:
+	var side = minf(size.y * 0.7, size.x * 0.9)
+	return Rect2((size.x - side) * 0.5, size.y * 0.17, side, side)
+
+
+# the screen point of a world point on the map
+func map_point(p: Vector3, r: Rect2) -> Vector2:
+	var ex = g.explore_sys
+	var span = float(ex.n) * ex.cell
+	return r.position + Vector2(p.x / span + 0.5, p.z / span + 0.5) * r.size.x
+
+
+# one map symbol (also used by the legend); `dir` is the way "you" points, in screen space
+func _map_symbol(
+	kind: String, at: Vector2, k: float, col: Color, dir: Vector2 = Vector2(0, -1)
+) -> void:
+	var edge = Color(0, 0, 0, 0.8)
+	if kind == "start":
+		draw_circle(at, 6.5 * k, col)
+		draw_arc(at, 6.5 * k, 0.0, TAU, 20, edge, 1.5 * k)
+	elif kind == "gate":
+		draw_rect(Rect2(at - Vector2(8, 2.5) * k, Vector2(16, 5) * k), col)
+	elif kind == "cache":
+		_diamond(at, 7.5 * k, col)
+	elif kind == "taken":
+		var r = 7.0 * k
+		var pts = PackedVector2Array(
+			[
+				at + Vector2(0, -r),
+				at + Vector2(r, 0),
+				at + Vector2(0, r),
+				at + Vector2(-r, 0),
+				at + Vector2(0, -r)
+			]
+		)
+		draw_polyline(pts, col, 2.0 * k)
+	elif kind == "exit":
+		var r = Rect2(at - Vector2(7, 7) * k, Vector2(14, 14) * k)
+		draw_rect(r, col)
+		draw_rect(r, edge, false, 1.5 * k)
+	elif kind == "you":
+		var side = Vector2(-dir.y, dir.x)
+		var pts = PackedVector2Array(
+			[
+				at + dir * 10.0 * k,
+				at - dir * 6.0 * k + side * 6.5 * k,
+				at - dir * 6.0 * k - side * 6.5 * k
+			]
+		)
+		draw_colored_polygon(pts, col)
+		draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), edge, 1.5 * k)
+
+
+func _draw_pause_map(k: float, cx: float) -> void:
+	_txt("MAP", cx, size.y * 0.1, int(56 * k), GOLD, 1)
+	var ex = g.explore_sys
+	if not ex.enabled() or ex.n <= 0:
+		_txt("THIS ARENA HAS NO MAP", cx, size.y * 0.5, int(24 * k), GRAY, 1)
+		_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
+		return
+	var o = g.objective_sys
+	var r = map_rect()
+	var cs = r.size.x / float(ex.n)
+	draw_rect(r, MAP_FOG)
+	# the ground that has been seen, one rectangle per run of cells with the same ground
+	var rows = ex.layout()["rows"]
+	for iz in range(ex.n):
+		var row = str(rows[iz])
+		var run_from = 0
+		var run_ch = ""
+		for ix in range(ex.n + 1):
+			var ch = ""
+			if ix < ex.n and ex.cell_seen(ix, iz):
+				ch = row[ix]
+			if ch == run_ch:
+				continue
+			if run_ch != "":
+				draw_rect(
+					Rect2(
+						r.position.x + float(run_from) * cs,
+						r.position.y + float(iz) * cs,
+						float(ix - run_from) * cs,
+						cs + 0.5
+					),
+					ex.GROUND_COLORS.get(run_ch, Color(1, 0, 1))
+				)
+			run_ch = ch
+			run_from = ix
+	draw_rect(r, Color(0.29, 0.31, 0.33), false, 3.0 * k)
+	# the start, and the gates in the part that has been seen
+	_map_symbol("start", map_point(g.arena.start_position(), r), k, MAP_START)
+	for gate in g.arena.gates():
+		if not ex.gate_seen(gate):
+			continue
+		var at = map_point(gate["pos"], r)
+		var out = Vector2(gate["outward"].x, gate["outward"].z)
+		var along = Vector2(-out.y, out.x)
+		var half = float(gate["half_width"]) * cs / ex.cell
+		draw_line(at - along * half, at + along * half, MAP_GATE, 5.0 * k)
+	# the caches the player has found (taken ones hollow) and the extraction point once found
+	for i in range(mini(ex.cache_found.size(), o.caches.size())):
+		if not ex.cache_found[i]:
+			continue
+		var cache: Dictionary = o.caches[i]
+		var cp = map_point(cache["pos"], r)
+		if cache["taken"]:
+			_map_symbol("taken", cp, k, MAP_TAKEN)
+		else:
+			_map_symbol("cache", cp, k, OBJ_GOLD)
+	if ex.goal_found and o.has_goal():
+		var gp = map_point(o.goal["pos"], r)
+		_map_symbol("exit", gp, k, OBJ_GREEN if o.extracting else Color(OBJ_LOCKED, 0.85))
+		_txt(
+			"EXIT", gp.x, gp.y - 12.0 * k, int(13 * k), OBJ_GREEN if o.extracting else OBJ_LOCKED, 1
+		)
+	# you
+	var pp = map_point(g.player.position, r)
+	pp = Vector2(clampf(pp.x, r.position.x, r.end.x), clampf(pp.y, r.position.y, r.end.y))
+	var fwd = Vector2(-sin(g.yaw), -cos(g.yaw))  # the way the player looks, on the map (north is up)
+	_map_symbol("you", pp, k, TEXT, fwd)
+	_txt(
+		(
+			"EXPLORED %d%%     CACHES TAKEN %d / %d     %s"
+			% [
+				int(round(ex.explored_fraction() * 100.0)),
+				o.taken,
+				o.caches.size(),
+				"WAY OUT OPEN" if o.extracting else "WAY OUT LOCKED"
+			]
+		),
+		cx,
+		size.y * 0.145,
+		int(16 * k),
+		GRAY,
+		1
+	)
+	# the legend, in the same shapes and colours
+	var lw = minf(size.x * 0.7, 920.0 * k)
+	var step = lw / float(MAP_LEGEND.size())
+	var ly = r.end.y + 26.0 * k
+	var colors = {
+		"you": TEXT,
+		"start": MAP_START,
+		"gate": MAP_GATE,
+		"cache": OBJ_GOLD,
+		"taken": MAP_TAKEN,
+		"exit": OBJ_GREEN
+	}
+	for i in range(MAP_LEGEND.size()):
+		var lx = cx - lw * 0.5 + step * float(i) + 14.0 * k
+		_map_symbol(MAP_LEGEND[i][0], Vector2(lx, ly - 5.0 * k), k, colors[MAP_LEGEND[i][0]])
+		_txt(MAP_LEGEND[i][1], lx + 18.0 * k, ly, int(15 * k), TEXT)
+	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 
 
 # Restart Run and Quit to Title lose the run, so they ask first. NO is the first button and the default.
@@ -1198,6 +1717,9 @@ func _draw() -> void:
 		elif g.pause_page == "controls":
 			_dim(0.86)
 			_draw_controls(k, cx)
+		elif g.pause_page == "map":
+			_dim(0.9)
+			_draw_pause_map(k, cx)
 		else:
 			_dim(0.6)
 			_draw_pause_menu(k, cx)

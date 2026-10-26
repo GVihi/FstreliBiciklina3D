@@ -18,6 +18,7 @@ const Toon = preload("res://scripts/toon.gd")
 const Rim = preload("res://scripts/rim.gd")
 const ObjectiveScript = preload("res://scripts/objective.gd")
 const AmbushScript = preload("res://scripts/ambush.gd")
+const ExploreScript = preload("res://scripts/explore_map.gd")
 const SfxScript = preload("res://scripts/sfx.gd")
 const Content = preload("res://scripts/content.gd")
 const SettingsScript = preload("res://scripts/settings.gd")
@@ -33,6 +34,7 @@ const InputScript = preload("res://scripts/input.gd")
 const PlayerScript = preload("res://scripts/player.gd")
 const ScoresScript = preload("res://scripts/scores.gd")
 const MetaScript = preload("res://scripts/meta.gd")
+const ChallengesScript = preload("res://scripts/challenges.gd")
 const ViewmodelScript = preload("res://scripts/viewmodel.gd")
 const DailyScript = preload("res://scripts/daily.gd")
 const ArenaRoundaboutScript = preload("res://scripts/arena_roundabout.gd")
@@ -101,6 +103,7 @@ var DROP_INFO = Content.DROP_INFO
 var SHOP_POOL = Content.SHOP_POOL
 var DUOS = Content.DUOS
 var UPGRADES = Content.UPGRADES
+var UNLOCKS = Content.UNLOCK_TABLE["unlocks"]
 var WEAPONS = Content.WEAPONS
 
 # ------------------------------------------------------------------ state
@@ -264,13 +267,17 @@ var drag_id = ""
 # the game version, written in one place: `config/version` in project.godot (shown on the title screen)
 var game_version = str(ProjectSettings.get_setting("application/config/version", ""))
 var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / scores
-var pause_page = ""  # "" = pause menu, "settings" = settings panel, "confirm" = restart / quit confirmation
+var pause_page = ""  # "" = pause menu, "settings" = settings panel, "controls", "map" = the arena map, "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
 var confirm_id = ""  # what the confirmation asks about: "restart" or "title"
 var confirm_sel = 0  # highlighted confirmation button: 0 = NO (the safe default), 1 = YES
 var confirm_t0 = 0.0  # g.time when the confirmation opened; YES is ignored for a moment after (double clicks)
 var seed_buf = ""  # the hex digits typed on the custom seed page of the title screen (up to 8)
 var title_sel = 0  # highlighted title-menu entry (keyboard / gamepad)
+var unlock_sel = 0  # highlighted entry (index into UNLOCKS) of the Unlocks page of the title screen
+var loadout_sel = 0  # highlighted row of the Loadout page (index into loadout_options)
+var unlock_msg = ""  # the last result shown on the Unlocks page ("BOUGHT", "NOT ENOUGH COINS", ...)
+var unlock_msg_t0 = -10.0  # g.time when unlock_msg was set; it fades after a few seconds
 
 var cheerleaders = []
 var melee_ring: MeshInstance3D
@@ -530,6 +537,7 @@ var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics
 var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
 var objective_sys = ObjectiveScript.new(self)  # objective.gd: Objectives: supply caches and the extraction point on generated arenas.
 var ambush_sys = AmbushScript.new(self)  # ambush.gd: the last wave of riders when the extraction point opens on a generated arena.
+var explore_sys = ExploreScript.new(self)  # explore_map.gd: what the player has found of the arena, for the pause-screen map.
 var pickup_sys = PickupsScript.new(self)  # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
 var civ_sys = PedestriansScript.new(self)  # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
 var boss_sys = BossesScript.new(self)  # bosses.gd: Bosses: spawning, telegraphed attacks, weak points, phases and defeat.
@@ -539,6 +547,7 @@ var combat_sys = CombatScript.new(self)  # combat.gd: Combat: shotgun and reload
 var fx_sys = EffectsScript.new(self)  # effects.gd: Effects: pooled particles, bursts, plastic debris and confetti.
 var scores = ScoresScript.new(self)  # scores.gd: Scores: the local Top 10 leaderboard saved to user://scores.json.
 var meta = MetaScript.new(self)  # meta.gd: Meta currency: earned from finished runs, saved to user://meta.json, separate from run cash.
+var challenges = ChallengesScript.new(self)  # challenges.gd: Meta challenges from data/challenges.json: tracked in a run, paid out by meta.award_run().
 var input_sys = InputScript.new(self)  # input.gd: Input: mouse, keyboard and gamepad handling, menu clicks and weapon switching.
 var player_sys = PlayerScript.new(self)  # player.gd: Player: movement, dash and slide, perfect dodges, aim assist, spread and gun handling.
 
@@ -580,6 +589,30 @@ func get_setting(id: String):
 
 func set_setting(id: String, v) -> void:
 	settings.set_setting(id, v)
+
+
+# the rows of the Loadout page: "no starting perk" first, then every starting perk the player owns, in table order
+func loadout_options() -> Array:
+	var out = [
+		{
+			"id": "",
+			"perk": "",
+			"name": "NO STARTING PERK",
+			"desc": "START EVERY RUN WITH NOTHING EXTRA"
+		}
+	]
+	for u in UNLOCKS:
+		if u["kind"] == "starting_perk" and meta.owns(u["id"]):
+			out.append({"id": u["id"], "perk": u["target"], "name": u["name"], "desc": u["desc"]})
+	return out
+
+
+# the perk a normal run starts with: the one chosen on the Loadout page while it is still owned, "" for none
+func start_perk_id() -> String:
+	for o in loadout_options():
+		if o["id"] != "" and o["id"] == meta.start_perk:
+			return str(o["perk"])
+	return ""
 
 
 # true when this run counts for the normal high score and Top 10: not a Daily Run and not a typed-in seed
@@ -802,6 +835,7 @@ func abandon_run() -> void:
 func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	reset_run()
 	meta.begin_run()
+	challenges.begin_run()
 	daily_mode = daily
 	custom_seed_run = not daily and custom_seed >= 0
 	if daily:
@@ -846,6 +880,9 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	pitch = 0.0
 	player.position = arena.start_position()
 	pvel = Vector3.ZERO
+	var start_perk_name = start_perk_id()
+	if start_perk_name != "" and ranked_run():  # a Daily Run or a typed seed starts the same for everybody
+		perks[start_perk_name] = true
 	if run_map.is_empty():
 		start_round()  # no map (it could not be generated): play the rounds in a line, as before
 	else:
@@ -1014,6 +1051,7 @@ func free_phone(ph: Dictionary) -> void:
 func clear_pickups() -> void:
 	objective_sys.clear()  # the caches and the extraction point belong to the round like the pick-ups do
 	ambush_sys.clear()
+	explore_sys.clear()
 	for pk in pickups:
 		pk["node"].queue_free()
 	pickups.clear()
@@ -1029,12 +1067,14 @@ func start_round() -> void:
 	rider_rng.seed = DailyScript.stream_seed(run_seed, round_n, "riders")
 	plan_riders()
 	objective_sys.setup_round()
+	explore_sys.setup_round()  # after the objectives: it keeps one "found" flag per cache
 	round_t = 0.0
 	hits.clear()
 	for i in range(PER_ROUND):
 		hits.append(null)
 	next_idx = 0
 	round_lives_lost = 0
+	challenges.begin_round()
 	popups.clear()
 	notes.clear()
 	boss_count = 0
@@ -1174,6 +1214,7 @@ func end_round() -> void:
 	objective_sys.clear()
 	ambush_sys.clear()
 	clear_riders()  # ambush riders still on the way in when the player gets out
+	explore_sys.clear()
 	var n = count_hits()
 	round_times.append(round_t)
 	print(
@@ -1182,6 +1223,8 @@ func end_round() -> void:
 			% [round_n, fmt_time(round_t), fmt_time(play_time), fmt_time(shop_time)]
 		)
 	)
+	if n >= hits_needed():
+		challenges.on_round_cleared()
 	var perfect = is_perfect_round(n)
 	clear_phones()
 	if perfect:
@@ -1213,6 +1256,7 @@ func win_run() -> void:
 	run_won = true
 	state = "over"
 	over_reason = "victory"
+	challenges.on_run_won(play_time + shop_time)
 	meta.award_run()
 	scores.submit_run()
 	fx_sys.confetti()
@@ -1224,6 +1268,7 @@ func win_run() -> void:
 func game_over(reason: String) -> void:
 	objective_sys.clear()
 	ambush_sys.clear()
+	explore_sys.clear()
 	clear_riders()
 	clear_bosses()
 	clear_phones()
@@ -1268,6 +1313,7 @@ func damage_player(label: String, reason: String) -> void:
 		return
 	hearts -= 1
 	round_lives_lost += 1
+	challenges.on_life_lost()
 	combo = 0
 	invuln = 1.3
 	shake = 1.0
@@ -1592,6 +1638,7 @@ func update_game(dt: float) -> void:
 	pickup_sys.update_pickups(dt)
 	objective_sys.update(dt)
 	ambush_sys.update(gdt)
+	explore_sys.update(dt)
 	phone_sys.update_phones(gdt)
 	boss_sys.update_bosses(gdt)
 	if riders.size() == 0 and bosses.size() == 0 and wait > 0.0:
