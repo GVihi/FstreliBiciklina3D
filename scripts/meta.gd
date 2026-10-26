@@ -72,7 +72,7 @@ func save_meta() -> void:
 					"version": VERSION,
 					"balance": balance,
 					"total_earned": total_earned,
-          "owned": ids,
+					"owned": ids,
 					"challenges": challenge_counts
 				}
 			)
