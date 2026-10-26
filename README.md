@@ -468,7 +468,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
   - [ ] Keep XP and level in the versioned save files (see `docs/SAVE_FILES.md`), separate from meta currency (XP is never spent, it only goes up)
   - [ ] Show XP, level and a progress bar to the next level on the title screen, and the XP gained and any level-up on the run summary screen
   - [ ] Decide whether a level unlocks anything (items, cosmetics, titles) or is only a number to show off
-  - [ ] Send XP and level to the website with the other progress (needs the account and API in Milestone N), and make sure the server is the one that adds up XP from the runs it is sent, so an edited number in a save file cannot raise a level
+  - [ ] Send XP and level to the website with the other progress (needs the account and API in Milestone N; without an account XP and level still work locally and are only shown in the game), and make sure the server is the one that adds up XP from the runs it is sent, so an edited number in a save file cannot raise a level
 
 ---
 
@@ -629,7 +629,7 @@ Today the game is first person only (the camera is the player's eyes and the gun
 
 The game gets a home on the web: a new Django app on the existing website (Django + PostgreSQL + nginx + gunicorn, already running), a launcher where players log in, cloud saves, leaderboards, bug reports, and a proper installer with auto updates. Planning only for now: nothing below is built yet.
 
-> Design rules: the game talks to the website only through a REST API. The website, not the game, is the authority on accounts, XP and levels, leaderboards and which version is current. Only the superuser can publish a new game version. The game must stay playable offline: a missing network or a down website never blocks a run, it only delays syncing.
+> Design rules: the game talks to the website only through a REST API. The website, not the game, is the authority on accounts, XP and levels, leaderboards and which version is current. Only the superuser can publish a new game version. An account is optional (decided): the whole game, with its local saves, leaderboard, unlocks and XP, works without one, and a player who never logs in only misses the web features (cloud saves, online leaderboards, the account page, bug reports through the game). A missing network or a down website never blocks a run either, it only delays syncing.
 
 ## Website: Django app and REST API
 
@@ -645,14 +645,15 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 - [ ] "Remember me": when ticked, the token is kept so the next start skips the login and goes straight on (the launcher checks the token with the website, and shows the login form again if it has expired or was revoked); when not ticked, the token is only kept for this session; a LOG OUT button on the launcher screen forgets it
 - [ ] Password handling: the password only travels over HTTPS and is never stored or logged by the game, the website uses Django's password hashing, and failed logins are rate-limited
 - [ ] Password reset and email confirmation through the website (reuse what the site already has)
-- [ ] Decide what an offline player sees: the game still starts and plays with the local save, and logs in and syncs later
+- [ ] Playing without an account (decided: the account is optional): the game starts and plays fully with the local save, nothing in the game is locked behind a login, and the web features are simply not offered until the player logs in; the same goes for a player who is logged in but offline, who syncs later
 
 ## Launcher
 
-- [ ] The launcher is the game's first screen (decided: no separate launcher program), shown before the title menu: login form (username, password, "remember me"), a "Register on the website" link, a PLAY button once logged in, the installed game version, "update available" status, and a link to the website and the bug report page; with a remembered login it only shows briefly and goes on to the title menu by itself
-- [ ] Offline and skip: if the website cannot be reached, the launcher screen says so and lets the player continue offline with the local save (see "Decide what an offline player sees" above); decide whether a player who never logs in gets a "play without an account" button
+- [ ] The launcher is the game's first screen (decided: no separate launcher program), shown before the title menu: login form (username, password, "remember me"), a "Register on the website" link, a PLAY button that works logged in or not (a "Play without an account" button next to the login form, and with a remembered "play without an account" choice the screen can be skipped), the installed game version, "update available" status, and a link to the website and the bug report page; with a remembered login it only shows briefly and goes on to the title menu by itself
+- [ ] Offline and skip: if the website cannot be reached, the launcher screen says so and lets the player continue offline with the local save (see "Playing without an account" above); the login stays one click away in the title menu or settings (LOG IN / ACCOUNT entry) for a player who skipped it, so they can log in later without restarting
+- [ ] Show what is missed without an account in a small, non-nagging way (for example a grey "Online features off: log in" line on the title menu), and never block, delay or repeatedly ask the player
 - [ ] Build the launcher login against the REST API, with clear messages for a wrong password, no connection and a server error
-- [ ] After login the game knows the account (name, token) for the whole session, so saves, scores and XP go to the right account without asking again, and a log out or an expired token drops back to the launcher screen
+- [ ] After login the game knows the account (name, token) for the whole session, so saves, scores and XP go to the right account without asking again; a log out or an expired token drops the game back to playing without an account (and shows the login form again only on the next start), it never interrupts a run
 - [ ] Show the account name, level and XP in the launcher after login
 
 ## API key (game to website, in the background)
@@ -667,6 +668,7 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 - [ ] Keep the local save file exactly as it is today (see `docs/SAVE_FILES.md`): the game always reads and writes the local file, and the cloud is a copy
 - [ ] Upload the save to the website for each user after a run ends, when the player quits, and on a timer, in the background and without blocking the game (one current save per account, plus a few older versions to roll back to; decide how many)
 - [ ] On login on a new PC (or with no local save), offer to download the cloud save so the player can continue
+- [ ] First login of a player who already played without an account: decide how the local progress joins the account (upload it as the account's first cloud save, or ask when the account already has a cloud save: use the cloud save, keep this PC's save, never merge silently), and decide whether runs played before logging in count for the website leaderboards and XP (they cannot be checked by the server, so probably they do not)
 - [ ] Conflict handling when the local and the cloud save differ (for example two PCs played offline): compare the save version, the save time and the XP, and ask the player which one to keep ("Use cloud save / Use this PC's save"), never overwrite silently, and keep a `.bak` of whatever is replaced (same rule as the version safety in `docs/SAVE_FILES.md`)
 - [ ] Sync status in the game and launcher (synced, syncing, offline, conflict), and a manual SYNC NOW button
 - [ ] Server side: store saves per user in PostgreSQL (or on disk with the path in the database), with a size limit, a save-format version check, and the rule that a save from a newer game version is kept but never loaded by an older build
@@ -674,7 +676,7 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 ## Save file protection
 
 - [ ] Check what the save files look like today (`settings`, `scores.json`, meta currency, unlocks): which ones hold anything worth cheating with (meta coins, unlocks, XP, level, scores) and which are only settings; protect the first group and leave plain settings readable
-- [ ] Encrypt the save files so they cannot be opened in a text editor and edited (Godot's `FileAccess.open_encrypted_with_pass`, or an own format with authenticated encryption), with the key kept out of plain sight in the build and, if possible, derived partly from the account
+- [ ] Encrypt the save files so they cannot be opened in a text editor and edited (Godot's `FileAccess.open_encrypted_with_pass`, or an own format with authenticated encryption), with the key kept out of plain sight in the build (it must work without an account, so it cannot depend on the login)
 - [ ] Add tamper detection on top of encryption: a signature or HMAC over the save contents, a check on load, and a clear rule for what happens when it fails (refuse to load that save, keep it as `.bad` for inspection, fall back to the last good backup or a fresh save, and tell the player)
 - [ ] Keep it compatible with the versioned save files (see `docs/SAVE_FILES.md`): an old plain save from before this item is read once, upgraded and written back encrypted, and a `.bak` is made first
 - [ ] Do not trust the client for anything that matters online: the server checks submitted scores, recomputes XP from the runs it is sent, and treats a cloud save that fails its signature or has impossible values as invalid
