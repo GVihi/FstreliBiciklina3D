@@ -354,7 +354,14 @@ func hover_menu(pos: Vector2) -> void:
 # ---- title screen menu (entries are listed in hud.gd TITLE_ITEMS)
 func title_move(d: int) -> void:
 	if g.state == "title" and g.title_page == "":
-		g.title_sel = posmod(g.title_sel + d, g.hud.TITLE_ITEMS.size())
+		# top to bottom: CONTINUE (when a run is saved, drawn above PLAY), then the entries in order
+		var order = []
+		if g.hud.title_has_continue():
+			order.append(g.hud.TITLE_CONTINUE)
+		for n in range(g.hud.TITLE_ITEMS.size()):
+			order.append(n)
+		var at = maxi(0, order.find(g.title_sel))
+		g.title_sel = order[posmod(at + d, order.size())]
 		g.sfx.play("click")
 	elif g.state == "title" and g.title_page == "loadout":
 		g.loadout_sel = posmod(g.loadout_sel + d, g.loadout_options().size())
@@ -386,6 +393,11 @@ func title_activate(i: int) -> void:
 		return
 	if g.title_page != "":
 		title_back()
+		return
+	if i == g.hud.TITLE_CONTINUE:
+		if g.hud.title_has_continue():
+			g.title_sel = i
+			g.continue_run()
 		return
 	g.title_sel = i
 	var id = g.hud.TITLE_ITEMS[i]["id"]

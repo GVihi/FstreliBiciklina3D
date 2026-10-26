@@ -37,6 +37,7 @@ const MetaScript = preload("res://scripts/meta.gd")
 const ChallengesScript = preload("res://scripts/challenges.gd")
 const ViewmodelScript = preload("res://scripts/viewmodel.gd")
 const DailyScript = preload("res://scripts/daily.gd")
+const RunSave = preload("res://scripts/run_save.gd")
 const ArenaRoundaboutScript = preload("res://scripts/arena_roundabout.gd")
 const MapGenScript = preload("res://scripts/map_gen.gd")
 const ArenaGenScript = preload("res://scripts/arena_gen.gd")
@@ -276,6 +277,9 @@ var confirm_sel = 0  # highlighted confirmation button: 0 = NO (the safe default
 var confirm_t0 = 0.0  # g.time when the confirmation opened; YES is ignored for a moment after (double clicks)
 var seed_buf = ""  # the hex digits typed on the custom seed page of the title screen (up to 8)
 var title_sel = 0  # highlighted title-menu entry (keyboard / gamepad)
+var saved_run = {}  # the run on file that the title screen's CONTINUE resumes (run_save.gd), {} when there is none
+var saved_run_rounds = 0  # how many rounds that run has, for the CONTINUE button
+var run_save_enabled = false  # true in the game itself: a check that builds a main leaves user://run.json alone
 var unlock_sel = 0  # highlighted entry (index into UNLOCKS) of the Unlocks page of the title screen
 var loadout_sel = 0  # highlighted row of the Loadout page (index into loadout_options)
 var unlock_msg = ""  # the last result shown on the Unlocks page ("BOUGHT", "NOT ENOUGH COINS", ...)
@@ -304,6 +308,8 @@ func _ready() -> void:
 	randomize()
 	refresh_daily_seed()
 	hi = scores.best()
+	run_save_enabled = get_tree().current_scene == self
+	refresh_saved_run()
 	settings.load_settings()
 	hearts = MAXHEARTS
 	shells = MAXSHELLS
@@ -820,6 +826,11 @@ func go_to_title() -> void:
 	last_rank = -1
 	name_entry = false
 	refresh_daily_seed()
+	refresh_saved_run()
+	if not saved_run.is_empty():
+		title_sel = hud.TITLE_CONTINUE  # a run is waiting: CONTINUE is the first thing the keyboard lands on
+	elif title_sel >= hud.TITLE_ITEMS.size():
+		title_sel = 0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
@@ -832,9 +843,71 @@ func abandon_run() -> void:
 	go_to_title()
 
 
+# ---- saved run (CONTINUE on the title screen, run_save.gd). A checkpoint is written every time the run map screen
+# opens, and cleared when the run ends. Only runs with a map are saved: a run without one plays in a line.
+# Loads user://run.json again and keeps the run in `saved_run` if it can be played: its map position has to fit
+# the map the run seed makes. A damaged or too new file is not an error, there is just nothing to continue.
+func refresh_saved_run() -> void:
+	saved_run = {}
+	saved_run_rounds = 0
+	if not run_save_enabled:
+		return
+	var data = RunSave.load_file()
+	if data.is_empty():
+		return
+	var map = MapGenScript.generate(int(data["run_seed"]))
+	if not RunSave.fits_map(data, map):
+		return
+	saved_run = data
+	saved_run_rounds = map["floors"].size()
+
+
+# writes the checkpoint of the run on the map screen
+func save_checkpoint() -> void:
+	if run_save_enabled and not run_map.is_empty():
+		RunSave.save(self)
+
+
+# the run ended (lost or won): nothing is left to continue
+func clear_saved_run() -> void:
+	saved_run = {}
+	saved_run_rounds = 0
+	if run_save_enabled:
+		RunSave.clear()
+
+
+# CONTINUE: plays the saved run on from its map screen, with everything the player had there
+func continue_run() -> void:
+	if saved_run.is_empty():
+		return
+	var data = saved_run
+	reset_run()
+	meta.begin_run()
+	challenges.begin_run()
+	RunSave.apply(self, data)
+	if generated_arena and use_generated_arena(run_seed):  # the arena is made from the run seed, as at the start
+		update_arena_dressing()
+		settings.apply_quality()
+	run_map = MapGenScript.generate(run_seed)
+	print(MapGenScript.to_text(run_map))
+	MAX_ROUNDS = run_map["floors"].size()
+	run_won = false
+	round_times = data["round_times"].duplicate()
+	last_rank = -1
+	name_entry = false
+	new_unlocks = []
+	yaw = 0.0
+	pitch = 0.0
+	player.position = arena.start_position()
+	pvel = Vector3.ZERO
+	enter_map()
+
+
 # `daily`: a Daily Run (today's seed). `custom_seed`: 0 to 4294967295 to play that seed (typed in on the title
 # screen); -1 draws a random one.
 func start_game(daily: bool = false, custom_seed: int = -1) -> void:
+	if run_save_enabled:
+		RunSave.backup_before_replace()  # a new run replaces the saved one at its first map screen
 	reset_run()
 	meta.begin_run()
 	challenges.begin_run()
@@ -984,6 +1057,7 @@ func enter_map() -> void:
 	state = "map"
 	state_t = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	save_checkpoint()
 
 
 # plays the i-th choice of the map screen as the next round
@@ -1246,6 +1320,7 @@ func end_round() -> void:
 	else:
 		state = "over"
 		over_reason = "riders"
+		clear_saved_run()
 		meta.award_run()
 		scores.submit_run()
 		sfx.play("over")
@@ -1258,6 +1333,7 @@ func win_run() -> void:
 	run_won = true
 	state = "over"
 	over_reason = "victory"
+	clear_saved_run()
 	challenges.on_run_won(play_time + shop_time)
 	meta.award_run()
 	scores.submit_run()
@@ -1277,6 +1353,7 @@ func game_over(reason: String) -> void:
 	state = "over"
 	state_t = 0.0
 	over_reason = reason
+	clear_saved_run()
 	hi_check()
 	meta.award_run()
 	scores.submit_run()

@@ -391,6 +391,35 @@ const TITLE_ITEMS = [
 	{"id": "quit", "label": "QUIT"}
 ]
 const TITLE_PAGES = {}
+# The CONTINUE button is drawn above PLAY and only while a saved run exists (main.gd `saved_run`). Its index is one past
+# the last entry of TITLE_ITEMS, so the indexes of the other entries never change.
+const TITLE_CONTINUE = 10
+
+
+# true when a run is saved and the title menu shows CONTINUE
+func title_has_continue() -> bool:
+	return g != null and not g.saved_run.is_empty()
+
+
+# the CONTINUE button: between the logo (it ends at 25 % of the height) and the first button (34.5 %)
+func title_continue_rect() -> Rect2:
+	var k = size.y / 720.0
+	var w = 320.0 * k
+	var h = 31.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.275, w, h)
+
+
+# what the CONTINUE button says on its right: the round the run goes on with and how many rounds it has
+func title_continue_detail() -> String:
+	if g == null or g.saved_run.is_empty():
+		return ""
+	var next_round = int(g.saved_run["map_floor"]) + 2  # the map screen picks the next floor
+	var tag = ""
+	if g.saved_run["daily"]:
+		tag = "DAILY  "
+	elif g.saved_run["custom"]:
+		tag = "SEED  "
+	return "%sROUND %d / %d" % [tag, mini(next_round, g.saved_run_rounds), g.saved_run_rounds]
 
 
 func title_rect(i: int) -> Rect2:
@@ -406,6 +435,8 @@ func title_at(pos: Vector2) -> int:
 	for i in range(TITLE_ITEMS.size()):
 		if title_rect(i).has_point(pos):
 			return i
+	if title_has_continue() and title_continue_rect().has_point(pos):
+		return TITLE_CONTINUE
 	return -1
 
 
@@ -423,6 +454,22 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		)
 		if item.get("soon", false):
 			_txt("SOON", r.position.x + r.size.x - 12.0 * k, base - 2.0 * k, int(12 * k), GRAY, 2)
+	if title_has_continue():
+		var cr = title_continue_rect()
+		var con = g.title_sel == TITLE_CONTINUE
+		draw_rect(cr, Color(0.176, 0.196, 0.22) if con else Color(0.13, 0.14, 0.16))
+		draw_rect(cr, ACCENT if con else GOLD, false, 3.0 * k)
+		var cbase = cr.position.y + 23.0 * k
+		# the label on the left and the round on the right, so the two never run into each other on a 320 px button
+		_txt("CONTINUE", cr.position.x + 16.0 * k, cbase, int(20 * k), TEXT if con else GOLD)
+		_txt(
+			title_continue_detail(),
+			cr.position.x + cr.size.x - 12.0 * k,
+			cbase - 2.0 * k,
+			int(12 * k),
+			GRAY,
+			2
+		)
 	_txt("META COINS %d" % g.meta.balance, 18.0 * k, 30.0 * k, int(14 * k), GOLD)
 	_draw_title_level(k)
 	if g.game_version != "":
