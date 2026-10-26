@@ -6,7 +6,7 @@ The game keeps three small files in Godot's `user://` folder (on Windows: `%APPD
 |---|---|---|---|
 | `settings.cfg` | `scripts/settings.gd` | ConfigFile; the version is `[meta] version` | 1 |
 | `scores.json` | `scripts/scores.gd` | `{"version": 1, "entries": [...]}` | 1 |
-| `meta.json` | `scripts/meta.gd` | `{"version": 1, "balance": n, "total_earned": n}` | 1 |
+| `meta.json` | `scripts/meta.gd` | `{"version": 1, "balance": n, "total_earned": n, "challenges": {counter: n}}` | 1 |
 
 `hi.dat` (a plain number, the old single high score) is no longer read or written: the HI score is the best entry of `scores.json`. An old `hi.dat` in the folder does nothing and can be deleted by hand; its score is not moved to the leaderboard, because it has no name or date.
 
@@ -26,4 +26,4 @@ A file written before versioning has no version number and counts as **version 0
 3. Write the new version number in its save function.
 4. Update the table above.
 
-Adding a new field with a default (`data.get("field", default)`) does not need a version bump; changing or removing a field does.
+Adding a new field with a default (`data.get("field", default)`) does not need a version bump; changing or removing a field does. `challenges` in `meta.json` was added this way: a file without it loads with no counts. Its keys are the `counter` names of `data/challenges.json`, its values the number of runs each challenge was done in.
