@@ -50,7 +50,7 @@ func handle_input(event: InputEvent) -> void:
 			name_key(event)  # typing a leaderboard name: no hotkeys
 			return
 		if g.state == "title" and g.title_page == "seed":
-			seed_key(event)  # typing a seed: letters like R, M, V and S must not trigger their hotkeys
+			seed_key(event)  # typing a seed: letters like R, V and S must not trigger their hotkeys
 			return
 		var kc = event.keycode
 		if kc == KEY_R:
@@ -121,9 +121,6 @@ func handle_input(event: InputEvent) -> void:
 		elif kc == KEY_4 or kc == KEY_KP_4:
 			if g.state == "shop":
 				g.shop_sys.buy(3)
-		elif kc == KEY_M:
-			g.sfx.toggle_mute()
-			g.settings.save_settings()
 		elif kc == KEY_V:
 			g.sfx.toggle_voices()
 			g.settings.save_settings()
@@ -480,7 +477,7 @@ func pause_activate(i: int) -> void:
 	var id = g.hud.PAUSE_ITEMS[i]["id"]
 	if id == "resume":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	elif id == "settings" or id == "controls" or id == "map":
+	elif id == "settings" or id == "controls":
 		g.pause_page = id
 		g.sfx.play("click")
 	elif id == "restart" or id == "title":  # both lose the run, so ask first (NO is the default)
@@ -593,8 +590,8 @@ func on_click() -> void:
 				var ci = g.hud.confirm_at(pmp)
 				if ci >= 0:
 					confirm_activate(ci)
-			elif g.pause_page == "controls" or g.pause_page == "map":
-				pause_back()  # a click anywhere closes the controls page and the map
+			elif g.pause_page == "controls":
+				pause_back()  # a click anywhere closes the controls page
 			else:
 				var pi = g.hud.pause_at(pmp)
 				if pi >= 0:

@@ -794,7 +794,8 @@ const CONTROLS_KEYBOARD = [
 	["Q / WHEEL / 1 / 2", "SWITCH DART GUN AND MELEE (1 GUN, 2 MELEE)"],
 	["ESC", "PAUSE"],
 	["TAB", "SETTINGS"],
-	["M / V", "SOUND / VOICES ON OFF"],
+	["M", "HOLD TO SHOW THE MAP"],
+	["V", "VOICES ON OFF"],
 	["F9", "GRAPHICS QUALITY"],
 	["F11", "FULLSCREEN"]
 ]
@@ -1206,7 +1207,6 @@ func _draw_map_screen(k: float, cx: float) -> void:
 # ---------------------------------------------------------------- pause menu
 const PAUSE_ITEMS = [
 	{"id": "resume", "label": "RESUME"},
-	{"id": "map", "label": "MAP"},
 	{"id": "settings", "label": "SETTINGS"},
 	{"id": "controls", "label": "CONTROLS"},
 	{"id": "restart", "label": "RESTART RUN"},
@@ -1248,8 +1248,9 @@ func _draw_pause_menu(k: float, cx: float) -> void:
 	_txt("ESC TO RESUME", cx, size.y * 0.80, int(16 * k), GRAY, 1)
 
 
-# ---------------------------------------------------------------- pause-screen map (explore_map.gd)
-# A top-down view of the part of the arena the player has explored: north (-z) is up, east (+x) is right. Ground the
+# ---------------------------------------------------------------- arena map, shown while M is held (explore_map.gd)
+# Drawn while `main.map_held()` is true (M held in a round); the round keeps running behind it. A top-down view of the
+# part of the arena the player has explored: north (-z) is up, east (+x) is right. Ground the
 # player has not been near is not drawn, and a supply cache or the extraction point only appears once the player has
 # come within sense range of it. Shapes carry the meaning as well as colours: a circle is the start, a bar a gate, a
 # diamond a cache (hollow once taken), a square the way out, a triangle you.
@@ -1321,12 +1322,12 @@ func _map_symbol(
 		draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), edge, 1.5 * k)
 
 
-func _draw_pause_map(k: float, cx: float) -> void:
+func _draw_map_overlay(k: float, cx: float) -> void:
 	_txt("MAP", cx, size.y * 0.1, int(56 * k), GOLD, 1)
 	var ex = g.explore_sys
 	if not ex.enabled() or ex.n <= 0:
 		_txt("THIS ARENA HAS NO MAP", cx, size.y * 0.5, int(24 * k), GRAY, 1)
-		_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
+		_txt("RELEASE M TO CLOSE", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 		return
 	var o = g.objective_sys
 	var r = map_rect()
@@ -1420,7 +1421,7 @@ func _draw_pause_map(k: float, cx: float) -> void:
 		var lx = cx - lw * 0.5 + step * float(i) + 14.0 * k
 		_map_symbol(MAP_LEGEND[i][0], Vector2(lx, ly - 5.0 * k), k, colors[MAP_LEGEND[i][0]])
 		_txt(MAP_LEGEND[i][1], lx + 18.0 * k, ly, int(15 * k), TEXT)
-	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
+	_txt("RELEASE M TO CLOSE", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 
 
 # Restart Run and Quit to Title lose the run, so they ask first. NO is the first button and the default.
@@ -1750,12 +1751,12 @@ func _draw() -> void:
 		elif g.pause_page == "controls":
 			_dim(0.86)
 			_draw_controls(k, cx)
-		elif g.pause_page == "map":
-			_dim(0.9)
-			_draw_pause_map(k, cx)
 		else:
 			_dim(0.6)
 			_draw_pause_menu(k, cx)
+	elif g.map_held():
+		_dim(0.78)
+		_draw_map_overlay(k, cx)
 	elif state == "title" and g.title_page == "settings":
 		_draw_settings(k)
 		_txt("ESC OR CLICK OUTSIDE TO GO BACK", cx, size.y * 0.92, int(14 * k), GRAY, 1)
@@ -1870,10 +1871,10 @@ func _draw_bottom(k: float) -> void:
 		2
 	)
 	var snd = (
-		"SOUND %s   VOICES %s"
+		"[M] MAP   SOUND %s   [V] VOICES %s"
 		% ["OFF" if g.sfx.muted else "ON", "OFF" if not g.sfx.voices_on else "ON"]
 	)
-	_txt("[M] / [V]  " + snd, size.x - 12.0 * k, size.y - 34.0 * k, int(11 * k), GRAY, 2)
+	_txt(snd, size.x - 12.0 * k, size.y - 34.0 * k, int(11 * k), GRAY, 2)
 
 	# dash cooldown + style rank, bottom centre
 	var mx = size.x * 0.5
