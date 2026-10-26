@@ -144,3 +144,15 @@ static func _source_of(kind: String, target: String, known: Dictionary) -> Dicti
 	if item.size() > 0 and item["kind"] == "heal":
 		return {}  # the heal is always on sale
 	return item
+
+
+# how an unlock shows on the Unlocks page: "owned", "soon" (its target is not in the game yet), "afford" (the
+# balance covers the price) or "locked"
+static func state_of(u: Dictionary, owned: bool, balance: int) -> String:
+	if owned:
+		return "owned"
+	if u["planned"]:
+		return "soon"
+	if balance >= u["cost"]:
+		return "afford"
+	return "locked"

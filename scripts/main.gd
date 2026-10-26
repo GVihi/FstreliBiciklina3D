@@ -101,6 +101,7 @@ var DROP_INFO = Content.DROP_INFO
 var SHOP_POOL = Content.SHOP_POOL
 var DUOS = Content.DUOS
 var UPGRADES = Content.UPGRADES
+var UNLOCKS = Content.UNLOCK_TABLE["unlocks"]
 var WEAPONS = Content.WEAPONS
 
 # ------------------------------------------------------------------ state
@@ -271,6 +272,7 @@ var confirm_sel = 0  # highlighted confirmation button: 0 = NO (the safe default
 var confirm_t0 = 0.0  # g.time when the confirmation opened; YES is ignored for a moment after (double clicks)
 var seed_buf = ""  # the hex digits typed on the custom seed page of the title screen (up to 8)
 var title_sel = 0  # highlighted title-menu entry (keyboard / gamepad)
+var unlock_sel = 0  # highlighted entry (index into UNLOCKS) of the Unlocks page of the title screen
 
 var cheerleaders = []
 var melee_ring: MeshInstance3D

@@ -107,3 +107,12 @@ func award_run() -> int:
 		total_earned += n
 		save_meta()
 	return n
+
+
+# ids of the unlocks the player owns, read by the Unlocks page. Nothing buys them yet and they are not saved:
+# buying and saving them are the next items of Milestone I.
+var owned = {}
+
+
+func owns(id: String) -> bool:
+	return owned.has(id)

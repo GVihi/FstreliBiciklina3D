@@ -208,7 +208,12 @@ func on_pad_button(btn: int) -> void:
 
 
 func menu_move(d: int) -> void:
-	if g.state == "map":
+	if g.state == "title" and g.title_page == "unlocks":
+		var other = g.hud.unlock_other_column(g.unlock_sel)  # Left / Right: to the other column
+		if other != g.unlock_sel:
+			g.unlock_sel = other
+			g.sfx.play("click")
+	elif g.state == "map":
 		g.map_sel = posmod(g.map_sel + d, maxi(1, g.map_choices.size()))
 	elif g.state == "upgrade":
 		g.menu_sel = posmod(g.menu_sel + d, maxi(1, g.offers.size()))
@@ -320,6 +325,9 @@ func hover_menu(pos: Vector2) -> void:
 	var si = g.hud.scores_confirm_at(pos)
 	if si >= 0:
 		g.confirm_sel = si
+	var ui = g.hud.unlock_at(pos)
+	if ui >= 0:
+		g.unlock_sel = ui
 	if g.state == "map":
 		var mi = g.hud.map_choice_at(pos)
 		if mi >= 0:
@@ -330,6 +338,9 @@ func hover_menu(pos: Vector2) -> void:
 func title_move(d: int) -> void:
 	if g.state == "title" and g.title_page == "":
 		g.title_sel = posmod(g.title_sel + d, g.hud.TITLE_ITEMS.size())
+		g.sfx.play("click")
+	elif g.state == "title" and g.title_page == "unlocks" and not g.UNLOCKS.is_empty():
+		g.unlock_sel = posmod(g.unlock_sel + d, g.UNLOCKS.size())
 		g.sfx.play("click")
 
 
@@ -344,6 +355,8 @@ func title_activate(i: int) -> void:
 	if g.title_page == "scores_confirm":
 		scores_confirm_activate(g.confirm_sel)  # Enter / A on the highlighted NO or YES
 		return
+	if g.title_page == "unlocks":
+		return  # Enter / A on the Unlocks page does nothing until buying is added; Esc / B go back
 	if g.title_page != "":
 		title_back()
 		return
@@ -362,6 +375,8 @@ func title_activate(i: int) -> void:
 		g.title_page = id
 		g.sfx.play("click")
 	else:
+		if id == "unlocks":
+			g.unlock_sel = 0
 		g.title_page = id  # loadout / unlocks / scores / settings
 		g.sfx.play("click")
 
@@ -466,6 +481,13 @@ func on_click() -> void:
 		elif g.title_page == "seed":
 			if g.hud.seed_start_rect().has_point(mp):
 				seed_start()
+			else:
+				title_back()
+		elif g.title_page == "unlocks":
+			var ui = g.hud.unlock_at(mp)
+			if ui >= 0:
+				g.unlock_sel = ui
+				g.sfx.play("click")
 			else:
 				title_back()
 		elif g.title_page == "scores_confirm":

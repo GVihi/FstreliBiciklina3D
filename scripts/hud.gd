@@ -381,17 +381,14 @@ const TITLE_ITEMS = [
 	{"id": "daily", "label": "DAILY RUN"},
 	{"id": "seed", "label": "CUSTOM SEED"},
 	{"id": "loadout", "label": "LOADOUT", "soon": true},
-	{"id": "unlocks", "label": "UNLOCKS", "soon": true},
+	{"id": "unlocks", "label": "UNLOCKS"},
 	{"id": "challenges", "label": "CHALLENGES"},
 	{"id": "scores", "label": "HIGH SCORES"},
 	{"id": "controls", "label": "CONTROLS"},
 	{"id": "settings", "label": "SETTINGS"},
 	{"id": "quit", "label": "QUIT"}
 ]
-const TITLE_PAGES = {
-	"loadout": ["LOADOUT", "PICK YOUR STARTING WEAPON AND PERK BEFORE A RUN."],
-	"unlocks": ["UNLOCKS", "SPEND WHAT YOU EARN ON PERMANENT UNLOCKS BETWEEN RUNS."]
-}
+const TITLE_PAGES = {"loadout": ["LOADOUT", "PICK YOUR STARTING WEAPON AND PERK BEFORE A RUN."]}
 
 
 func title_rect(i: int) -> Rect2:
@@ -808,6 +805,134 @@ func _draw_controls(k: float, cx: float) -> void:
 	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 
 
+# ---------------------------------------------------------------- unlocks page (title menu)
+const UnlocksTable = preload("res://scripts/unlocks.gd")
+const UNLOCK_GROUPS = {
+	"starting_perk": "STARTING PERKS",
+	"shop_item": "SHOP ITEMS",
+	"weapon": "WEAPONS",
+	"cosmetic": "COSMETICS"
+}
+const UNLOCK_KIND_TEXT = {
+	"starting_perk": "START A RUN WITH THIS PERK",
+	"shop_item": "JOINS THE SHOP",
+	"weapon": "JOINS THE SHOP",
+	"cosmetic": "A COSMETIC"
+}
+
+
+# Where each unlock sits: the starting perks fill the left column, everything else the right column under a
+# heading per kind. Returns {"rows": Array of Rect2, one per entry of g.UNLOCKS in the same order, "heads": Array of
+# {"text", "pos"}}; drawing, the mouse and the keyboard all use it.
+func unlocks_layout() -> Dictionary:
+	var k = size.y / 720.0
+	var rows = []
+	var heads = []
+	var y = {"left": size.y * 0.25, "right": size.y * 0.25}
+	var last_kind = {"left": "", "right": ""}
+	for u in g.UNLOCKS:
+		var side = "left" if u["kind"] == "starting_perk" else "right"
+		var x = size.x * 0.5 - 440.0 * k if side == "left" else size.x * 0.5 + 20.0 * k
+		if last_kind[side] != u["kind"]:
+			if last_kind[side] != "":
+				y[side] += 10.0 * k
+			var text = UNLOCK_GROUPS.get(u["kind"], str(u["kind"]).to_upper())
+			heads.append({"text": text, "pos": Vector2(x, y[side] + 18.0 * k)})
+			y[side] += 30.0 * k
+			last_kind[side] = u["kind"]
+		rows.append(Rect2(x, y[side], 420.0 * k, 24.0 * k))
+		y[side] += 24.0 * k
+	return {"rows": rows, "heads": heads}
+
+
+# the unlock under a point of the Unlocks page, -1 for none
+func unlock_at(pos: Vector2) -> int:
+	if g == null or g.state != "title" or g.title_page != "unlocks":
+		return -1
+	var rows = unlocks_layout()["rows"]
+	for i in range(rows.size()):
+		if rows[i].has_point(pos):
+			return i
+	return -1
+
+
+# the entry in the other column that sits closest to entry i (Left / Right on the page), i when there is none
+func unlock_other_column(i: int) -> int:
+	var rows = unlocks_layout()["rows"]
+	if i < 0 or i >= rows.size():
+		return i
+	var best = i
+	var best_d = INF
+	for j in range(rows.size()):
+		if absf(rows[j].position.x - rows[i].position.x) < 1.0:
+			continue
+		var d = absf(rows[j].position.y - rows[i].position.y)
+		if d < best_d:
+			best_d = d
+			best = j
+	return best
+
+
+func _draw_unlocks(k: float, cx: float) -> void:
+	_txt("UNLOCKS", cx, size.y * 0.12, int(56 * k), GOLD, 1)
+	_txt("META COINS %d" % g.meta.balance, cx, size.y * 0.185, int(18 * k), GOLD, 1)
+	if g.UNLOCKS.is_empty():
+		_txt("NOTHING TO UNLOCK YET", cx, size.y * 0.45, int(24 * k), GRAY, 1)
+		_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
+		return
+	var lay = unlocks_layout()
+	for h in lay["heads"]:
+		_txt(h["text"], h["pos"].x, h["pos"].y, int(16 * k), GOLD)
+	for i in range(g.UNLOCKS.size()):
+		var u = g.UNLOCKS[i]
+		var r = lay["rows"][i]
+		var st = UnlocksTable.state_of(u, g.meta.owns(u["id"]), g.meta.balance)
+		var on = g.unlock_sel == i  # the mouse updates unlock_sel in input.gd (hover_menu)
+		if on:
+			draw_rect(r, Color(0.176, 0.196, 0.22))
+			draw_rect(r, ACCENT, false, 2.0 * k)
+		var base = r.position.y + 17.0 * k
+		var name_col = TEXT if (on or st == "owned" or st == "afford") else GRAY
+		_txt(u["name"], r.position.x + 10.0 * k, base, int(15 * k), name_col)
+		var tag = "%d COINS" % u["cost"]
+		var tag_col = GOLD if st == "afford" else GRAY
+		if st == "owned":
+			tag = "OWNED"
+			tag_col = GOLD
+		elif st == "soon":
+			tag = "SOON"
+		_txt(tag, r.position.x + r.size.x - 10.0 * k, base, int(14 * k), tag_col, 2)
+	var cur = g.UNLOCKS[clampi(g.unlock_sel, 0, g.UNLOCKS.size() - 1)]
+	var cur_st = UnlocksTable.state_of(cur, g.meta.owns(cur["id"]), g.meta.balance)
+	var y = size.y * 0.8
+	_txt(cur["name"], cx, y, int(26 * k), TEXT, 1)
+	_txt(cur["desc"], cx, y + 28.0 * k, int(16 * k), TEXT, 1)
+	var line = "%s   %d COINS" % [UNLOCK_KIND_TEXT.get(cur["kind"], ""), cur["cost"]]
+	if cur_st == "owned":
+		line = "OWNED"
+	elif cur_st == "soon":
+		line = "COMING SOON   %d COINS" % cur["cost"]
+	elif cur_st == "locked":
+		line += "   NEED %d MORE" % (cur["cost"] - g.meta.balance)
+	_txt(
+		line,
+		cx,
+		y + 54.0 * k,
+		int(16 * k),
+		GOLD if cur_st == "afford" or cur_st == "owned" else GRAY,
+		1
+	)
+	_txt("BUYING UNLOCKS COMES WITH A LATER UPDATE", cx, size.y * 0.905, int(14 * k), ACCENT, 1)
+	_txt(
+		"ARROWS OR D-PAD TO LOOK   ESC, B OR A CLICK BESIDE THE LIST TO GO BACK",
+		cx,
+		size.y * 0.945,
+		int(16 * k),
+		GRAY,
+		1
+	)
+
+
 # placeholder pages for the screens that are still on the roadmap
 func _draw_title_page(k: float, cx: float) -> void:
 	if g.title_page == "scores":
@@ -824,6 +949,9 @@ func _draw_title_page(k: float, cx: float) -> void:
 		return
 	if g.title_page == "controls":
 		_draw_controls(k, cx)
+		return
+	if g.title_page == "unlocks":
+		_draw_unlocks(k, cx)
 		return
 	var info = TITLE_PAGES.get(g.title_page, ["", ""])
 	_txt(info[0], cx, size.y * 0.24, int(60 * k), GOLD, 1)
