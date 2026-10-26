@@ -161,9 +161,9 @@ The walk to the extraction point used to be quiet, because every rider was alrea
 | Perfect round | a life lost to an ambush rider still counts against it |
 
 Left for later: a boss node's escort (more or tougher riders after a boss), and moving the numbers into a data table.
-## The pause-screen map
+## The arena map (hold M)
 
-The pause menu has a MAP page (README Milestone K, "Exploration and extraction"). It shows only what the player has found, so exploring is rewarded and the map never gives a spot away:
+Holding M (or Back / View on a gamepad) during a round shows the map; letting go hides it, and the round keeps running behind it (README Milestone K, "Exploration and extraction"). It is not in the pause menu. It shows only what the player has found, so exploring is rewarded and the map never gives a spot away:
 
 | What | Shown when |
 |---|---|

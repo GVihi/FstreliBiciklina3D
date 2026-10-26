@@ -43,6 +43,19 @@ func _check_lists() -> void:
 			pad_reload = true
 	if not pad_reload:
 		_fail("the gamepad list does not say that X reloads")
+	# the map is held with M, or with Back / View on a gamepad (it is no longer in the pause menu)
+	var keyboard_map = false
+	for row in hud.CONTROLS_KEYBOARD:
+		if row[0] == "M" and str(row[1]).contains("MAP"):
+			keyboard_map = true
+	if not keyboard_map:
+		_fail("the keyboard list does not say that M shows the map")
+	var pad_map = false
+	for row in hud.CONTROLS_GAMEPAD:
+		if str(row[0]).begins_with("BACK") and str(row[1]).contains("MAP"):
+			pad_map = true
+	if not pad_map:
+		_fail("the gamepad list does not say that Back shows the map")
 
 
 func _check_title() -> void:

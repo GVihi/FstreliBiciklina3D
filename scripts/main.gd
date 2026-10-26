@@ -110,6 +110,7 @@ var WEAPONS = Content.WEAPONS
 var state = "title"  # title / play / clear / upgrade / over
 var paused = false
 var force_captured = false  # test hook: headless Godot cannot capture the mouse, so a check sets this to play a round
+var map_key_forced = false  # test hook: a check sets this to act as if the map button is held down (see `map_held`)
 var round_n = 1
 var score = 0
 var hi = 0  # the HI score: the best leaderboard entry at start-up, raised during a ranked run (`hi_check`)
@@ -267,7 +268,7 @@ var drag_id = ""
 # the game version, written in one place: `config/version` in project.godot (shown on the title screen)
 var game_version = str(ProjectSettings.get_setting("application/config/version", ""))
 var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / scores
-var pause_page = ""  # "" = pause menu, "settings" = settings panel, "controls", "map" = the arena map, "confirm" = restart / quit confirmation
+var pause_page = ""  # "" = pause menu, "settings" = settings panel, "controls", "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
 var confirm_id = ""  # what the confirmation asks about: "restart" or "title"
 var confirm_sel = 0  # highlighted confirmation button: 0 = NO (the safe default), 1 = YES
@@ -537,7 +538,7 @@ var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics
 var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
 var objective_sys = ObjectiveScript.new(self)  # objective.gd: Objectives: supply caches and the extraction point on generated arenas.
 var ambush_sys = AmbushScript.new(self)  # ambush.gd: the last wave of riders when the extraction point opens on a generated arena.
-var explore_sys = ExploreScript.new(self)  # explore_map.gd: what the player has found of the arena, for the pause-screen map.
+var explore_sys = ExploreScript.new(self)  # explore_map.gd: what the player has found of the arena, for the map shown while M is held.
 var pickup_sys = PickupsScript.new(self)  # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
 var civ_sys = PedestriansScript.new(self)  # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
 var boss_sys = BossesScript.new(self)  # bosses.gd: Bosses: spawning, telegraphed attacks, weak points, phases and defeat.
@@ -1355,6 +1356,19 @@ func _process(delta: float) -> void:
 
 func pad_on() -> bool:
 	return Input.get_connected_joypads().size() > 0
+
+
+# True while the arena map is up: M (or the gamepad's Back / View button) is held down during a round that is not
+# paused. The map is drawn by the HUD (`_draw_map_overlay`) and goes away the moment the button is released; the
+# round keeps running behind it.
+func map_held() -> bool:
+	if state != "play" or paused:
+		return false
+	return (
+		map_key_forced
+		or Input.is_key_pressed(KEY_M)
+		or Input.is_joy_button_pressed(0, JOY_BUTTON_BACK)
+	)
 
 
 func stick(ax_x: int, ax_y: int) -> Vector2:
