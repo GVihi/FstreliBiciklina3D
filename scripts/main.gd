@@ -32,6 +32,7 @@ const InputScript = preload("res://scripts/input.gd")
 const PlayerScript = preload("res://scripts/player.gd")
 const ScoresScript = preload("res://scripts/scores.gd")
 const MetaScript = preload("res://scripts/meta.gd")
+const ChallengesScript = preload("res://scripts/challenges.gd")
 const ViewmodelScript = preload("res://scripts/viewmodel.gd")
 const DailyScript = preload("res://scripts/daily.gd")
 const ArenaRoundaboutScript = preload("res://scripts/arena_roundabout.gd")
@@ -539,6 +540,7 @@ var combat_sys = CombatScript.new(self)  # combat.gd: Combat: shotgun and reload
 var fx_sys = EffectsScript.new(self)  # effects.gd: Effects: pooled particles, bursts, plastic debris and confetti.
 var scores = ScoresScript.new(self)  # scores.gd: Scores: the local Top 10 leaderboard saved to user://scores.json.
 var meta = MetaScript.new(self)  # meta.gd: Meta currency: earned from finished runs, saved to user://meta.json, separate from run cash.
+var challenges = ChallengesScript.new(self)  # challenges.gd: Meta challenges from data/challenges.json: tracked in a run, paid out by meta.award_run().
 var input_sys = InputScript.new(self)  # input.gd: Input: mouse, keyboard and gamepad handling, menu clicks and weapon switching.
 var player_sys = PlayerScript.new(self)  # player.gd: Player: movement, dash and slide, perfect dodges, aim assist, spread and gun handling.
 
@@ -802,6 +804,7 @@ func abandon_run() -> void:
 func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	reset_run()
 	meta.begin_run()
+	challenges.begin_run()
 	daily_mode = daily
 	custom_seed_run = not daily and custom_seed >= 0
 	if daily:
@@ -1034,6 +1037,7 @@ func start_round() -> void:
 		hits.append(null)
 	next_idx = 0
 	round_lives_lost = 0
+	challenges.begin_round()
 	popups.clear()
 	notes.clear()
 	boss_count = 0
@@ -1176,6 +1180,8 @@ func end_round() -> void:
 			% [round_n, fmt_time(round_t), fmt_time(play_time), fmt_time(shop_time)]
 		)
 	)
+	if n >= hits_needed():
+		challenges.on_round_cleared()
 	var perfect = is_perfect_round(n)
 	clear_phones()
 	if perfect:
@@ -1207,6 +1213,7 @@ func win_run() -> void:
 	run_won = true
 	state = "over"
 	over_reason = "victory"
+	challenges.on_run_won(play_time + shop_time)
 	meta.award_run()
 	scores.submit_run()
 	fx_sys.confetti()
@@ -1261,6 +1268,7 @@ func damage_player(label: String, reason: String) -> void:
 		return
 	hearts -= 1
 	round_lives_lost += 1
+	challenges.on_life_lost()
 	combo = 0
 	invuln = 1.3
 	shake = 1.0

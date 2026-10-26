@@ -281,6 +281,7 @@ func perfect_dodge() -> void:
 		return
 	g.dodge_cd = 0.5
 	g.perfect_dodges += 1
+	g.challenges.on_perfect_dodge()
 	var v = int(250 * (2 if g.hype_t > 0.0 else 1) * g.shop_sys.style_mul())
 	g.score += v
 	g.hi_check()
