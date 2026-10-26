@@ -1,5 +1,5 @@
 extends SceneTree
-# Checks the arena map (README Milestone K, "Exploration and extraction"), shown while M is held. Run from the project folder:
+# Checks the arena map (README Milestone K, "Exploration and extraction"), shown while M (or Back on a gamepad) is held. Run from the project folder:
 #   godot --headless --path . --script res://tools/pause_map_check.gd
 # or with tools\run_pause_map_check.bat on Windows.
 #
@@ -53,6 +53,14 @@ func _drop(m) -> void:
 func _key(key: int, pressed: bool) -> void:
 	var ev = InputEventKey.new()
 	ev.keycode = key
+	ev.pressed = pressed
+	Input.parse_input_event(ev)
+
+
+func _pad(button: int, pressed: bool) -> void:
+	var ev = InputEventJoypadButton.new()
+	ev.device = 0
+	ev.button_index = button
 	ev.pressed = pressed
 	Input.parse_input_event(ev)
 
@@ -180,6 +188,18 @@ func _page(m) -> void:
 	await process_frame
 	if m.map_held():
 		_fail("letting go of M did not take the map down")
+	# Back / View on a gamepad does the same. Headless Godot may not track a pad button from a parsed event, so the
+	# map is only required when the engine reports the button as down.
+	_pad(JOY_BUTTON_BACK, true)
+	await process_frame
+	await process_frame
+	if Input.is_joy_button_pressed(0, JOY_BUTTON_BACK) and not m.map_held():
+		_fail("holding Back did not bring the map up")
+	_pad(JOY_BUTTON_BACK, false)
+	await process_frame
+	await process_frame
+	if m.map_held():
+		_fail("letting go of Back did not take the map down")
 	# draw the map at two window sizes (the test hook stands in for the key, so the drawing runs headless)
 	m.map_key_forced = true
 	for s in [Vector2(1280.0, 720.0), Vector2(1920.0, 1080.0)]:

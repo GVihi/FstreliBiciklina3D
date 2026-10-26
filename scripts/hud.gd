@@ -810,6 +810,7 @@ const CONTROLS_GAMEPAD = [
 	["X", "RELOAD (IN THE SHOP: REROLL)"],
 	["Y / BUMPERS", "SWITCH DART GUN AND MELEE"],
 	["START", "PAUSE"],
+	["BACK / VIEW", "HOLD TO SHOW THE MAP"],
 	["D-PAD + A / B", "MENUS: PICK / BACK"]
 ]
 const CONTROLS_SCREENS = [
@@ -1327,7 +1328,7 @@ func _draw_map_overlay(k: float, cx: float) -> void:
 	var ex = g.explore_sys
 	if not ex.enabled() or ex.n <= 0:
 		_txt("THIS ARENA HAS NO MAP", cx, size.y * 0.5, int(24 * k), GRAY, 1)
-		_txt("RELEASE M TO CLOSE", cx, size.y * 0.94, int(18 * k), GRAY, 1)
+		_txt("RELEASE M OR BACK TO CLOSE", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 		return
 	var o = g.objective_sys
 	var r = map_rect()
@@ -1421,7 +1422,7 @@ func _draw_map_overlay(k: float, cx: float) -> void:
 		var lx = cx - lw * 0.5 + step * float(i) + 14.0 * k
 		_map_symbol(MAP_LEGEND[i][0], Vector2(lx, ly - 5.0 * k), k, colors[MAP_LEGEND[i][0]])
 		_txt(MAP_LEGEND[i][1], lx + 18.0 * k, ly, int(15 * k), TEXT)
-	_txt("RELEASE M TO CLOSE", cx, size.y * 0.94, int(18 * k), GRAY, 1)
+	_txt("RELEASE M OR BACK TO CLOSE", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 
 
 # Restart Run and Quit to Title lose the run, so they ask first. NO is the first button and the default.

@@ -110,7 +110,7 @@ var WEAPONS = Content.WEAPONS
 var state = "title"  # title / play / clear / upgrade / over
 var paused = false
 var force_captured = false  # test hook: headless Godot cannot capture the mouse, so a check sets this to play a round
-var map_key_forced = false  # test hook: a check sets this to act as if M is held down (see `map_held`)
+var map_key_forced = false  # test hook: a check sets this to act as if the map button is held down (see `map_held`)
 var round_n = 1
 var score = 0
 var hi = 0  # the HI score: the best leaderboard entry at start-up, raised during a ranked run (`hi_check`)
@@ -1358,10 +1358,17 @@ func pad_on() -> bool:
 	return Input.get_connected_joypads().size() > 0
 
 
-# True while the arena map is up: M is held down during a round that is not paused. The map is drawn by the HUD
-# (`_draw_map_overlay`) and goes away the moment the key is released; the round keeps running behind it.
+# True while the arena map is up: M (or the gamepad's Back / View button) is held down during a round that is not
+# paused. The map is drawn by the HUD (`_draw_map_overlay`) and goes away the moment the button is released; the
+# round keeps running behind it.
 func map_held() -> bool:
-	return state == "play" and not paused and (map_key_forced or Input.is_key_pressed(KEY_M))
+	if state != "play" or paused:
+		return false
+	return (
+		map_key_forced
+		or Input.is_key_pressed(KEY_M)
+		or Input.is_joy_button_pressed(0, JOY_BUTTON_BACK)
+	)
 
 
 func stick(ax_x: int, ax_y: int) -> Vector2:
