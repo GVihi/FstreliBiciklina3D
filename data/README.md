@@ -107,3 +107,40 @@ Every entry has `id` (unique), `kind`, `target` and `tier` (1 to the length of t
 **The price curve is a first guess.** A finished run pays about 1 coin per 100 points plus 5 per boss and 20 for the final boss (`scripts/meta.gd`), so roughly 60 to 400 coins depending on how far it got. Tier 1 (60) is meant to be affordable after one short run, tier 5 (750) after several good ones, and buying everything listed takes 5,440 coins. Tune the numbers after real runs, in the balance pass of Milestone I.
 
 Not decided here, because it changes how runs play: a shop that skips the unlocked-only items means a seed no longer offers the same items to every player, so the Daily Run (and a custom seed) will probably need the full pool and no starting perk. Decide that when the shop filter is built.
+## `challenges.json`
+
+The meta challenges: small goals that pay meta coins (Milestone B, "Earn from challenges"). Loaded by `scripts/challenges.gd`, which also watches the run for each condition and pays the coins with the run; bad entries are skipped and logged with `push_error`, so check the Godot output panel after editing. They show on the run summary and on the CHALLENGES page of the title menu.
+
+```
+{
+  "challenges": [ {entry}, ... ]     // the order is the order a page will list them in
+}
+```
+
+| key | meaning |
+|---|---|
+| `id` | unique text id, never changed once shipped (a save counter and later achievements point at it) |
+| `name` | short shouted title, like the shop items; it is also the name of the achievement |
+| `icon` | optional, the small badge drawn next to the name on the CHALLENGES page: `no_gun`, `crate`, `chevrons`, `heart`, `clock` or `star` (the default; an unknown name is logged and becomes `star`). A new icon needs a drawing in `_draw_badge` in `scripts/hud.gd` |
+| `desc` | the goal in plain words, shown on the page and the run summary |
+| `condition` | what the game watches, one of the keys below; a new key needs code in `challenges.gd` |
+| `scope` | `round` (checked at the end of each round) or `run` (checked across the run, or at its end) |
+| `target` | the number to reach: 1 for yes or no goals, 5 riders in a row for `perfect_dodge_streak`, and a maximum of seconds for `run_time_under` (1200 is 20 minutes) |
+| `reward` | meta coins paid when the challenge is done |
+| `counter` | name of the field in the save file (`meta.json`) that counts how many times the challenge was done; a new field with a default needs no version bump, see [`docs/SAVE_FILES.md`](../docs/SAVE_FILES.md) |
+
+| condition | met when |
+|---|---|
+| `round_no_gun` | a round is cleared and no dart was fired in it (the melee does not count) |
+| `all_caches_before_last_rider` | every cache of a round was taken while riders (or a boss) were still up, so before the extraction point opened; the round must then be cleared |
+| `perfect_dodge_streak` | `target` perfect dodges happen with no life lost in between (a lost life ends the streak) |
+| `round_no_life_lost` | a round is cleared with no life lost in it |
+| `run_time_under` | the run is won in fewer than `target` seconds (fighting and shopping, the RUN TIME of the summary) |
+
+Achievements are the same list: a challenge done at least once, ever, is an unlocked achievement (the badge turns gold and the page counts them), so they need no save field of their own.
+
+The coins are paid when the run ends, together with the score and boss coins (a run that is quit pays nothing). Challenges done in a run are counted in `meta.json` under `challenges`, by `counter`; the run summary marks a challenge NEW the first time it is ever done.
+
+How the numbers were chosen, so they are easy to change: a boss pays 5 coins and the final boss 20, so the easy goals pay 3 to 5 and the 20 minute run pays 10. A challenge pays at most once per run (the counter still counts every run it was done in), so it cannot be farmed inside one run. Both are first guesses to tune once the challenges can be played.
+
+The export preset includes `data/*.json`, so the file ships with the game. `tools\run_challenges_check.bat` checks the loader, every condition, the payout and the save file.

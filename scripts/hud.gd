@@ -293,8 +293,15 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	if g.shots_fired > 0:
 		acc = int(round(100.0 * g.shots_hit / g.shots_fired))
 	var coin_label = "META COINS"
-	if g.meta.boss_coins > 0:
+	var challenge_coins = g.challenges.coins
+	if g.meta.boss_coins > 0 and challenge_coins > 0:
+		coin_label = (
+			"META COINS (%d FROM BOSSES, %d FROM CHALLENGES)" % [g.meta.boss_coins, challenge_coins]
+		)
+	elif g.meta.boss_coins > 0:
 		coin_label = "META COINS (%d FROM BOSSES)" % g.meta.boss_coins
+	elif challenge_coins > 0:
+		coin_label = "META COINS (%d FROM CHALLENGES)" % challenge_coins
 	var rcols = [GRAY, TEXT, Color(0.35, 0.7, 0.42), GOLD, ACCENT]
 	var letters = ["D", "C", "B", "A", "S"]
 	var lx = cx - 190.0 * k
@@ -309,6 +316,11 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		["ROUND REACHED", "%d / %d" % [g.round_n, g.MAX_ROUNDS], TEXT],
 		["RUN TIME", g.fmt_time(g.play_time + g.shop_time), TEXT],
 		["BEST COMBO", "x%d" % g.best_combo, TEXT],
+		[
+			"CHALLENGES",
+			"%d / %d" % [g.challenges.done.size(), g.challenges.table.size()],
+			GOLD if g.challenges.done.size() > 0 else TEXT
+		],
 		[coin_label, "+%d" % g.meta_earned, GOLD]
 	]
 	for i in range(rows.size()):
@@ -317,6 +329,9 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		_txt(rows[i][0], lx, y, int(20 * k), GRAY)
 		_txt(rows[i][1], rx, y, int(24 * k), rows[i][2], 2)
 	var uy = y0 + rows.size() * step + 14.0 * k
+	for line in _challenge_summary_lines():
+		_txt(line[0], cx, uy, int(18 * k), line[1], 1)
+		uy += 24.0 * k
 	if g.score > 0 and g.score >= g.hi and g.ranked_run():
 		_txt("NEW HIGH SCORE", cx, uy, int(24 * k), GOLD, 1)
 		uy += 34.0 * k
@@ -367,6 +382,7 @@ const TITLE_ITEMS = [
 	{"id": "seed", "label": "CUSTOM SEED"},
 	{"id": "loadout", "label": "LOADOUT"},
 	{"id": "unlocks", "label": "UNLOCKS"},
+	{"id": "challenges", "label": "CHALLENGES"},
 	{"id": "scores", "label": "HIGH SCORES"},
 	{"id": "controls", "label": "CONTROLS"},
 	{"id": "settings", "label": "SETTINGS"},
@@ -378,8 +394,8 @@ const TITLE_PAGES = {}
 func title_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var w = 320.0 * k
-	var h = 34.0 * k
-	return Rect2((size.x - w) * 0.5, size.y * 0.345 + i * (h + 5.0 * k), w, h)
+	var h = 31.0 * k  # ten buttons: 31 high with a gap of 4 end where nine of 34 and 5 did
+	return Rect2((size.x - w) * 0.5, size.y * 0.345 + i * (h + 4.0 * k), w, h)
 
 
 func title_at(pos: Vector2) -> int:
@@ -399,9 +415,9 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		var on = g.title_sel == i  # the mouse updates title_sel in input.gd (hover_menu)
 		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
 		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
-		var base = r.position.y + 25.0 * k
+		var base = r.position.y + 23.0 * k
 		_txt(
-			item["label"], r.position.x + r.size.x * 0.5, base, int(22 * k), TEXT if on else GRAY, 1
+			item["label"], r.position.x + r.size.x * 0.5, base, int(20 * k), TEXT if on else GRAY, 1
 		)
 		if item.get("soon", false):
 			_txt("SOON", r.position.x + r.size.x - 12.0 * k, base - 2.0 * k, int(12 * k), GRAY, 2)
@@ -429,6 +445,125 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		GRAY,
 		1
 	)
+
+
+# Lines under the run summary table: the challenges done in this run (NEW for the first time ever, with the
+# coins) and then the progress of the ones that were not done. Three lines at most, the rest is counted.
+const CHALLENGE_LINES = 3
+
+
+func _challenge_summary_lines() -> Array:
+	var lines = []
+	var ch = g.challenges
+	for c in ch.table:
+		if ch.done.has(c["id"]):
+			var tag = "NEW  " if ch.new_ids.has(c["id"]) else ""
+			lines.append(["%s%s  +%d" % [tag, c["name"], c["reward"]], GOLD])
+	for c in ch.table:
+		var p = ch.progress_text(c)
+		if p != "" and not ch.done.has(c["id"]):
+			lines.append(["%s  %s" % [c["name"], p], GRAY])
+	if lines.size() > CHALLENGE_LINES:
+		var more = lines.size() - (CHALLENGE_LINES - 1)
+		lines = lines.slice(0, CHALLENGE_LINES - 1)
+		lines.append(["AND %d MORE" % more, GRAY])
+	return lines
+
+
+# A round badge with a small icon (the "icon" of a challenge): gold once the achievement is unlocked, dim before.
+func _draw_badge(c: Vector2, r: float, icon: String, on: bool, k: float) -> void:
+	var col = GOLD if on else Color(0.38, 0.4, 0.43)
+	var w = 2.0 * k
+	draw_circle(c, r, Color(0.13, 0.14, 0.16))
+	draw_arc(c, r, 0.0, TAU, 32, col, w)
+	if icon == "no_gun":
+		draw_rect(Rect2(c + Vector2(-0.55, -0.15) * r, Vector2(1.1, 0.3) * r), col)
+		draw_line(
+			c + Vector2(-0.6, 0.6) * r, c + Vector2(0.6, -0.6) * r, Color(0.13, 0.14, 0.16), 4.0 * k
+		)
+		draw_line(c + Vector2(-0.6, 0.6) * r, c + Vector2(0.6, -0.6) * r, col, w)
+	elif icon == "crate":
+		draw_rect(Rect2(c + Vector2(-0.5, -0.5) * r, Vector2(1.0, 1.0) * r), col, false, w)
+		draw_line(c + Vector2(-0.5, -0.5) * r, c + Vector2(0.5, 0.5) * r, col, w)
+		draw_line(c + Vector2(-0.5, 0.5) * r, c + Vector2(0.5, -0.5) * r, col, w)
+	elif icon == "chevrons":
+		for dx in [-0.4, 0.1]:
+			var pts = PackedVector2Array(
+				[
+					c + Vector2(dx, -0.5) * r,
+					c + Vector2(dx + 0.4, 0.0) * r,
+					c + Vector2(dx, 0.5) * r
+				]
+			)
+			draw_polyline(pts, col, w)
+	elif icon == "heart":
+		draw_circle(c + Vector2(-0.25, -0.15) * r, 0.3 * r, col)
+		draw_circle(c + Vector2(0.25, -0.15) * r, 0.3 * r, col)
+		draw_colored_polygon(
+			PackedVector2Array(
+				[
+					c + Vector2(-0.53, -0.02) * r,
+					c + Vector2(0.53, -0.02) * r,
+					c + Vector2(0.0, 0.6) * r
+				]
+			),
+			col
+		)
+	elif icon == "clock":
+		draw_arc(c, 0.55 * r, 0.0, TAU, 24, col, w)
+		draw_line(c, c + Vector2(0.0, -0.4) * r, col, w)
+		draw_line(c, c + Vector2(0.3, 0.0) * r, col, w)
+	else:
+		var star = PackedVector2Array()
+		for i in range(10):
+			var a = -PI * 0.5 + i * PI / 5.0
+			var rr = (0.6 if i % 2 == 0 else 0.26) * r
+			star.append(c + Vector2(cos(a), sin(a)) * rr)
+		draw_colored_polygon(star, col)
+
+
+func _draw_challenges_page(k: float, cx: float) -> void:
+	_txt("CHALLENGES", cx, size.y * 0.14, int(56 * k), GOLD, 1)
+	_txt(
+		"EACH ONE PAYS META COINS ONCE PER RUN, WHEN THE RUN ENDS",
+		cx,
+		size.y * 0.2,
+		int(16 * k),
+		GRAY,
+		1
+	)
+	var unlocked = g.challenges.unlocked_count()
+	_txt(
+		"ACHIEVEMENTS  %d / %d" % [unlocked, g.challenges.table.size()],
+		cx,
+		size.y * 0.25,
+		int(20 * k),
+		GOLD if unlocked > 0 else GRAY,
+		1
+	)
+	var left = cx - 330.0 * k
+	var right = cx + 330.0 * k
+	var y0 = size.y * 0.3
+	var step = 62.0 * k
+	var table = g.challenges.table
+	if table.is_empty():
+		_txt("NO CHALLENGES LOADED", cx, size.y * 0.5, int(22 * k), GRAY, 1)
+	for i in range(table.size()):
+		var c = table[i]
+		var y = y0 + i * step
+		var n = g.challenges.count_of(c)
+		draw_rect(Rect2(left, y + 34.0 * k, right - left, 1.0 * k), Color(1, 1, 1, 0.1))
+		_draw_badge(Vector2(left + 24.0 * k, y + 8.0 * k), 22.0 * k, c["icon"], n > 0, k)
+		_txt(c["name"], left + 62.0 * k, y, int(24 * k), GOLD if n > 0 else TEXT)
+		_txt(c["desc"], left + 62.0 * k, y + 26.0 * k, int(16 * k), GRAY)
+		_txt("+%d COINS" % c["reward"], right, y, int(20 * k), GOLD, 2)
+		var status = "NOT DONE YET"
+		if n == 1:
+			status = "DONE 1 TIME"
+		elif n > 1:
+			status = "DONE %d TIMES" % n
+		_txt(status, right, y + 26.0 * k, int(16 * k), TEXT if n > 0 else GRAY, 2)
+	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 
 
 func _draw_scores_page(k: float, cx: float) -> void:
@@ -879,6 +1014,9 @@ func _draw_title_page(k: float, cx: float) -> void:
 		return
 	if g.title_page == "scores_confirm":
 		_draw_scores_confirm(k, cx)
+		return
+	if g.title_page == "challenges":
+		_draw_challenges_page(k, cx)
 		return
 	if g.title_page == "seed":
 		_draw_seed_page(k, cx)

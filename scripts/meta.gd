@@ -6,6 +6,9 @@ extends RefCounted
 
 # File format: {"version": 1, "balance", "total_earned", "owned": [unlock ids], "start_perk": unlock id}. Version 0 (before versioning) had no
 # "version" field; a file without "owned" (written before unlocks could be bought) loads with nothing owned.
+# File format: {"version": 1, "balance", "total_earned", "challenges"}. Version 0 (before versioning) had no "version" field.
+# "challenges" is {counter name: times done} for the challenges in data/challenges.json (scripts/challenges.gd). It was
+# added with a default (no counts), so it needed no version bump.
 const SaveUtil = preload("res://scripts/save_util.gd")
 const UnlocksTable = preload("res://scripts/unlocks.gd")
 const PATH = "user://meta.json"
@@ -19,6 +22,7 @@ const COINS_FINAL_BOSS = 20  # the golden president
 var g = null
 var balance = 0  # coins available to spend
 var total_earned = 0  # coins earned over all runs, for stats
+var challenge_counts = {}  # challenge counter name -> how many runs it was done in
 var awarded = false  # a run pays out once, however many end paths it passes through
 var boss_coins = 0  # coins this run's boss kills are worth; paid out with the run (a quit run pays nothing)
 
@@ -33,6 +37,7 @@ func load_meta() -> void:
 	total_earned = 0
 	owned = {}
 	start_perk = ""
+	challenge_counts = {}
 	if not FileAccess.file_exists(PATH):
 		return
 	var f = FileAccess.open(PATH, FileAccess.READ)
@@ -51,6 +56,10 @@ func load_meta() -> void:
 			for id in ids:
 				if typeof(id) == TYPE_STRING and str(id) != "":
 					owned[str(id)] = true  # an id the table no longer has stays owned, so a purchase is never lost
+		var counts = data.get("challenges", {})
+		if counts is Dictionary:
+			for key in counts:
+				challenge_counts[str(key)] = maxi(0, int(counts[key]))
 	else:
 		SaveUtil.backup(PATH, "bad")  # unreadable: keep a copy before the next save replaces it
 
@@ -67,7 +76,8 @@ func save_meta() -> void:
 					"balance": balance,
 					"total_earned": total_earned,
 					"owned": ids,
-					"start_perk": start_perk
+					"start_perk": start_perk,
+					"challenges": challenge_counts
 				}
 			)
 		)
@@ -105,9 +115,10 @@ func award_run() -> int:
 	if awarded:
 		return 0
 	awarded = true
-	var n = reward_for_score(g.score) + boss_coins
+	var challenge_coins = g.challenges.award()  # also counts the challenges done, saved below
+	var n = reward_for_score(g.score) + boss_coins + challenge_coins
 	g.meta_earned = n
-	if n > 0:
+	if n > 0 or g.challenges.done.size() > 0:
 		balance += n
 		total_earned += n
 		save_meta()
