@@ -139,10 +139,15 @@ func award_run() -> int:
 		g.score, g.kills, cleared, g.run_won, g.challenges.done.size(), xp_boss
 	)
 	xp = mini(MAX_XP, xp + xp_earned)
+	var balance_before = balance
 	if n > 0 or xp_earned > 0 or g.challenges.done.size() > 0:
 		balance += n
 		total_earned += n
 		save_meta()
+	# what this run's coins put within reach, for the summary screen (names only; the Unlocks page sells them)
+	g.new_unlocks = []
+	for u in UnlocksTable.newly_affordable(g.UNLOCKS, owned, balance_before, balance):
+		g.new_unlocks.append(str(u["name"]))
 	return n
 
 

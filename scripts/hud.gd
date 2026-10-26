@@ -354,19 +354,13 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		else:
 			_txt("SAVED AS  " + g.player_name, cx, uy + 30.0 * k, int(20 * k), TEXT, 1)
 		uy += 72.0 * k
-	_txt("NEWLY UNLOCKED", cx, uy, int(16 * k), GRAY, 1)
+	_txt("NOW AFFORDABLE ON THE UNLOCKS PAGE", cx, uy, int(16 * k), GRAY, 1)
 	if g.new_unlocks.is_empty():
-		_txt("NOTHING THIS RUN", cx, uy + 26.0 * k, int(18 * k), GRAY, 1)
+		_txt("NOTHING NEW THIS RUN", cx, uy + 26.0 * k, int(18 * k), GRAY, 1)
 	else:
-		for i in range(g.new_unlocks.size()):
-			_txt(
-				str(g.new_unlocks[i]).to_upper(),
-				cx,
-				uy + 26.0 * k + i * 24.0 * k,
-				int(18 * k),
-				GOLD,
-				1
-			)
+		var shown = unlock_summary_lines(g.new_unlocks)
+		for i in range(shown.size()):
+			_txt(shown[i], cx, uy + 26.0 * k + i * 24.0 * k, int(18 * k), GOLD, 1)
 	if g.state_t > 0.8 and blink and not g.name_entry:
 		_txt("CLICK TO CONTINUE", cx, size.y * 0.93, int(24 * k), TEXT, 1)
 	var seed_label = "RUN SEED  " + g.DailyScript.seed_text(g.run_seed)
@@ -498,6 +492,24 @@ func _draw_title_menu(k: float, cx: float) -> void:
 
 
 # Label of the XP row on the run summary: the level and how far the next one is, or a level-up message
+# The lines of the "now affordable" block of the run summary: at most three, so a full summary (leaderboard rank,
+# high score and challenge lines at once) still ends above CLICK TO CONTINUE. With more than three names the third
+# line says how many are left out.
+const UNLOCK_LINES_MAX = 3
+
+
+func unlock_summary_lines(names: Array) -> Array:
+	var lines = []
+	if names.size() <= UNLOCK_LINES_MAX:
+		for n in names:
+			lines.append(str(n).to_upper())
+		return lines
+	for i in range(UNLOCK_LINES_MAX - 1):
+		lines.append(str(names[i]).to_upper())
+	lines.append("+ %d MORE" % (names.size() - (UNLOCK_LINES_MAX - 1)))
+	return lines
+
+
 func _xp_row_label() -> String:
 	var info = g.meta.xp_info()
 	if g.meta.leveled_up():
