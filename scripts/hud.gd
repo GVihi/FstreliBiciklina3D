@@ -14,6 +14,7 @@ const RED = Color(0.9, 0.33, 0.24)
 const GRAY = Color(0.49, 0.48, 0.44)
 const TEXT = Color(0.96, 0.95, 0.92)
 const ACCENT = Color(1.0, 0.42, 0.17)
+const XP_COL = Color(0.45, 0.78, 1.0)  # XP and level (title screen and run summary)
 const PINK = Color(1.0, 0.48, 0.72)
 const RELOAD_CYAN = Color(0.22, 0.91, 1.0)  # the RELOAD label while the gun loads, same cyan as the ammo number on the gun
 const OBJ_GREEN = Color(0.35, 1.0, 0.55)  # the extraction point once it is open
@@ -307,7 +308,7 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	var lx = cx - 190.0 * k
 	var rx = cx + 190.0 * k
 	var y0 = size.y * 0.29
-	var step = 30.0 * k
+	var step = 28.0 * k  # ten rows now (the XP row was added); 28 instead of 30 keeps the table's end close to where it was
 	var rows = [
 		["SCORE", str(g.score).pad_zeros(6), TEXT],
 		["KILLS", str(g.kills), TEXT],
@@ -321,7 +322,8 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 			"%d / %d" % [g.challenges.done.size(), g.challenges.table.size()],
 			GOLD if g.challenges.done.size() > 0 else TEXT
 		],
-		[coin_label, "+%d" % g.meta_earned, GOLD]
+		[coin_label, "+%d" % g.meta_earned, GOLD],
+		[_xp_row_label(), "+%d" % g.meta.xp_earned, GOLD if g.meta.leveled_up() else XP_COL]
 	]
 	for i in range(rows.size()):
 		var y = y0 + i * step
@@ -422,6 +424,7 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		if item.get("soon", false):
 			_txt("SOON", r.position.x + r.size.x - 12.0 * k, base - 2.0 * k, int(12 * k), GRAY, 2)
 	_txt("META COINS %d" % g.meta.balance, 18.0 * k, 30.0 * k, int(14 * k), GOLD)
+	_draw_title_level(k)
 	if g.game_version != "":
 		_txt("v" + g.game_version, size.x - 18.0 * k, size.y * 0.975, int(14 * k), GRAY, 2)
 	_txt(g.daily_label, size.x - 18.0 * k, 30.0 * k, int(14 * k), GRAY, 2)
@@ -445,6 +448,36 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		GRAY,
 		1
 	)
+
+
+# Label of the XP row on the run summary: the level and how far the next one is, or a level-up message
+func _xp_row_label() -> String:
+	var info = g.meta.xp_info()
+	if g.meta.leveled_up():
+		return "XP (LEVEL UP! NOW LEVEL %d)" % info["level"]
+	if info["max"]:
+		return "XP (LEVEL %d, TOP LEVEL)" % info["level"]
+	return "XP (LEVEL %d: %d / %d)" % [info["level"], info["into"], info["need"]]
+
+
+# The level and a progress bar to the next one in the top left corner of the title screen, under the meta coins
+func _draw_title_level(k: float) -> void:
+	var info = g.meta.xp_info()
+	var x = 18.0 * k
+	var w = 150.0 * k
+	var top = "LEVEL %d" % info["level"]
+	if info["max"]:
+		top += "  (TOP LEVEL)"
+	_txt(top, x, 52.0 * k, int(14 * k), XP_COL)
+	var bar = Rect2(x, 60.0 * k, w, 6.0 * k)
+	draw_rect(bar, Color(0.13, 0.14, 0.16))
+	var frac = 1.0 if info["max"] else float(info["into"]) / float(maxi(1, info["need"]))
+	draw_rect(Rect2(bar.position, Vector2(w * clampf(frac, 0.0, 1.0), bar.size.y)), XP_COL)
+	draw_rect(bar, Color(0.29, 0.31, 0.33), false, 1.0 * k)
+	if info["max"]:
+		_txt("XP %d" % g.meta.xp, x, 82.0 * k, int(12 * k), GRAY)
+	else:
+		_txt("XP %d / %d" % [info["into"], info["need"]], x, 82.0 * k, int(12 * k), GRAY)
 
 
 # Lines under the run summary table: the challenges done in this run (NEW for the first time ever, with the

@@ -4,15 +4,17 @@ extends RefCounted
 # gone when the run ends, while the meta balance only ever goes up from finished runs. It will be the
 # currency for permanent unlocks, cosmetics and Heat rewards (roadmap, Milestone B).
 
-# File format: {"version": 1, "balance", "total_earned", "owned": [unlock ids], "start_perk": unlock id}. Version 0 (before versioning) had no
-# "version" field; a file without "owned" (written before unlocks could be bought) loads with nothing owned.
-# File format: {"version": 1, "balance", "total_earned", "challenges"}. Version 0 (before versioning) had no "version" field.
-# "challenges" is {counter name: times done} for the challenges in data/challenges.json (scripts/challenges.gd). It was
-# added with a default (no counts), so it needed no version bump.
+# File format: {"version": 1, "balance", "total_earned", "owned": [unlock ids], "start_perk": unlock id, "challenges", "xp"}.
+# Version 0 (before versioning) had no "version" field; a file without "owned" (written before unlocks could be bought)
+# loads with nothing owned. "challenges" is {counter name: times done} for the challenges in data/challenges.json
+# (scripts/challenges.gd). "xp" is the total XP of all finished runs (scripts/xp.gd, data/xp.json); the level is worked
+# out from it and not saved. Both were added with a default (no counts, 0 XP), so they needed no version bump.
 const SaveUtil = preload("res://scripts/save_util.gd")
+const XpScript = preload("res://scripts/xp.gd")
 const UnlocksTable = preload("res://scripts/unlocks.gd")
 const PATH = "user://meta.json"
 const VERSION = 1
+const MAX_XP = 100000000  # sanity limit for the saved XP (far above the top level)
 const SCORE_PER_COIN = 100  # tuning knob: 100 points of score = 1 meta coin
 # tuning knobs: coins for each defeated boss, added on top of the score coins when the run ends
 const COINS_PER_BOSS = 5  # lawnmower, wifi adapter, minister
@@ -25,6 +27,10 @@ var total_earned = 0  # coins earned over all runs, for stats
 var challenge_counts = {}  # challenge counter name -> how many runs it was done in
 var awarded = false  # a run pays out once, however many end paths it passes through
 var boss_coins = 0  # coins this run's boss kills are worth; paid out with the run (a quit run pays nothing)
+var xp = 0  # total XP over all finished runs (never spent); the level comes from it, see `xp_info`
+var xp_boss = 0  # XP this run's boss kills are worth; paid out with the run, like boss_coins
+var xp_earned = 0  # XP the run that just ended paid out (shown on the run summary)
+var level_before = 1  # the level when the run that just ended paid out, to tell whether it went up
 
 
 func _init(game) -> void:
@@ -38,6 +44,7 @@ func load_meta() -> void:
 	owned = {}
 	start_perk = ""
 	challenge_counts = {}
+	xp = 0
 	if not FileAccess.file_exists(PATH):
 		return
 	var f = FileAccess.open(PATH, FileAccess.READ)
@@ -49,6 +56,9 @@ func load_meta() -> void:
 		SaveUtil.backup_if_newer(PATH, SaveUtil.version_of(data), VERSION)
 		balance = maxi(0, int(data.get("balance", 0)))
 		total_earned = maxi(balance, int(data.get("total_earned", 0)))
+		var raw_xp = data.get("xp", 0)
+		if typeof(raw_xp) == TYPE_INT or typeof(raw_xp) == TYPE_FLOAT:
+			xp = clampi(int(raw_xp), 0, MAX_XP)  # a hand-edited number cannot crash it or pass the top level
 		if typeof(data.get("start_perk", "")) == TYPE_STRING:
 			start_perk = str(data.get("start_perk", ""))
 		var ids = data.get("owned", [])
@@ -77,7 +87,8 @@ func save_meta() -> void:
 					"total_earned": total_earned,
 					"owned": ids,
 					"start_perk": start_perk,
-					"challenges": challenge_counts
+					"challenges": challenge_counts,
+					"xp": xp
 				}
 			)
 		)
@@ -88,6 +99,8 @@ func save_meta() -> void:
 func begin_run() -> void:
 	awarded = false
 	boss_coins = 0
+	xp_boss = 0
+	xp_earned = 0
 	g.meta_earned = 0
 
 
@@ -108,6 +121,7 @@ func add_boss_kill(kind: String, final: bool) -> void:
 	if awarded:
 		return
 	boss_coins += reward_for_boss(kind, final)
+	xp_boss += XpScript.boss_xp(kind, final)
 
 
 # Pays out the run that just ended (once). Returns the coins earned and leaves them in g.meta_earned for the summary screen.
@@ -118,11 +132,28 @@ func award_run() -> int:
 	var challenge_coins = g.challenges.award()  # also counts the challenges done, saved below
 	var n = reward_for_score(g.score) + boss_coins + challenge_coins
 	g.meta_earned = n
-	if n > 0 or g.challenges.done.size() > 0:
+	level_before = int(xp_info()["level"])
+	# rounds cleared: the round reached minus the one the run ended in, plus that one when the run was won
+	var cleared = maxi(0, g.round_n - 1) + (1 if g.run_won else 0)
+	xp_earned = XpScript.run_xp(
+		g.score, g.kills, cleared, g.run_won, g.challenges.done.size(), xp_boss
+	)
+	xp = mini(MAX_XP, xp + xp_earned)
+	if n > 0 or xp_earned > 0 or g.challenges.done.size() > 0:
 		balance += n
 		total_earned += n
 		save_meta()
 	return n
+
+
+# {"level", "into", "need", "max"} for the XP the player has now (see XpScript.info)
+func xp_info() -> Dictionary:
+	return XpScript.info(xp)
+
+
+# true when the run that just ended paid out enough XP to reach a higher level
+func leveled_up() -> bool:
+	return int(xp_info()["level"]) > level_before
 
 
 # ids of the unlocks the player owns (data/unlocks.json), saved in meta.json

@@ -44,6 +44,23 @@ Perks (bought once per run) and the duos that two perks form together. Loaded by
 
 What a perk *does* is still coded where it applies, by id (`g.perks.has("deadeye")` and so on in `combat.gd`, `player.gd`, `pickups.gd`, `bosses.gd`, `main.gd`), and duo effects are checked by name with `has_duo(...)`. A new perk or duo therefore needs code too; the table only holds its name, text, price and pairing.
 
+## `xp.json`
+
+What earns XP and how fast the levels come (roadmap, Milestone I). Loaded by `scripts/xp.gd`; a missing or bad value is logged with `push_error` and replaced by the built-in number listed in `DEFAULTS` there. A finished run pays its XP once, when it ends (`Meta.award_run`); a run that is quit pays nothing. XP is never spent. The total is saved as `xp` in `meta.json` (see `docs/SAVE_FILES.md`) and the level is worked out from it.
+
+| key | meaning |
+|---|---|
+| `score_per_xp` | points of score per XP, rounded down (at least 1) |
+| `per_kill` | XP per rider or boss taken down |
+| `per_round` | XP per round cleared (a won run counts every round) |
+| `run_won` | extra XP for winning the run |
+| `per_challenge` | XP per challenge done in the run (see `challenges.json`) |
+| `boss` | `{"boss", "runner", "final"}`: XP for a boss, for the angry cyclist mini boss and for the final boss, on top of the kill XP |
+| `level_base`, `level_step` | going from level 1 to level 2 takes `level_base` XP and every level after it takes `level_step` more than the one before |
+| `max_level` | the top level, where the XP bar is full (at least 1) |
+
+The numbers are first guesses: a won run should be worth roughly 1,000 to 1,500 XP and an early loss a few hundred, so the first levels come within a run or two and level 20 takes a dozen won runs. Tune them with the balance pass in Milestone I.
+
 ## `weapons.json`
 
 Tuning numbers for the two player weapons, `dart_gun` and `melee` (the gummy worm). Loaded by `scripts/weapons.gd`. A missing or non-numeric value is logged with `push_error` and replaced by a built-in fallback (listed in `weapons.gd`, same values as shipped), and unknown keys are logged and ignored, so check the Godot output panel after editing. There is no new weapon type here yet: adding one still needs code.
