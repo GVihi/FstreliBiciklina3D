@@ -222,7 +222,9 @@ var spread_deg = 2.0
 # player
 var player: Node3D
 var cam: Camera3D
-var gun = {}
+var gun = {}  # the model of the weapon in the primary slot (a value of `guns`), see sync_gun_model
+var guns = {}  # primary weapon id -> its first-person model (models.gd); only the one in the slot is shown
+var gun_id = ""  # the id of the weapon `gun` is the model of
 var rubber = {}
 var hud
 var sfx
@@ -366,14 +368,19 @@ func _ready() -> void:
 	if Toon.ENABLED:
 		outline_quad = Toon.make_outline_quad()
 		cam.add_child(outline_quad)
-	gun = Models.build_gun()
-	cam.add_child(gun["root"])
+	guns = {"dart_gun": Models.build_gun(), "dart_pistol": Models.build_pistol()}
+	var gun_roots = []
+	for gun_key in guns:
+		cam.add_child(guns[gun_key]["root"])
+		guns[gun_key]["root"].visible = false
+		gun_roots.append(guns[gun_key]["root"])
+	sync_gun_model()
 	rubber = Models.build_rubber()
 	cam.add_child(rubber["root"])
 	rubber["root"].visible = false
 	if VIEWMODEL_PASS:
 		viewmodel = ViewmodelScript.new(self)
-		viewmodel.setup(cam, [gun["root"], rubber["root"]], world["env"])
+		viewmodel.setup(cam, gun_roots + [rubber["root"]], world["env"])
 
 	# floor ring that shows where the rubber can reach
 	melee_ring = MeshInstance3D.new()
@@ -841,6 +848,22 @@ func pause_on_focus_loss() -> bool:
 
 
 # ================================================================== weapon slots
+# Shows the first-person model of the weapon in the primary slot and hides the others (a weapon without a model of its
+# own uses the dart gun's). Called every frame by `update_gun`, so every way a weapon gets into the slot (equipping,
+# a new run, a saved run) is covered; it only does something when the weapon has changed.
+func sync_gun_model() -> void:
+	var id = primary if guns.has(primary) else WeaponSlots.PRIMARY_DEFAULT
+	if id == gun_id or not guns.has(id):
+		return
+	gun_id = id
+	gun = guns[id]
+	for key in guns:
+		guns[key]["root"].visible = false
+		guns[key]["light"].light_energy = 0.0
+	player_sys.ammo_text = ""  # the number on the new model has to be set again
+	player_sys.pump_slide = 0.0
+
+
 # The tuning numbers (data/weapons.json) of the weapon in the primary slot.
 func primary_stats() -> Dictionary:
 	return WEAPONS[primary]

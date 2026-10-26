@@ -10,7 +10,7 @@ const PRIMARY = "primary"
 const PRIMARY_DEFAULT = "dart_gun"  # what every run starts with
 # every weapon that can be in the primary slot, with the name the HUD shows. The Milestone C weapons join here.
 # (static vars, not consts, so a check can add a made-up weapon to a slot and take it out again)
-static var PRIMARY_WEAPONS = {"dart_gun": "DARTS"}
+static var PRIMARY_WEAPONS = {"dart_gun": "DARTS", "dart_pistol": "PISTOL"}
 
 
 # true when `id` is a weapon that can be in the primary slot
@@ -83,6 +83,11 @@ const SLOT_NAMES = {"primary": "PRIMARY", "melee": "MELEE", "gadget": "GADGET"}
 # the name and text the Loadout page shows for a weapon; a weapon without an entry uses its HUD name and no text
 static var WEAPON_INFO = {
 	"dart_gun": {"name": "DART GUN", "desc": "THE PUMP-ACTION DART GUN EVERY RUN STARTS WITH"},
+	"dart_pistol":
+	{
+		"name": "DART NERF PISTOL",
+		"desc": "ONE DART PER PULL: SMALL CLIP, QUICK HANDS, UPGRADES MAKE IT GOOD"
+	},
 	"melee":
 	{"name": "GUMMY WORM", "desc": "THE GIANT GUMMY WORM: SWING IT AT RIDERS AND INCOMING PHONES"}
 }

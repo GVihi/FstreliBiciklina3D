@@ -11,6 +11,9 @@ var sway_yaw = 0.0
 var sway_pitch = 0.0
 var look_prev = Vector2.ZERO
 var look_seen = false
+# gamepad trigger of the last frame: a semi-automatic weapon (`semi_auto` in data/weapons.json) fires once per pull, so a
+# held trigger does not fire again until it has been let go (the mouse already fires once per click)
+var trig_was = false
 
 # recoil spring: the gun kicks back (metres), the muzzle rises (radians) and it rolls a little, then settles with a small overshoot
 var kick_back = 0.0
@@ -196,8 +199,9 @@ func update_player(dt: float, captured: bool) -> void:
 	var kick = 9.0 * clampf(g.dash_t / g.DASH_TIME, 0.0, 1.0)
 	g.cam.fov = lerpf(g.fov_hip, g.fov_hip * g.FOV_ADS / g.FOV_HIP, g.ads_t) + kick
 	g.spread_deg = current_spread()
-	if trig and active:
+	if trig and active and not (trig_was and int(g.primary_stats()["semi_auto"]) == 1):
 		g.combat_sys.fire()
+	trig_was = trig and active
 
 
 # stick aim help: drifts the crosshair onto whatever is close to it. On open ground (Threats.assist_cone and
@@ -374,6 +378,7 @@ func pump_curve(k: float) -> float:
 
 
 func update_gun(dt: float) -> void:
+	g.sync_gun_model()  # the model of the weapon in the primary slot
 	var gun_node: Node3D = g.gun["root"]
 	var rb: Node3D = g.rubber["root"]
 	var menu = g.state == "upgrade" or g.state == "shop" or g.state == "map"
@@ -455,7 +460,9 @@ func update_gun(dt: float) -> void:
 		(1.0 - g.ads_t) * 0.06 + sway_yaw * calm,
 		roll + kick_roll + LOAD_TILT.y * lb
 	)
-	pump.position = Vector3(0.0, pump.position.y, -0.30 + PUMP_TRAVEL * pump_slide)
+	pump.position = Vector3(
+		0.0, pump.position.y, float(g.gun.get("pump_z", -0.30)) + PUMP_TRAVEL * pump_slide
+	)
 	g.gun["light"].light_energy = 3.0 * (g.flash / 0.07) if g.flash > 0.0 else 0.0
 
 	# muzzle flash: bright for the first moments after a shot, smaller while aiming so it does not cover the sights

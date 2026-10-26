@@ -332,9 +332,10 @@ func _check_weapons() -> void:
 	var inp = main.input_sys
 	_own(0)
 	main.meta.weapon_choice = {}
-	# nothing bought: every slot lists only its default
+	# nothing bought: melee and gadget list only their default; the primary slot also lists the Dart Nerf Pistol, which
+	# is owned from the start (it has no unlock: it is meant to become the starting weapon)
 	var wp = main.WeaponSlots
-	if _ids(main.loadout_weapon_options("primary")) != ["dart_gun"]:
+	if _ids(main.loadout_weapon_options("primary")) != ["dart_gun", "dart_pistol"]:
 		_fail("primary lists %s" % str(_ids(main.loadout_weapon_options("primary"))))
 	if _ids(main.loadout_weapon_options("melee")) != ["melee"]:
 		_fail("melee lists %s" % str(_ids(main.loadout_weapon_options("melee"))))
@@ -355,9 +356,14 @@ func _check_weapons() -> void:
 	inp.loadout_switch(1)
 	if main.loadout_col != 1:
 		_fail("Right again left the weapon slots")
-	inp.loadout_pick()  # one weapon only: nothing changes
-	if main.meta.weapon_choice.has("primary") and main.meta.weapon_choice["primary"] != "":
-		_fail("choosing with one weapon owned changed the choice")
+	if main.loadout_weapon_options("primary")[1]["name"] != "DART NERF PISTOL":
+		_fail("the pistol row is called %s" % main.loadout_weapon_options("primary")[1]["name"])
+	inp.loadout_pick()  # the next owned weapon after the dart gun is the pistol
+	if main.loadout_weapon_id("primary") != "dart_pistol":
+		_fail("choosing took '%s', not the pistol" % main.loadout_weapon_id("primary"))
+	inp.loadout_pick()  # and round to the dart gun again
+	if main.loadout_weapon_id("primary") != "dart_gun":
+		_fail("choosing again took '%s', not the dart gun" % main.loadout_weapon_id("primary"))
 	_add_fake_weapons()
 	inp.title_move(1)
 	inp.title_move(1)
@@ -369,9 +375,12 @@ func _check_weapons() -> void:
 	if main.loadout_sel != 0:
 		_fail("moving in the weapon slots moved the perk list")
 	# the made-up gun is owned from the start, the locked one has to be bought
-	if _ids(main.loadout_weapon_options("primary")) != ["dart_gun", FAKE_PRIMARY]:
+	if _ids(main.loadout_weapon_options("primary")) != ["dart_gun", "dart_pistol", FAKE_PRIMARY]:
 		_fail("primary lists %s" % str(_ids(main.loadout_weapon_options("primary"))))
-	inp.menu_confirm()  # Enter on PRIMARY: the next owned weapon
+	inp.menu_confirm()  # Enter on PRIMARY: the next owned weapon, the pistol
+	if main.loadout_weapon_id("primary") != "dart_pistol":
+		_fail("Enter chose '%s', not the pistol" % main.loadout_weapon_id("primary"))
+	inp.menu_confirm()  # the made-up gun after it
 	if main.meta.weapon_choice.get("primary", "") != FAKE_PRIMARY:
 		_fail("Enter chose '%s' for primary" % str(main.meta.weapon_choice.get("primary", "")))
 	if main.loadout_weapon_id("primary") != FAKE_PRIMARY:
@@ -381,7 +390,10 @@ func _check_weapons() -> void:
 		_fail("Enter again gave '%s', not the first weapon" % main.loadout_weapon_id("primary"))
 	# buying the locked gun adds it to the list
 	main.meta.owned[FAKE_LOCK_ID] = true
-	if _ids(main.loadout_weapon_options("primary")) != ["dart_gun", FAKE_PRIMARY, FAKE_LOCKED]:
+	if (
+		_ids(main.loadout_weapon_options("primary"))
+		!= ["dart_gun", "dart_pistol", FAKE_PRIMARY, FAKE_LOCKED]
+	):
 		_fail("after buying, primary lists %s" % str(_ids(main.loadout_weapon_options("primary"))))
 	# the gadget slot: the empty slot first, then the made-up gadget
 	main.loadout_slot = 2
