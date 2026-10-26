@@ -845,6 +845,13 @@ func unlocks_layout() -> Dictionary:
 	return {"rows": rows, "heads": heads}
 
 
+# the BUY button under the detail text (it also shows OWNED, COMING SOON or what is missing)
+func unlock_buy_rect() -> Rect2:
+	var k = size.y / 720.0
+	var w = 260.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.885, w, 30.0 * k)
+
+
 # the unlock under a point of the Unlocks page, -1 for none
 func unlock_at(pos: Vector2) -> int:
 	if g == null or g.state != "title" or g.title_page != "unlocks":
@@ -907,27 +914,27 @@ func _draw_unlocks(k: float, cx: float) -> void:
 	var y = size.y * 0.8
 	_txt(cur["name"], cx, y, int(26 * k), TEXT, 1)
 	_txt(cur["desc"], cx, y + 28.0 * k, int(16 * k), TEXT, 1)
-	var line = "%s   %d COINS" % [UNLOCK_KIND_TEXT.get(cur["kind"], ""), cur["cost"]]
+	_txt(UNLOCK_KIND_TEXT.get(cur["kind"], ""), cx, y + 50.0 * k, int(15 * k), GRAY, 1)
+	var br = unlock_buy_rect()
+	var can_buy = cur_st == "afford"
+	draw_rect(br, Color(0.176, 0.196, 0.22) if can_buy else Color(0.13, 0.14, 0.16))
+	draw_rect(br, ACCENT if can_buy else Color(0.29, 0.31, 0.33), false, 3.0 * k)
+	var label = "BUY  %d COINS" % cur["cost"]
 	if cur_st == "owned":
-		line = "OWNED"
+		label = "OWNED"
 	elif cur_st == "soon":
-		line = "COMING SOON   %d COINS" % cur["cost"]
+		label = "COMING SOON"
 	elif cur_st == "locked":
-		line += "   NEED %d MORE" % (cur["cost"] - g.meta.balance)
+		label = "NEED %d MORE" % (cur["cost"] - g.meta.balance)
+	_txt(label, cx, br.position.y + 22.0 * k, int(18 * k), TEXT if can_buy else GRAY, 1)
+	if g.unlock_msg != "" and g.time - g.unlock_msg_t0 < 3.0:
+		var bought = g.unlock_msg == "BOUGHT"
+		_txt(g.unlock_msg, cx, size.y * 0.225, int(18 * k), GOLD if bought else ACCENT, 1)
 	_txt(
-		line,
+		"ARROWS OR D-PAD TO LOOK   ENTER, A OR THE BUTTON TO BUY   ESC, B OR A CLICK BESIDE THE LIST TO GO BACK",
 		cx,
-		y + 54.0 * k,
-		int(16 * k),
-		GOLD if cur_st == "afford" or cur_st == "owned" else GRAY,
-		1
-	)
-	_txt("BUYING UNLOCKS COMES WITH A LATER UPDATE", cx, size.y * 0.905, int(14 * k), ACCENT, 1)
-	_txt(
-		"ARROWS OR D-PAD TO LOOK   ESC, B OR A CLICK BESIDE THE LIST TO GO BACK",
-		cx,
-		size.y * 0.945,
-		int(16 * k),
+		size.y * 0.955,
+		int(14 * k),
 		GRAY,
 		1
 	)

@@ -356,7 +356,8 @@ func title_activate(i: int) -> void:
 		scores_confirm_activate(g.confirm_sel)  # Enter / A on the highlighted NO or YES
 		return
 	if g.title_page == "unlocks":
-		return  # Enter / A on the Unlocks page does nothing until buying is added; Esc / B go back
+		unlock_buy()  # Enter / A buys the highlighted unlock; Esc / B go back
+		return
 	if g.title_page != "":
 		title_back()
 		return
@@ -377,8 +378,28 @@ func title_activate(i: int) -> void:
 	else:
 		if id == "unlocks":
 			g.unlock_sel = 0
+			g.unlock_msg = ""
 		g.title_page = id  # loadout / unlocks / scores / settings
 		g.sfx.play("click")
+
+
+# ---- buying on the Unlocks page (Enter, gamepad A or a click on the BUY button; texts are in hud.gd)
+const UNLOCK_MESSAGES = {
+	"bought": "BOUGHT",
+	"owned": "YOU ALREADY OWN THIS",
+	"soon": "NOT IN THE GAME YET",
+	"locked": "NOT ENOUGH COINS"
+}
+
+
+func unlock_buy() -> void:
+	if g.state != "title" or g.title_page != "unlocks" or g.UNLOCKS.is_empty():
+		return
+	var u = g.UNLOCKS[clampi(g.unlock_sel, 0, g.UNLOCKS.size() - 1)]
+	var result = g.meta.buy(u)
+	g.unlock_msg = UNLOCK_MESSAGES.get(result, "")
+	g.unlock_msg_t0 = g.time
+	g.sfx.play("pickup" if result == "bought" else "click")
 
 
 # ---- reset leaderboard (High Scores page of the title screen; texts and buttons are in hud.gd)
@@ -485,7 +506,9 @@ func on_click() -> void:
 				title_back()
 		elif g.title_page == "unlocks":
 			var ui = g.hud.unlock_at(mp)
-			if ui >= 0:
+			if g.hud.unlock_buy_rect().has_point(mp):
+				unlock_buy()
+			elif ui >= 0:
 				g.unlock_sel = ui
 				g.sfx.play("click")
 			else:
