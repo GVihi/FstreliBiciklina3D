@@ -17,6 +17,7 @@ const HudScript = preload("res://scripts/hud.gd")
 const Toon = preload("res://scripts/toon.gd")
 const Rim = preload("res://scripts/rim.gd")
 const ObjectiveScript = preload("res://scripts/objective.gd")
+const ExploreScript = preload("res://scripts/explore_map.gd")
 const SfxScript = preload("res://scripts/sfx.gd")
 const Content = preload("res://scripts/content.gd")
 const SettingsScript = preload("res://scripts/settings.gd")
@@ -265,7 +266,7 @@ var drag_id = ""
 # the game version, written in one place: `config/version` in project.godot (shown on the title screen)
 var game_version = str(ProjectSettings.get_setting("application/config/version", ""))
 var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / scores
-var pause_page = ""  # "" = pause menu, "settings" = settings panel, "confirm" = restart / quit confirmation
+var pause_page = ""  # "" = pause menu, "settings" = settings panel, "controls", "map" = the arena map, "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
 var confirm_id = ""  # what the confirmation asks about: "restart" or "title"
 var confirm_sel = 0  # highlighted confirmation button: 0 = NO (the safe default), 1 = YES
@@ -534,6 +535,7 @@ var world_root: Node3D = null  # the generated arena's world (the roundabout's i
 var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics quality, high score file
 var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
 var objective_sys = ObjectiveScript.new(self)  # objective.gd: Objectives: supply caches and the extraction point on generated arenas.
+var explore_sys = ExploreScript.new(self)  # explore_map.gd: what the player has found of the arena, for the pause-screen map.
 var pickup_sys = PickupsScript.new(self)  # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
 var civ_sys = PedestriansScript.new(self)  # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
 var boss_sys = BossesScript.new(self)  # bosses.gd: Bosses: spawning, telegraphed attacks, weak points, phases and defeat.
@@ -1046,6 +1048,7 @@ func free_phone(ph: Dictionary) -> void:
 
 func clear_pickups() -> void:
 	objective_sys.clear()  # the caches and the extraction point belong to the round like the pick-ups do
+	explore_sys.clear()
 	for pk in pickups:
 		pk["node"].queue_free()
 	pickups.clear()
@@ -1061,6 +1064,7 @@ func start_round() -> void:
 	rider_rng.seed = DailyScript.stream_seed(run_seed, round_n, "riders")
 	plan_riders()
 	objective_sys.setup_round()
+	explore_sys.setup_round()  # after the objectives: it keeps one "found" flag per cache
 	round_t = 0.0
 	hits.clear()
 	for i in range(PER_ROUND):
@@ -1202,6 +1206,7 @@ func objective_reached() -> void:
 
 func end_round() -> void:
 	objective_sys.clear()
+	explore_sys.clear()
 	var n = count_hits()
 	round_times.append(round_t)
 	print(
@@ -1254,6 +1259,7 @@ func win_run() -> void:
 
 func game_over(reason: String) -> void:
 	objective_sys.clear()
+	explore_sys.clear()
 	clear_riders()
 	clear_bosses()
 	clear_phones()
@@ -1622,6 +1628,7 @@ func update_game(dt: float) -> void:
 		hype = maxf(0.0, hype - 3.0 * dt)
 	pickup_sys.update_pickups(dt)
 	objective_sys.update(dt)
+	explore_sys.update(dt)
 	phone_sys.update_phones(gdt)
 	boss_sys.update_bosses(gdt)
 	if riders.size() == 0 and bosses.size() == 0 and wait > 0.0:

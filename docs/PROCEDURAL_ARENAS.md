@@ -147,6 +147,20 @@ Why: the point is the end of a fight (README Milestone K, "Exploration and extra
 
 Safeguard for later: if a node without riders is ever played in the arena (an event that needs a walk, say), its extraction point must be open from the first second, never locked behind zero riders, or the round could not end. Nothing in the game does this yet: today a shop, rest or event node has no `riders` in its content, so `plan_riders` gives it the default rider count and it plays an ordinary round, which the Milestone D node items replace. No code was changed for this decision.
 
+## The pause-screen map
+
+The pause menu has a MAP page (README Milestone K, "Exploration and extraction"). It shows only what the player has found, so exploring is rewarded and the map never gives a spot away:
+
+| What | Shown when |
+|---|---|
+| Ground (colours as in `tools/viewer/arena_viewer.gd`) | the player has been within 26 m (`REVEAL_RADIUS` in `scripts/explore_map.gd`) of the cell; the ground round the start is seen from the first second |
+| Start | always (the round begins there) |
+| Gates | the cell the gate stands in has been seen |
+| Supply cache | the player has come within `SENSE_RANGE` (45 m, the radar's range) of it once; shown hollow grey once taken, and a taken cache is always found |
+| Extraction point | the player has come within `SENSE_RANGE` of it once; red-orange while riders are up, green once it is open |
+
+Shapes carry the meaning as well as colours (circle: start, bar: gate, diamond: cache, square: way out, triangle: you), the same rule as the cache variants in the roadmap. The state is per round (`explore_sys.setup_round()` after the objectives are built, cleared with them) and is not saved. The roundabout has no layout and no map.
+
 ## Open questions
 
 - **Can bosses and riders see and attack from far away?** A bigger open arena changes sightlines and what a threat arrow means.
