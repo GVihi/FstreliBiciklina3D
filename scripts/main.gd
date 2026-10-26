@@ -273,6 +273,7 @@ var confirm_t0 = 0.0  # g.time when the confirmation opened; YES is ignored for 
 var seed_buf = ""  # the hex digits typed on the custom seed page of the title screen (up to 8)
 var title_sel = 0  # highlighted title-menu entry (keyboard / gamepad)
 var unlock_sel = 0  # highlighted entry (index into UNLOCKS) of the Unlocks page of the title screen
+var loadout_sel = 0  # highlighted row of the Loadout page (index into loadout_options)
 var unlock_msg = ""  # the last result shown on the Unlocks page ("BOUGHT", "NOT ENOUGH COINS", ...)
 var unlock_msg_t0 = -10.0  # g.time when unlock_msg was set; it fades after a few seconds
 
@@ -586,6 +587,30 @@ func set_setting(id: String, v) -> void:
 	settings.set_setting(id, v)
 
 
+# the rows of the Loadout page: "no starting perk" first, then every starting perk the player owns, in table order
+func loadout_options() -> Array:
+	var out = [
+		{
+			"id": "",
+			"perk": "",
+			"name": "NO STARTING PERK",
+			"desc": "START EVERY RUN WITH NOTHING EXTRA"
+		}
+	]
+	for u in UNLOCKS:
+		if u["kind"] == "starting_perk" and meta.owns(u["id"]):
+			out.append({"id": u["id"], "perk": u["target"], "name": u["name"], "desc": u["desc"]})
+	return out
+
+
+# the perk a normal run starts with: the one chosen on the Loadout page while it is still owned, "" for none
+func start_perk_id() -> String:
+	for o in loadout_options():
+		if o["id"] != "" and o["id"] == meta.start_perk:
+			return str(o["perk"])
+	return ""
+
+
 # true when this run counts for the normal high score and Top 10: not a Daily Run and not a typed-in seed
 # (a seed everybody can replay would let one easy seed be farmed)
 func ranked_run() -> bool:
@@ -851,6 +876,9 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	pitch = 0.0
 	player.position = arena.start_position()
 	pvel = Vector3.ZERO
+	var start_perk_name = start_perk_id()
+	if start_perk_name != "" and ranked_run():  # a Daily Run or a typed seed starts the same for everybody
+		perks[start_perk_name] = true
 	if run_map.is_empty():
 		start_round()  # no map (it could not be generated): play the rounds in a line, as before
 	else:

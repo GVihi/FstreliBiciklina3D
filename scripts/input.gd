@@ -328,6 +328,9 @@ func hover_menu(pos: Vector2) -> void:
 	var ui = g.hud.unlock_at(pos)
 	if ui >= 0:
 		g.unlock_sel = ui
+	var li = g.hud.loadout_at(pos)
+	if li >= 0:
+		g.loadout_sel = li
 	if g.state == "map":
 		var mi = g.hud.map_choice_at(pos)
 		if mi >= 0:
@@ -338,6 +341,9 @@ func hover_menu(pos: Vector2) -> void:
 func title_move(d: int) -> void:
 	if g.state == "title" and g.title_page == "":
 		g.title_sel = posmod(g.title_sel + d, g.hud.TITLE_ITEMS.size())
+		g.sfx.play("click")
+	elif g.state == "title" and g.title_page == "loadout":
+		g.loadout_sel = posmod(g.loadout_sel + d, g.loadout_options().size())
 		g.sfx.play("click")
 	elif g.state == "title" and g.title_page == "unlocks" and not g.UNLOCKS.is_empty():
 		g.unlock_sel = posmod(g.unlock_sel + d, g.UNLOCKS.size())
@@ -354,6 +360,9 @@ func title_back() -> void:
 func title_activate(i: int) -> void:
 	if g.title_page == "scores_confirm":
 		scores_confirm_activate(g.confirm_sel)  # Enter / A on the highlighted NO or YES
+		return
+	if g.title_page == "loadout":
+		loadout_pick()  # Enter / A chooses the highlighted row; Esc / B go back
 		return
 	if g.title_page == "unlocks":
 		unlock_buy()  # Enter / A buys the highlighted unlock; Esc / B go back
@@ -376,11 +385,27 @@ func title_activate(i: int) -> void:
 		g.title_page = id
 		g.sfx.play("click")
 	else:
+		if id == "loadout":
+			g.loadout_sel = 0
+			var opts = g.loadout_options()
+			for n in range(opts.size()):
+				if opts[n]["id"] == g.meta.start_perk:
+					g.loadout_sel = n  # open on the row that is chosen now
 		if id == "unlocks":
 			g.unlock_sel = 0
 			g.unlock_msg = ""
 		g.title_page = id  # loadout / unlocks / scores / settings
 		g.sfx.play("click")
+
+
+# ---- choosing the starting perk on the Loadout page (Enter, gamepad A or a click on a row)
+func loadout_pick() -> void:
+	if g.state != "title" or g.title_page != "loadout":
+		return
+	var opts = g.loadout_options()
+	var o = opts[clampi(g.loadout_sel, 0, opts.size() - 1)]
+	g.meta.choose_start_perk(str(o["id"]))
+	g.sfx.play("click")
 
 
 # ---- buying on the Unlocks page (Enter, gamepad A or a click on the BUY button; texts are in hud.gd)
@@ -502,6 +527,13 @@ func on_click() -> void:
 		elif g.title_page == "seed":
 			if g.hud.seed_start_rect().has_point(mp):
 				seed_start()
+			else:
+				title_back()
+		elif g.title_page == "loadout":
+			var li = g.hud.loadout_at(mp)
+			if li >= 0:
+				g.loadout_sel = li
+				loadout_pick()
 			else:
 				title_back()
 		elif g.title_page == "unlocks":

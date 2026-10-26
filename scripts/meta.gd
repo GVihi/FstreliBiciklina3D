@@ -4,7 +4,7 @@ extends RefCounted
 # gone when the run ends, while the meta balance only ever goes up from finished runs. It will be the
 # currency for permanent unlocks, cosmetics and Heat rewards (roadmap, Milestone B).
 
-# File format: {"version": 1, "balance", "total_earned", "owned": [unlock ids]}. Version 0 (before versioning) had no
+# File format: {"version": 1, "balance", "total_earned", "owned": [unlock ids], "start_perk": unlock id}. Version 0 (before versioning) had no
 # "version" field; a file without "owned" (written before unlocks could be bought) loads with nothing owned.
 # File format: {"version": 1, "balance", "total_earned", "challenges"}. Version 0 (before versioning) had no "version" field.
 # "challenges" is {counter name: times done} for the challenges in data/challenges.json (scripts/challenges.gd). It was
@@ -36,6 +36,7 @@ func load_meta() -> void:
 	balance = 0
 	total_earned = 0
 	owned = {}
+	start_perk = ""
 	challenge_counts = {}
 	if not FileAccess.file_exists(PATH):
 		return
@@ -48,6 +49,8 @@ func load_meta() -> void:
 		SaveUtil.backup_if_newer(PATH, SaveUtil.version_of(data), VERSION)
 		balance = maxi(0, int(data.get("balance", 0)))
 		total_earned = maxi(balance, int(data.get("total_earned", 0)))
+		if typeof(data.get("start_perk", "")) == TYPE_STRING:
+			start_perk = str(data.get("start_perk", ""))
 		var ids = data.get("owned", [])
 		if ids is Array:
 			for id in ids:
@@ -73,6 +76,7 @@ func save_meta() -> void:
 					"balance": balance,
 					"total_earned": total_earned,
 					"owned": ids,
+					"start_perk": start_perk,
 					"challenges": challenge_counts
 				}
 			)
@@ -139,3 +143,12 @@ func buy(u: Dictionary) -> String:
 	owned[str(u["id"])] = true
 	save_meta()
 	return "bought"
+
+
+# the unlock id of the starting perk chosen on the Loadout page ("" = none); main.gd start_perk_id checks it is still owned
+var start_perk = ""
+
+
+func choose_start_perk(id: String) -> void:
+	start_perk = id
+	save_meta()

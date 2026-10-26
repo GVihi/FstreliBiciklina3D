@@ -72,8 +72,8 @@ func _check_title_entry() -> void:
 		return
 	if main.hud.TITLE_ITEMS[i].get("soon", false):
 		_fail("UNLOCKS is still marked SOON")
-	if not main.hud.TITLE_ITEMS[_entry("loadout")].get("soon", false):
-		_fail("LOADOUT lost its SOON mark, it is not built yet")
+	if main.hud.TITLE_ITEMS[_entry("loadout")].get("soon", false):
+		_fail("LOADOUT is still marked SOON")
 	_open_page()
 	if main.title_page != "unlocks":
 		_fail("activating UNLOCKS opened '%s'" % main.title_page)
