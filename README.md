@@ -17,6 +17,76 @@ Mostly vibe coded Godot game
 - The same rule applies to anyone working on this repository, including AI coding sessions: do not paste real keys into prompts, code, commit messages, docs or screenshots.
 - The plan for automatic checks (secret scanning, push protection, a pre-commit hook and a CI check) is in "Keeping secrets out of the public repository" in Milestone N.
 
+# Early Alpha Roadmap
+
+> **Goal:** the smallest set of changes that turns the current build into a **playable, progressable roguelite**: a player starts a run, makes real choices on the way, wins or loses it, spends what they earned, and starts the next run with something different. Written on 2026-10-26 after reading the whole roadmap, `docs/`, `data/` and the run flow in `scripts/main.gd`, and after looking at the open branches. Anything that is not on this list waits until after the alpha (see "Not in the early alpha" at the end). An item here that also exists in a milestone below is the same work: tick both. Every item follows the testing rule above (a check with a `.bat` wherever it can be checked).
+
+## The loop the alpha has to deliver
+
+```
+TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ... -> mid boss -> ... -> final boss
+      ^                                                                                              |
+      |                                          RUN SUMMARY (coins, XP) <---------------------------+
+      +------------ UNLOCKS (spend coins) <-------------+
+```
+
+## Where the game stands today
+
+**Works end to end:** a 10-floor run map from a seed, one generated arena per run, rounds with riders, caches, extraction and an ambush, a mid boss and a final boss, upgrade and shop screens, a run summary with meta coins and XP, the Unlocks page (buying), the Loadout page (starting perk), Continue, Daily Run, local leaderboard and challenges.
+
+**What makes it feel scattered** (each one is an item below):
+
+1. **The map nodes are labels.** Shop, rest, event and elite nodes all play the same ordinary round (Milestone D "Map Nodes" is all open), and the upgrade and shop screens come after *every* round whatever the node, so choosing a node changes almost nothing. The rain modifier is carried by the node but has no effect.
+2. **What you earn barely changes the next run.** Only starting perks do anything. The six shop-item unlocks have no effect (`data/README.md`: nothing filters the shop pool), the weapon unlocks wait for Milestone C, and a level is only a number.
+3. **Two branches are not merged.** `milestone-c/weapon-slots` (weapon slots, weapon choice on the Loadout page, the Dart Nerf Pistol; 21 files) and `roadmap/level-rewards` (XP about 7 times slower, so levels take many runs; its numbers contradict the "level 5 takes one or two runs" assumption of the melee lock on the weapons branch).
+4. **Nobody has measured difficulty or length.** "Balance pass for the 10-round curve", "Tune round length", "Playtest the objectives" and "Playtest and balance" on the 144 m arena are all open, against a target of 20 to 30 minutes a run.
+5. **The end of a run is a dead end.** The run summary only offers CLICK TO CONTINUE; spending the coins and starting the next run is a hunt through about ten title buttons.
+
+### A. Foundation
+
+- [ ] **A1. Merge `milestone-c/weapon-slots`** (review it, run `tools\run_weapon_slots_check.bat`, `tools\run_dart_pistol_check.bat`, `tools\run_loadout_check.bat` and `tools\run_run_save_check.bat`, then merge). Everything in B and C builds on the slots and the weapon choice. Done when `main` has the three slots, the weapon choice on the Loadout page and the pistol, and those checks pass.
+- [ ] **A2. Every `tools\run_*.bat` check passes on `main`**, including `scores_reset_check`, which is reported failing in Milestone A (Continue item). An alpha built on red checks cannot be trusted. Done when all of them are green on the owner's machine.
+
+### B. A run with real choices (Milestone D "Map Nodes")
+
+- [ ] **B1. Decide the loop after a cleared round, and write it down.** Today every round goes clear, upgrade, shop, map. Proposal: **an upgrade pick (1 of 3) after every fight, and the shop only at shop nodes**, so a shop node is worth choosing and the cash from a round has something to wait for. The shop moving to nodes changes the economy (Milestone G rules item), so the prices are checked in D2.
+- [ ] **B2. Shop node is a screen, not a round**: it skips the arena, opens the shop screen with the node's seeded offers (`shop_sys.enter_shop`) and goes back to the map (Milestone D "Shop").
+- [ ] **B3. Rest node is a screen with one choice**: refill hearts to full, or take one extra upgrade pick (Milestone D "Rest stop"). Hearts max at 3 and every cleared round already gives one back, so the heal alone is never a real choice.
+- [ ] **B4. Elite node pays for its risk**: it is already a harder fight (10 to 12 riders, 40 % armoured); make it also pay something the others do not, a second upgrade pick (Milestone D "Elite encounter").
+- [ ] **B5. Cut what has no effect from the alpha map**: set the `event` weight to 0 and the `rain` modifier weight to 0 in `data/map_rules.json` (`tools/map_check.gd` still has to pass). The code stays; Milestone D "Event" and "Rain modifier" stay open. `double_riders` stays, it works.
+- [ ] **B6. The map screen says what each node does** (one line for the highlighted node: SHOP spend your cash, REST heal or upgrade, ELITE harder and pays more, BOSS). Without it the choice is blind.
+- [ ] **B7. Normal and boss nodes**: no change needed; the mid boss (floor 5) and the final boss (floor 10) already work. Done when a run walks every node type through B2 to B4 and the run save (`scripts/run_save.gd`) still continues from the map screen.
+
+### C. Progression that changes the next run (Milestones B, C and I)
+
+- [ ] **C1. Starting loadout: Dart Nerf Pistol and the melee weapon** (Milestone I "Starting loadout", the pistol's "Make it the starting primary weapon"). *Proposed deviation from the weapons branch, owner to confirm:* the branch also locks the melee weapon until level 5; for the alpha the melee weapon stays owned from the start, because the lock needs a level rule, a "no melee" empty slot and HUD changes, and the loop works without it. The lock moves after the alpha.
+- [ ] **C2. First weapon unlock: the Dart Gun** becomes a buyable `weapon` entry in `data/unlocks.json` (a middle tier), so the first purchases change how the player shoots. The pistol's in-run upgrades (clip, pump, reload) already work on it; the dedicated five-tier upgrade path waits.
+- [ ] **C3. Owning a shop-item unlock matters**: unowned shop items leave the shop pool (the "shop filter" item of Milestone I, see `data/README.md`). Decide the Daily Run and custom seeds: proposal, the same filter as a normal run, matching the loadout decision on the weapons branch.
+- [ ] **C4. Decide what a level does, and write it down.** For the alpha it is enough to answer "a number only, shown on the title and the summary" (Milestone I "Decide whether a level unlocks anything"). Then merge or drop `roadmap/level-rewards`; its XP numbers only matter once a level does something.
+- [ ] **C5. The end of a run leads on**: the run summary gets NEW RUN and UNLOCKS buttons (UNLOCKS highlighted when the new coins can buy something that was out of reach), and the title menu puts the loop first (CONTINUE, PLAY, LOADOUT, UNLOCKS, then the rest). Done when a player can go from a lost run to the next one in two clicks, with coins spent on the way.
+
+### D. Difficulty and length (Milestones "Recommended Roguelite Structure", I and K)
+
+- [ ] **D1. Tune round length on the 144 m arena** (the playtest items under Milestone K: objectives, riders and pickups, rider speed and sightlines). Use the run timer that is already there (the `[run timer]` lines and the summary). Target: a 10-round run takes 20 to 30 minutes including the map, upgrade and shop screens, so about 2 minutes a fight. Done when five runs from the owner land inside that range.
+- [ ] **D2. Balance pass with the starting loadout** (Milestone "Balance pass for the 10-round difficulty curve", Milestone I "Balance pass"): rider speed, boss health, final boss health, the shop prices after B1, cash from caches. First guess at the goal, to correct by playing: from a fresh save the first runs end between floors 2 and 7, one reaches the mid boss, and with three or four unlocks the final boss is reachable (winning it is allowed to stay hard).
+- [ ] **D3. The meta economy fits the loop**: the first purchase is within one or two runs, the cheapest tier first (60 coins is the current guess), and the whole alpha unlock list costs roughly 15 to 25 runs of coins. Tune the price curve in `data/unlocks.json` and the coin rates in `scripts/meta.gd`; a run that is quit pays nothing, which stays.
+
+### E. Alpha gate
+
+- [ ] **E1. First-run hints**, not a tutorial: a one-line prompt the first time the player sees the map screen, the upgrade screen, the shop, the extraction point opening and a cache. The "seen" flags live in the settings file and a setting turns the hints off. Done when someone who has never seen the game can finish round 1 without being told anything (Milestone E "Short tutorial" stays open).
+- [ ] **E2. Windows export tested**: export `build/windows/FB3D.exe` (Milestone E "Configure Windows export presets" was never run), start it from a clean folder and check that settings, scores, meta and the run save land in `user://` and load again.
+- [ ] **E3. Soak test**: three complete runs from the exe (one lost, one won or a final boss reached, one quit and continued) with nothing in the console that is an error, and no save file corrupted.
+- [ ] **E4. Ship notes**: set `config/version` to `0.2.0`, and add a short `docs/ALPHA_NOTES.md`: how to run it, the controls, what is in and what is not, known issues, and where to send feedback.
+
+### Not in the early alpha (on purpose)
+
+- **Looks and sound:** Milestone F (graphics and sound overhaul, models, music). The placeholder look is fine for testing the loop.
+- **More content:** the other three weapons and the five-tier pistol path (Milestone C), relics, curses, more modifiers, events, cosmetics and skins (B, D), rider variety and arena hazards, height and hills (K).
+- **Extra systems:** Heat and per-difficulty leaderboards, jumping (L), third person (M), the run start sequence (H), the melee lock at level 5, daily modifiers and the share card, caches with a catch.
+- **Online and polish:** the website, accounts, cloud saves, key rebinding, localization, the tutorial (E, N).
+
+---
+
 # Roguelite Development Roadmap
 
 > The game is already most of the way to a roguelite. It has runs made of rounds, a shop, perks that pair into duos, and bosses. Almost everything on this list is a layer on top of that, plus the missing "between runs" progression.
