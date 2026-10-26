@@ -640,18 +640,19 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 
 ## Accounts and login
 
-- [ ] Account login through the REST API with username and password (use the website's existing accounts if there are any, and decide whether players can register in the game, on the website, or both)
+- [ ] Account login through the REST API with username and password (decided: players register on the website only, so the game has no sign-up form, only a login and a "No account? Register on the website" link that opens the registration page; use the website's existing accounts if there are any)
 - [ ] Token-based session after login: the launcher gets a token (and a refresh token), keeps it on the player's PC in a protected place (Windows Credential Manager or an encrypted file, never the password), and sends it with every call; logging out deletes it
+- [ ] "Remember me": when ticked, the token is kept so the next start skips the login and goes straight on (the launcher checks the token with the website, and shows the login form again if it has expired or was revoked); when not ticked, the token is only kept for this session; a LOG OUT button on the launcher screen forgets it
 - [ ] Password handling: the password only travels over HTTPS and is never stored or logged by the game, the website uses Django's password hashing, and failed logins are rate-limited
 - [ ] Password reset and email confirmation through the website (reuse what the site already has)
 - [ ] Decide what an offline player sees: the game still starts and plays with the local save, and logs in and syncs later
 
 ## Launcher
 
-- [ ] Design the launcher screen: login form (username, password, remember me), a PLAY button, the installed game version, "update available" status, and a link to the website and the bug report page
-- [ ] Decide whether the launcher is a separate small program that starts the game, or the first screen inside the game (a separate program makes auto update easier because the game files are not in use while they are replaced)
+- [ ] The launcher is the game's first screen (decided: no separate launcher program), shown before the title menu: login form (username, password, "remember me"), a "Register on the website" link, a PLAY button once logged in, the installed game version, "update available" status, and a link to the website and the bug report page; with a remembered login it only shows briefly and goes on to the title menu by itself
+- [ ] Offline and skip: if the website cannot be reached, the launcher screen says so and lets the player continue offline with the local save (see "Decide what an offline player sees" above); decide whether a player who never logs in gets a "play without an account" button
 - [ ] Build the launcher login against the REST API, with clear messages for a wrong password, no connection and a server error
-- [ ] Launcher starts the game with the logged-in account, so the game knows who is playing without asking again
+- [ ] After login the game knows the account (name, token) for the whole session, so saves, scores and XP go to the right account without asking again, and a log out or an expired token drops back to the launcher screen
 - [ ] Show the account name, level and XP in the launcher after login
 
 ## API key (game to website, in the background)
@@ -702,7 +703,8 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 - [ ] Proper Windows installer (`.exe`), built from the export in `build/windows/FB3D.exe` (see "Configure Windows export presets" in Milestone E): installs into Program Files or the user's folder, adds a Start Menu entry and a desktop shortcut, and has an uninstaller that leaves the saves alone unless asked (decide the tool, for example Inno Setup or NSIS; written as a script in the repo so the build can be repeated)
 - [ ] Fill in the Windows version information (`application/file_version` and `application/product_version` in `export_presets.cfg`, read from `config/version`) and decide about code signing the installer and the exe (without a signature Windows SmartScreen shows a warning)
 - [ ] Version check through the website: the launcher asks the API for the newest version (and the minimum version still allowed) when it starts, and shows "Update available" or "Update required"
-- [ ] Download and install updates automatically: the launcher downloads the new version from the website, checks its checksum (and signature) before using it, replaces the game files while the game is not running, keeps the saves, and can roll back if the update fails; decide between a full installer download and a smaller patch
+- [ ] Download and install updates automatically: the launcher screen in the game downloads the new version from the website, checks its checksum (and signature) before using it, keeps the saves, and can roll back if the update fails; decide between a full installer download and a smaller patch
+  - [ ] Since the launcher runs inside the game, the running game cannot replace its own files: the game downloads the update, then starts a small separate updater (or the installer in silent mode), quits, and the updater replaces the files and starts the game again; write down which of the two is used and how a failed update restores the old version
 - [ ] Release publishing, superuser only: a page in the Django admin (or a small form) where only the superuser uploads a new build, enters its version and release notes, and marks it as the current one; the website stores the file's checksum, nobody else (not even logged-in staff) can publish, and old versions can be kept or withdrawn
 - [ ] Show the release notes (what changed) in the launcher before or after an update
 - [ ] Decide how the version number is kept in step: `config/version` in `project.godot` stays the one place the game's version is written (see "Show the game version on the title screen" in Milestone E), and the release page on the website reads or checks against it
