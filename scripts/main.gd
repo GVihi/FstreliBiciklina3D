@@ -146,7 +146,7 @@ var last_rank = -1  # leaderboard place of the run that just ended (0 = first), 
 var player_name = "PLAYER"  # last name typed on the leaderboard (saved), offered again next time
 var name_entry = false  # true on the run summary while the player is typing a name for a new leaderboard entry
 var name_buf = ""
-var new_unlocks = []  # names of items unlocked by this run (filled once the unlock system exists)
+var new_unlocks = []  # names of the unlocks this run's coins put within reach for the first time (set in Meta.award_run)
 var meta_earned = 0  # meta coins this run paid out (shown on the run summary); run cash is the separate `cash`
 var shots_fired = 0
 var shots_hit = 0

@@ -146,6 +146,20 @@ static func _source_of(kind: String, target: String, known: Dictionary) -> Dicti
 	return item
 
 
+# The unlocks that the coins of one run put within reach for the first time: not owned, not planned, and the meta
+# balance went from below the price to the price or above it. `table` is the "unlocks" array, `owned` the owned ids
+# as keys, `before` and `after` the balance around the payout. Returns the entries in table order.
+static func newly_affordable(table: Array, owned: Dictionary, before: int, after: int) -> Array:
+	var out = []
+	for u in table:
+		if owned.has(u["id"]) or u["planned"]:
+			continue
+		var cost = int(u["cost"])
+		if before < cost and cost <= after:
+			out.append(u)
+	return out
+
+
 # how an unlock shows on the Unlocks page: "owned", "soon" (its target is not in the game yet), "afford" (the
 # balance covers the price) or "locked"
 static func state_of(u: Dictionary, owned: bool, balance: int) -> String:
