@@ -146,6 +146,7 @@ func fire() -> void:
 	g.flash = 0.07
 	g.shake = 0.15
 	g.shots_fired += 1
+	g.challenges.on_dart_fired()
 	g.sfx.play("shot")
 	g.pitch = clampf(g.pitch + deg_to_rad(0.7 * (1.0 - 0.5 * g.ads_t)), -1.45, 1.45)
 
