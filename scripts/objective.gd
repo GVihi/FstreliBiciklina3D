@@ -138,6 +138,7 @@ func _take(c: Dictionary) -> void:
 	g.add_hype(10.0)
 	g.hi_check()
 	if taken == caches.size():
+		g.challenges.on_all_caches(not extracting)
 		g.score += ALL_CACHES_SCORE
 		g.shop_sys.add_cash(ALL_CACHES_CASH)
 		g.add_note("EVERY CACHE FOUND  +%d" % ALL_CACHES_SCORE, GOLD)
