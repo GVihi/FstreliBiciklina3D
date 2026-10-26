@@ -1,0 +1,63 @@
+{
+	"price_curve": [60, 120, 250, 450, 750],
+	"unlocks": [
+		{"id": "perk_steady", "kind": "starting_perk", "target": "steady", "tier": 1},
+		{"id": "perk_salvage", "kind": "starting_perk", "target": "salvage", "tier": 1},
+		{"id": "perk_scavenger", "kind": "starting_perk", "target": "scavenger", "tier": 1},
+		{"id": "perk_haggler", "kind": "starting_perk", "target": "haggler", "tier": 2},
+		{"id": "perk_sprinter", "kind": "starting_perk", "target": "sprinter", "tier": 2},
+		{"id": "perk_counter", "kind": "starting_perk", "target": "counter", "tier": 2},
+		{"id": "perk_adrenaline", "kind": "starting_perk", "target": "adrenaline", "tier": 2},
+		{"id": "perk_bounty", "kind": "starting_perk", "target": "bounty", "tier": 3},
+		{"id": "perk_slideshot", "kind": "starting_perk", "target": "slideshot", "tier": 3},
+		{"id": "perk_lastshell", "kind": "starting_perk", "target": "lastshell", "tier": 3},
+		{"id": "perk_deadeye", "kind": "starting_perk", "target": "deadeye", "tier": 3},
+		{"id": "perk_closeshave", "kind": "starting_perk", "target": "closeshave", "tier": 4},
+		{"id": "perk_boomerang", "kind": "starting_perk", "target": "boomerang", "tier": 4},
+		{"id": "perk_secondwind", "kind": "starting_perk", "target": "secondwind", "tier": 5},
+
+		{"id": "item_magnet", "kind": "shop_item", "target": "magnet", "tier": 1},
+		{"id": "item_pack_hype", "kind": "shop_item", "target": "pack_hype", "tier": 1},
+		{"id": "item_luck", "kind": "shop_item", "target": "luck", "tier": 2},
+		{"id": "item_hype", "kind": "shop_item", "target": "hype", "tier": 2},
+		{"id": "item_pack_shield", "kind": "shop_item", "target": "pack_shield", "tier": 2},
+		{"id": "item_heart", "kind": "shop_item", "target": "heart", "tier": 3},
+
+		{
+			"id": "weapon_crossbow",
+			"kind": "weapon",
+			"target": "crossbow",
+			"name": "SUCTION-DART CROSSBOW",
+			"desc": "A slow, hard-hitting dart that pierces through riders",
+			"tier": 3,
+			"planned": true
+		},
+		{
+			"id": "weapon_confetti",
+			"kind": "weapon",
+			"target": "confetti_cannon",
+			"name": "CONFETTI CANNON",
+			"desc": "A burst of confetti that hurts everything in an area",
+			"tier": 3,
+			"planned": true
+		},
+		{
+			"id": "weapon_stink_bomb",
+			"kind": "weapon",
+			"target": "stink_bomb",
+			"name": "STINK BOMB",
+			"desc": "Riders swerve away from the cloud",
+			"tier": 4,
+			"planned": true
+		},
+		{
+			"id": "weapon_phone_launcher",
+			"kind": "weapon",
+			"target": "phone_launcher",
+			"name": "PHONE LAUNCHER",
+			"desc": "Fires the phones back at the riders",
+			"tier": 4,
+			"planned": true
+		}
+	]
+}

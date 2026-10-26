@@ -80,6 +80,33 @@ Still in code, because they are not weapon tuning or are shared with other syste
 
 Numbers for the procedural run map (floors, widths, boss and prep floors, node type weights). Read by `scripts/map_gen.gd` (the run map generator; rounds do not follow the map yet). What each key means is in [`docs/MAP_GENERATION.md`](../docs/MAP_GENERATION.md).
 
+## `unlocks.json`
+
+What the player can buy with meta coins (see `scripts/meta.gd`) and the price of each thing. Loaded by `scripts/unlocks.gd`; bad entries are skipped and logged with `push_error`, so check the Godot output panel after editing. **Nothing in the game reads it yet**: the Unlocks page, the Loadout page, the saving of purchases and the shop filter are separate items of Milestone I in the README.
+
+```
+{
+  "price_curve": [60, 120, 250, 450, 750],   // coins for tier 1, 2, 3, ...; whole numbers above 0 that get bigger
+  "unlocks": [ {entry}, ... ]                // the order is the order of the Unlocks page
+}
+```
+
+Every entry has `id` (unique), `kind`, `target` and `tier` (1 to the length of the price curve). The price is `price_curve[tier - 1]`, so the whole curve is tuned in one place; an entry can set its own `cost` (a whole number from 0) when one price needs to differ.
+
+| kind | `target` | name and text | what buying it will do |
+|---|---|---|---|
+| `starting_perk` | a perk id from `perks.json` | taken from the perk | the perk can be chosen to start a run with |
+| `shop_item` | an item id from `items.json` (not the heal, which is always on sale) | taken from the item | the item joins the shop pool |
+| `weapon` | a new id, for a weapon that does not exist yet | `name` and `desc` are written in the entry | the weapon joins the shop pool (Milestone C) |
+| `cosmetic` | a new id | `name` and `desc` are written in the entry | the skin can be equipped (Milestone B); no entries yet, each one is added with its art |
+
+`planned: true` marks an entry whose target is not in the game yet (all four weapons today); the Unlocks page should show those as coming soon or leave them out. It is refused on a perk or an item, which exist. A thing can be unlocked once.
+
+**Anything that is not listed is available from the first run.** So the table only holds what is held back: today all 14 perks as starting perks, six shop items (POCKET MAGNET, HYPE PACK, LUCKY CHARM, HYPE MACHINE, SHIELD PACK, THICK SKIN) and the four weapons of Milestone C.
+
+**The price curve is a first guess.** A finished run pays about 1 coin per 100 points plus 5 per boss and 20 for the final boss (`scripts/meta.gd`), so roughly 60 to 400 coins depending on how far it got. Tier 1 (60) is meant to be affordable after one short run, tier 5 (750) after several good ones, and buying everything listed takes 5,440 coins. Tune the numbers after real runs, in the balance pass of Milestone I.
+
+Not decided here, because it changes how runs play: a shop that skips the unlocked-only items means a seed no longer offers the same items to every player, so the Daily Run (and a custom seed) will probably need the full pool and no starting perk. Decide that when the shop filter is built.
 ## `challenges.json`
 
 The meta challenges: small goals that pay meta coins (Milestone B, "Earn from challenges"). Loaded by `scripts/challenges.gd`, which also watches the run for each condition and pays the coins with the run; bad entries are skipped and logged with `push_error`, so check the Godot output panel after editing. They show on the run summary and on the CHALLENGES page of the title menu.
