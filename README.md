@@ -8,6 +8,15 @@ Mostly vibe coded Godot game
 - The game starts in a 1280x720 window (the base size in `project.godot`). Fullscreen is built in: F11, or the FULLSCREEN row in the settings, and the choice is saved.
 - If the game runs inside the editor's embedded game view, fullscreen and other window changes do not work there, because the game is not its own window. Turn off the editor's embedded game window option (in the game view toolbar) so the game runs in a separate window, or run an exported build.
 
+## Secrets and credentials (this repository is public)
+> **WARNING: never commit or push secrets.** Everything in this repository, including every old commit, is visible to the whole internet, and deleting a secret in a later commit does not remove it from the history. Once a key has been pushed, treat it as stolen and replace it.
+- Never commit: API keys (including the game-to-website key from Milestone N), passwords, login or refresh tokens, Django `SECRET_KEY`, database or server credentials, SSH keys, `.env` files, code signing certificates, Godot encryption keys (`script_encryption_key` and the save encryption key), or a player's save and settings files.
+- Keep secrets outside the repository: in environment variables or an untracked local file (for example `secrets.local.cfg` or `.env`, listed in `.gitignore` before the file is created), and in GitHub Actions secrets for CI. The repository only holds a template with fake values (for example `secrets.example.cfg`).
+- Check before every commit: run `git status` and `git diff --staged` and read what is going in. If a key was pushed by mistake, tell the owner right away, replace the key first (the old one is burned), and only then clean the history.
+- Godot warning: `export_presets.cfg` is tracked. If PCK encryption is ever switched on, its key is written into that file, so keep the key out of the tracked file (set it with the `GODOT_SCRIPT_ENCRYPTION_KEY` environment variable at export time, and leave the key field empty in the repository).
+- The same rule applies to anyone working on this repository, including AI coding sessions: do not paste real keys into prompts, code, commit messages, docs or screenshots.
+- The plan for automatic checks (secret scanning, push protection, a pre-commit hook and a CI check) is in "Keeping secrets out of the public repository" in Milestone N.
+
 # Roguelite Development Roadmap
 
 > The game is already most of the way to a roguelite. It has runs made of rounds, a shop, perks that pair into duos, and bosses. Almost everything on this list is a layer on top of that, plus the missing "between runs" progression.
@@ -725,6 +734,17 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 - [ ] Release publishing, superuser only: a page in the Django admin (or a small form) where only the superuser uploads a new build, enters its version and release notes, and marks it as the current one; the website stores the file's checksum, nobody else (not even logged-in staff) can publish, and old versions can be kept or withdrawn
 - [ ] Show the release notes (what changed) in the launcher before or after an update
 - [ ] Decide how the version number is kept in step: `config/version` in `project.godot` stays the one place the game's version is written (see "Show the game version on the title screen" in Milestone E), and the release page on the website reads or checks against it
+
+## Keeping secrets out of the public repository
+
+- [ ] Turn on GitHub secret scanning and push protection for the repository (Settings > Code security), so a push that contains a known key format is blocked
+- [ ] Extend `.gitignore` before any secret file exists: `.env`, `.env.*`, `secrets.local.*`, `*.pem`, `*.key`, `*.pfx`, `*.p12`, `*.crt`, `export_credentials.cfg` (already there), `user://`-style save and token files if one ever ends up inside the project folder, and the Django `local_settings.py` or settings override of the website app
+- [ ] Add an example file with fake values (for example `secrets.example.cfg`) that shows what the game or the build expects, and have the game, the launcher and the build scripts read the real values from an untracked file or an environment variable
+- [ ] Add a pre-commit check (a small script in `tools/`, with a `.bat` next to it as the testing rule asks, plus a one-line install step in this README) that stops a commit if the staged changes contain a key-like string (long random strings, `api_key=`, `password=`, `SECRET_KEY`, `BEGIN PRIVATE KEY`)
+- [ ] Add a secrets check to CI (`.github/workflows/ci.yml`, for example gitleaks or a small script over the changed files) that fails a pull request when it finds one
+- [ ] Decide where the real keys live: the game-to-website API key and the Django secrets in the server's environment or a protected settings file outside the repository, the CI and release keys in GitHub Actions secrets, and write down who has them and how to rotate them (see the key rotation item above)
+- [ ] Write a short "a key leaked" procedure in `docs/` (revoke and replace the key first, then clean the history with `git filter-repo` or similar, check the website logs for misuse, and note that forks and clones keep the old history)
+- [ ] Do a one-time look through the existing history for anything key-like before the web integration starts (nothing was found in the current files)
 
 ## Suggested order inside this milestone
 
