@@ -1532,13 +1532,19 @@ func track_rect(i: int) -> Rect2:
 	return Rect2(r.position.x + r.size.x * 0.46, r.position.y + 10.0 * k, r.size.x * 0.38, 10.0 * k)
 
 
-func setting_at(pos: Vector2) -> String:
+# the row under a point of the settings panel, -1 for none
+func setting_row_at(pos: Vector2) -> int:
 	if not settings_visible():
-		return ""
+		return -1
 	for i in range(setting_rows().size()):
 		if row_rect(i).has_point(pos):
-			return setting_rows()[i]["id"]
-	return ""
+			return i
+	return -1
+
+
+func setting_at(pos: Vector2) -> String:
+	var i = setting_row_at(pos)
+	return "" if i < 0 else str(setting_rows()[i]["id"])
 
 
 func is_toggle(id: String) -> bool:
@@ -1564,12 +1570,13 @@ func _draw_settings(k: float) -> void:
 	_txt(
 		"SETTINGS", pr.position.x + pr.size.x * 0.5, pr.position.y + 30.0 * k, int(20 * k), GOLD, 1
 	)
-	var mp = get_viewport().get_mouse_position()
+	var sel = clampi(g.setting_sel, 0, setting_rows().size() - 1)  # the mouse moves it too (hover_menu)
 	for i in range(setting_rows().size()):
 		var row = setting_rows()[i]
 		var r = row_rect(i)
-		if r.has_point(mp):
+		if i == sel:
 			draw_rect(r, Color(1, 1, 1, 0.06))
+			draw_rect(r, ACCENT, false, 2.0 * k)
 		var ty = r.position.y + 21.0 * k
 		_txt(row["label"], r.position.x + 8.0 * k, ty, int(14 * k), TEXT)
 		if row.has("choices"):
@@ -1604,6 +1611,18 @@ func _draw_settings(k: float) -> void:
 			else:
 				txt = row["fmt"] % v
 			_txt(txt, r.position.x + r.size.x - 10.0 * k, ty, int(14 * k), TEXT, 2)
+
+
+func _draw_settings_hints(k: float, cx: float) -> void:
+	_txt(
+		"UP / DOWN: PICK A ROW   LEFT / RIGHT: CHANGE   ENTER: SWITCH ON / OFF",
+		cx,
+		size.y * 0.89,
+		int(14 * k),
+		GRAY,
+		1
+	)
+	_txt("ESC OR CLICK OUTSIDE TO GO BACK", cx, size.y * 0.92, int(14 * k), GRAY, 1)
 
 
 # ---------------------------------------------------------------- main draw
@@ -1745,7 +1764,7 @@ func _draw() -> void:
 		if g.pause_page == "settings":
 			_dim(0.86)
 			_draw_settings(k)
-			_txt("ESC OR CLICK OUTSIDE TO GO BACK", cx, size.y * 0.92, int(14 * k), GRAY, 1)
+			_draw_settings_hints(k, cx)
 		elif g.pause_page == "confirm":
 			_dim(0.6)
 			_draw_confirm(k, cx)
@@ -1760,7 +1779,7 @@ func _draw() -> void:
 		_draw_map_overlay(k, cx)
 	elif state == "title" and g.title_page == "settings":
 		_draw_settings(k)
-		_txt("ESC OR CLICK OUTSIDE TO GO BACK", cx, size.y * 0.92, int(14 * k), GRAY, 1)
+		_draw_settings_hints(k, cx)
 
 
 # ---------------------------------------------------------------- pieces

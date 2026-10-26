@@ -80,17 +80,21 @@ func handle_input(event: InputEvent) -> void:
 		elif kc == KEY_LEFT:
 			menu_move(-1)
 			confirm_move()
+			settings_adjust(-1)
 		elif kc == KEY_RIGHT:
 			menu_move(1)
 			confirm_move()
+			settings_adjust(1)
 		elif kc == KEY_UP or kc == KEY_W:
 			title_move(-1)
 			pause_move(-1)
 			confirm_move()
+			settings_move(-1)
 		elif kc == KEY_DOWN or kc == KEY_S:
 			title_move(1)
 			pause_move(1)
 			confirm_move()
+			settings_move(1)
 		elif kc == KEY_1 or kc == KEY_KP_1:
 			if g.state == "map" and g.state_t > 0.3:
 				g.pick_node(0)
@@ -155,9 +159,15 @@ func on_pad_button(btn: int) -> void:
 			if btn == JOY_BUTTON_DPAD_UP:
 				pause_move(-1)
 				confirm_move()
+				settings_move(-1)
 			elif btn == JOY_BUTTON_DPAD_DOWN:
 				pause_move(1)
 				confirm_move()
+				settings_move(1)
+			elif btn == JOY_BUTTON_DPAD_LEFT:
+				settings_adjust(-1)
+			elif btn == JOY_BUTTON_DPAD_RIGHT:
+				settings_adjust(1)
 			elif btn == JOY_BUTTON_A:
 				pause_activate(g.pause_sel)
 			elif btn == JOY_BUTTON_B:
@@ -176,12 +186,16 @@ func on_pad_button(btn: int) -> void:
 		return
 	if btn == JOY_BUTTON_DPAD_UP:
 		title_move(-1)
+		settings_move(-1)
 	elif btn == JOY_BUTTON_DPAD_DOWN:
 		title_move(1)
+		settings_move(1)
 	elif btn == JOY_BUTTON_DPAD_LEFT:
 		menu_move(-1)
+		settings_adjust(-1)
 	elif btn == JOY_BUTTON_DPAD_RIGHT:
 		menu_move(1)
+		settings_adjust(1)
 	elif btn == JOY_BUTTON_A:
 		if g.state == "title":
 			title_activate(g.title_sel)
@@ -310,6 +324,9 @@ func confirm_name() -> void:
 # Moving the mouse over a title / pause button selects it, so the keyboard and the mouse share
 # one highlight (title_sel / pause_sel). Staying in the gap between two buttons keeps the last one.
 func hover_menu(pos: Vector2) -> void:
+	var ri = g.hud.setting_row_at(pos)
+	if ri >= 0:
+		g.setting_sel = ri
 	var ti = g.hud.title_at(pos)
 	if ti >= 0:
 		g.title_sel = ti
@@ -355,6 +372,9 @@ func title_back() -> void:
 
 
 func title_activate(i: int) -> void:
+	if g.hud.settings_visible():
+		settings_activate()  # Enter / A on the settings panel switches the highlighted row; Esc / B go back
+		return
 	if g.title_page == "scores_confirm":
 		scores_confirm_activate(g.confirm_sel)  # Enter / A on the highlighted NO or YES
 		return
@@ -448,6 +468,44 @@ func scores_confirm_activate(i: int) -> void:
 	g.sfx.play("click")
 
 
+# ---- settings panel (rows are listed in hud.gd ALL_SETTING_ROWS): Up / Down pick a row, Left / Right change it
+# (a slider moves one twentieth of its range, a switch goes off / on, GRAPHICS steps through its choices), Enter / A
+# flips a switch or steps GRAPHICS. All of them do nothing while the panel is not showing.
+func settings_move(d: int) -> void:
+	if not g.hud.settings_visible():
+		return
+	var n = g.hud.setting_rows().size()
+	g.setting_sel = posmod(clampi(g.setting_sel, 0, n - 1) + d, n)
+	g.sfx.play("click")
+
+
+func settings_adjust(d: int) -> void:
+	if not g.hud.settings_visible():
+		return
+	var rows = g.hud.setting_rows()
+	var row = rows[clampi(g.setting_sel, 0, rows.size() - 1)]
+	var id = str(row["id"])
+	if row.has("choices"):
+		g.settings.set_setting(
+			id, posmod(int(g.settings.get_setting(id)) + d, row["choices"].size())
+		)
+	elif row.get("toggle", false):
+		g.settings.set_setting(id, d > 0)
+	else:
+		var step = (float(row["max"]) - float(row["min"])) / 20.0
+		g.settings.set_setting(id, float(g.settings.get_setting(id)) + float(d) * step)
+	g.sfx.play("click")
+
+
+func settings_activate() -> void:
+	var rows = g.hud.setting_rows()
+	var row = rows[clampi(g.setting_sel, 0, rows.size() - 1)]
+	if row.has("choices") or row.get("toggle", false):
+		var id = str(row["id"])
+		g.settings.set_setting(id, g.settings.next_value(id))
+		g.sfx.play("click")
+
+
 # ---- pause menu (entries are listed in hud.gd PAUSE_ITEMS)
 func pause_move(d: int) -> void:
 	if g.state == "play" and g.paused and g.pause_page == "":
@@ -467,6 +525,9 @@ func pause_back() -> void:
 
 
 func pause_activate(i: int) -> void:
+	if g.hud.settings_visible():
+		settings_activate()  # Enter / A on the settings panel switches the highlighted row; Esc / B go back
+		return
 	if g.pause_page == "confirm":
 		confirm_activate(g.confirm_sel)
 		return
