@@ -34,6 +34,7 @@ const AWAY_REACH = 2.0  # metres from the exit point at which a rider that gave 
 const NEVER_GIVES_UP = 1.0e9  # seconds: the time limit of a rider that cannot get away (g.riders_can_escape())
 const AGE_SPEED_CAP = 6.0  # seconds: the longest a rider speeds up for, where it has no time limit
 const AWAY_MIN_SPEED = 8.0  # metres per second: the slowest a rider that gave up goes to make its turn
+const AMBUSH_MIN_DIST = 35.0  # metres: an ambush rider comes out of a gate at least this far from the player (ambush_gate)
 
 var g = null
 
@@ -43,7 +44,29 @@ func _init(game) -> void:
 
 
 # ================================================================== riders
-func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
+# `ambush` marks an extra rider: one of the ambush when the extraction point opens (ambush.gd) or one a cursed cache
+# calls (objective.gd). Such a rider is not one of the round's PER_ROUND riders, so it takes no place in `hits` ("idx"
+# is -1) and does not move `next_idx`, it follows no node plan, it is never an armoured rider (no runner to chase
+# after), and it comes out of `gate_override`, or else of a gate far from the player (ambush_gate). `rng` is the
+# random stream of whoever sends it: the draws of the spawn come from it instead of the round's rider stream, so when
+# the player takes a cursed cache, or how long the ambush takes, never changes which riders the round's own waves
+# bring (the Daily Run must give everybody the same riders).
+func spawn_rider(
+	lane_idx: int,
+	dir: int,
+	ambush: bool = false,
+	rng: RandomNumberGenerator = null,
+	gate_override: Dictionary = {}
+) -> Dictionary:
+	var saved = g.rider_rng
+	if rng != null:
+		g.rider_rng = rng
+	var r = _spawn_rider(lane_idx, dir, ambush, gate_override)
+	g.rider_rng = saved
+	return r
+
+
+func _spawn_rider(lane_idx: int, dir: int, ambush: bool, gate_override: Dictionary) -> Dictionary:
 	var roll = g.layout_f()
 	var type = "pro"
 	if g.round_n >= 2 and roll < 0.2:
@@ -55,8 +78,10 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 	# a node's plan (on a generated arena) decides the kind; the draws above still happen, so the other draws of the
 	# round do not depend on whether there is a plan
 	var planned = g.planned_rider_type(g.next_idx)
-	if planned != "":
+	if planned != "" and not ambush:
 		type = planned
+	if ambush and type == "tough":
+		type = "sprinter"
 	var kit_i = g.layout_i(4)
 	if type == "sprinter":
 		kit_i = 4
@@ -80,7 +105,9 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 	var start_yaw = g.arena.yaw(x0) + (0.0 if dir > 0 else PI)
 	if g.arena.rider_pursuit():
 		# open ground: in a gate's tunnel, facing out of it; "dir" stays 1 so parts fly the way it rides
-		var gate = pick_gate()
+		var gate = gate_override
+		if gate.is_empty():
+			gate = ambush_gate() if ambush else pick_gate()
 		start_pos = gate_spawn_point(gate)
 		start_yaw = yaw_of(-gate["outward"])
 		dir = 1
@@ -108,7 +135,8 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 		"age": 0.0,
 		"entered": false,
 		"type": type,
-		"idx": g.next_idx,
+		"idx": -1 if ambush else g.next_idx,
+		"ambush": ambush,
 		"model": m,
 		"parts": [],
 		"kit": kit,
@@ -124,7 +152,8 @@ func spawn_rider(lane_idx: int, dir: int) -> Dictionary:
 	}
 	if not g.riders_can_escape():
 		r["limit"] = NEVER_GIVES_UP
-	g.next_idx += 1
+	if not ambush:
+		g.next_idx += 1
 	g.riders.append(r)
 	r["hidden"] = is_hidden(r["pos"])
 	place_rider(r, 0.0)
@@ -192,6 +221,35 @@ func pick_gate() -> Dictionary:
 	if usable.is_empty():
 		usable = gates
 	return usable[g.layout_i(usable.size())]
+
+
+# The gate an ambush rider comes out of (ambush.gd): one of the gates the node leaves open that is at least
+# AMBUSH_MIN_DIST from the player, so the riders have to ride in and the player sees them coming; if every gate is
+# closer than that, the farthest one. Drawn with the layout's random numbers like pick_gate.
+func ambush_gate() -> Dictionary:
+	var gates = g.arena.gates()
+	var usable = []
+	for i in g.node_setup().get("gates", []):
+		if int(i) >= 0 and int(i) < gates.size():
+			usable.append(gates[int(i)])
+	if usable.is_empty():
+		usable = gates
+	var far = []
+	var best = usable[0]
+	var best_d = -1.0
+	for gate in usable:
+		var d = (
+			Vector2(gate["pos"].x - g.player.position.x, gate["pos"].z - g.player.position.z)
+			. length()
+		)
+		if d >= AMBUSH_MIN_DIST:
+			far.append(gate)
+		if d > best_d:
+			best_d = d
+			best = gate
+	if far.is_empty():
+		return best
+	return far[g.layout_i(far.size())]
 
 
 # the gate nearest to world point pos
@@ -651,7 +709,8 @@ func resolve(r: Dictionary, hit: bool) -> void:
 	if i >= 0:
 		g.riders.remove_at(i)
 	g.free_rider(r)
-	g.hits[r["idx"]] = hit
+	if r["idx"] >= 0:  # an ambush rider (idx -1) is not one of the round's riders
+		g.hits[r["idx"]] = hit
 	if not hit:
 		g.combo = 0
 		g.wave_miss = true

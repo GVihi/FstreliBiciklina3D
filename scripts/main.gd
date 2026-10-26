@@ -17,6 +17,7 @@ const HudScript = preload("res://scripts/hud.gd")
 const Toon = preload("res://scripts/toon.gd")
 const Rim = preload("res://scripts/rim.gd")
 const ObjectiveScript = preload("res://scripts/objective.gd")
+const AmbushScript = preload("res://scripts/ambush.gd")
 const ExploreScript = preload("res://scripts/explore_map.gd")
 const SfxScript = preload("res://scripts/sfx.gd")
 const Content = preload("res://scripts/content.gd")
@@ -535,6 +536,7 @@ var world_root: Node3D = null  # the generated arena's world (the roundabout's i
 var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics quality, high score file
 var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
 var objective_sys = ObjectiveScript.new(self)  # objective.gd: Objectives: supply caches and the extraction point on generated arenas.
+var ambush_sys = AmbushScript.new(self)  # ambush.gd: the last wave of riders when the extraction point opens on a generated arena.
 var explore_sys = ExploreScript.new(self)  # explore_map.gd: what the player has found of the arena, for the pause-screen map.
 var pickup_sys = PickupsScript.new(self)  # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
 var civ_sys = PedestriansScript.new(self)  # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
@@ -1048,6 +1050,7 @@ func free_phone(ph: Dictionary) -> void:
 
 func clear_pickups() -> void:
 	objective_sys.clear()  # the caches and the extraction point belong to the round like the pick-ups do
+	ambush_sys.clear()
 	explore_sys.clear()
 	for pk in pickups:
 		pk["node"].queue_free()
@@ -1171,6 +1174,8 @@ func need_boss() -> bool:
 func after_wave() -> void:
 	if state != "play" or riders.size() > 0 or bosses.size() > 0:
 		return
+	if objective_sys.extracting:
+		return  # the way out is open: the ambush riders (ambush.gd) going down does not end the round, reaching the point does
 	if need_boss():
 		pending_boss = true
 		wait = 1.4
@@ -1193,6 +1198,7 @@ func finish_wave_set() -> void:
 		and count_hits() >= hits_needed()
 	):
 		objective_sys.begin_extraction()
+		ambush_sys.start()
 		wait = 0.0
 		wait_msg = ""
 		return
@@ -1206,6 +1212,8 @@ func objective_reached() -> void:
 
 func end_round() -> void:
 	objective_sys.clear()
+	ambush_sys.clear()
+	clear_riders()  # ambush riders still on the way in when the player gets out
 	explore_sys.clear()
 	var n = count_hits()
 	round_times.append(round_t)
@@ -1259,6 +1267,7 @@ func win_run() -> void:
 
 func game_over(reason: String) -> void:
 	objective_sys.clear()
+	ambush_sys.clear()
 	explore_sys.clear()
 	clear_riders()
 	clear_bosses()
@@ -1628,6 +1637,7 @@ func update_game(dt: float) -> void:
 		hype = maxf(0.0, hype - 3.0 * dt)
 	pickup_sys.update_pickups(dt)
 	objective_sys.update(dt)
+	ambush_sys.update(gdt)
 	explore_sys.update(dt)
 	phone_sys.update_phones(gdt)
 	boss_sys.update_bosses(gdt)
