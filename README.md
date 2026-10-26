@@ -42,47 +42,156 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
 4. **Nobody has measured difficulty or length.** "Balance pass for the 10-round curve", "Tune round length", "Playtest the objectives" and "Playtest and balance" on the 144 m arena are all open, against a target of 20 to 30 minutes a run.
 5. **The end of a run is a dead end.** The run summary only offers CLICK TO CONTINUE; spending the coins and starting the next run is a hunt through about ten title buttons.
 
+### Working order
+
+> Work **one checkbox at a time**, in this order, not in the A to E order of the lists below (the lists group the work by topic; this is the order that keeps the game playable and every step checkable). Each checkbox gets its own branch (`roadmap/<id>-<short-name>`, for example `roadmap/b5-cut-event-and-rain`) built from an up-to-date `main`, and ends with: the `.bat` check for it, the owner's in-game check, a tick in the list below (and in the milestone item it belongs to), and then the next one. The boxes live only in the lists below; this list only gives the order. The numbers in brackets are the sub-items to do in that step.
+
+1. **A1** (A1.1 to A1.5): merge the weapon slots branch first, because B and C build on it and a late merge means conflicts in `main.gd` and the loadout code.
+2. **A2** (A2.1 to A2.5): get every check green, starting with the missing `.bat` files and the one script that runs them all, so every later step can be proven with one command.
+3. **E2** (E2.1 to E2.3): a first export of the Windows build, as a smoke test. It was never run, and finding an export problem now is cheaper than at the end. It is repeated at the gate (E2.4).
+4. **A3** (A3.1, A3.2): play three runs of the current build and write the times down. This is the "before" for round length, difficulty and the shop move in B1.
+5. **C1, then C2**: the starting loadout (pistol and melee) and the Dart Gun as the first thing to buy. Small, since the pistol is already on the merged branch, and it makes the starting state real before anything is built around it.
+6. **B5, B2, B1, B3, B4, B6, B7**, in this order: B5 is a data change and shrinks the map first; **B2 (the shop node) comes before B1** so the game never goes through a stretch where the shop has been removed from the rounds and does not exist yet; then B1 takes the shop out of the normal round loop, B3 and B4 add the rest and elite rewards, and B6 and B7 make the choices readable and prove the whole map.
+7. **C3, C4, C5**: the shop filter for unlocks, the level decision written down, and the run summary that leads on. They come after B because C3 and C5 change the screens B has just fixed.
+8. **D1, D2, D3**: round length, then difficulty, then the coin economy, in that order, because each one changes the numbers the next one measures. Everything that changes play comes before this on purpose.
+9. **E1, E3, E2.4, E4**: first-run hints (they point at screens that now exist), the soak test, the second export, and the version and notes.
+
 ### A. Foundation
 
-- [ ] **A1. Merge `milestone-c/weapon-slots`** (review it, run `tools\run_weapon_slots_check.bat`, `tools\run_dart_pistol_check.bat`, `tools\run_loadout_check.bat` and `tools\run_run_save_check.bat`, then merge). Everything in B and C builds on the slots and the weapon choice. Done when `main` has the three slots, the weapon choice on the Loadout page and the pistol, and those checks pass.
+- [ ] **A1. Merge `milestone-c/weapon-slots`.** Everything in B and C builds on the slots and the weapon choice. Done when `main` has the three slots, the weapon choice on the Loadout page and the pistol, and the checks of A1.2 pass.
+  - [ ] A1.1 Read the branch diff against `main` (21 files: `scripts/weapon_slots.gd`, `models.gd`, `player.gd`, `run_save.gd`, `shop.gd`, `weapons.gd`, `docs/SAVE_FILES.md`, `data/weapons.json`, the new tools and `.bat` files) and write down what looks wrong: leftover debug, a commit with the message `.`, behaviour that changes the game when it should not (the notes say the game plays exactly as before).
+  - [ ] A1.2 The owner runs `tools\run_weapon_slots_check.bat`, `tools\run_dart_pistol_check.bat`, `tools\run_loadout_check.bat` and `tools\run_run_save_check.bat` on the branch and reports the result.
+  - [ ] A1.3 The owner plays a short run on the branch: the Loadout page with its three weapon slots, the pistol in the slot (one dart per pull), a run saved and continued from the title screen, and an old `run.json` from before the branch still loading.
+  - [ ] A1.4 Fix what A1.1 to A1.3 found, each fix its own small commit on the branch.
+  - [ ] A1.5 Merge the branch into `main` (a pull request the owner merges), then fetch `main` and confirm the four checks of A1.2 still pass there.
 - [ ] **A2. Every `tools\run_*.bat` check passes on `main`**, including `scores_reset_check`, which is reported failing in Milestone A (Continue item). An alpha built on red checks cannot be trusted. Done when all of them are green on the owner's machine.
+  - [ ] A2.1 Give the 14 check scripts in `tools/` that have no `.bat` one, as the testing rule asks (written like `tools/run_baseline.bat`): `arena_gen_check`, `arena_generated_check`, `arena_theme_check`, `arena_viewer_check`, `boss_check`, `map_check`, `map_viewer_check`, `map_walk_check`, `pedestrian_check`, `rider_check`, `seed_page_check`, `world_dress_check`, `world_gen_check` and `world_generated_check`. Without them the checks the map and arena work leans on cannot be run the same way as the rest.
+  - [ ] A2.2 Write `tools\run_all_checks.bat` (optional Godot path as the first argument, the Godot version printed): it runs every `tools\run_*.bat` one after the other, keeps going after a failure and ends with a list of PASSED and FAILED checks. It is what proves A2, E3 and every later step with one command.
+  - [ ] A2.3 The owner runs it on `main` and sends the list of failures.
+  - [ ] A2.4 Fix `scores_reset_check` (reported as failing with the same lines on an unchanged download; "looks like a timing problem in the check or the Delete key handling").
+  - [ ] A2.5 Fix every other red check, one sub-item per check (add them here as they appear), or, if a check is wrong and not the game, fix the check and say why in the commit. Done when `run_all_checks.bat` ends with no FAILED.
+- [ ] **A3. Baseline of the current build** (new, not in a milestone). Before anything changes the feel of a run, measure it, so that D1 to D3 have a "before". Done when the numbers are in the table of A3.2.
+  - [ ] A3.1 The owner plays three runs of `main` (after A1) from a fresh save and keeps the console output: the `[run timer]` line of every round, the total time, the floor where each run ended and why (riders, a civilian, a boss), the coins and XP on the summary, and what felt slow, unfair or confusing.
+  - [ ] A3.2 Put the numbers in a small table under D (round times, run time, floor reached, coins per run) and leave it there; D1 to D3 add an "after" column.
 
 ### B. A run with real choices (Milestone D "Map Nodes")
 
+- [ ] **B5. Cut what has no effect from the alpha map**: `event` nodes and the `rain` modifier. The code stays; Milestone D "Event" and "Rain modifier" stay open. `double_riders` stays, it works.
+  - [ ] B5.1 In `data/map_rules.json` set the `event` type weight to 0 (if the generator does not accept a weight of 0, use `"max_per_map": 0`) and describe the change in `docs/MAP_GENERATION.md`.
+  - [ ] B5.2 Set the `rain` modifier weight to 0 in the same file.
+  - [ ] B5.3 Run `tools\run_map_check.bat` and `tools\run_map_walk_check.bat` (made in A2.1); if a check insists on events or on rain, change the check to match and say why.
+  - [ ] B5.4 Look at 20 seeds in the map viewer (`tools/viewer/map_viewer.tscn`): no event node and no rain, and floors 4 and 9 still hold a shop and a rest each.
+- [ ] **B2. Shop node is a screen, not a round**: it skips the arena, opens the shop screen with the node's seeded offers and goes back to the map (Milestone D "Shop").
+  - [ ] B2.1 In `pick_node` / `start_round` (`scripts/main.gd`) a node of type `shop` does not start a round: no riders, no extraction point, no ambush; it calls `shop_sys.enter_shop()` and the floor and round number still go up by one.
+  - [ ] B2.2 The offers come from the node's own seed (the `seed` in the node's `content`), so the same node gives the same shop and the Daily Run gives everybody the same shops; the heal stays always on sale.
+  - [ ] B2.3 `leave_shop` in `scripts/shop.gd` goes to the map screen after a shop node (not to an upgrade pick) and the map checkpoint is saved.
+  - [ ] B2.4 A shop node is not a cleared round: no round XP, no `challenges.on_round_cleared`, no entry in `round_times`, nothing counted as a perfect round; its time goes into `shop_time`.
+  - [ ] B2.5 Extend `tools/map_walk_check.gd` (its `.bat` comes from A2.1): walking onto a shop node opens the shop, leaving it gives the map, and the round counter went up by one.
+  - [ ] B2.6 The owner plays a run and takes a shop node.
 - [ ] **B1. The loop after a cleared round (decided with the owner).** Today every round goes clear, upgrade, shop, map. Decided: **an upgrade pick (1 of 3) after every fight, and the shop only at shop nodes**, so a shop node is worth choosing and the cash from a round has something to wait for. The shop moving to nodes changes the economy (Milestone G rules item), so the prices are checked in D2.
-- [ ] **B2. Shop node is a screen, not a round**: it skips the arena, opens the shop screen with the node's seeded offers (`shop_sys.enter_shop`) and goes back to the map (Milestone D "Shop").
+  - [ ] B1.1 After a fight node (normal, elite, boss) the flow becomes clear screen, upgrade pick, map: `pick_upgrade` goes on to `next_round()` and not to `enter_shop()` (`scripts/shop.gd`).
+  - [ ] B1.2 Cash now waits for a shop node: show the cash on the map screen (`_draw_map_screen` in `scripts/hud.gd`) so the player knows what they can spend.
+  - [ ] B1.3 Keep the run timer true: the upgrade screen still counts as `shop_time`, and the `[run timer]` line still adds up.
+  - [ ] B1.4 Update the checks that walk this flow (`tools/map_walk_check.gd`, `round_clear_check.gd`, `generated_run_check.gd`, `run_save_check.gd`) to the new order and run them.
+  - [ ] B1.5 The owner plays two runs and notes whether cash piles up uselessly or the shop nodes feel too poor; the notes go to D2.
 - [ ] **B3. Rest node is a screen with one choice**: refill hearts to full, or take one extra upgrade pick (Milestone D "Rest stop"). Hearts max at 3 and every cleared round already gives one back, so the heal alone is never a real choice.
+  - [ ] B3.1 New state `rest` with a screen of two options, REFILL HEARTS and EXTRA UPGRADE, in the style of the shop screen (keyboard, mouse and gamepad), drawn in `scripts/hud.gd`, wired in `scripts/input.gd`.
+  - [ ] B3.2 REFILL sets the hearts to `MAXHEARTS` and goes back to the map; EXTRA UPGRADE opens one upgrade pick and then the map.
+  - [ ] B3.3 Like the shop node it is not a cleared round (see B2.4), and the map checkpoint is the map screen, so quitting on the rest screen and continuing gives the map with the same hearts (the same known loophole as for rounds, not guarded against).
+  - [ ] B3.4 `tools/rest_node_check.gd` with `tools\run_rest_node_check.bat`: both options, the hearts, the counters, the keys and the screen at two window sizes.
+  - [ ] B3.5 The owner plays a run to floor 4 and takes the rest node.
 - [ ] **B4. Elite node pays for its risk**: it is already a harder fight (10 to 12 riders, 40 % armoured); make it also pay something the others do not, a second upgrade pick (Milestone D "Elite encounter").
-- [ ] **B5. Cut what has no effect from the alpha map**: set the `event` weight to 0 and the `rain` modifier weight to 0 in `data/map_rules.json` (`tools/map_check.gd` still has to pass). The code stays; Milestone D "Event" and "Rain modifier" stay open. `double_riders` stays, it works.
+  - [ ] B4.1 Clearing an elite node gives two upgrade picks in a row, the second with fresh offers.
+  - [ ] B4.2 The clear screen says so (for example ELITE CLEARED - EXTRA UPGRADE).
+  - [ ] B4.3 Extend `tools/node_setup_check.gd` or add a small check: an elite clear gives two picks, a normal one gives one.
+  - [ ] B4.4 The owner plays and takes an elite node.
 - [ ] **B6. The map screen says what each node does** (one line for the highlighted node: SHOP spend your cash, REST heal or upgrade, ELITE harder and pays more, BOSS). Without it the choice is blind.
-- [ ] **B7. Normal and boss nodes**: no change needed; the mid boss (floor 5) and the final boss (floor 10) already work. Done when a run walks every node type through B2 to B4 and the run save (`scripts/run_save.gd`) still continues from the map screen.
+  - [ ] B6.1 One line per node type under the map, for the highlighted node, in `_draw_map_screen` (`scripts/hud.gd`).
+  - [ ] B6.2 It fits clear of the map and the style line at 1280x720 and 1920x1080 (the same kind of layout check as in `tools/map_walk_check.gd`).
+  - [ ] B6.3 The owner looks at it in a run and in fullscreen.
+- [ ] **B7. Every node type works, and the run still continues** (the mid boss on floor 5 and the final boss on floor 10 already work; this is the proof for the whole map). Done when a run has walked every node type through B2 to B4 and the run save (`scripts/run_save.gd`) still continues from the map screen.
+  - [ ] B7.1 Play or script a run that takes a normal, an elite, a shop, a rest and a boss node.
+  - [ ] B7.2 After each of them, quit to the title and CONTINUE: the map screen comes back with the same hearts, cash and perks.
+  - [ ] B7.3 `tools\run_all_checks.bat` is green.
 
 ### C. Progression that changes the next run (Milestones B, C and I)
 
 - [ ] **C1. Starting loadout: Dart Nerf Pistol and the melee weapon** (Milestone I "Starting loadout", the pistol's "Make it the starting primary weapon"). *Decided with the owner, a change from the weapons branch:* the branch also locks the melee weapon until level 5; the melee weapon **stays owned from the start**, and the lock is dropped from the alpha (it needs a level rule, a "no melee" empty slot and HUD changes). The weapons branch's "Melee weapon is locked at the start" item and the Milestone I starting loadout wording are to be updated to match when it is merged.
-- [ ] **C2. First weapon unlock: the Dart Gun** becomes a buyable `weapon` entry in `data/unlocks.json` (a middle tier), so the first purchases change how the player shoots. The pistol's in-run upgrades (clip, pump, reload) already work on it; the dedicated five-tier upgrade path waits.
+  - [ ] C1.1 In `scripts/weapon_slots.gd` change `PRIMARY_DEFAULT` to `dart_pistol`; the Loadout page lists the pistol first as the default; a saved run without a `primary` field still loads as the dart gun, since that is what that run was playing (say so in `docs/SAVE_FILES.md`).
+  - [ ] C1.2 Update the README: the weapons branch's "Melee weapon is locked at the start" item moves to "Not in the early alpha" (after the alpha), and the Milestone I "Starting loadout" item reads "the Dart Nerf Pistol and the melee weapon".
+  - [ ] C1.3 Update the expectations in `tools/loadout_check.gd` and `tools/dart_pistol_check.gd` to the new default and run them.
+  - [ ] C1.4 The owner plays a run with the pistol and notes how a clip of 1 feels; the notes go to D2.
+- [ ] **C2. First weapon unlock: the Dart Gun** becomes a buyable `weapon` entry in `data/unlocks.json` (tier 3 of the price curve, 250 coins, as a first guess), so the first purchases change how the player shoots. The pistol's in-run upgrades (clip, pump, reload) already work on it; the dedicated five-tier upgrade path waits.
+  - [ ] C2.1 Add the `dart_gun` entry to `data/unlocks.json` (kind `weapon`, tier 3, name and text written in the entry) and describe it in `data/README.md`.
+  - [ ] C2.2 The dart gun is no longer owned from the first run: `weapon_owned` in `scripts/main.gd` holds it back until it is bought, and the Loadout page lists it only once owned.
+  - [ ] C2.3 The Unlocks page shows it as buyable with its price and not as SOON; fix the expectations of `tools/unlocks_check.gd`, `unlocks_page_check.gd` and `unlocks_buy_check.gd` (the number of unlocks and of planned weapons changes).
+  - [ ] C2.4 Buy it, choose it on the Loadout page, start a run: the run has the dart gun in the primary slot (a case in `tools/loadout_check.gd`).
+  - [ ] C2.5 The owner buys it with real coins and plays a run with it.
 - [ ] **C3. Owning a shop-item unlock matters**: unowned shop items leave the shop pool (the "shop filter" item of Milestone I, see `data/README.md`). Decided with the owner: the Daily Run and custom seeds use the same filter as a normal run, matching the loadout decision on the weapons branch.
+  - [ ] C3.1 Where the shop pool is built (`scripts/shop.gd`, `scripts/items.gd`) leave out the six items that are unlocks (POCKET MAGNET, HYPE PACK, LUCKY CHARM, HYPE MACHINE, SHIELD PACK, THICK SKIN) until they are owned; the heal and every item not in `data/unlocks.json` stay.
+  - [ ] C3.2 The Daily Run and custom seeds use the same filter, and the seeded offers stay the same for everybody with the same unlocks (the filter must not change the random draws that pick offers, only what is in the pool).
+  - [ ] C3.3 Remove the "has no effect yet" lines in `data/README.md` and make the Unlocks page text match.
+  - [ ] C3.4 `tools/unlocks_check.gd` or a new check: a fresh save's shop has none of the six, a bought one appears.
+  - [ ] C3.5 The owner checks on a fresh save and after one purchase. A thinner early shop feeds into D2.
 - [ ] **C4. What a level does (decided with the owner):** for the alpha "a number only, shown on the title and the summary" (Milestone I "Decide whether a level unlocks anything"). Then merge or drop `roadmap/level-rewards`; its XP numbers only matter once a level does something.
+  - [ ] C4.1 Tick Milestone I "Decide whether a level unlocks anything" with the answer: for the alpha a level is only shown; the first use of levels comes after the alpha.
+  - [ ] C4.2 The owner decides on `roadmap/level-rewards` (XP about 7 times slower): merge it as the new XP numbers, or drop the branch. If merged, `tools\run_xp_check.bat` passes and the "about 1,000 to 1,500 XP for a won run" note in `data/README.md` is corrected.
 - [ ] **C5. The end of a run leads on**: the run summary gets NEW RUN and UNLOCKS buttons (UNLOCKS highlighted when the new coins can buy something that was out of reach), and the title menu puts the loop first (CONTINUE, PLAY, LOADOUT, UNLOCKS, then the rest). Done when a player can go from a lost run to the next one in two clicks, with coins spent on the way.
+  - [ ] C5.1 Buttons on the run summary: NEW RUN, UNLOCKS and TITLE, with mouse, keyboard and gamepad, drawn clear of the table and the unlock lines at 1280x720 and 1920x1080 (`_draw_run_summary` in `scripts/hud.gd`).
+  - [ ] C5.2 UNLOCKS is the selected button when `g.new_unlocks` is not empty, otherwise NEW RUN is.
+  - [ ] C5.3 NEW RUN starts the next run the way RESTART RUN does (a normal run gets a new seed, a Daily Run and a custom seed replay theirs); UNLOCKS opens the page and Esc goes back to the summary's buttons or the title menu, decide which while building it.
+  - [ ] C5.4 Reorder the title menu: CONTINUE, PLAY, LOADOUT, UNLOCKS, then DAILY RUN, CUSTOM SEED, CHALLENGES, HIGH SCORES, CONTROLS, SETTINGS, QUIT, and update the checks that look buttons up by position.
+  - [ ] C5.5 Checks for the summary buttons and the new order, then the owner goes from a lost run to the next run through the buttons.
 
 ### D. Difficulty and length (Milestones "Recommended Roguelite Structure", I and K)
 
 - [ ] **D1. Tune round length on the 144 m arena** (the playtest items under Milestone K: objectives, riders and pickups, rider speed and sightlines). Use the run timer that is already there (the `[run timer]` lines and the summary). Target: a 10-round run takes 20 to 30 minutes including the map, upgrade and shop screens, so about 2 minutes a fight. Done when five runs from the owner land inside that range.
+  - [ ] D1.1 Read the A3 table and the five new runs against the target: which rounds are too long and why (the walk to the extraction point, riders that take long to arrive, too few riders).
+  - [ ] D1.2 Pick one knob at a time: riders per node (`content.riders.count` in `data/map_rules.json`), rider speed, the extraction distance and cache spots (`scripts/arena_generated.gd`, `scripts/objective.gd`), the arena size (`cells` in `data/arena_rules.json`), or the ambush sizes (`scripts/ambush.gd`).
+  - [ ] D1.3 Change it, play three runs, record the times in the table; repeat until the average sits in the range.
+  - [ ] D1.4 Tick the open playtest items of Milestone K that this covers ("Playtest the objectives", "Riders and pickups on the bigger arena", "Playtest and balance"), each with a short note of what was changed.
 - [ ] **D2. Balance pass with the starting loadout** (Milestone "Balance pass for the 10-round difficulty curve", Milestone I "Balance pass"): rider speed, boss health, final boss health, the shop prices after B1, cash from caches. First guess at the goal, to correct by playing: from a fresh save the first runs end between floors 2 and 7, one reaches the mid boss, and with three or four unlocks the final boss is reachable (winning it is allowed to stay hard).
+  - [ ] D2.1 A developer-only way to start with a given number of coins and owned unlocks (for example a command line argument), so "with three or four unlocks" can be tested without grinding; it never touches the normal save and never ships enabled.
+  - [ ] D2.2 List the knobs in one place of `data/README.md`: rider speed by round, boss health, the final boss, shop and upgrade prices, `CACHE_CASH` and `CACHE_SCORE`, hearts.
+  - [ ] D2.3 Five runs from a fresh save with the pistol: record the floor reached and why each run ended; collect the notes from B1.5, C1.4 and C3.5.
+  - [ ] D2.4 Adjust one number at a time and play again until the first runs end between floors 2 and 7 and one reaches the mid boss.
+  - [ ] D2.5 Repeat with three or four unlocks (D2.1): the final boss is reachable.
+  - [ ] D2.6 Tick the two balance items in the milestones with a short note of what was changed.
 - [ ] **D3. The meta economy fits the loop**: the first purchase is within one or two runs, the cheapest tier first (60 coins is the current guess), and the whole alpha unlock list costs roughly 15 to 25 runs of coins. Tune the price curve in `data/unlocks.json` and the coin rates in `scripts/meta.gd`; a run that is quit pays nothing, which stays.
+  - [ ] D3.1 From the runs of D2 write down the coins a run pays by outcome (lost early, lost late, won), including boss and challenge coins.
+  - [ ] D3.2 Total the price of every unlock (the 24 plus the dart gun) and divide by the coins of an average run.
+  - [ ] D3.3 Adjust the price curve or the coin rates until the first purchase is within one or two runs and the whole list lands in the 15 to 25 run range.
+  - [ ] D3.4 Write the final numbers into `data/README.md`, and update `tools/unlocks_check.gd` if it checks the first price against a short run.
 
 ### E. Alpha gate
 
-- [ ] **E1. First-run hints**, not a tutorial: a one-line prompt the first time the player sees the map screen, the upgrade screen, the shop, the extraction point opening and a cache. The "seen" flags live in the settings file and a setting turns the hints off. Done when someone who has never seen the game can finish round 1 without being told anything (Milestone E "Short tutorial" stays open).
-- [ ] **E2. Windows export tested**: export `build/windows/FB3D.exe` (Milestone E "Configure Windows export presets" was never run), start it from a clean folder and check that settings, scores, meta and the run save land in `user://` and load again.
+- [ ] **E2. Windows export tested**: export `build/windows/FB3D.exe` (Milestone E "Configure Windows export presets" was never run), start it from a clean folder and check that settings, scores, meta and the run save land in `user://` and load again. Done early as a smoke test (E2.1 to E2.3, right after A2) and again at the gate (E2.4).
+  - [ ] E2.1 Project > Export > Windows Desktop > Export Project: `build/windows/FB3D.exe` appears inside the project folder; note any export error.
+  - [ ] E2.2 Start the exe from a clean folder: the title screen, the window icon and title (FB3D), fullscreen on F11, one short round.
+  - [ ] E2.3 Quit and start again: settings, high scores, meta coins and a saved run are still there (`user://`, see `docs/SAVE_FILES.md`).
+  - [ ] E2.4 Repeat E2.1 to E2.3 with the finished alpha build.
+- [ ] **E1. First-run hints**, not a tutorial: a one-line prompt the first time the player sees the map screen, the upgrade screen, the shop, the rest screen, the extraction point opening and a cache. The "seen" flags live in the settings file and a setting turns the hints off. Done when someone who has never seen the game can finish round 1 without being told anything (Milestone E "Short tutorial" stays open).
+  - [ ] E1.1 Store which hints were shown in the settings file, with a default and a safe load (`scripts/settings.gd`, `docs/SAVE_FILES.md`).
+  - [ ] E1.2 One hint line, drawn bottom centre, shown for a few seconds and never blocking input.
+  - [ ] E1.3 Hook the six triggers (the first map screen, upgrade screen, shop, rest screen, the extraction point opening, the first cache within sense range), each shown once.
+  - [ ] E1.4 A HINTS ON / OFF row in the settings.
+  - [ ] E1.5 A check for the flags, the setting and the drawing at two window sizes.
+  - [ ] E1.6 Someone who has not played it (not the owner) plays round 1 with no help; note where they got stuck.
 - [ ] **E3. Soak test**: three complete runs from the exe (one lost, one won or a final boss reached, one quit and continued) with nothing in the console that is an error, and no save file corrupted.
+  - [ ] E3.1 `tools\run_all_checks.bat` ends with no FAILED on the alpha candidate.
+  - [ ] E3.2 Three runs from the exe: one lost, one that reaches the final boss (or is won), one quit to the title and continued.
+  - [ ] E3.3 Read the Godot log of those runs (`user://logs`): no script errors; fix each one found.
+  - [ ] E3.4 Open the save files after the runs (`settings.cfg`, `scores.json`, `meta.json`, `run.json`): all readable, nothing damaged.
 - [ ] **E4. Ship notes**: set `config/version` to `0.2.0`, and add a short `docs/ALPHA_NOTES.md`: how to run it, the controls, what is in and what is not, known issues, and where to send feedback.
+  - [ ] E4.1 `config/version` in `project.godot` to `0.2.0` (the one place the version is written), and `tools/version_check.gd` still passes.
+  - [ ] E4.2 Write `docs/ALPHA_NOTES.md`: how to run it, the controls (point to the Controls page), what is in and what is not (the "Not in the early alpha" list below), known issues, where to send feedback.
+  - [ ] E4.3 Optional, the owner decides: tag the commit `v0.2.0-alpha` on GitHub.
 
 ### Not in the early alpha (on purpose)
 
 - **Looks and sound:** Milestone F (graphics and sound overhaul, models, music). The placeholder look is fine for testing the loop.
 - **More content:** the other three weapons and the five-tier pistol path (Milestone C), relics, curses, more modifiers, events, cosmetics and skins (B, D), rider variety and arena hazards, height and hills (K).
-- **Extra systems:** Heat and per-difficulty leaderboards, jumping (L), third person (M), the run start sequence (H), the melee lock at level 5, daily modifiers and the share card, caches with a catch.
+- **Extra systems:** Heat and per-difficulty leaderboards, jumping (L), third person (M), the run start sequence (H), the melee lock at level 5 (dropped by the owner for the alpha, see C1), daily modifiers and the share card, caches with a catch.
 - **Online and polish:** the website, accounts, cloud saves, key rebinding, localization, the tutorial (E, N).
 
 ---
