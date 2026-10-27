@@ -56,7 +56,7 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
 |---|---|---|
 | Buying the six shop-item unlocks (POCKET MAGNET, HYPE PACK, LUCKY CHARM, HYPE MACHINE, SHIELD PACK, THICK SKIN) | owning one changes nothing: the shop pool is never filtered (`data/README.md` says so too) | C3 |
 | XP and levels (earned, saved, shown on the title screen and the run summary) | a level does not unlock or change anything | C4 |
-| Map node types `elite`, `shop`, `rest` and `event` (generated, drawn, named on the map screen) | every one plays the same ordinary round, and the `seed` that shop, rest and event nodes carry is never read. Only the elite's harder content (10 to 12 riders, 40 % armoured) takes effect | B1 to B5 |
+| Map node types `elite`, `shop`, `rest` and `event` (generated, drawn, named on the map screen) | the shop node is a screen since B2; rest, elite and normal still play the same ordinary round, and the `seed` that rest and event nodes carry is never read. Only the elite's harder content (10 to 12 riders, 40 % armoured) takes effect | B1, B3, B4 |
 | The `rain` round modifier | the node carries it (`round_modifiers`), but nothing draws or does rain | B5 (switched off) |
 | Weapon slots, the Dart Nerf Pistol, weapon choice on the Loadout page | built on `milestone-c/weapon-slots` and not merged, so `main` has none of it | A1 |
 | The four weapon unlocks marked `planned` | the weapons do not exist; the Unlocks page shows them as SOON | after the alpha |
@@ -113,12 +113,12 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
   - [ ] B5.2 Set the `rain` modifier weight to 0 in the same file.
   - [ ] B5.3 Run `python tools/run_checks.py map` (this picks `map_check`, `map_viewer_check` and `map_walk_check`); if a check insists on events or on rain, change the check to match and say why.
   - [ ] B5.4 Look at 20 seeds in the map viewer (`tools/viewer/map_viewer.tscn`): no event node and no rain, and floors 4 and 9 still hold a shop and a rest each.
-- [ ] **B2. Shop node is a screen, not a round**: it skips the arena, opens the shop screen with the node's seeded offers and goes back to the map (Milestone D "Shop").
-  - [ ] B2.1 In `pick_node` / `start_round` (`scripts/main.gd`) a node of type `shop` does not start a round: no riders, no extraction point, no ambush; it calls `shop_sys.enter_shop()` and the floor and round number still go up by one.
-  - [ ] B2.2 The offers are already seeded: `build_shop` draws through `offer_shuffle`, which uses the run seed and the round number (the floor), so the same shop node gives the same shop and the Daily Run gives everybody the same shops. The node's own `seed` in its `content` is not needed for this and stays unused. The heal stays always on sale.
-  - [ ] B2.3 `leave_shop` in `scripts/shop.gd` goes to the map screen after a shop node (not to an upgrade pick) and the map checkpoint is saved.
-  - [ ] B2.4 A shop node is not a cleared round: no round XP, no `challenges.on_round_cleared`, no entry in `round_times`, nothing counted as a perfect round; its time goes into `shop_time`.
-  - [ ] B2.5 Extend `tools/map_walk_check.gd`: walking onto a shop node opens the shop, leaving it gives the map, and the round counter went up by one.
+- [ ] **B2. Shop node is a screen, not a round** (built on branch `roadmap/b2-shop-node-screen`, waits for B2.6, the owner's run): it skips the arena, opens the shop screen with the node's seeded offers and goes back to the map (Milestone D "Shop").
+  - [x] B2.1 In `pick_node` / `start_round` (`scripts/main.gd`) a node of type `shop` does not start a round: no riders, no extraction point, no ambush; it calls `shop_sys.enter_shop()` and the floor and round number still go up by one.
+  - [x] B2.2 The offers are already seeded: `build_shop` draws through `offer_shuffle`, which uses the run seed and the round number (the floor), so the same shop node gives the same shop and the Daily Run gives everybody the same shops. The node's own `seed` in its `content` is not needed for this and stays unused. The heal stays always on sale.
+  - [x] B2.3 `leave_shop` in `scripts/shop.gd` goes to the map screen after a shop node (not to an upgrade pick) and the map checkpoint is saved.
+  - [x] B2.4 A shop node is not a cleared round: no round XP, no `challenges.on_round_cleared`, no entry in `round_times`, nothing counted as a perfect round; its time goes into `shop_time`.
+  - [x] B2.5 Extend `tools/map_walk_check.gd`: walking onto a shop node opens the shop, leaving it gives the map, and the round counter went up by one.
   - [ ] B2.6 The owner plays a run and takes a shop node.
 - [ ] **B1. The loop after a cleared round (decided with the owner).** Today every round goes clear, upgrade, shop, map. Decided: **an upgrade pick (1 of 3) after every fight, and the shop only at shop nodes**, so a shop node is worth choosing and the cash from a round has something to wait for. The shop moving to nodes changes the economy (Milestone G rules item), so the prices are checked in D2.
   - [ ] B1.1 After a fight node (normal, elite, boss) the flow becomes clear screen, upgrade pick, map: `pick_upgrade` goes on to `next_round()` and not to `enter_shop()` (`scripts/shop.gd`). Do the same in `enter_upgrade`: when the upgrade pool is empty (every upgrade bought out) it currently falls through to `enter_shop()`, which after B1 must go to the map instead.
