@@ -56,7 +56,7 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
 |---|---|---|
 | Buying the six shop-item unlocks (POCKET MAGNET, HYPE PACK, LUCKY CHARM, HYPE MACHINE, SHIELD PACK, THICK SKIN) | owning one changes nothing: the shop pool is never filtered (`data/README.md` says so too) | C3 |
 | XP and levels (earned, saved, shown on the title screen and the run summary) | a level does not unlock or change anything | C4 |
-| Map node types `elite`, `shop`, `rest` and `event` (generated, drawn, named on the map screen) | the shop node is a screen since B2; rest, elite and normal still play the same ordinary round, and the `seed` that rest and event nodes carry is never read. Only the elite's harder content (10 to 12 riders, 40 % armoured) takes effect | B1, B3, B4 |
+| Map node types `elite`, `shop`, `rest` and `event` (generated, drawn, named on the map screen) | the shop node is a screen since B2 and the rest node since B3; elite and normal still play the same ordinary round, and the `seed` that rest and event nodes carry is never read. Only the elite's harder content (10 to 12 riders, 40 % armoured) takes effect | B1, B3, B4 |
 | The `rain` round modifier | the node carries it (`round_modifiers`), but nothing draws or does rain | B5 (switched off) |
 | Weapon slots, the Dart Nerf Pistol, weapon choice on the Loadout page | built on `milestone-c/weapon-slots` and not merged, so `main` has none of it | A1 |
 | The four weapon unlocks marked `planned` | the weapons do not exist; the Unlocks page shows them as SOON | after the alpha |
@@ -126,11 +126,11 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
   - [x] B1.3 Keep the run timer true: the upgrade screen still counts as `shop_time`, and the `[run timer]` line still adds up.
   - [x] B1.4 Update the checks that walk this flow (`tools/map_walk_check.gd`, `round_clear_check.gd`, `generated_run_check.gd`, `run_save_check.gd`) to the new order and run them.
   - [x] B1.5 The owner plays two runs and notes whether cash piles up uselessly or the shop nodes feel too poor; the notes go to D2.
-- [ ] **B3. Rest node is a screen with one choice**: refill hearts to full, or take one extra upgrade pick (Milestone D "Rest stop"). Hearts max at 3 and every cleared round already gives one back, so the heal alone is never a real choice.
-  - [ ] B3.1 New state `rest` with a screen of two options, REFILL HEARTS and EXTRA UPGRADE, in the style of the shop screen (keyboard, mouse and gamepad), drawn in `scripts/hud.gd`, wired in `scripts/input.gd`.
-  - [ ] B3.2 REFILL sets the hearts to `MAXHEARTS` and goes back to the map; EXTRA UPGRADE opens one upgrade pick and then the map.
-  - [ ] B3.3 Like the shop node it is not a cleared round (see B2.4), and the map checkpoint is the map screen, so quitting on the rest screen and continuing gives the map with the same hearts (the same known loophole as for rounds, not guarded against).
-  - [ ] B3.4 `tools/rest_node_check.gd` (the runner finds it, no `.bat`): both options, the hearts, the counters, the keys and the screen at two window sizes.
+- [ ] **B3. Rest node is a screen with one choice** (built on branch `roadmap/b3-rest-node`, waits for B3.5, the owner's run): refill hearts to full, or take one extra upgrade pick (Milestone D "Rest stop"). Hearts max at 3 and every cleared round already gives one back, so the heal alone is never a real choice.
+  - [x] B3.1 New state `rest` with a screen of two options, REFILL HEARTS and EXTRA UPGRADE, in the style of the shop screen (keyboard, mouse and gamepad), drawn in `scripts/hud.gd`, wired in `scripts/input.gd`.
+  - [x] B3.2 REFILL sets the hearts to `MAXHEARTS` and goes back to the map; EXTRA UPGRADE opens one upgrade pick and then the map.
+  - [x] B3.3 Like the shop node it is not a cleared round (see B2.4), and the map checkpoint is the map screen, so quitting on the rest screen and continuing gives the map with the same hearts (the same known loophole as for rounds, not guarded against).
+  - [x] B3.4 `tools/rest_node_check.gd` (the runner finds it, no `.bat`): both options, the hearts, the counters, the keys and the screen at two window sizes.
   - [ ] B3.5 The owner plays a run to floor 4 and takes the rest node.
 - [ ] **B4. Elite node pays for its risk**: it is already a harder fight (10 to 12 riders, 40 % armoured); make it also pay something the others do not, a second upgrade pick (Milestone D "Elite encounter").
   - [ ] B4.1 Clearing an elite node gives two upgrade picks in a row, the second with fresh offers. `offer_shuffle` is seeded by the run seed, the round and a part name (`"upgrade"` in `enter_upgrade`), so a second pick in the same round would show the same three offers: give the second one its own part name.
@@ -470,7 +470,7 @@ Without `arena_generated_check` the suite takes about 7 minutes; the slowest pas
 - [ ] Elite encounter (partly there: an elite node has 10 to 12 riders and 40 % armoured ones, but it pays nothing extra; alpha B4)
 - [ ] Shop (alpha B1, B2; today a shop node plays an ordinary round)
 - [ ] Event (left out of the alpha, event weight set to 0 in alpha B5)
-- [ ] Rest stop (alpha B3; today a rest node plays an ordinary round)
+- [ ] Rest stop (alpha B3; built on branch `roadmap/b3-rest-node`, a rest node is now a screen with REFILL HEARTS or EXTRA UPGRADE; waits for the owner's run, B3.5)
 - [x] Boss node (works: a boss node has its boss after every rider is down, and the last one is the final boss, see Milestone K "Connect the arena to the run map")
 
 ## Relics
