@@ -29,6 +29,8 @@ func _initialize() -> void:
 	for n in range(count):
 		_walk((n * 2654435761 + 99) & 0xFFFFFFFF, n)
 	_check_linear()
+	_check_empty_upgrade_pool()
+	await _check_map_cash()
 	if problems.is_empty():
 		print(
 			(
@@ -118,10 +120,12 @@ func _walk(seed_value: int, n: int) -> void:
 			if not main.next_lanes().is_empty():
 				_fail(seed_value, "there are choices after the final boss")
 			break
-		# finish the round the way the game does: the shop, then on (a shop node is already in the shop)
-		if not is_shop:
-			main.shop_sys.enter_shop()
-		main.shop_sys.leave_shop()
+		# finish the round the way the game does (README alpha B1): a fight node gives the upgrade screen and then
+		# the map; a shop node is already in the shop and leaving it gives the map
+		if is_shop:
+			main.shop_sys.leave_shop()
+		else:
+			_check_upgrade_then_map(seed_value, f)
 		if main.round_times.size() != times_before or main.shop_buys != shop_before:
 			_fail(seed_value, "floor %d: a shop node changed round_times or shop_buys" % (f + 1))
 		if main.state != "map":
@@ -143,6 +147,21 @@ func _walk(seed_value: int, n: int) -> void:
 			seed_value,
 			"the path has %d nodes for %d floors" % [main.map_path.size(), floors.size()]
 		)
+
+
+# after a fight the upgrade pick goes straight to the map, not to the shop (README alpha B1.1)
+func _check_upgrade_then_map(seed_value: int, f: int) -> void:
+	main.shop_sys.enter_upgrade()
+	if main.state != "upgrade" and main.state != "map":
+		_fail(seed_value, "floor %d: after a fight the state is %s" % [f + 1, main.state])
+		return
+	if main.state == "upgrade":
+		if main.offers.is_empty():
+			_fail(seed_value, "floor %d: the upgrade screen has no offers" % (f + 1))
+			return
+		main.shop_sys.pick_upgrade(0)
+	if main.state == "shop":
+		_fail(seed_value, "floor %d: the upgrade pick went to the shop, not the map" % (f + 1))
 
 
 # what a shop node leaves behind: no round, no riders, no round counted as cleared (README alpha B2.1 and B2.4)
@@ -173,6 +192,31 @@ func _shops_before(f: int) -> int:
 	return n
 
 
+# every upgrade bought out: the upgrade screen has nothing to pick and goes on to the map, not to the shop
+func _check_empty_upgrade_pool() -> void:
+	main.start_game(false, 77)
+	main.pick_node(0)
+	var saved = main.UPGRADES
+	main.UPGRADES = []
+	main.shop_sys.enter_upgrade()
+	main.UPGRADES = saved
+	if main.state != "map":
+		_fail(77, "an empty upgrade pool led to state %s, not the map" % main.state)
+
+
+# the map screen shows the cash (README alpha B1.2) and draws at two window sizes
+func _check_map_cash() -> void:
+	main.start_game(false, 78)
+	main.cash = 123
+	for s in [Vector2(1280.0, 720.0), Vector2(1920.0, 1080.0)]:
+		main.hud.size = s
+		for i in range(2):
+			main.hud.queue_redraw()
+			await process_frame
+	main.hud.size = Vector2(1280.0, 720.0)
+	main.cash = 0
+
+
 # with no map the rounds go 1, 2, 3 ... as before
 func _check_linear() -> void:
 	main.start_game(false, 5)
@@ -180,7 +224,13 @@ func _check_linear() -> void:
 	main.map_floor = -1
 	main.round_n = 1
 	main.start_round()
-	main.shop_sys.enter_shop()
+	# no map means no shop nodes, so the upgrade pick still leads to the shop (README alpha B1)
+	main.shop_sys.enter_upgrade()
+	main.shop_sys.pick_upgrade(0)
+	if main.state != "shop":
+		_fail(
+			0, "a run without a map did not go from the upgrade pick to the shop (%s)" % main.state
+		)
 	main.shop_sys.leave_shop()
 	if main.state != "play" or main.round_n != 2:
 		_fail(
