@@ -7,10 +7,13 @@ extends RefCounted
 # main.gd is not the slot: it is true while the melee weapon is the one in the player's hands.)
 
 const PRIMARY = "primary"
-const PRIMARY_DEFAULT = "dart_gun"  # what every run starts with
+const PRIMARY_DEFAULT = "dart_pistol"  # what every run starts with (the Dart Nerf Pistol, README alpha C1)
+# what a saved run without a `primary` field was playing: such a file is older than the weapon slots, and until then
+# every run played with the dart gun, so CONTINUE gives that run its dart gun back (docs/SAVE_FILES.md)
+const PRIMARY_BEFORE_SLOTS = "dart_gun"
 # every weapon that can be in the primary slot, with the name the HUD shows. The Milestone C weapons join here.
 # (static vars, not consts, so a check can add a made-up weapon to a slot and take it out again)
-static var PRIMARY_WEAPONS = {"dart_gun": "DARTS", "dart_pistol": "PISTOL"}
+static var PRIMARY_WEAPONS = {"dart_pistol": "PISTOL", "dart_gun": "DARTS"}
 
 
 # true when `id` is a weapon that can be in the primary slot
@@ -82,11 +85,12 @@ const SLOTS = ["primary", "melee", "gadget"]
 const SLOT_NAMES = {"primary": "PRIMARY", "melee": "MELEE", "gadget": "GADGET"}
 # the name and text the Loadout page shows for a weapon; a weapon without an entry uses its HUD name and no text
 static var WEAPON_INFO = {
-	"dart_gun": {"name": "DART GUN", "desc": "THE PUMP-ACTION DART GUN EVERY RUN STARTS WITH"},
+	"dart_gun":
+	{"name": "DART GUN", "desc": "THE PUMP-ACTION DART GUN: A BIG CLIP, PUMPED BETWEEN SHOTS"},
 	"dart_pistol":
 	{
 		"name": "DART NERF PISTOL",
-		"desc": "ONE DART PER PULL: SMALL CLIP, QUICK HANDS, UPGRADES MAKE IT GOOD"
+		"desc": "THE STARTING WEAPON: ONE DART PER PULL, SMALL CLIP, QUICK HANDS"
 	},
 	"melee":
 	{"name": "GUMMY WORM", "desc": "THE GIANT GUMMY WORM: SWING IT AT RIDERS AND INCOMING PHONES"}

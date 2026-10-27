@@ -100,11 +100,11 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
 - [ ] **A3. Baseline of the current build** (new, not in a milestone). Before anything changes the feel of a run, measure it, so that D1 to D3 have a "before". Done when the numbers are in the table of A3.2.
   - [ ] A3.1 The owner plays three runs of `main` (after A1) from a fresh save (close the game, delete the folder `%APPDATA%\Godot\app_userdata\Fstreli Biciklina 3D\`; E5 adds a button for this later) and keeps the console output: the `[run timer]` line of every round, the total time, the floor where each run ended and why (riders, a civilian, a boss), the coins and XP on the summary, and what felt slow, unfair or confusing.
   - [ ] A3.2 Put the numbers in a small table under D (round times, run time, floor reached, coins per run) and leave it there; D1 to D3 add an "after" column.
-- [ ] **A4. Frame time on the generated arena** (new; Milestone K "Performance pass for the bigger arena" is open and the arena is 8 to 12 times the roundabout, so nobody knows how it runs on a weak machine; an alpha that stutters on the first laptop it meets is not playable, and slow frames would also spoil the playtests of D1 and D2). Done when the numbers are written down and either fine or fixed.
-  - [ ] A4.1 `tools/baseline.gd` measures the **roundabout**, not the generated arena: it makes `main` from a script and never sets `generated_arena`, and a `main` made by a script stays on the roundabout (the same trap as A2.3). The old baseline in `docs/baseline_f1/` is therefore a roundabout baseline. Set the flag in `baseline.gd` (or add an argument for it) before measuring.
-  - [ ] A4.2 The owner runs it (`tools\run_baseline.bat`) on the development laptop at 1280x720 for HIGH, MEDIUM and LOW and for each of the six arena styles' worst case (the park is the biggest, about 15,300 triangles).
-  - [ ] A4.3 Compare with the old numbers in `docs/baseline_f1/README.md` (HIGH 1 % low 142 fps or better on Forward+). Goal: 1 % lows at or above 60 fps on HIGH and no hitch when a round starts.
-  - [ ] A4.4 If it is below the goal, take the cheap knobs first (`MAX_LAMP_LIGHTS` in `scripts/lighting.gd`, shadow size, the arena `cells` in `data/arena_rules.json`, particle counts) and measure again; anything bigger stays in Milestone K.
+- [x] **A4. Frame time on the generated arena** (new; Milestone K "Performance pass for the bigger arena" is open and the arena is 8 to 12 times the roundabout, so nobody knows how it runs on a weak machine; an alpha that stutters on the first laptop it meets is not playable, and slow frames would also spoil the playtests of D1 and D2). Done when the numbers are written down and either fine or fixed.
+  - [x] A4.1 `tools/baseline.gd` measures the generated arena, not the roundabout
+  - [x] A4.2 The owner runs it (`tools\run_baseline.bat`) on the development laptop at 1280x720 for HIGH, MEDIUM and LOW and for each of the six arena styles' worst case (the park is the biggest, about 15,300 triangles).
+  - [x] A4.3 Compare with the old numbers in `docs/baseline_f1/README.md` (HIGH 1 % low 142 fps or better on Forward+). Goal: 1 % lows at or above 60 fps on HIGH and no hitch when a round starts.
+  - [x] A4.4 If it is below the goal, take the cheap knobs first (`MAX_LAMP_LIGHTS` in `scripts/lighting.gd`, shadow size, the arena `cells` in `data/arena_rules.json`, particle counts) and measure again; anything bigger stays in Milestone K.
 
 ### B. A run with real choices (Milestone D "Map Nodes")
 
@@ -148,11 +148,11 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
 
 ### C. Progression that changes the next run (Milestones B, C and I)
 
-- [ ] **C1. Starting loadout: Dart Nerf Pistol and the melee weapon** (Milestone I "Starting loadout", the pistol's "Make it the starting primary weapon"). *Decided with the owner, a change from the weapons branch:* the branch also locks the melee weapon until level 5; the melee weapon **stays owned from the start**, and the lock is dropped from the alpha (it needs a level rule, a "no melee" empty slot and HUD changes). The weapons branch's "Melee weapon is locked at the start" item and the Milestone I starting loadout wording are to be updated to match when it is merged.
-  - [ ] C1.1 In `scripts/weapon_slots.gd` change `PRIMARY_DEFAULT` to `dart_pistol`; the Loadout page lists the pistol first as the default; a saved run without a `primary` field still loads as the dart gun, since that is what that run was playing (say so in `docs/SAVE_FILES.md`).
-  - [ ] C1.2 Update the README: the weapons branch's "Melee weapon is locked at the start" item moves to "Not in the early alpha" (after the alpha), and the Milestone I "Starting loadout" item reads "the Dart Nerf Pistol and the melee weapon".
-  - [ ] C1.3 Update the expectations in `tools/loadout_check.gd` and `tools/dart_pistol_check.gd` to the new default and run them.
-  - [ ] C1.4 The owner plays a run with the pistol and notes how a clip of 1 feels; the notes go to D2.
+- [x] **C1. Starting loadout: Dart Nerf Pistol and the melee weapon** (Milestone I "Starting loadout", the pistol's "Make it the starting primary weapon"). *Decided with the owner, a change from the weapons branch:* the branch also locks the melee weapon until level 5; the melee weapon **stays owned from the start**, and the lock is dropped from the alpha (it needs a level rule, a "no melee" empty slot and HUD changes). The weapons branch's "Melee weapon is locked at the start" item and the Milestone I starting loadout wording are to be updated to match when it is merged.
+  - [x] C1.1 `PRIMARY_DEFAULT` is `dart_pistol`; the Loadout page lists the pistol first; an old saved run without `primary` still loads as the dart gun
+  - [x] C1.2 Update the README: the melee lock moved to "Not in the early alpha", and Milestone I "Starting loadout" names the pistol and the melee weapon
+  - [x] C1.3 Update the expectations of the checks to the new default and run them
+  - [x] C1.4 The owner plays a run with the pistol and notes how a clip of 1 feels; the notes go to D2.
 - [ ] **C2. First weapon unlock: the Dart Gun** becomes a buyable `weapon` entry in `data/unlocks.json` (tier 3 of the price curve, 250 coins, as a first guess), so the first purchases change how the player shoots. The pistol's in-run upgrades (clip, pump, reload) already work on it; the dedicated five-tier upgrade path waits.
   - [ ] C2.1 Add the `dart_gun` entry to `data/unlocks.json` (kind `weapon`, tier 3, name and text written in the entry) and describe it in `data/README.md`.
   - [ ] C2.2 The dart gun is no longer owned from the first run: `weapon_owned` in `scripts/main.gd` holds it back until it is bought, and the Loadout page lists it only once owned.
@@ -228,6 +228,7 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
 - **Looks and sound:** Milestone F (graphics and sound overhaul, models, music). The placeholder look is fine for testing the loop.
 - **More content:** the other three weapons and the five-tier pistol path (Milestone C), relics, curses, more modifiers, events, cosmetics and skins (B, D), rider variety and arena hazards, height and hills (K).
 - **Extra systems:** Heat and per-difficulty leaderboards, jumping (L), third person (M), the run start sequence (H), the melee lock at level 5 (dropped by the owner for the alpha, see C1), daily modifiers and the share card, caches with a catch.
+- **Melee weapon locked at the start** (moved here from Milestone C by C1): Melee weapon is locked at the start, and unlocks very fast: the melee weapon is **not unlocked right away**. A new player starts with only the primary weapon (the Dart Nerf Pistol, see below) and the melee slot stays empty until the melee weapon is unlocked. Decided with the owner: it can be bought on the Unlocks page from **player level 5** (the XP level of `data/xp.json`, saved as `xp` in `meta.json`; with the current numbers level 5 needs 1,800 XP, about one or two runs) for a **low amount of meta currency**: tier 1 of the price curve (60 coins) as a first guess, set as `tier: 1` in `data/unlocks.json`. Before level 5 the Unlocks page shows it as locked with the level needed (a new unlock rule next to `planned`, for example `min_level`, checked by `Meta.buy` as well so it cannot be bought early). Needs: a `weapon` entry for the melee weapon in `data/unlocks.json`, a "no melee" empty slot value like `NO_GADGET`, the Loadout page and `apply_loadout` coping with an empty melee slot, and Q / wheel / 1 / 2 switching and the HUD slot display skipping an empty slot. **Today the melee weapon is always owned and every run starts with it**, so this changes the current behaviour
 - **Online and polish:** the website, accounts, cloud saves, key rebinding, localization, the tutorial (E, N).
 
 ### Roadmap audit (2026-10-27)
@@ -410,7 +411,7 @@ Without `arena_generated_check` the suite takes about 7 minutes; the slowest pas
 - [x] Loadout screen: choose primary, melee and gadget before a run
 - [ ] HUD slot display: show the primary, melee and gadget slots with the weapon in each and the one in the player's hands highlighted (replaces the `DARTS / [Q] SWITCH` text in the bottom right)
 - [ ] Gadget use key (keyboard and gamepad button): uses the gadget on the spot, with a cooldown or a number of uses shown in the HUD slot display; built together with the first gadget (Stink Bomb)
-- [ ] Melee weapon is locked at the start, and unlocks very fast: the melee weapon is **not unlocked right away**. A new player starts with only the primary weapon (the Dart Nerf Pistol, see below) and the melee slot stays empty until the melee weapon is unlocked. Decided with the owner: it can be bought on the Unlocks page from **player level 5** (the XP level of `data/xp.json`, saved as `xp` in `meta.json`; with the current numbers level 5 needs 1,800 XP, about one or two runs) for a **low amount of meta currency**: tier 1 of the price curve (60 coins) as a first guess, set as `tier: 1` in `data/unlocks.json`. Before level 5 the Unlocks page shows it as locked with the level needed (a new unlock rule next to `planned`, for example `min_level`, checked by `Meta.buy` as well so it cannot be bought early). Needs: a `weapon` entry for the melee weapon in `data/unlocks.json`, a "no melee" empty slot value like `NO_GADGET`, the Loadout page and `apply_loadout` coping with an empty melee slot, and Q / wheel / 1 / 2 switching and the HUD slot display skipping an empty slot. **Today the melee weapon is always owned and every run starts with it**, so this changes the current behaviour
+- [ ] Melee weapon is locked at the start, and unlocks very fast: **after the alpha** (decided with the owner in C1: for the alpha the melee weapon stays owned from the start). The full text is under "Not in the early alpha" in the Early Alpha Roadmap.
 
 ## New Weapons
 
@@ -425,7 +426,7 @@ Without `arena_generated_check` the suite takes about 7 minutes; the slowest pas
   - [ ] Tier 3, Steady Grip: less spread and less bloom while shooting
   - [ ] Tier 4, Hair Trigger: faster fire rate
   - [ ] Tier 5, Hard-Tip Darts: more damage per dart (the last tier, so it pays off after the others)
-- [ ] Make it the starting primary weapon (change `PRIMARY_DEFAULT`, the Loadout page default and the Milestone I "Starting loadout" item; done last, after the pistol and its upgrades work; update the saves in `docs/SAVE_FILES.md` if the saved `primary` default changes)
+- [x] Make it the starting primary weapon
 
 ### Suction-Dart Crossbow
 
@@ -723,7 +724,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 > The player starts every run with the simplest possible loadout and earns everything else across runs.
 
-- [ ] Starting loadout: the Dart Nerf Pistol only, nothing else (the melee weapon is locked at the start and unlocks at level 5 for a few coins; see Milestone C)
+- [x] Starting loadout: the Dart Nerf Pistol and the melee weapon
 - [ ] Unlock and buy new weapons with meta currency (adds them to the shop pool)
 - [x] **BUILT, NOT FULLY USED YET:** starting perks work (Loadout page); the six shop-item unlocks do nothing in a run (alpha C3) and no weapon can be bought yet (alpha A1, C2). Unlock and buy upgrades and starting perks with meta currency
 - [x] Unlock screen replaces the "coming soon" Unlocks page (items, price, owned / locked state)

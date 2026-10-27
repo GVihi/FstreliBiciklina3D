@@ -113,6 +113,7 @@ func _check_equip() -> void:
 # the dart gun still fires, uses a shell, reloads and does its damage through the slot
 func _check_dart_gun_plays() -> void:
 	main.start_game(false, SEED_A)
+	main.equip_primary("dart_gun")  # a new run starts with the pistol (README alpha C1)
 	main.state = "play"
 	main.paused = false
 	main.melee = false
@@ -162,14 +163,15 @@ func _check_run_save() -> void:
 		)
 
 
-# a run saved before the slot existed, and hand-edited values, load as the default
+# a run saved before the slot existed loads with the dart gun, hand-edited values load as the default
 func _check_old_and_bad_files() -> void:
 	main.start_game(false, SEED_A)
 	var base = RunSave.capture(main)
 	var old = base.duplicate()
 	old.erase("primary")
-	if RunSave.clean(old).get("primary", "") != WeaponSlots.PRIMARY_DEFAULT:
-		_fail("an old saved run without a primary weapon does not load as the default")
+	# an old file was written when every run played with the dart gun, so it keeps its dart gun
+	if RunSave.clean(old).get("primary", "") != WeaponSlots.PRIMARY_BEFORE_SLOTS:
+		_fail("an old saved run without a primary weapon does not load as the dart gun")
 	for bad in ["nope", "melee", "", 7, 1.5, null, [], {}, true]:
 		var edited = base.duplicate()
 		edited["primary"] = bad

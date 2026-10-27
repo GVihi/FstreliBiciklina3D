@@ -185,7 +185,9 @@ static func clean(raw: Dictionary) -> Dictionary:
 	for key in BOOL_KEYS:
 		out[key] = _flag(raw.get(key, BOOL_KEYS[key]))
 	out["daily_date"] = str(raw.get("daily_date", ""))
-	out["primary"] = WeaponSlots.primary_or_default(raw.get("primary", WeaponSlots.PRIMARY_DEFAULT))
+	out["primary"] = WeaponSlots.primary_or_default(
+		raw.get("primary", WeaponSlots.PRIMARY_BEFORE_SLOTS)
+	)
 	out["melee_weapon"] = WeaponSlots.melee_or_default(
 		raw.get("melee_weapon", WeaponSlots.MELEE_DEFAULT)
 	)

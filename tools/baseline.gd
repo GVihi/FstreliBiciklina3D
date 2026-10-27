@@ -11,16 +11,24 @@ extends SceneTree
 #      script turns the view round, fires the gun and keeps the player alive, with vsync off
 #   3. a report: report.md (read this first), results.json and frametime.csv in one output folder
 #
+# It measures the generated arena, which is the arena of the game (README Milestone K), on a fixed seed so that two
+# runs can be compared. A `main` made by a script stays on the roundabout unless `generated_arena` is set before it
+# enters the tree, so this script sets it (the same trap as in arena_style_title_check). A run opens on the map
+# screen, so the script picks the first node to get into a round.
+#
 # Scripted play keeps the score at 0 and the hearts full, so no run ever ends with a score and none of the
 # score, meta, settings or high score files is written. It checks that at the end and says so in the report.
 # Options after "--": --label=NAME  --out=DIR  --seconds=N (per measurement, default 8)
 #                     --no-screens  --no-frametime  --raw (also write every single frame)
+#                     --seed=HEX (the run seed, which decides the arena; default 7F3A91C2)
+#                     --roundabout (measure the old roundabout arena, to compare with docs/baseline_f1/)
 
 const QUALITY_NAMES = ["HIGH", "MEDIUM", "LOW"]
 const SAVE_FILES = ["settings.cfg", "scores.json", "meta.json"]
 const TITLE_PAGES = ["loadout", "unlocks", "scores", "settings"]
 const WARMUP_SECONDS = 2.0
 const BUDGET_MS = 16.67  # 60 fps
+const DEFAULT_SEED = 0x7F3A91C2
 
 var main
 var out_dir = ""
@@ -30,6 +38,8 @@ var seconds = 8.0
 var do_screens = true
 var do_frametime = true
 var do_raw = false
+var roundabout = false
+var run_seed = DEFAULT_SEED
 var results = []
 var raw_lines = []
 var shots = []
@@ -43,9 +53,11 @@ func _init() -> void:
 	_make_folders()
 	saves_before = _save_times()
 	main = load("res://main.tscn").instantiate()
+	main.generated_arena = not roundabout  # before add_child, or the roundabout is measured
 	root.add_child(main)
 	await _frames(10)
 	info = _system_info()  # after the window exists, so the size is the real one
+	info["arena"] = _arena_text()
 	if do_screens:
 		await _capture_screens()
 	if do_frametime:
@@ -64,6 +76,10 @@ func _read_args() -> void:
 			seconds = maxf(2.0, float(a.substr(10)))
 		elif a.begins_with("--requested="):
 			requested = a.substr(12)
+		elif a.begins_with("--seed="):
+			run_seed = a.substr(7).hex_to_int() & 0xFFFFFFFF
+		elif a == "--roundabout":
+			roundabout = true
 		elif a == "--no-screens":
 			do_screens = false
 		elif a == "--no-frametime":
@@ -86,6 +102,26 @@ func _set_theme(t: int) -> void:
 	# Do both, or the screenshots show the lighting of one theme under the name of another.
 	main.theme_idx = t
 	main.apply_theme(t)
+
+
+# which arena is measured, for the report
+func _arena_text() -> String:
+	if not main.generated_arena:
+		return "roundabout"
+	return "generated, seed %08X, style %s" % [run_seed, main.arena_style_text(run_seed)]
+
+
+# starts a run on the fixed seed and walks onto the first node of the map, so the game is in a round ("play")
+func _begin_round() -> void:
+	main.start_game(false, run_seed)
+	if main.state == "map":
+		main.pick_node(0)
+	if main.state != "play":
+		var text = (
+			"could not get into a round (state '%s'), the numbers are not of a round" % main.state
+		)
+		if not notes.has(text):
+			notes.append(text)
 
 
 func _frames(n: int) -> void:
@@ -143,7 +179,7 @@ func _capture_screens() -> void:
 	# play: every lighting theme at the HIGH preset, after a few seconds so riders are on the street
 	main.quality = 0
 	main.settings.apply_quality()
-	main.start_game()
+	_begin_round()
 	await _frames(240)
 	for t in range(main.THEMES.size()):
 		_set_theme(t)
@@ -206,7 +242,7 @@ func _measure_frame_times() -> void:
 	Engine.max_fps = 0
 	var rid = root.get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(rid, true)
-	main.start_game()
+	_begin_round()
 	await _frames(30)
 	for q in range(3):
 		for t in range(main.THEMES.size()):
@@ -246,7 +282,7 @@ func _measure_one(q: int, t: int, rid: RID) -> Dictionary:
 		elapsed = float(now - start) / 1000000.0
 		# scripted play: turn the view round, fire, never die, never leave the round
 		if main.state != "play":
-			main.start_game()
+			_begin_round()
 		main.hearts = main.MAXHEARTS
 		main.score = 0  # a game over with a score would write the high score, scores and meta files
 		main.yaw += 0.7 * minf(dt, 0.05)
