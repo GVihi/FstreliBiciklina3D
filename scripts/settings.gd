@@ -194,6 +194,9 @@ func next_value(id: String):
 func click_setting(sid: String) -> bool:
 	if sid == "":
 		return false
+	if g.hud.is_action(sid):  # the RESET ALL PROGRESS button: opens the first warning
+		g.input_sys.reset_progress_open()
+		return true
 	if g.hud.is_toggle(sid):
 		set_setting(sid, next_value(sid))
 	else:

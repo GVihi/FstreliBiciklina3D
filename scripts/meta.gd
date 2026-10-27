@@ -103,6 +103,23 @@ func save_meta() -> void:
 		f.close()
 
 
+# Back to a new player's values in memory (RESET ALL PROGRESS): no coins, nothing owned, no chosen perk or weapons, no
+# challenge counts, 0 XP. It does not touch the file; main.gd `reset_all_progress` deletes it.
+func reset_all() -> void:
+	balance = 0
+	total_earned = 0
+	owned = {}
+	start_perk = ""
+	weapon_choice = {}
+	challenge_counts = {}
+	xp = 0
+	awarded = false
+	boss_coins = 0
+	xp_boss = 0
+	xp_earned = 0
+	level_before = 1
+
+
 # called when a new run starts
 func begin_run() -> void:
 	awarded = false

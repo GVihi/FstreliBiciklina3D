@@ -189,9 +189,11 @@ func on_pad_button(btn: int) -> void:
 		return
 	if btn == JOY_BUTTON_DPAD_UP:
 		title_move(-1)
+		confirm_move()
 		settings_move(-1)
 	elif btn == JOY_BUTTON_DPAD_DOWN:
 		title_move(1)
+		confirm_move()
 		settings_move(1)
 	elif btn == JOY_BUTTON_DPAD_LEFT:
 		loadout_switch(-1)
@@ -386,8 +388,14 @@ func title_move(d: int) -> void:
 
 func title_back() -> void:
 	if g.state == "title" and g.title_page != "":
-		# from the reset confirmation go back to the list, from any other page to the menu
-		g.title_page = "scores" if g.title_page == "scores_confirm" else ""
+		# from a confirmation go back to the page it was opened from (the list, or the settings), from any other page
+		# to the menu
+		if g.title_page == "scores_confirm":
+			g.title_page = "scores"
+		elif g.title_page == "reset_confirm":
+			g.title_page = "settings"
+		else:
+			g.title_page = ""
 		g.sfx.play("click")
 
 
@@ -397,6 +405,9 @@ func title_activate(i: int) -> void:
 		return
 	if g.title_page == "scores_confirm":
 		scores_confirm_activate(g.confirm_sel)  # Enter / A on the highlighted NO or YES
+		return
+	if g.title_page == "reset_confirm":
+		confirm_activate(g.confirm_sel)  # the RESET ALL PROGRESS warnings
 		return
 	if g.title_page == "loadout":
 		loadout_pick()  # Enter / A chooses the highlighted row; Esc / B go back
@@ -523,6 +534,45 @@ func scores_confirm_activate(i: int) -> void:
 	g.sfx.play("click")
 
 
+# ---- RESET ALL PROGRESS (red row at the bottom of the settings panel, on the title screen and on the pause menu)
+# Enter, gamepad A or a click on the row opens a first warning (all progress will be wiped and cannot be recovered).
+# YES there opens a second one ("ARE YOU ABSOLUTELY SURE?"); YES there wipes. Both are the NO / YES pages of
+# `confirm_activate`: NO is picked first, Esc / B mean NO, and YES ignores input for a moment after a page opens.
+# The texts are in hud.gd CONFIRM_TEXT (reset1, reset2), the wipe is main.gd `reset_all_progress`.
+func reset_progress_open() -> void:
+	if not g.hud.settings_visible():
+		return
+	g.confirm_id = "reset1"
+	g.confirm_sel = 0
+	g.confirm_t0 = g.time
+	if g.state == "title":
+		g.title_page = "reset_confirm"
+	else:
+		g.pause_page = "confirm"
+	g.sfx.play("click")
+
+
+# NO (or Esc / B) on either warning: back to the settings panel
+func reset_progress_back() -> void:
+	if g.state == "title":
+		g.title_page = "settings"
+	else:
+		g.pause_page = "settings"
+	g.sfx.play("click")
+
+
+# YES on the second warning. A run in progress (the wipe was started from the pause menu) is dropped too, and the
+# player lands on the settings page of the title screen, where "ALL PROGRESS WIPED" is shown.
+func reset_progress_do() -> void:
+	var from_run = g.state != "title"
+	g.reset_all_progress()
+	g.pause_page = ""
+	if from_run:
+		g.abandon_run()
+	g.title_page = "settings"
+	g.sfx.play("click")
+
+
 # ---- settings panel (rows are listed in hud.gd ALL_SETTING_ROWS): Up / Down pick a row, Left / Right change it
 # (a slider moves one twentieth of its range, a switch goes off / on, GRAPHICS steps through its choices), Enter / A
 # flips a switch or steps GRAPHICS. All of them do nothing while the panel is not showing.
@@ -540,6 +590,8 @@ func settings_adjust(d: int) -> void:
 	var rows = g.hud.setting_rows()
 	var row = rows[clampi(g.setting_sel, 0, rows.size() - 1)]
 	var id = str(row["id"])
+	if row.get("action", false):
+		return  # a button (RESET ALL PROGRESS): Left / Right do nothing, only Enter, A or a click open it
 	if row.has("choices"):
 		g.settings.set_setting(
 			id, posmod(int(g.settings.get_setting(id)) + d, row["choices"].size())
@@ -555,7 +607,9 @@ func settings_adjust(d: int) -> void:
 func settings_activate() -> void:
 	var rows = g.hud.setting_rows()
 	var row = rows[clampi(g.setting_sel, 0, rows.size() - 1)]
-	if row.has("choices") or row.get("toggle", false):
+	if row.get("action", false):
+		reset_progress_open()  # Enter / A on the red RESET ALL PROGRESS row
+	elif row.has("choices") or row.get("toggle", false):
 		var id = str(row["id"])
 		g.settings.set_setting(id, g.settings.next_value(id))
 		g.sfx.play("click")
@@ -572,7 +626,9 @@ func pause_move(d: int) -> void:
 func pause_back() -> void:
 	if not (g.state == "play" and g.paused):
 		return
-	if g.pause_page != "":
+	if g.pause_page == "confirm" and (g.confirm_id == "reset1" or g.confirm_id == "reset2"):
+		reset_progress_back()  # Esc / B on a RESET ALL PROGRESS warning is NO: back to the settings, nothing wiped
+	elif g.pause_page != "":
 		g.pause_page = ""
 		g.sfx.play("click")
 	else:
@@ -607,19 +663,33 @@ func pause_activate(i: int) -> void:
 # ---- restart / quit confirmation (texts and buttons are in hud.gd CONFIRM_TEXT)
 func confirm_move() -> void:
 	var asking = g.state == "play" and g.paused and g.pause_page == "confirm"
-	if asking or (g.state == "title" and g.title_page == "scores_confirm"):
+	var on_title = g.state == "title" and g.title_page in ["scores_confirm", "reset_confirm"]
+	if asking or on_title:
 		g.confirm_sel = 1 - g.confirm_sel
 		g.sfx.play("click")
 
 
 func confirm_activate(i: int) -> void:
+	var id = g.confirm_id
+	var is_reset = id == "reset1" or id == "reset2"
 	if i == 0:
-		pause_back()  # NO: back to the pause menu
+		if is_reset:
+			reset_progress_back()  # NO: back to the settings, nothing is wiped
+		else:
+			pause_back()  # NO: back to the pause menu
 		return
 	if g.time - g.confirm_t0 < 0.3:
-		return  # the second click of a double click on RESTART RUN / QUIT TO TITLE must not confirm
+		return  # the second click of a double click on RESTART RUN / QUIT TO TITLE / a warning must not confirm
 	g.confirm_sel = i
-	var id = g.confirm_id
+	if id == "reset1":  # the first warning: YES shows the second one, with NO picked again
+		g.confirm_id = "reset2"
+		g.confirm_sel = 0
+		g.confirm_t0 = g.time
+		g.sfx.play("click")
+		return
+	if id == "reset2":  # the second warning: YES wipes everything
+		reset_progress_do()
+		return
 	g.pause_page = ""
 	if id == "restart":
 		g.start_game(g.daily_mode, g.run_seed if g.custom_seed_run else -1)
@@ -668,6 +738,10 @@ func on_click() -> void:
 			var si = g.hud.scores_confirm_at(mp)
 			if si >= 0:
 				scores_confirm_activate(si)  # a click beside the buttons does nothing
+		elif g.title_page == "reset_confirm":
+			var ri = g.hud.confirm_at(mp)
+			if ri >= 0:
+				confirm_activate(ri)  # a click beside the buttons does nothing
 		elif g.title_page == "scores" and g.hud.scores_reset_rect().has_point(mp):
 			scores_reset_open()  # does nothing when the list is empty (the button is not drawn then)
 		elif g.title_page != "":

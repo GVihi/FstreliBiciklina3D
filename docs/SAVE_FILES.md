@@ -19,7 +19,17 @@ A file written before versioning has no version number and counts as **version 0
 - A file with a version **higher** than the game knows (for example after going back to an older build) is copied to `<file>.v<N>.bak` before the game saves over it.
 - Starting a new run while a run is saved (PLAY, DAILY RUN, CUSTOM SEED or RESTART RUN) first copies `run.json` to `run.json.replaced.bak`, so one mistaken click can be undone by copying that file back over `run.json`. An empty "no run" file is never copied over a real backup.
 - RESET LEADERBOARD on the High Scores page copies `scores.json` to `scores.json.reset.bak` before it erases the list, so one mistaken reset can be undone by copying that file back.
-- The game never deletes a save file. Every value is clamped or cast on load, so a hand-edited file cannot crash it.
+- The game deletes a save file in one case only: RESET ALL PROGRESS (see below). Every value is clamped or cast on load, so a hand-edited file cannot crash it.
+
+## RESET ALL PROGRESS (last row of the settings panel)
+
+The red button at the bottom of the settings panel (title screen and pause menu) wipes the player's progress after two warnings: first "all progress will be wiped and cannot be recovered", then "are you absolutely sure". Only YES on the second one does it (`scripts/progress_reset.gd`, `reset_all_progress` in `scripts/main.gd`).
+
+- **Deleted:** `meta.json` (coins, unlocks, start perk, loadout, challenge counts, XP), `scores.json`, `run.json`, the old `hi.dat`, and every backup copy of them (`<file>.bad.bak`, `<file>.v<N>.bak`, `scores.json.reset.bak`, `run.json.replaced.bak`). The backups go too, because the player was told the wipe cannot be undone and a copy left behind would undo it. The wipe makes no backup of its own.
+- **Kept:** `settings.cfg` (the options and the leaderboard name), which is not progress.
+- **In memory** the coins, unlocks, loadout, challenge counts, XP, leaderboard, HI score and the CONTINUE button are reset at once; a run in progress (when the wipe is started from the pause menu) is dropped without score or coins. The files are made again the next time the game saves, like on a first start.
+- A file that cannot be deleted is written over with the empty state, and the settings page says how many files could not be deleted.
+- A new save file that holds progress must be added to `FILES` in `scripts/progress_reset.gd`, and anything that keeps progress somewhere else (the website, cloud saves, Milestone N) has to be wiped by the same button or the player asked separately.
 
 ## Changing a save format
 

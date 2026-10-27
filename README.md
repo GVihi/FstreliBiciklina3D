@@ -315,6 +315,7 @@ Without `arena_generated_check` the suite takes about 7 minutes; the slowest pas
 - [x] Pause automatically when the game window loses focus
 - [x] Confirm before Restart Run / Quit to Title (a run is lost with one click)
 - [x] Optional: "Continue" button to resume an interrupted run
+- [x] Reset all progress button at the bottom of the settings panel (red, two warnings)
 
 ## High Scores
 
