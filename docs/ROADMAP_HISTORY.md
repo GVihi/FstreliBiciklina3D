@@ -451,3 +451,13 @@ a grey `ARENA: MARKET` line under the CHOOSE YOUR NEXT STOP heading, from `g.are
 ### Save-file safety: version the settings and score files so later changes do not break old saves
 
 settings, scores and meta currency files now carry a version, old files load as version 0 and are upgraded on the next save; unreadable files and files from a newer game version are copied to a `.bak` file before they are overwritten; helpers in `scripts/save_util.gd`, rules in `docs/SAVE_FILES.md`. Written without running Godot, only parse-checked and linted; waiting for your in-game check: start the game with your existing saves, finish a run and look at `user://` for the new version fields
+
+## Early Alpha Roadmap › A. Foundation
+
+### A2.2 Fix `scores_reset_check`
+
+the cause was a real bug, not timing: the Delete key was not handled anywhere in the game, although the High Scores page prints "DELETE OR X TO RESET". `handle_input` in `scripts/input.gd` now has a `KEY_DELETE` branch that calls `scores_reset_open()`, which already only acts on the High Scores page with a non-empty list. Checks run on 2026-10-27, headless with Godot 4.7 on Linux: `scores_reset_check` passes (its other three failures, the NO / Esc / Right ones, only followed from the confirmation never opening), and `high_score_check`, `settings_nav_check`, `controls_page_check`, `progress_reset_check`, `pause_map_check` and `game_title_check` still pass; `gdformat --check` and `gdlint` are clean. Still waits for an in-game check by a person: press Delete on the High Scores page.
+
+### A2.3 Fix `arena_style_title_check`
+
+the check made `main` from a script without setting `generated_arena`, so it stayed on the roundabout, which has no style label (`wants_generated_arena` in `scripts/main.gd`). `tools/arena_style_title_check.gd` now sets `main.generated_arena = true` before `add_child`, like `generated_run_check.gd` and `threat_check.gd` do. No game code changed. The check passes headless with Godot 4.7 (2026-10-27).

@@ -138,6 +138,8 @@ func handle_input(event: InputEvent) -> void:
 		elif kc == KEY_F10 and Toon.ENABLED:
 			g.settings.set_setting("outline", not g.outlines)
 			g.add_note("OUTLINES " + ("ON" if g.outlines else "OFF"), g.GOLD)
+		elif kc == KEY_DELETE:
+			scores_reset_open()  # High Scores page only; does nothing anywhere else or on an empty list
 		elif kc == KEY_ESCAPE:
 			if g.state == "play" and g.paused:
 				pause_back()
