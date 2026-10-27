@@ -108,18 +108,18 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
 
 ### B. A run with real choices (Milestone D "Map Nodes")
 
-- [ ] **B5. Cut what has no effect from the alpha map**: `event` nodes and the `rain` modifier. The code stays; Milestone D "Event" and "Rain modifier" stay open. `double_riders` stays, it works.
-  - [ ] B5.1 In `data/map_rules.json` set the `event` type weight to 0 (if the generator does not accept a weight of 0, use `"max_per_map": 0`) and describe the change in `docs/MAP_GENERATION.md`.
-  - [ ] B5.2 Set the `rain` modifier weight to 0 in the same file.
-  - [ ] B5.3 Run `python tools/run_checks.py map` (this picks `map_check`, `map_viewer_check` and `map_walk_check`); if a check insists on events or on rain, change the check to match and say why.
-  - [ ] B5.4 Look at 20 seeds in the map viewer (`tools/viewer/map_viewer.tscn`): no event node and no rain, and floors 4 and 9 still hold a shop and a rest each.
 - [ ] **B2. Shop node is a screen, not a round** (built on branch `roadmap/b2-shop-node-screen`, waits for B2.6, the owner's run): it skips the arena, opens the shop screen with the node's seeded offers and goes back to the map (Milestone D "Shop").
   - [x] B2.1 In `pick_node` / `start_round` (`scripts/main.gd`) a node of type `shop` does not start a round: no riders, no extraction point, no ambush; it calls `shop_sys.enter_shop()` and the floor and round number still go up by one.
   - [x] B2.2 The offers are already seeded: `build_shop` draws through `offer_shuffle`, which uses the run seed and the round number (the floor), so the same shop node gives the same shop and the Daily Run gives everybody the same shops. The node's own `seed` in its `content` is not needed for this and stays unused. The heal stays always on sale.
   - [x] B2.3 `leave_shop` in `scripts/shop.gd` goes to the map screen after a shop node (not to an upgrade pick) and the map checkpoint is saved.
   - [x] B2.4 A shop node is not a cleared round: no round XP, no `challenges.on_round_cleared`, no entry in `round_times`, nothing counted as a perfect round; its time goes into `shop_time`.
   - [x] B2.5 Extend `tools/map_walk_check.gd`: walking onto a shop node opens the shop, leaving it gives the map, and the round counter went up by one.
-  - [ ] B2.6 The owner plays a run and takes a shop node.
+  - [x] B2.6 The owner plays a run and takes a shop node.
+- [x] **B5. Cut what has no effect from the alpha map**
+  - [x] B5.1 In `data/map_rules.json` set the `event` type weight to 0 (if the generator does not accept a weight of 0, use `"max_per_map": 0`) and describe the change in `docs/MAP_GENERATION.md`.
+  - [x] B5.2 Set the `rain` modifier weight to 0 in the same file.
+  - [x] B5.3 Run `python tools/run_checks.py map` (this picks `map_check`, `map_viewer_check` and `map_walk_check`); if a check insists on events or on rain, change the check to match and say why.
+  - [x] B5.4 Look at 20 seeds in the map viewer (`tools/viewer/map_viewer.tscn`): no event node and no rain, and floors 4 and 9 still hold a shop and a rest each.
 - [ ] **B1. The loop after a cleared round (decided with the owner).** Today every round goes clear, upgrade, shop, map. Decided: **an upgrade pick (1 of 3) after every fight, and the shop only at shop nodes**, so a shop node is worth choosing and the cash from a round has something to wait for. The shop moving to nodes changes the economy (Milestone G rules item), so the prices are checked in D2.
   - [ ] B1.1 After a fight node (normal, elite, boss) the flow becomes clear screen, upgrade pick, map: `pick_upgrade` goes on to `next_round()` and not to `enter_shop()` (`scripts/shop.gd`). Do the same in `enter_upgrade`: when the upgrade pool is empty (every upgrade bought out) it currently falls through to `enter_shop()`, which after B1 must go to the map instead.
   - [ ] B1.2 Cash now waits for a shop node: show the cash on the map screen (`_draw_map_screen` in `scripts/hud.gd`) so the player knows what they can spend.
@@ -153,11 +153,11 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
   - [x] C1.2 Update the README: the melee lock moved to "Not in the early alpha", and Milestone I "Starting loadout" names the pistol and the melee weapon
   - [x] C1.3 Update the expectations of the checks to the new default and run them
   - [x] C1.4 The owner plays a run with the pistol and notes how a clip of 1 feels; the notes go to D2.
-- [ ] **C2. First weapon unlock: the Dart Gun** becomes a buyable `weapon` entry in `data/unlocks.json` (tier 3 of the price curve, 250 coins, as a first guess), so the first purchases change how the player shoots. The pistol's in-run upgrades (clip, pump, reload) already work on it; the dedicated five-tier upgrade path waits.
-  - [ ] C2.1 Add the `dart_gun` entry to `data/unlocks.json` (kind `weapon`, tier 3, name and text written in the entry) and describe it in `data/README.md`.
-  - [ ] C2.2 The dart gun is no longer owned from the first run: `weapon_owned` in `scripts/main.gd` holds it back until it is bought, and the Loadout page lists it only once owned.
-  - [ ] C2.3 The Unlocks page shows it as buyable with its price and not as SOON; fix the expectations of `tools/unlocks_check.gd`, `unlocks_page_check.gd` and `unlocks_buy_check.gd` (the number of unlocks and of planned weapons changes).
-  - [ ] C2.4 Buy it, choose it on the Loadout page, start a run: the run has the dart gun in the primary slot (a case in `tools/loadout_check.gd`).
+- [ ] **C2. First weapon unlock: the Dart Gun** (built on branch `roadmap/c2-dart-gun-unlock`, waits for C2.5, the owner's in-game check) becomes a buyable `weapon` entry in `data/unlocks.json` (tier 3 of the price curve, 250 coins, as a first guess), so the first purchases change how the player shoots. The pistol's in-run upgrades (clip, pump, reload) already work on it; the dedicated five-tier upgrade path waits.
+  - [x] C2.1 Add the `dart_gun` entry to `data/unlocks.json` (kind `weapon`, tier 3, name and text written in the entry) and describe it in `data/README.md`.
+  - [x] C2.2 The dart gun is no longer owned from the first run: `weapon_owned` in `scripts/main.gd` holds it back until it is bought, and the Loadout page lists it only once owned.
+  - [x] C2.3 The Unlocks page shows it as buyable with its price and not as SOON; fix the expectations of `tools/unlocks_check.gd`, `unlocks_page_check.gd` and `unlocks_buy_check.gd` (the number of unlocks and of planned weapons changes).
+  - [x] C2.4 Buy it, choose it on the Loadout page, start a run: the run has the dart gun in the primary slot (a case in `tools/loadout_check.gd`).
   - [ ] C2.5 The owner buys it with real coins and plays a run with it.
 - [ ] **C3. Owning a shop-item unlock matters**: unowned shop items leave the shop pool (the "shop filter" item of Milestone I, see `data/README.md`). Decided with the owner: the Daily Run and custom seeds use the same filter as a normal run, matching the loadout decision on the weapons branch.
   - [ ] C3.1 Where the shop pool is built (`scripts/shop.gd`, `scripts/items.gd`) leave out the six items that are unlocks (POCKET MAGNET, HYPE PACK, LUCKY CHARM, HYPE MACHINE, SHIELD PACK, THICK SKIN) until they are owned; the heal and every item not in `data/unlocks.json` stay.
@@ -191,7 +191,7 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
   - [ ] D2.6 Tick the two balance items in the milestones with a short note of what was changed.
 - [ ] **D3. The meta economy fits the loop**: the first purchase is within one or two runs, the cheapest tier first (60 coins is the current guess), and the whole alpha unlock list costs roughly 15 to 25 runs of coins. Tune the price curve in `data/unlocks.json` and the coin rates in `scripts/meta.gd`; a run that is quit pays nothing, which stays.
   - [ ] D3.1 From the runs of D2 write down the coins a run pays by outcome (lost early, lost late, won), including boss and challenge coins.
-  - [ ] D3.2 Total the price of every unlock (the 24 plus the dart gun) and divide by the coins of an average run.
+  - [ ] D3.2 Total the price of every unlock (all 25, the dart gun included) and divide by the coins of an average run.
   - [ ] D3.3 Adjust the price curve or the coin rates until the first purchase is within one or two runs and the whole list lands in the 15 to 25 run range.
   - [ ] D3.4 Write the final numbers into `data/README.md`, and update `tools/unlocks_check.gd` if it checks the first price against a short run.
 
@@ -406,7 +406,7 @@ Without `arena_generated_check` the suite takes about 7 minutes; the slowest pas
 
 ### Choosing weapons: unlock, then pick a loadout
 
-> Decided with the owner. New weapons are **bought first** with meta coins on the Unlocks page (the four weapons are already in `data/unlocks.json` as `planned`; the dart gun is always owned today; **the melee weapon is not meant to stay always owned: see "Melee weapon is locked at the start" below**). Before a run the player **chooses one weapon per slot** (primary, melee, gadget) on the Loadout screen, and the run starts with those three equipped through `equip_primary`, `equip_melee` and `equip_gadget`. Weapons are not found or bought inside a run, so they leave the shop pool (the "joins the shop pool" note in `data/README.md` changes when the first weapon is built). **A Daily Run still allows choosing a loadout** of weapons (everyone shares the seed, not the weapons). Q / wheel / 1 / 2 keep switching between the primary and the melee weapon; a gadget is used on the spot with its own key and is not switched to. Assumed slots for the new weapons: Suction-Dart Crossbow, Confetti Cannon and Phone Launcher are primary weapons, the Stink Bomb is a gadget (say if the Phone Launcher should be something else). Decided: a custom-seed run uses the chosen weapons too, and the starting perk of the Loadout page now applies in a Daily Run and a custom-seed run as well (it did not before).
+> Decided with the owner. New weapons are **bought first** with meta coins on the Unlocks page (the four weapons are already in `data/unlocks.json` as `planned`; the dart gun is bought too since alpha C2, `weapon_dart_gun`; **the melee weapon is not meant to stay always owned: see "Melee weapon is locked at the start" below**). Before a run the player **chooses one weapon per slot** (primary, melee, gadget) on the Loadout screen, and the run starts with those three equipped through `equip_primary`, `equip_melee` and `equip_gadget`. Weapons are not found or bought inside a run, so they leave the shop pool (the "joins the shop pool" note in `data/README.md` changes when the first weapon is built). **A Daily Run still allows choosing a loadout** of weapons (everyone shares the seed, not the weapons). Q / wheel / 1 / 2 keep switching between the primary and the melee weapon; a gadget is used on the spot with its own key and is not switched to. Assumed slots for the new weapons: Suction-Dart Crossbow, Confetti Cannon and Phone Launcher are primary weapons, the Stink Bomb is a gadget (say if the Phone Launcher should be something else). Decided: a custom-seed run uses the chosen weapons too, and the starting perk of the Loadout page now applies in a Daily Run and a custom-seed run as well (it did not before).
 
 - [x] Loadout screen: choose primary, melee and gadget before a run
 - [ ] HUD slot display: show the primary, melee and gadget slots with the weapon in each and the one in the player's hands highlighted (replaces the `DARTS / [Q] SWITCH` text in the bottom right)
