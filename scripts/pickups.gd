@@ -4,9 +4,16 @@ extends RefCounted
 
 const Models = preload("res://scripts/models.gd")
 
-const LAND_TRIES = 8  # directions tried for a landing spot on open ground
-const LAND_MAX = 7.0  # metres: a landing spot on open ground is never further from the player than this
-const LAND_STEP = 0.5  # metres between the points checked on the way from the player to the spot
+const LAND_TRIES = 12  # directions tried for a landing spot
+const LAND_NEAR = 0.5  # metres: a drop comes down at least this far from the kill ...
+const LAND_FAR = 2.0  # ... and at most this far (before a wall pushes the spot out)
+const LAND_MAX = 4.0  # metres: a landing spot is never further from the kill than this, even after a push out of a wall
+const LAND_APART = 0.7  # metres: drops from one kill try not to lie closer to each other than this
+const LAND_STEP = 0.5  # metres between the points checked on the way from the kill to the spot
+# a landed drop can lie far from the player now, so it stays longer (first guess, tune by playing: B8.3)
+const BLINK_AFTER = 11.0  # seconds on the ground until it starts to blink (the last 3 s before it vanishes)
+const VANISH_AFTER = 14.0  # seconds on the ground until it is gone
+const MAX_ON_FIELD = 10  # drops on the field at once; a kill with more than this loses its extra drops
 
 var g = null
 
@@ -16,7 +23,7 @@ func _init(game) -> void:
 
 
 func maybe_drop(pos: Vector3, chance: float) -> void:
-	if g.state != "play" or g.pickups.size() >= 6:
+	if g.state != "play" or g.pickups.size() >= MAX_ON_FIELD:
 		return
 	if randf() > chance + g.up["luck"]:
 		return
@@ -47,37 +54,60 @@ func drop_kill(pos: Vector3, tough: bool) -> void:
 	if randf() < (0.7 if tough else 0.12) + g.up["luck"]:
 		drops.append(g.pick_one(["rapid", "big", "slow", "shield"]))
 	for t in drops:
-		if g.pickups.size() < 6:
+		if g.pickups.size() < MAX_ON_FIELD:
 			spawn_pickup(t, pos)
 
 
-# Where a pickup comes down: 2.2 to 4.8 m from the player in a random direction, kept on ground a pickup may
-# lie on (`clamp_walk`). On open ground (a generated arena) it must also be reachable: the way from the player
-# to it crosses no wall, because a spot pushed out of a building can end up round the corner or on the far side
-# of a block, where the player would have to walk a long way for it. Up to LAND_TRIES directions are tried and
-# the first spot within LAND_MAX with a clear way wins; if none is, it lands at the player's feet (kept off the
-# wall, or just where the player stands when even that is a nook). The roundabout draws one direction, exactly as before.
-func landing_spot(y_land: float) -> Vector3:
+# Where a pickup comes down: LAND_NEAR to LAND_FAR (0.5 to 2 m) from `kill`, the place where the rider was
+# eliminated, in a random direction, kept on ground a pickup may lie on (`clamp_walk`). The player is not
+# involved: the loot stays where the fight was and the player has to walk to it. Same rule on every arena. On
+# open ground (a generated arena) the spot must also be reachable: the way from the kill to it crosses no wall,
+# because a spot pushed out of a building can end up round the corner or on the far side of a block. A spot
+# pushed further than LAND_MAX from the kill does not count either. Up to LAND_TRIES directions are tried; the
+# first spot that passes wins, and a spot that lies on another drop (within LAND_APART) is only used when no
+# other direction works (then the one furthest from the other drops), so several drops from one kill fan out.
+# If no direction works, the drop lies on the kill itself (kept off the wall, or just where a rider can stand
+# when even that is a nook).
+func landing_spot(y_land: float, kill: Vector3) -> Vector3:
 	var open = g.arena.rider_pursuit()
-	var tries = LAND_TRIES if open else 1
-	var pp: Vector3 = g.player.position
-	for _k in range(tries):
+	var crowded_spot = null  # the spot that passed except that it lies on another drop, furthest from the other drops
+	var crowded_gap = -1.0
+	for _k in range(LAND_TRIES):
 		var la = randf() * TAU
-		var ld = randf_range(2.2, 4.8)
-		var land = g.clamp_walk(Vector3(pp.x + sin(la) * ld, y_land, pp.z - cos(la) * ld), "pickup")
-		if not open:
-			return land
+		var ld = randf_range(LAND_NEAR, LAND_FAR)
+		var land = g.clamp_walk(
+			Vector3(kill.x + sin(la) * ld, y_land, kill.z - cos(la) * ld), "pickup"
+		)
 		# a wall pushes a spot out to the nearest free ground, which can be far or round a corner: it only
-		# counts when it is within reach and nothing is in the way
-		var d = Vector2(land.x - pp.x, land.z - pp.z).length()
-		if d <= LAND_MAX and way_clear(pp, land):
-			return land
-	# boxed in (the player stands in a nook with no room for the pickup margin, which clamp_walk would send 10 m
-	# away): drop it at the player's feet, on ground the player can stand on, so it can always be picked up
-	var feet = g.clamp_walk(Vector3(pp.x, y_land, pp.z), "pickup")
-	if Vector2(feet.x - pp.x, feet.z - pp.z).length() > LAND_MAX:
-		feet = g.clamp_walk(Vector3(pp.x, y_land, pp.z), "player")
+		# counts when it is within reach and (on open ground) nothing is in the way
+		if Vector2(land.x - kill.x, land.z - kill.z).length() > LAND_MAX:
+			continue
+		if open and not way_clear(kill, land):
+			continue
+		var gap = gap_to_drops(land)
+		if gap < LAND_APART:
+			if gap > crowded_gap:
+				crowded_spot = land
+				crowded_gap = gap
+			continue
+		return land
+	if crowded_spot != null:
+		return crowded_spot
+	# boxed in (the kill is in a nook with no room for the pickup margin, which clamp_walk would send 10 m
+	# away): drop it on the kill, on ground a rider can stand on, so it can always be picked up
+	var feet = g.clamp_walk(Vector3(kill.x, y_land, kill.z), "pickup")
+	if Vector2(feet.x - kill.x, feet.z - kill.z).length() > LAND_MAX:
+		feet = g.clamp_walk(Vector3(kill.x, y_land, kill.z), "player")
 	return feet
+
+
+# the flat distance from the spot to the nearest other drop (its landing spot), or a large number when there is none
+func gap_to_drops(spot: Vector3) -> float:
+	var gap = 1000.0
+	for pk in g.pickups:
+		var l: Vector3 = pk["land"]
+		gap = minf(gap, Vector2(l.x - spot.x, l.z - spot.z).length())
+	return gap
 
 
 # true if the straight way from a to b (sampled every LAND_STEP metres) crosses nothing a boss cannot walk on
@@ -95,7 +125,7 @@ func spawn_pickup(t: String, pos: Vector3) -> void:
 	g.add_child(m["root"])
 	var T = 1.0
 	var y_land = 0.55
-	var land = landing_spot(y_land)  # lands a few metres from wherever the player is
+	var land = landing_spot(y_land, pos)  # lands within a short distance of the kill, wherever the player is
 	var vel = Vector3((land.x - pos.x) / T, 4.9 * T + (y_land - pos.y) / T, (land.z - pos.z) / T)
 	g.pickups.append(
 		{
@@ -173,7 +203,7 @@ func update_pickups(dt: float) -> void:
 		node.position = pos
 		node.rotation.y += dt * 2.5
 		node.visible = true
-		if pk["landed"] and pk["rest"] > 6.0 and int(g.time * 10.0) % 2 == 0:
+		if pk["landed"] and pk["rest"] > BLINK_AFTER and int(g.time * 10.0) % 2 == 0:
 			node.visible = false
 		if (
 			Vector2(pos.x - g.player.position.x, pos.z - g.player.position.z).length() < 1.0
@@ -181,6 +211,6 @@ func update_pickups(dt: float) -> void:
 		):
 			collect_pickup(pk)
 			continue
-		if pk["landed"] and pk["rest"] > 8.0:
+		if pk["landed"] and pk["rest"] > VANISH_AFTER:
 			pk["node"].queue_free()
 			g.pickups.remove_at(i)
