@@ -126,12 +126,12 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
   - [x] B1.3 Keep the run timer true: the upgrade screen still counts as `shop_time`, and the `[run timer]` line still adds up.
   - [x] B1.4 Update the checks that walk this flow (`tools/map_walk_check.gd`, `round_clear_check.gd`, `generated_run_check.gd`, `run_save_check.gd`) to the new order and run them.
   - [x] B1.5 The owner plays two runs and notes whether cash piles up uselessly or the shop nodes feel too poor; the notes go to D2.
-- [ ] **B3. Rest node is a screen with one choice** (built on branch `roadmap/b3-rest-node`, waits for B3.5, the owner's run): refill hearts to full, or take one extra upgrade pick (Milestone D "Rest stop"). Hearts max at 3 and every cleared round already gives one back, so the heal alone is never a real choice.
+- [x] **B3. Rest node is a screen with one choice** (built on branch `roadmap/b3-rest-node`, waits for B3.5, the owner's run): refill hearts to full, or take one extra upgrade pick (Milestone D "Rest stop"). Hearts max at 3 and every cleared round already gives one back, so the heal alone is never a real choice.
   - [x] B3.1 New state `rest` with a screen of two options, REFILL HEARTS and EXTRA UPGRADE, in the style of the shop screen (keyboard, mouse and gamepad), drawn in `scripts/hud.gd`, wired in `scripts/input.gd`.
   - [x] B3.2 REFILL sets the hearts to `MAXHEARTS` and goes back to the map; EXTRA UPGRADE opens one upgrade pick and then the map.
   - [x] B3.3 Like the shop node it is not a cleared round (see B2.4), and the map checkpoint is the map screen, so quitting on the rest screen and continuing gives the map with the same hearts (the same known loophole as for rounds, not guarded against).
   - [x] B3.4 `tools/rest_node_check.gd` (the runner finds it, no `.bat`): both options, the hearts, the counters, the keys and the screen at two window sizes.
-  - [ ] B3.5 The owner plays a run to floor 4 and takes the rest node.
+  - [x] B3.5 The owner plays a run to floor 4 and takes the rest node.
 - [ ] **B4. Elite node pays for its risk**: it is already a harder fight (10 to 12 riders, 40 % armoured); make it also pay something the others do not, a second upgrade pick (Milestone D "Elite encounter").
   - [ ] B4.1 Clearing an elite node gives two upgrade picks in a row, the second with fresh offers. `offer_shuffle` is seeded by the run seed, the round and a part name (`"upgrade"` in `enter_upgrade`), so a second pick in the same round would show the same three offers: give the second one its own part name.
   - [ ] B4.2 The clear screen says so (for example ELITE CLEARED - EXTRA UPGRADE).
