@@ -8,6 +8,7 @@ Mostly vibe coded Godot game
 
 ## Roadmap history
 - The long notes written after ticked roadmap items (what was built, decisions, checks run, what still waits for an in-game check) are in [`docs/ROADMAP_HISTORY.md`](docs/ROADMAP_HISTORY.md), grouped under the same milestone and section headings as here. A ticked item below keeps only its title.
+- **Rule for new notes:** when an item is ticked, write its note (what was built, decisions, checks run, what still waits for an in-game check) in `docs/ROADMAP_HISTORY.md`, under the same milestone and section heading, with the item title as the entry heading. The README line keeps only the checkbox and the title, so the README stays short. Notes on open items that are still being worked on can stay in the README until the item is ticked.
 
 ## Running from the Godot editor
 - The game starts in a 1280x720 window (the base size in `project.godot`). Fullscreen is built in: F11, or the FULLSCREEN row in the settings, and the choice is saved.
