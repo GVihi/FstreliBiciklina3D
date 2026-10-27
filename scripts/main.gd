@@ -21,6 +21,7 @@ const AmbushScript = preload("res://scripts/ambush.gd")
 const ExploreScript = preload("res://scripts/explore_map.gd")
 const SfxScript = preload("res://scripts/sfx.gd")
 const Content = preload("res://scripts/content.gd")
+const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 const SettingsScript = preload("res://scripts/settings.gd")
 const PedestriansScript = preload("res://scripts/pedestrians.gd")
 const PickupsScript = preload("res://scripts/pickups.gd")
@@ -90,7 +91,7 @@ const DEFAULT_PER_ROUND = 10
 var PER_ROUND = 10  # riders in this round: DEFAULT_PER_ROUND, or what the node says (plan_riders)
 var MAX_ROUNDS = 10  # a run is this many rounds; clearing the last one wins the run
 var NEED = 6  # hits that clear a round where riders can get away (the roundabout); see hits_needed()
-var MAXSHELLS = int(Content.WEAPONS["dart_gun"]["start_clip"])
+var MAXSHELLS = int(Content.WEAPONS[WeaponSlots.PRIMARY_DEFAULT]["start_clip"])
 var MAXHEARTS = 3
 # game content tables live in content.gd; same names, so the HUD still reads g.NAME
 var OVER_MSG = Content.OVER_MSG
@@ -186,7 +187,10 @@ var bird_t = 3.0
 var invuln = 0.0
 
 # v4: hype, buffs, melee, upgrades
-var melee = false
+var primary = WeaponSlots.PRIMARY_DEFAULT  # the weapon in the primary slot (an id of data/weapons.json), see weapon_slots.gd
+var melee_weapon = WeaponSlots.MELEE_DEFAULT  # the weapon in the melee slot (an id of data/weapons.json)
+var gadget = WeaponSlots.NO_GADGET  # the gadget in the gadget slot (an id of data/weapons.json, "" = empty)
+var melee = false  # true while the melee weapon is the one in the player's hands
 var swing_t = 0.0
 var swing_cd = 0.0
 var swing_dir = 1.0
@@ -202,7 +206,7 @@ var shop_lvl = {}  # how many times each tiered upgrade was bought in the shop (
 var shop_buys = 0  # purchases this run: every one makes the next ones dearer
 var shop_rerolls = 0  # rerolls in the current shop
 var pending = {"rapid": 0.0, "big": 0.0, "shield": false, "hype": false, "free": 0}  # packs, used up at the start of the next round
-var pump_base = float(Content.WEAPONS["dart_gun"]["pump_start"])
+var pump_base = float(Content.WEAPONS[WeaponSlots.PRIMARY_DEFAULT]["pump_start"])
 var pump_dur = 0.2
 
 # shotgun
@@ -218,7 +222,9 @@ var spread_deg = 2.0
 # player
 var player: Node3D
 var cam: Camera3D
-var gun = {}
+var gun = {}  # the model of the weapon in the primary slot (a value of `guns`), see sync_gun_model
+var guns = {}  # primary weapon id -> its first-person model (models.gd); only the one in the slot is shown
+var gun_id = ""  # the id of the weapon `gun` is the model of
 var rubber = {}
 var hud
 var sfx
@@ -282,6 +288,8 @@ var saved_run_rounds = 0  # how many rounds that run has, for the CONTINUE butto
 var run_save_enabled = false  # true in the game itself: a check that builds a main leaves user://run.json alone
 var unlock_sel = 0  # highlighted entry (index into UNLOCKS) of the Unlocks page of the title screen
 var loadout_sel = 0  # highlighted row of the Loadout page (index into loadout_options)
+var loadout_col = 0  # which list of the Loadout page is active: 0 = starting perks, 1 = the three weapon slots
+var loadout_slot = 0  # highlighted weapon slot of the Loadout page (index into WeaponSlots.SLOTS)
 var unlock_msg = ""  # the last result shown on the Unlocks page ("BOUGHT", "NOT ENOUGH COINS", ...)
 var unlock_msg_t0 = -10.0  # g.time when unlock_msg was set; it fades after a few seconds
 
@@ -360,14 +368,19 @@ func _ready() -> void:
 	if Toon.ENABLED:
 		outline_quad = Toon.make_outline_quad()
 		cam.add_child(outline_quad)
-	gun = Models.build_gun()
-	cam.add_child(gun["root"])
+	guns = {"dart_gun": Models.build_gun(), "dart_pistol": Models.build_pistol()}
+	var gun_roots = []
+	for gun_key in guns:
+		cam.add_child(guns[gun_key]["root"])
+		guns[gun_key]["root"].visible = false
+		gun_roots.append(guns[gun_key]["root"])
+	sync_gun_model()
 	rubber = Models.build_rubber()
 	cam.add_child(rubber["root"])
 	rubber["root"].visible = false
 	if VIEWMODEL_PASS:
 		viewmodel = ViewmodelScript.new(self)
-		viewmodel.setup(cam, [gun["root"], rubber["root"]], world["env"])
+		viewmodel.setup(cam, gun_roots + [rubber["root"]], world["env"])
 
 	# floor ring that shows where the rubber can reach
 	melee_ring = MeshInstance3D.new()
@@ -615,6 +628,53 @@ func loadout_options() -> Array:
 	return out
 
 
+# true when the player may use a weapon: every weapon is available from the first run unless data/unlocks.json
+# holds it back as a "weapon" unlock, and then it has to be bought
+func weapon_owned(id: String) -> bool:
+	for u in UNLOCKS:
+		if u["kind"] == "weapon" and u["target"] == id:
+			return meta.owns(u["id"])
+	return true
+
+
+# the rows of one weapon slot on the Loadout page: the weapons the player owns that fit the slot, the slot's
+# default first (the gadget slot starts with "NO GADGET"). Each row is {"id", "name", "desc"}.
+func loadout_weapon_options(slot: String) -> Array:
+	var out = []
+	var first = WeaponSlots.default_of(slot)
+	var ids = [first]
+	for id in WeaponSlots.table_of(slot):
+		if id != first:
+			ids.append(id)
+	for id in ids:
+		if id == first or (weapon_owned(id) and WEAPONS.has(id)):
+			out.append(
+				{
+					"id": id,
+					"name": WeaponSlots.display_name(slot, id),
+					"desc": WeaponSlots.display_desc(slot, id)
+				}
+			)
+	return out
+
+
+# the weapon a run starts with in a slot: the one chosen on the Loadout page while it is still owned, otherwise
+# the slot's default
+func loadout_weapon_id(slot: String) -> String:
+	var want = str(meta.weapon_choice.get(slot, ""))
+	for o in loadout_weapon_options(slot):
+		if o["id"] == want:
+			return want
+	return WeaponSlots.default_of(slot)
+
+
+# puts the three chosen weapons in their slots (every run, the Daily Run and a typed seed too)
+func apply_loadout() -> void:
+	equip_primary(loadout_weapon_id(WeaponSlots.PRIMARY))
+	equip_melee(loadout_weapon_id(WeaponSlots.MELEE))
+	equip_gadget(loadout_weapon_id(WeaponSlots.GADGET))
+
+
 # the perk a normal run starts with: the one chosen on the Loadout page while it is still owned, "" for none
 func start_perk_id() -> String:
 	for o in loadout_options():
@@ -787,10 +847,84 @@ func pause_on_focus_loss() -> bool:
 	return true
 
 
+# ================================================================== weapon slots
+# Shows the first-person model of the weapon in the primary slot and hides the others (a weapon without a model of its
+# own uses the dart gun's). Called every frame by `update_gun`, so every way a weapon gets into the slot (equipping,
+# a new run, a saved run) is covered; it only does something when the weapon has changed.
+func sync_gun_model() -> void:
+	var id = primary if guns.has(primary) else WeaponSlots.PRIMARY_DEFAULT
+	if id == gun_id or not guns.has(id):
+		return
+	gun_id = id
+	gun = guns[id]
+	for key in guns:
+		guns[key]["root"].visible = false
+		guns[key]["light"].light_energy = 0.0
+	player_sys.ammo_text = ""  # the number on the new model has to be set again
+	player_sys.pump_slide = 0.0
+
+
+# The tuning numbers (data/weapons.json) of the weapon in the primary slot.
+func primary_stats() -> Dictionary:
+	return WEAPONS[primary]
+
+
+# The tuning numbers (data/weapons.json) of the weapon in the melee slot.
+func melee_stats() -> Dictionary:
+	return WEAPONS[melee_weapon]
+
+
+# The tuning numbers (data/weapons.json) of the gadget in the gadget slot; empty when the slot is empty.
+func gadget_stats() -> Dictionary:
+	return WEAPONS[gadget] if WeaponSlots.is_gadget(gadget) and WEAPONS.has(gadget) else {}
+
+
+# Puts a gadget in the gadget slot, or empties it (an empty id). Refuses (returns false and changes nothing) an id
+# that cannot be in the gadget slot. There are no gadgets yet, so today only emptying the slot works. Nothing
+# calls this yet but the checks.
+func equip_gadget(id) -> bool:
+	if typeof(id) == TYPE_STRING and id == WeaponSlots.NO_GADGET:
+		gadget = WeaponSlots.NO_GADGET
+		return true
+	if not WeaponSlots.is_gadget(id) or not WEAPONS.has(id):
+		return false
+	gadget = id
+	return true
+
+
+# Puts a weapon in the melee slot. Refuses (returns false and changes nothing) an id that cannot be in the melee
+# slot. A swing in progress finishes with the numbers it started with. Nothing calls this yet but the checks.
+func equip_melee(id) -> bool:
+	if not WeaponSlots.is_melee_weapon(id) or not WEAPONS.has(id):
+		return false
+	melee_weapon = id
+	return true
+
+
+# Puts a weapon in the primary slot and gives it its starting magazine and pump time. Refuses (returns false and
+# changes nothing) an id that cannot be in the primary slot. A reload in progress is stopped, because it was
+# loading the old weapon. Nothing calls this yet but the checks: choosing a starting weapon is the Loadout
+# screen (Milestone I) and finding or buying one is the Milestone C weapons.
+func equip_primary(id) -> bool:
+	if not WeaponSlots.is_primary_weapon(id) or not WEAPONS.has(id):
+		return false
+	if id == primary:
+		return true
+	combat_sys.interrupt_load()
+	primary = id
+	MAXSHELLS = int(primary_stats()["start_clip"])
+	shells = MAXSHELLS
+	pump_base = float(primary_stats()["pump_start"])
+	return true
+
+
 # ================================================================== game flow
 func reset_run() -> void:
-	MAXSHELLS = int(WEAPONS["dart_gun"]["start_clip"])
-	pump_base = float(WEAPONS["dart_gun"]["pump_start"])
+	primary = WeaponSlots.PRIMARY_DEFAULT
+	melee_weapon = WeaponSlots.MELEE_DEFAULT
+	gadget = WeaponSlots.NO_GADGET
+	MAXSHELLS = int(primary_stats()["start_clip"])
+	pump_base = float(primary_stats()["pump_start"])
 	pump_dur = 0.2
 	MAXHEARTS = 3
 	melee = false
@@ -956,8 +1090,9 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	player.position = arena.start_position()
 	pvel = Vector3.ZERO
 	var start_perk_name = start_perk_id()
-	if start_perk_name != "" and ranked_run():  # a Daily Run or a typed seed starts the same for everybody
+	if start_perk_name != "":  # the Daily Run and a typed seed start with the chosen perk and weapons too
 		perks[start_perk_name] = true
+	apply_loadout()
 	if run_map.is_empty():
 		start_round()  # no map (it could not be generated): play the rounds in a line, as before
 	else:

@@ -304,9 +304,16 @@ static func _build_gun_from_glb() -> Dictionary:
 
 
 # the muzzle point and the muzzle-flash light, shared by the modelled and the procedural gun
-static func _finish_gun(root: Node3D, pump: Node3D, ads_y: float, ammo_pos: Vector3) -> Dictionary:
+static func _finish_gun(
+	root: Node3D,
+	pump: Node3D,
+	ads_y: float,
+	ammo_pos: Vector3,
+	muzzle_pos: Vector3 = Vector3(0, 0.03, -0.66),
+	pump_z: float = -0.30
+) -> Dictionary:
 	var muzzle = Node3D.new()
-	muzzle.position = Vector3(0, 0.03, -0.66)
+	muzzle.position = muzzle_pos
 	root.add_child(muzzle)
 	var light = OmniLight3D.new()
 	light.omni_range = 6.0
@@ -327,7 +334,8 @@ static func _finish_gun(root: Node3D, pump: Node3D, ads_y: float, ammo_pos: Vect
 		"light": light,
 		"flash": flash,
 		"ammo": ammo,
-		"ads_y": ads_y
+		"ads_y": ads_y,
+		"pump_z": pump_z
 	}
 
 
@@ -392,6 +400,55 @@ static func _build_gun_procedural() -> Dictionary:
 	var pump = Util.box(root, Vector3(0.06, 0.055, 0.16), Vector3(0, -0.05, -0.30), blue)  # animated slide
 
 	return _finish_gun(root, pump, GUN_PROC_ADS_Y, GUN_PROC_AMMO_POS)
+
+
+# ------------------------------------------------------------------
+#  Dart Nerf Pistol (first-person viewmodel). Barrel points to -Z. Same dictionary as build_gun(): the slide is the
+#  "pump" (it rests at z = PISTOL_SLIDE_Z and update_gun moves it back when a dart is fired).
+#  Built from boxes and cylinders, no .glb: a small chunky toy in the orange and blue of the dart gun.
+# ------------------------------------------------------------------
+const PISTOL_ADS_Y = -0.072  # the tops of the sights are 0.072 m above the root
+const PISTOL_SLIDE_Z = -0.05
+const PISTOL_AMMO_POS = Vector3(-0.026, -0.075, 0.062)  # on the left face of the grip, facing the player
+const PISTOL_MUZZLE_POS = Vector3(0.0, 0.04, -0.30)
+
+
+static func build_pistol() -> Dictionary:
+	var root = Node3D.new()
+	var orange = Util.mat(Color.html("#ff6a2b"), 0.5)
+	var orange_d = Util.mat(Color.html("#c24a16"), 0.5)
+	var dark = Util.mat(Color.html("#23252a"), 0.4, 0.4)
+	var blue = Util.mat(Color.html("#1c63c8"), 0.5)
+	var white = Util.mat(Color.html("#f2f2ee"), 0.6)
+
+	Util.box(root, Vector3(0.044, 0.045, 0.22), Vector3(0, -0.002, -0.02), blue)  # frame under the slide
+	var grip = Util.box(root, Vector3(0.042, 0.135, 0.062), Vector3(0, -0.085, 0.068), orange_d)
+	grip.rotation.x = 0.22
+	Util.box(root, Vector3(0.046, 0.012, 0.066), Vector3(0, -0.153, 0.094), dark)  # grip base
+	Util.box(root, Vector3(0.012, 0.03, 0.012), Vector3(0, -0.04, 0.0), dark)  # trigger
+	Util.box(root, Vector3(0.008, 0.008, 0.07), Vector3(0, -0.058, -0.03), dark)  # trigger guard, bottom
+	Util.box(root, Vector3(0.008, 0.026, 0.008), Vector3(0, -0.047, -0.065), dark)  # trigger guard, front
+	var barrel = Util.cyl(root, 0.016, 0.016, 0.16, Vector3(0, 0.035, -0.22), dark)
+	barrel.rotation.x = PI * 0.5
+	var tip = Util.cyl(root, 0.021, 0.021, 0.03, Vector3(0, 0.035, -0.295), orange)  # orange nerf muzzle ring
+	tip.rotation.x = PI * 0.5
+	Util.box(root, Vector3(0.036, 0.012, 0.03), Vector3(0, 0.03, -0.17), orange_d)  # barrel collar under the slide
+	Util.box(root, Vector3(0.012, 0.016, 0.014), Vector3(0, 0.067, -0.255), white)  # front sight
+	Util.box(root, Vector3(0.03, 0.01, 0.01), Vector3(0, 0.067, 0.045), dark)  # rear sight
+	# the slide: moves back when a dart is fired and rests a little back while it reloads
+	var slide = Node3D.new()
+	slide.position = Vector3(0, 0.04, PISTOL_SLIDE_Z)
+	root.add_child(slide)
+	Util.box(slide, Vector3(0.042, 0.05, 0.19), Vector3.ZERO, orange)
+	Util.box(slide, Vector3(0.044, 0.012, 0.19), Vector3(0, 0.026, 0), orange_d)  # raised top rib
+	for i in range(3):  # grip grooves at the back of the slide, slightly darker than the slide
+		Util.box(
+			slide, Vector3(0.045, 0.044, 0.004), Vector3(0, 0, 0.06 + 0.014 * float(i)), orange_d
+		)
+
+	return _finish_gun(
+		root, slide, PISTOL_ADS_Y, PISTOL_AMMO_POS, PISTOL_MUZZLE_POS, PISTOL_SLIDE_Z
+	)
 
 
 # ------------------------------------------------------------------

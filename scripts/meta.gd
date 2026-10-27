@@ -12,6 +12,7 @@ extends RefCounted
 const SaveUtil = preload("res://scripts/save_util.gd")
 const XpScript = preload("res://scripts/xp.gd")
 const UnlocksTable = preload("res://scripts/unlocks.gd")
+const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 const PATH = "user://meta.json"
 const VERSION = 1
 const MAX_XP = 100000000  # sanity limit for the saved XP (far above the top level)
@@ -43,6 +44,7 @@ func load_meta() -> void:
 	total_earned = 0
 	owned = {}
 	start_perk = ""
+	weapon_choice = {}
 	challenge_counts = {}
 	xp = 0
 	if not FileAccess.file_exists(PATH):
@@ -61,6 +63,11 @@ func load_meta() -> void:
 			xp = clampi(int(raw_xp), 0, MAX_XP)  # a hand-edited number cannot crash it or pass the top level
 		if typeof(data.get("start_perk", "")) == TYPE_STRING:
 			start_perk = str(data.get("start_perk", ""))
+		var wc = data.get("loadout", {})
+		if wc is Dictionary:
+			for slot in WeaponSlots.SLOTS:
+				if typeof(wc.get(slot, "")) == TYPE_STRING:
+					weapon_choice[slot] = str(wc.get(slot, ""))  # main.gd loadout_weapon_id checks it is still owned
 		var ids = data.get("owned", [])
 		if ids is Array:
 			for id in ids:
@@ -87,6 +94,7 @@ func save_meta() -> void:
 					"total_earned": total_earned,
 					"owned": ids,
 					"start_perk": start_perk,
+					"loadout": weapon_choice,
 					"challenges": challenge_counts,
 					"xp": xp
 				}
@@ -187,4 +195,15 @@ var start_perk = ""
 
 func choose_start_perk(id: String) -> void:
 	start_perk = id
+	save_meta()
+
+
+# the weapon chosen on the Loadout page for each slot (slot -> weapon id, "" or missing = the slot's default)
+var weapon_choice = {}
+
+
+func choose_weapon(slot: String, id: String) -> void:
+	if not WeaponSlots.SLOTS.has(slot):
+		return
+	weapon_choice[slot] = id
 	save_meta()

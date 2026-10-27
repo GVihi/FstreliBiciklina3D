@@ -2,6 +2,7 @@ extends RefCounted
 # Input: mouse, keyboard and gamepad handling, menu clicks and weapon switching.
 # Shared game state stays on main.gd (g); this file holds the logic.
 
+const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 const Toon = preload("res://scripts/toon.gd")
 
 var g = null
@@ -78,10 +79,12 @@ func handle_input(event: InputEvent) -> void:
 		elif kc == KEY_ENTER or kc == KEY_KP_ENTER:
 			menu_confirm()
 		elif kc == KEY_LEFT:
+			loadout_switch(-1)
 			menu_move(-1)
 			confirm_move()
 			settings_adjust(-1)
 		elif kc == KEY_RIGHT:
+			loadout_switch(1)
 			menu_move(1)
 			confirm_move()
 			settings_adjust(1)
@@ -191,9 +194,11 @@ func on_pad_button(btn: int) -> void:
 		title_move(1)
 		settings_move(1)
 	elif btn == JOY_BUTTON_DPAD_LEFT:
+		loadout_switch(-1)
 		menu_move(-1)
 		settings_adjust(-1)
 	elif btn == JOY_BUTTON_DPAD_RIGHT:
+		loadout_switch(1)
 		menu_move(1)
 		settings_adjust(1)
 	elif btn == JOY_BUTTON_A:
@@ -345,6 +350,11 @@ func hover_menu(pos: Vector2) -> void:
 	var li = g.hud.loadout_at(pos)
 	if li >= 0:
 		g.loadout_sel = li
+		g.loadout_col = 0
+	var wi = g.hud.loadout_slot_at(pos)
+	if wi >= 0:
+		g.loadout_slot = wi
+		g.loadout_col = 1
 	if g.state == "map":
 		var mi = g.hud.map_choice_at(pos)
 		if mi >= 0:
@@ -364,7 +374,10 @@ func title_move(d: int) -> void:
 		g.title_sel = order[posmod(at + d, order.size())]
 		g.sfx.play("click")
 	elif g.state == "title" and g.title_page == "loadout":
-		g.loadout_sel = posmod(g.loadout_sel + d, g.loadout_options().size())
+		if g.loadout_col == 1:
+			g.loadout_slot = posmod(g.loadout_slot + d, WeaponSlots.SLOTS.size())
+		else:
+			g.loadout_sel = posmod(g.loadout_sel + d, g.loadout_options().size())
 		g.sfx.play("click")
 	elif g.state == "title" and g.title_page == "unlocks" and not g.UNLOCKS.is_empty():
 		g.unlock_sel = posmod(g.unlock_sel + d, g.UNLOCKS.size())
@@ -416,6 +429,8 @@ func title_activate(i: int) -> void:
 	else:
 		if id == "loadout":
 			g.loadout_sel = 0
+			g.loadout_col = 0
+			g.loadout_slot = 0
 			var opts = g.loadout_options()
 			for n in range(opts.size()):
 				if opts[n]["id"] == g.meta.start_perk:
@@ -427,13 +442,41 @@ func title_activate(i: int) -> void:
 		g.sfx.play("click")
 
 
-# ---- choosing the starting perk on the Loadout page (Enter, gamepad A or a click on a row)
+# ---- the Loadout page: Left / Right (D-pad) switch between the perk list and the weapon slots
+func loadout_switch(d: int) -> void:
+	if g.state != "title" or g.title_page != "loadout":
+		return
+	var col = clampi(g.loadout_col + d, 0, 1)
+	if col != g.loadout_col:
+		g.loadout_col = col
+		g.sfx.play("click")
+
+
+# ---- choosing on the Loadout page (Enter, gamepad A or a click on a row): the highlighted perk becomes the
+# starting perk, or the highlighted weapon slot moves on to the next weapon the player owns for it
 func loadout_pick() -> void:
 	if g.state != "title" or g.title_page != "loadout":
+		return
+	if g.loadout_col == 1:
+		loadout_cycle(g.loadout_slot)
 		return
 	var opts = g.loadout_options()
 	var o = opts[clampi(g.loadout_sel, 0, opts.size() - 1)]
 	g.meta.choose_start_perk(str(o["id"]))
+	g.sfx.play("click")
+
+
+# the weapon slot (an index into WeaponSlots.SLOTS) takes the next owned weapon of its list, wrapping round
+func loadout_cycle(slot_index: int) -> void:
+	var slot = WeaponSlots.SLOTS[clampi(slot_index, 0, WeaponSlots.SLOTS.size() - 1)]
+	var opts = g.loadout_weapon_options(slot)
+	if opts.size() < 2:
+		return  # only one weapon owned for this slot: nothing to change
+	var at = 0
+	for n in range(opts.size()):
+		if opts[n]["id"] == g.loadout_weapon_id(slot):
+			at = n
+	g.meta.choose_weapon(slot, str(opts[(at + 1) % opts.size()]["id"]))
 	g.sfx.play("click")
 
 
@@ -601,8 +644,14 @@ func on_click() -> void:
 				title_back()
 		elif g.title_page == "loadout":
 			var li = g.hud.loadout_at(mp)
+			var wi = g.hud.loadout_slot_at(mp)
 			if li >= 0:
 				g.loadout_sel = li
+				g.loadout_col = 0
+				loadout_pick()
+			elif wi >= 0:
+				g.loadout_slot = wi
+				g.loadout_col = 1
 				loadout_pick()
 			else:
 				title_back()
