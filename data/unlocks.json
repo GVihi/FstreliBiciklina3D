@@ -24,6 +24,14 @@
 		{"id": "item_heart", "kind": "shop_item", "target": "heart", "tier": 3},
 
 		{
+			"id": "weapon_dart_gun",
+			"kind": "weapon",
+			"target": "dart_gun",
+			"name": "DART GUN",
+			"desc": "A six-dart pump gun: a bigger clip and longer reach than the pistol",
+			"tier": 3
+		},
+		{
 			"id": "weapon_crossbow",
 			"kind": "weapon",
 			"target": "crossbow",
