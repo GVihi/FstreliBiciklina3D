@@ -39,6 +39,7 @@ const ChallengesScript = preload("res://scripts/challenges.gd")
 const ViewmodelScript = preload("res://scripts/viewmodel.gd")
 const DailyScript = preload("res://scripts/daily.gd")
 const RunSave = preload("res://scripts/run_save.gd")
+const ProgressReset = preload("res://scripts/progress_reset.gd")
 const ArenaRoundaboutScript = preload("res://scripts/arena_roundabout.gd")
 const MapGenScript = preload("res://scripts/map_gen.gd")
 const ArenaGenScript = preload("res://scripts/arena_gen.gd")
@@ -278,7 +279,9 @@ var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / 
 var pause_page = ""  # "" = pause menu, "settings" = settings panel, "controls", "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
 var setting_sel = 0  # highlighted row of the settings panel (keyboard / gamepad / mouse hover)
-var confirm_id = ""  # what the confirmation asks about: "restart" or "title"
+var confirm_id = ""  # what the confirmation asks about: "restart", "title", or "reset1" / "reset2" (the two RESET ALL PROGRESS warnings)
+var progress_wiped_t0 = -100.0  # g.time of the last RESET ALL PROGRESS, for the "ALL PROGRESS WIPED" line under the settings panel
+var progress_wipe_failed = 0  # how many progress files that wipe could not delete (0 = all gone)
 var confirm_sel = 0  # highlighted confirmation button: 0 = NO (the safe default), 1 = YES
 var confirm_t0 = 0.0  # g.time when the confirmation opened; YES is ignored for a moment after (double clicks)
 var seed_buf = ""  # the hex digits typed on the custom seed page of the title screen (up to 8)
@@ -1008,6 +1011,32 @@ func clear_saved_run() -> void:
 	saved_run_rounds = 0
 	if run_save_enabled:
 		RunSave.clear()
+
+
+# RESET ALL PROGRESS (last row of the settings panel, after two warnings; the flow is in input.gd): deletes the meta,
+# leaderboard and saved run files with every backup copy (progress_reset.gd), and puts what the game holds in memory
+# back to a new player's values: coins, unlocks, loadout, challenge counts, XP, the leaderboard, the HI score and the
+# CONTINUE button. The settings and the leaderboard name are kept. Returns how many files could not be deleted; those
+# are written over with the empty state so the old progress cannot come back at the next start.
+func reset_all_progress() -> int:
+	var failed = ProgressReset.delete_files()
+	meta.reset_all()
+	scores.entries = []
+	hi = 0
+	last_rank = -1
+	new_unlocks = []
+	meta_earned = 0
+	unlock_msg = ""
+	clear_saved_run()
+	if not failed.is_empty():
+		meta.save_meta()
+		scores.save_scores()
+		RunSave.clear()
+	if title_sel >= hud.TITLE_ITEMS.size():
+		title_sel = 0  # the CONTINUE button is gone
+	progress_wiped_t0 = time
+	progress_wipe_failed = failed.size()
+	return failed.size()
 
 
 # CONTINUE: plays the saved run on from its map screen, with everything the player had there

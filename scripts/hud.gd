@@ -1185,6 +1185,9 @@ func _draw_title_page(k: float, cx: float) -> void:
 	if g.title_page == "scores_confirm":
 		_draw_scores_confirm(k, cx)
 		return
+	if g.title_page == "reset_confirm":
+		_draw_confirm(k, cx)  # the two RESET ALL PROGRESS warnings, same page as the pause menu one
+		return
 	if g.title_page == "challenges":
 		_draw_challenges_page(k, cx)
 		return
@@ -1561,9 +1564,29 @@ func _draw_map_overlay(k: float, cx: float) -> void:
 
 
 # Restart Run and Quit to Title lose the run, so they ask first. NO is the first button and the default.
+# "warn" is the red text under the title (wrapped to the width of the screen); "danger" paints the YES button red.
+# reset1 and reset2 are the two warnings of RESET ALL PROGRESS, one after the other (input.gd confirm_activate).
 const CONFIRM_TEXT = {
 	"restart": {"title": "RESTART RUN?", "yes": "YES, RESTART"},
-	"title": {"title": "QUIT TO TITLE?", "yes": "YES, QUIT"}
+	"title": {"title": "QUIT TO TITLE?", "yes": "YES, QUIT"},
+	"reset1":
+	{
+		"title": "RESET ALL PROGRESS?",
+		"yes": "YES, CONTINUE",
+		"danger": true,
+		"warn":
+		[
+			"ALL YOUR PROGRESS WILL BE WIPED: COINS, UNLOCKS, LOADOUT, XP, CHALLENGES, HIGH SCORES AND THE SAVED RUN.",
+			"THIS CANNOT BE UNDONE AND CANNOT BE RECOVERED."
+		]
+	},
+	"reset2":
+	{
+		"title": "ARE YOU ABSOLUTELY SURE?",
+		"yes": "YES, WIPE EVERYTHING",
+		"danger": true,
+		"warn": ["THIS IS YOUR LAST CHANCE. EVERYTHING WILL BE GONE FOR GOOD."]
+	}
 }
 
 
@@ -1575,7 +1598,11 @@ func confirm_rect(i: int) -> Rect2:
 
 
 func confirm_at(pos: Vector2) -> int:
-	if g == null or not g.paused or g.pause_page != "confirm":
+	if g == null:
+		return -1
+	var on_pause = g.paused and g.pause_page == "confirm"
+	var on_title = g.state == "title" and g.title_page == "reset_confirm"  # the RESET ALL PROGRESS warnings
+	if not on_pause and not on_title:
 		return -1
 	for i in range(2):
 		if confirm_rect(i).has_point(pos):
@@ -1586,13 +1613,23 @@ func confirm_at(pos: Vector2) -> int:
 func _draw_confirm(k: float, cx: float) -> void:
 	var text = CONFIRM_TEXT.get(g.confirm_id, CONFIRM_TEXT["restart"])
 	_txt(text["title"], cx, size.y * 0.26, int(60 * k), TEXT, 1)
-	_txt("THIS RUN WILL BE LOST - NO SCORE AND NO COINS", cx, size.y * 0.36, int(20 * k), RED, 1)
+	var warn = text.get("warn", ["THIS RUN WILL BE LOST - NO SCORE AND NO COINS"])
+	var wy = size.y * 0.36
+	for line in warn:
+		for part in _wrap(str(line), size.x * 0.84, int(20 * k)):
+			_txt(part, cx, wy, int(20 * k), RED, 1)
+			wy += 26.0 * k
+	var danger = text.get("danger", false)
 	var labels = ["NO, GO BACK", text["yes"]]
 	for i in range(2):
 		var r = confirm_rect(i)
 		var on = g.confirm_sel == i  # the mouse updates confirm_sel in input.gd (hover_menu)
-		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
-		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
+		if danger and i == 1:  # the YES that wipes everything is red
+			draw_rect(r, Color(0.5, 0.08, 0.07) if on else Color(0.36, 0.06, 0.06))
+			draw_rect(r, Color(1.0, 0.3, 0.24) if on else RED.darkened(0.35), false, 3.0 * k)
+		else:
+			draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
+			draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
 		_txt(
 			labels[i],
 			r.position.x + r.size.x * 0.5,
@@ -1617,7 +1654,9 @@ const ALL_SETTING_ROWS = [
 	{"id": "quality", "label": "GRAPHICS", "choices": ["HIGH", "MEDIUM", "LOW"]},
 	{"id": "fullscreen", "label": "FULLSCREEN", "toggle": true},
 	{"id": "sound", "label": "SOUND", "toggle": true},
-	{"id": "voices", "label": "VOICES", "toggle": true}
+	{"id": "voices", "label": "VOICES", "toggle": true},
+	# a button, not a setting: opens the two warnings of RESET ALL PROGRESS (input.gd reset_progress_open)
+	{"id": "reset_progress", "label": "RESET ALL PROGRESS", "action": true, "danger": true}
 ]
 
 var _setting_rows = null
@@ -1643,19 +1682,24 @@ func settings_visible() -> bool:
 	)
 
 
+# the extra space above the red RESET ALL PROGRESS row, so it stands apart from the settings (in units of 720 p)
+const DANGER_GAP = 12.0
+
+
 func panel_rect() -> Rect2:
 	var k = size.y / 720.0
 	var w = 560.0 * k
-	var h = (44.0 + setting_rows().size() * 34.0 + 12.0) * k
+	var h = (44.0 + setting_rows().size() * 34.0 + 12.0 + DANGER_GAP) * k
 	return Rect2((size.x - w) * 0.5, (size.y - h) * 0.5, w, h)
 
 
 func row_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var pr = panel_rect()
+	var gap = DANGER_GAP if setting_rows()[i].get("danger", false) else 0.0
 	return Rect2(
 		pr.position.x + 16.0 * k,
-		pr.position.y + 44.0 * k + i * 34.0 * k,
+		pr.position.y + (44.0 + gap) * k + i * 34.0 * k,
 		pr.size.x - 32.0 * k,
 		30.0 * k
 	)
@@ -1689,10 +1733,18 @@ func is_toggle(id: String) -> bool:
 	return false
 
 
+# true for a row that is a button (RESET ALL PROGRESS), not a switch, a choice or a slider
+func is_action(id: String) -> bool:
+	for row in setting_rows():
+		if row["id"] == id:
+			return row.get("action", false)
+	return false
+
+
 func apply_slider(id: String, pos: Vector2) -> void:
 	for i in range(setting_rows().size()):
 		var row = setting_rows()[i]
-		if row["id"] == id:
+		if row["id"] == id and row.has("min"):
 			var tr = track_rect(i)
 			var t = clampf((pos.x - tr.position.x) / tr.size.x, 0.0, 1.0)
 			g.set_setting(id, lerpf(float(row["min"]), float(row["max"]), t))
@@ -1709,6 +1761,19 @@ func _draw_settings(k: float) -> void:
 	for i in range(setting_rows().size()):
 		var row = setting_rows()[i]
 		var r = row_rect(i)
+		if row.get("danger", false):
+			# the red RESET ALL PROGRESS button: red all the time, brighter while it is the picked row
+			draw_rect(r, Color(0.5, 0.08, 0.07) if i == sel else Color(0.36, 0.06, 0.06))
+			draw_rect(r, Color(1.0, 0.3, 0.24) if i == sel else RED.darkened(0.35), false, 2.0 * k)
+			_txt(
+				row["label"],
+				r.position.x + r.size.x * 0.5,
+				r.position.y + 21.0 * k,
+				int(14 * k),
+				TEXT,
+				1
+			)
+			continue
 		if i == sel:
 			draw_rect(r, Color(1, 1, 1, 0.06))
 			draw_rect(r, ACCENT, false, 2.0 * k)
@@ -1758,6 +1823,12 @@ func _draw_settings_hints(k: float, cx: float) -> void:
 		1
 	)
 	_txt("ESC OR CLICK OUTSIDE TO GO BACK", cx, size.y * 0.92, int(14 * k), GRAY, 1)
+	# a few seconds after RESET ALL PROGRESS: the wipe is done (or part of it failed)
+	if g.time - g.progress_wiped_t0 < 6.0:
+		var msg = "ALL PROGRESS WIPED"
+		if g.progress_wipe_failed > 0:
+			msg = "WIPED, BUT %d FILE(S) COULD NOT BE DELETED" % g.progress_wipe_failed
+		_txt(msg, cx, panel_rect().end.y + 26.0 * k, int(18 * k), GOLD, 1)
 
 
 # ---------------------------------------------------------------- main draw
