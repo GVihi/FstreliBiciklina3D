@@ -1828,7 +1828,7 @@ func _draw_settings_hints(k: float, cx: float) -> void:
 		var msg = "ALL PROGRESS WIPED"
 		if g.progress_wipe_failed > 0:
 			msg = "WIPED, BUT %d FILE(S) COULD NOT BE DELETED" % g.progress_wipe_failed
-		_txt(msg, cx, panel_rect().end.y + 26.0 * k, int(18 * k), GOLD, 1)
+		_txt(msg, cx, panel_rect().position.y - 14.0 * k, int(18 * k), GOLD, 1)
 
 
 # ---------------------------------------------------------------- main draw

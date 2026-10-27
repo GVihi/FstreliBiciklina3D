@@ -198,12 +198,10 @@ func on_pad_button(btn: int) -> void:
 	elif btn == JOY_BUTTON_DPAD_LEFT:
 		loadout_switch(-1)
 		menu_move(-1)
-		confirm_move()
 		settings_adjust(-1)
 	elif btn == JOY_BUTTON_DPAD_RIGHT:
 		loadout_switch(1)
 		menu_move(1)
-		confirm_move()
 		settings_adjust(1)
 	elif btn == JOY_BUTTON_A:
 		if g.state == "title":
