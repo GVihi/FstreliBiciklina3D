@@ -158,8 +158,9 @@ func award_run() -> int:
 	var n = reward_for_score(g.score) + boss_coins + challenge_coins
 	g.meta_earned = n
 	level_before = int(xp_info()["level"])
-	# rounds cleared: the round reached minus the one the run ended in, plus that one when the run was won
-	var cleared = maxi(0, g.round_n - 1) + (1 if g.run_won else 0)
+	# rounds cleared: the round reached minus the one the run ended in, plus that one when the run was won, and
+	# minus the shop nodes walked through on the way (a shop node is a screen, not a round: alpha B2.4)
+	var cleared = maxi(0, g.round_n - 1 - g.screens_passed()) + (1 if g.run_won else 0)
 	xp_earned = XpScript.run_xp(
 		g.score, g.kills, cleared, g.run_won, g.challenges.done.size(), xp_boss
 	)

@@ -7,6 +7,7 @@ extends SceneTree
 # boss, always taking a different choice (first, last, second in turn), and checks that
 #   - a run starts on the map screen with every floor 1 node as a choice, and picking one starts that round
 #   - the round number is the floor number, and the node played is the one picked
+#   - a shop node opens the shop screen and no round: no riders, no round time, the map comes back after it
 #   - after the shop the map screen offers exactly the nodes the current node connects to
 #   - the path ends on the final boss floor, which is the final round, and that floor has no choices after it
 #   - a run without a map still plays its rounds in a line
@@ -75,16 +76,23 @@ func _walk(seed_value: int, n: int) -> void:
 		elif n % 3 == 2:
 			pick = mini(1, choices.size() - 1)
 		var lane = int(choices[pick])
+		var is_shop = str(floors[f][lane]["type"]) == "shop"
+		var times_before = main.round_times.size()
+		var shop_before = main.shop_buys
 		main.pick_node(pick)
-		if main.state != "play":
+		# a fight node starts the round; a shop node (README alpha B2) opens the shop screen and no round
+		var expected_state = "shop" if is_shop else "play"
+		if main.state != expected_state:
 			_fail(
 				seed_value,
 				(
-					"picking a node on floor %d did not start the round (state %s)"
-					% [f + 1, main.state]
+					"picking a %s node on floor %d gave state %s, not %s"
+					% [floors[f][lane]["type"], f + 1, main.state, expected_state]
 				)
 			)
 			return
+		if is_shop:
+			_check_shop_node(seed_value, f)
 		if main.round_n != f + 1 or main.map_floor != f or main.map_lane != lane:
 			_fail(
 				seed_value,
@@ -110,9 +118,12 @@ func _walk(seed_value: int, n: int) -> void:
 			if not main.next_lanes().is_empty():
 				_fail(seed_value, "there are choices after the final boss")
 			break
-		# finish the round the way the game does: the shop, then on
-		main.shop_sys.enter_shop()
+		# finish the round the way the game does: the shop, then on (a shop node is already in the shop)
+		if not is_shop:
+			main.shop_sys.enter_shop()
 		main.shop_sys.leave_shop()
+		if main.round_times.size() != times_before or main.shop_buys != shop_before:
+			_fail(seed_value, "floor %d: a shop node changed round_times or shop_buys" % (f + 1))
 		if main.state != "map":
 			_fail(seed_value, "leaving the shop on floor %d did not open the map screen" % (f + 1))
 			return
@@ -132,6 +143,34 @@ func _walk(seed_value: int, n: int) -> void:
 			seed_value,
 			"the path has %d nodes for %d floors" % [main.map_path.size(), floors.size()]
 		)
+
+
+# what a shop node leaves behind: no round, no riders, no round counted as cleared (README alpha B2.1 and B2.4)
+func _check_shop_node(seed_value: int, f: int) -> void:
+	if main.round_n != f + 1:
+		_fail(seed_value, "the shop node on floor %d made round %d" % [f + 1, main.round_n])
+	if not main.riders.is_empty() or not main.bosses.is_empty():
+		_fail(seed_value, "the shop node on floor %d has riders or a boss" % (f + 1))
+	if main.shop_items.is_empty():
+		_fail(seed_value, "the shop node on floor %d offers nothing" % (f + 1))
+	var heal_on_sale = false
+	for it in main.shop_items:
+		if it["kind"] == "heal":
+			heal_on_sale = true
+	# the heal is on sale exactly when the player is hurt (`shop_ok` in scripts/shop.gd), as in any other shop
+	if heal_on_sale != (main.hearts < main.MAXHEARTS):
+		_fail(seed_value, "the shop node on floor %d: heal on sale is %s" % [f + 1, heal_on_sale])
+	if main.screens_passed() != _shops_before(f):
+		_fail(seed_value, "screens_passed is %d on floor %d" % [main.screens_passed(), f + 1])
+
+
+# shop nodes among the nodes walked before floor f (0-based)
+func _shops_before(f: int) -> int:
+	var n = 0
+	for i in range(f):
+		if str(main.run_map["floors"][i][main.map_path[i]]["type"]) == "shop":
+			n += 1
+	return n
 
 
 # with no map the rounds go 1, 2, 3 ... as before

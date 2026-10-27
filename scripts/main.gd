@@ -128,6 +128,11 @@ var run_seed = 0  # the seed this run started with: today's daily seed in a Dail
 var run_map = {}  # the run map generated from run_seed (map_gen.gd); the run walks it one node per round (see "run map walk" below)
 var map_floor = -1  # floor index (0-based) of the node being played, -1 before the first pick
 var map_lane = 0  # lane of the node being played
+# map node types that are a screen of their own and not a fight: no riders, no extraction point, no ambush, no
+# round XP, no `challenges.on_round_cleared`, no entry in `round_times`, and never a perfect round. Their time is
+# counted in `shop_time` (the update loop counts the "shop" state there). The rest node (alpha B3) joins here.
+const SCREEN_NODES = ["shop"]
+
 var map_path = []  # the lane taken on every floor so far, in order (map_path[f] is the lane on floor f)
 var map_choices = []  # on the map screen: the lanes of the next floor the player may pick
 var map_sel = 0  # highlighted entry of map_choices (keyboard / gamepad / mouse hover)
@@ -1233,7 +1238,27 @@ func pick_node(i: int) -> void:
 	map_path.append(map_lane)
 	round_n = map_floor + 1
 	sfx.play("click")
+	if node_is_screen(current_node()):
+		shop_sys.enter_shop()  # a shop node is a screen, not a round: no arena, no riders (README alpha B2)
+		return
 	start_round()
+
+
+func node_is_screen(node: Dictionary) -> bool:
+	return SCREEN_NODES.has(str(node.get("type", "")))
+
+
+# how many of the nodes the player walked through before the one they are on were screens, not rounds
+func screens_passed() -> int:
+	var n = 0
+	if run_map.is_empty():
+		return 0
+	var floors = run_map["floors"]
+	for f in range(mini(map_path.size() - 1, floors.size())):
+		var lane = int(map_path[f])
+		if lane >= 0 and lane < floors[f].size() and node_is_screen(floors[f][lane]):
+			n += 1
+	return n
 
 
 # between rounds, after the shop: on to the map screen (or the next round of a linear run)
