@@ -174,6 +174,27 @@ func _check_award() -> void:
 	var won = main.MAX_ROUNDS * int(t["per_round"]) + int(t["run_won"]) + int(t["boss"]["final"])
 	if main.meta.xp_earned != won:
 		_fail("a won run paid %d XP, expected %d" % [main.meta.xp_earned, won])
+	# a shop node is a screen, not a round (README alpha B2.4): a run lost in round 4 that went through a shop node on
+	# floor 2 cleared two rounds, not three
+	_new_run()
+	main.run_map = {
+		"floors":
+		[[{"type": "normal"}], [{"type": "shop"}], [{"type": "normal"}], [{"type": "normal"}]]
+	}
+	main.map_path = [0, 0, 0, 0]
+	main.map_floor = 3
+	main.round_n = 4
+	main.meta.award_run()
+	if main.meta.xp_earned != 2 * int(t["per_round"]):
+		_fail(
+			(
+				"a run with a shop node paid %d XP, expected %d"
+				% [main.meta.xp_earned, 2 * int(t["per_round"])]
+			)
+		)
+	main.run_map = {}
+	main.map_path = []
+	main.map_floor = -1
 	# a quit run pays nothing, because award_run is never called for it
 	_new_run()
 	main.score = 99999
