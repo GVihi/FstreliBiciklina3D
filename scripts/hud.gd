@@ -158,6 +158,10 @@ func _draw_upgrade(k: float) -> void:
 	_txt("CHOOSE AN UPGRADE", cx, size.y * 0.13, int(40 * k), GOLD, 1)
 	if g.rest_upgrade:
 		_txt("REST STOP - EXTRA UPGRADE", cx, size.y * 0.18, int(18 * k), TEXT, 1)
+	elif g.upgrade_part == "upgrade2":
+		_txt("ELITE CLEARED - EXTRA UPGRADE (2 OF 2)", cx, size.y * 0.18, int(18 * k), TEXT, 1)
+	elif g.upgrade_extra > 0:
+		_txt("ELITE CLEARED - UPGRADE 1 OF 2", cx, size.y * 0.18, int(18 * k), TEXT, 1)
 	else:
 		_txt("ROUND %d CLEARED" % g.round_n, cx, size.y * 0.18, int(18 * k), TEXT, 1)
 	var n = g.offers.size()
@@ -2003,8 +2007,12 @@ func _draw() -> void:
 		)
 		if g.score > 0 and g.score >= g.hi and g.ranked_run():
 			_txt("NEW HIGH SCORE", cx, size.y * 0.58, int(24 * k), GOLD, 1)
+		var elite = g.shop_sys.node_is_elite()
+		if elite:  # README alpha B4: the elite node pays a second upgrade pick
+			_txt("ELITE CLEARED - EXTRA UPGRADE", cx, size.y * 0.64, int(24 * k), GOLD, 1)
 		if g.state_t > 0.8 and blink:
-			_txt("CLICK TO PICK AN UPGRADE", cx, size.y * 0.7, int(28 * k), TEXT, 1)
+			var prompt = "CLICK TO PICK 2 UPGRADES" if elite else "CLICK TO PICK AN UPGRADE"
+			_txt(prompt, cx, size.y * (0.74 if elite else 0.7), int(28 * k), TEXT, 1)
 	elif state == "upgrade":
 		_draw_upgrade(k)
 	elif state == "shop":
