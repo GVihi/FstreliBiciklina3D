@@ -34,3 +34,7 @@ __pycache__/
 baseline_out/
 # Export output folder (export_presets.cfg writes to build/windows/)
 build/
+
+# Output of tools/run_checks.py (logs, the remembered Godot path)
+check_logs/
+tools/godot_path.local.txt
