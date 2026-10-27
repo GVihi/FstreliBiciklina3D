@@ -12,6 +12,7 @@ var main
 
 func _initialize() -> void:
 	main = load("res://main.tscn").instantiate()
+	main.generated_arena = true  # a main made by a script stays on the roundabout, which has no style label
 	root.add_child(main)
 	for i in range(3):
 		await process_frame
