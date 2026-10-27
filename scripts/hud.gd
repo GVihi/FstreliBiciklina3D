@@ -141,7 +141,11 @@ func card_rect(i: int, n: int) -> Rect2:
 func card_at(pos: Vector2) -> int:
 	if g == null:
 		return -1
-	var n = g.offers.size() if g.state == "upgrade" else g.shop_items.size()
+	var n = g.shop_items.size()
+	if g.state == "upgrade":
+		n = g.offers.size()
+	elif g.state == "rest":
+		n = g.rest_opts.size()
 	for i in range(n):
 		if card_rect(i, n).has_point(pos):
 			return i
@@ -152,7 +156,10 @@ func _draw_upgrade(k: float) -> void:
 	_dim(0.78)
 	var cx = size.x * 0.5
 	_txt("CHOOSE AN UPGRADE", cx, size.y * 0.13, int(40 * k), GOLD, 1)
-	_txt("ROUND %d CLEARED" % g.round_n, cx, size.y * 0.18, int(18 * k), TEXT, 1)
+	if g.rest_upgrade:
+		_txt("REST STOP - EXTRA UPGRADE", cx, size.y * 0.18, int(18 * k), TEXT, 1)
+	else:
+		_txt("ROUND %d CLEARED" % g.round_n, cx, size.y * 0.18, int(18 * k), TEXT, 1)
 	var n = g.offers.size()
 	var hov = card_at(get_viewport().get_mouse_position())
 	for i in range(n):
@@ -180,6 +187,42 @@ func _draw_upgrade(k: float) -> void:
 		)
 	if int(g.time * 2.0) % 2 == 0:
 		_txt("CLICK A CARD OR PRESS 1 2 3", cx, size.y * 0.8, int(20 * k), TEXT, 1)
+
+
+# ---------------------------------------------------------------- rest stop (state "rest", README alpha B3)
+func _draw_rest(k: float) -> void:
+	_dim(0.84)
+	var cx = size.x * 0.5
+	_txt("REST STOP", cx, size.y * 0.13, int(40 * k), Color("#6C9BD2"), 1)
+	_txt("HEARTS  %d / %d" % [g.hearts, g.MAXHEARTS], cx, size.y * 0.19, int(24 * k), TEXT, 1)
+	var n = g.rest_opts.size()
+	var hov = card_at(get_viewport().get_mouse_position())
+	for i in range(n):
+		var r = card_rect(i, n)
+		var o = g.rest_opts[i]
+		var usable = g.shop_sys.rest_refill_ok() if i == 0 else g.shop_sys.rest_upgrade_ok()
+		var on = hov == i or (hov < 0 and g.menu_sel == i)
+		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
+		draw_rect(r, (ACCENT if usable else RED) if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
+		_txt(str(i + 1), r.position.x + 24.0 * k, r.position.y + 34.0 * k, int(22 * k), GOLD)
+		var ly = r.position.y + 100.0 * k
+		for ln in _wrap(o["name"], r.size.x - 30.0 * k, int(22 * k)):
+			_txt(ln, r.position.x + r.size.x * 0.5, ly, int(22 * k), TEXT if usable else GRAY, 1)
+			ly += 30.0 * k
+		var dy = r.position.y + 175.0 * k
+		for ln2 in _wrap(o["desc"], r.size.x - 36.0 * k, int(15 * k)):
+			_txt(ln2, r.position.x + r.size.x * 0.5, dy, int(15 * k), Color(0.79, 0.81, 0.83), 1)
+			dy += 24.0 * k
+		_txt(
+			o["stat"] if usable else ("HEARTS ALREADY FULL" if i == 0 else "NO UPGRADES LEFT"),
+			r.position.x + r.size.x * 0.5,
+			r.position.y + r.size.y - 30.0 * k,
+			int(14 * k),
+			ACCENT if usable else RED,
+			1
+		)
+	if int(g.time * 2.0) % 2 == 0:
+		_txt("CLICK A CARD OR PRESS 1 2", cx, size.y * 0.8, int(20 * k), TEXT, 1)
 
 
 # ---------------------------------------------------------------- shop
@@ -1966,6 +2009,8 @@ func _draw() -> void:
 		_draw_upgrade(k)
 	elif state == "shop":
 		_draw_shop(k)
+	elif state == "rest":
+		_draw_rest(k)
 	elif state == "map":
 		_draw_map_screen(k, cx)
 

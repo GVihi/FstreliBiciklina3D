@@ -137,6 +137,7 @@ func pick_upgrade(i: int) -> void:
 # what comes after the upgrade pick (README alpha B1): on a map run, back to the map, because the shop is a node
 # there and not part of every round; a run without a map has no shop nodes, so it keeps the shop after the pick
 func after_upgrade() -> void:
+	g.rest_upgrade = false
 	if g.run_map.is_empty():
 		enter_shop()
 	else:
@@ -319,6 +320,71 @@ func leave_shop() -> void:
 	if g.state != "shop":
 		return
 	g.next_round()
+
+
+# ------------------------------------------------------------------ rest node (README alpha B3)
+# A rest node is a screen with one choice: refill the hearts, or take one extra upgrade pick. Like a shop node it
+# is not a cleared round; both choices end on the map screen, whose checkpoint is what a saved run continues from.
+func upgrades_left() -> int:
+	var n = 0
+	for u in g.UPGRADES:
+		if upgrade_ok(u["id"]):
+			n += 1
+	return n
+
+
+func rest_refill_ok() -> bool:
+	return g.hearts < g.MAXHEARTS
+
+
+func rest_upgrade_ok() -> bool:
+	return upgrades_left() > 0
+
+
+func enter_rest() -> void:
+	g.rest_upgrade = false
+	g.rest_opts = [
+		{
+			"id": "refill",
+			"name": "REFILL HEARTS",
+			"desc": "Heal to full.",
+			"stat": "HEARTS %d > %d" % [g.hearts, g.MAXHEARTS],
+		},
+		{
+			"id": "upgrade",
+			"name": "EXTRA UPGRADE",
+			"desc": "Pick one more upgrade from three.",
+			"stat": "%d LEFT TO PICK FROM" % upgrades_left(),
+		},
+	]
+	g.menu_sel = 0
+	g.state = "rest"
+	g.state_t = 0.0
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	g.sfx.say("shop")
+
+
+# i is 0 (REFILL HEARTS) or 1 (EXTRA UPGRADE). A choice with nothing to do (full hearts, no upgrade left) is
+# refused with a note so the node is not wasted; when neither can do anything, REFILL just leaves the stop.
+func rest_choose(i: int) -> void:
+	if g.state != "rest" or i < 0 or i >= g.rest_opts.size():
+		return
+	var nothing_works = not rest_refill_ok() and not rest_upgrade_ok()
+	if i == 0:
+		if not rest_refill_ok() and not nothing_works:
+			g.add_note("HEARTS ALREADY FULL", g.RED)
+			g.sfx.play("click")
+			return
+		g.hearts = g.MAXHEARTS
+		g.sfx.play("pickup")
+		g.next_round()
+	else:
+		if not rest_upgrade_ok():
+			g.add_note("NO UPGRADES LEFT", g.RED)
+			g.sfx.play("click")
+			return
+		g.rest_upgrade = true
+		enter_upgrade()
 
 
 func buy(i: int) -> void:

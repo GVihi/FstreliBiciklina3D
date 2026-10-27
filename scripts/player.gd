@@ -381,7 +381,7 @@ func update_gun(dt: float) -> void:
 	g.sync_gun_model()  # the model of the weapon in the primary slot
 	var gun_node: Node3D = g.gun["root"]
 	var rb: Node3D = g.rubber["root"]
-	var menu = g.state == "upgrade" or g.state == "shop" or g.state == "map"
+	var menu = g.state == "upgrade" or g.state == "shop" or g.state == "rest" or g.state == "map"
 	gun_node.visible = not g.melee and not menu
 	rb.visible = g.melee and not menu
 	var pump: Node3D = g.gun["pump"]
