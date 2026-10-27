@@ -31,9 +31,11 @@ Each node on a free floor takes a type from `types` by weighted draw, skipping a
 |---|---|---|---|
 | normal | 50 | 1 | no limit |
 | elite | 15 | 3 | 3 |
-| event | 15 | 2 | 3 |
+| event | 0 (off for the alpha) | 2 | 3 |
 | shop | 10 | 2 | no limit |
 | rest | 10 | 2 | no limit |
+
+**Event nodes are off for the alpha (README alpha B5):** the `event` weight is 0, so the draw never picks one (a type with weight 0 stays in the table, its code and its `seed` content are kept for Milestone D "Event"). The `rain` round modifier is off the same way (weight 0 under `content.modifiers.types`, see below), because nothing draws or does rain yet; `double_riders` stays on. `version` in `map_rules.json` went from 2 to 3 because changing the weights changes every seed's map (the draws divide by the weight total). `tools/map_check.gd` fails if a node of a weight-0 type, or a weight-0 modifier, shows up in any of its 2,000 maps. To bring events or rain back, give them a weight again and bump `version`.
 
 `no_repeat_along_edge`: two nodes joined by an edge never have the same type if that type is `elite`, `shop`, `rest` or `event` (no shop straight into a shop, no elite straight into an elite). A draw that would break this is redrawn; if it keeps failing, the node becomes `normal`.
 

@@ -474,6 +474,12 @@ the check made `main` from a script without setting `generated_arena`, so it sta
 
 `tools/arena_generated_check.gd` now defaults to 30 arenas (about 3 minutes) instead of 200 (about 20 minutes) and prints `N of 30 arenas checked` every 5 arenas, so a long run is no longer silent. `tools/run_checks.py` now passes `200` explicitly for `--full` (it used to rely on the check's own default) and its comment says so. Still to do before the alpha, as the item said: run `python tools/run_checks.py --full` once on `main`.
 
+## Early Alpha Roadmap › B. A run with real choices (Milestone D "Map Nodes")
+
+### B5. Cut what has no effect from the alpha map
+
+`event` nodes and the `rain` modifier are off for the alpha; the code, the `seed` content of event nodes and the `rain` entry stay, and Milestone D "Event" and "Rain modifier" stay open. `double_riders` stays, it works. In `data/map_rules.json` the `event` type weight and the `rain` modifier weight are 0 (a weight of 0 is accepted by the generator as it is: `_draw_type` in `scripts/map_gen.gd` and `_modifiers` in `scripts/map_content.gd` only add a type's weight to the total, so a weight-0 type is never rolled; no `max_per_map: 0` was needed) and `version` went from 2 to 3, because the draws divide by the weight total, so every seed now gives a different map (on floor 3 the only rain-eligible modifier is gone, so a floor-3 node that passes its modifier chance now gets none). `docs/MAP_GENERATION.md` says so under "Node types on free floors". `tools/map_check.gd` got two new rules: a node type with weight 0 that no fixed floor names, and a modifier with weight 0, must never appear in any of its 2,000 maps; no existing check insisted on events or rain, so none had to be changed. Checks run on 2026-10-27 headless with Godot 4.7: `python tools/run_checks.py map` passes (`map_check`, `map_viewer_check`, `map_walk_check`, `pause_map_check`). B5.4 was done without the map viewer window: a throwaway script generated 20 maps and counted, 0 event nodes, 0 rain modifiers, and every prep floor (4 and 9) with 2 or more nodes holds a shop and a rest; the node mix over those 20 maps was 259 normal, 88 shop, 68 rest, 35 elite and 40 boss. Nothing about it needs an in-game check, but a look at a few maps in `tools/viewer/map_viewer.tscn` costs a minute.
+
 ## Early Alpha Roadmap › E. Alpha gate
 
 ### E5. Reset progress in the settings, with a confirmation
