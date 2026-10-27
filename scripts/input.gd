@@ -106,6 +106,8 @@ func handle_input(event: InputEvent) -> void:
 					g.shop_sys.pick_upgrade(0)
 			elif g.state == "shop":
 				g.shop_sys.buy(0)
+			elif g.state == "rest" and g.state_t > 0.35:
+				g.shop_sys.rest_choose(0)
 			elif g.state == "play":
 				toggle_weapon(false)
 		elif kc == KEY_2 or kc == KEY_KP_2:
@@ -116,6 +118,8 @@ func handle_input(event: InputEvent) -> void:
 					g.shop_sys.pick_upgrade(1)
 			elif g.state == "shop":
 				g.shop_sys.buy(1)
+			elif g.state == "rest" and g.state_t > 0.35:
+				g.shop_sys.rest_choose(1)
 			elif g.state == "play":
 				toggle_weapon(true)
 		elif kc == KEY_3 or kc == KEY_KP_3:
@@ -239,6 +243,8 @@ func menu_move(d: int) -> void:
 		g.menu_sel = posmod(g.menu_sel + d, maxi(1, g.offers.size()))
 	elif g.state == "shop":
 		g.menu_sel = posmod(g.menu_sel + d, maxi(1, g.shop_items.size()))
+	elif g.state == "rest":
+		g.menu_sel = posmod(g.menu_sel + d, maxi(1, g.rest_opts.size()))
 
 
 func menu_confirm() -> void:
@@ -253,6 +259,8 @@ func menu_confirm() -> void:
 		g.shop_sys.pick_upgrade(g.menu_sel)
 	elif g.state == "shop":
 		g.shop_sys.buy(g.menu_sel)
+	elif g.state == "rest" and g.state_t > 0.35:
+		g.shop_sys.rest_choose(g.menu_sel)
 	elif g.state == "clear" and g.state_t > 0.8:
 		g.shop_sys.enter_upgrade()
 
@@ -761,6 +769,10 @@ func on_click() -> void:
 		var i = g.hud.card_at(g.get_viewport().get_mouse_position())
 		if i >= 0:
 			g.shop_sys.pick_upgrade(i)
+	elif g.state == "rest" and g.state_t > 0.35:
+		var ri = g.hud.card_at(g.get_viewport().get_mouse_position())
+		if ri >= 0:
+			g.shop_sys.rest_choose(ri)
 	elif g.state == "shop":
 		var mp = g.get_viewport().get_mouse_position()
 		var si = g.hud.card_at(mp)

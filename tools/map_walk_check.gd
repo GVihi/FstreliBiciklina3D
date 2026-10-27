@@ -79,11 +79,17 @@ func _walk(seed_value: int, n: int) -> void:
 			pick = mini(1, choices.size() - 1)
 		var lane = int(choices[pick])
 		var is_shop = str(floors[f][lane]["type"]) == "shop"
+		var is_rest = str(floors[f][lane]["type"]) == "rest"
 		var times_before = main.round_times.size()
 		var shop_before = main.shop_buys
 		main.pick_node(pick)
-		# a fight node starts the round; a shop node (README alpha B2) opens the shop screen and no round
-		var expected_state = "shop" if is_shop else "play"
+		# a fight node starts the round; a shop node (README alpha B2) opens the shop screen and no round, and a
+		# rest node (alpha B3) opens the rest screen and no round
+		var expected_state = "play"
+		if is_shop:
+			expected_state = "shop"
+		elif is_rest:
+			expected_state = "rest"
 		if main.state != expected_state:
 			_fail(
 				seed_value,
@@ -95,6 +101,8 @@ func _walk(seed_value: int, n: int) -> void:
 			return
 		if is_shop:
 			_check_shop_node(seed_value, f)
+		if is_rest:
+			_check_rest_node(seed_value, f)
 		if main.round_n != f + 1 or main.map_floor != f or main.map_lane != lane:
 			_fail(
 				seed_value,
@@ -124,12 +132,20 @@ func _walk(seed_value: int, n: int) -> void:
 		# the map; a shop node is already in the shop and leaving it gives the map
 		if is_shop:
 			main.shop_sys.leave_shop()
+		elif is_rest:
+			_leave_rest(seed_value, f)
 		else:
 			_check_upgrade_then_map(seed_value, f)
 		if main.round_times.size() != times_before or main.shop_buys != shop_before:
-			_fail(seed_value, "floor %d: a shop node changed round_times or shop_buys" % (f + 1))
+			_fail(
+				seed_value,
+				"floor %d: a shop or rest node changed round_times or shop_buys" % (f + 1)
+			)
 		if main.state != "map":
-			_fail(seed_value, "leaving the shop on floor %d did not open the map screen" % (f + 1))
+			_fail(
+				seed_value,
+				"leaving the shop or rest stop on floor %d did not open the map screen" % (f + 1)
+			)
 			return
 		var expected = []
 		for j in floors[f][lane]["next"]:
@@ -183,11 +199,41 @@ func _check_shop_node(seed_value: int, f: int) -> void:
 		_fail(seed_value, "screens_passed is %d on floor %d" % [main.screens_passed(), f + 1])
 
 
-# shop nodes among the nodes walked before floor f (0-based)
+# what a rest node leaves behind: the rest screen with its two choices, no round, no riders (README alpha B3)
+func _check_rest_node(seed_value: int, f: int) -> void:
+	if main.round_n != f + 1:
+		_fail(seed_value, "the rest node on floor %d made round %d" % [f + 1, main.round_n])
+	if not main.riders.is_empty() or not main.bosses.is_empty():
+		_fail(seed_value, "the rest node on floor %d has riders or a boss" % (f + 1))
+	if main.rest_opts.size() != 2:
+		_fail(
+			seed_value,
+			"the rest node on floor %d offers %d choices" % [f + 1, main.rest_opts.size()]
+		)
+	if main.screens_passed() != _shops_before(f):
+		_fail(seed_value, "screens_passed is %d on floor %d" % [main.screens_passed(), f + 1])
+
+
+# leaves the rest screen with a choice that works: REFILL when hurt, otherwise the extra upgrade
+func _leave_rest(seed_value: int, f: int) -> void:
+	if main.hearts < main.MAXHEARTS:
+		main.shop_sys.rest_choose(0)
+	else:
+		main.shop_sys.rest_choose(1)
+		if main.state == "upgrade":
+			main.shop_sys.pick_upgrade(0)
+	if main.state == "rest" or main.state == "upgrade":
+		_fail(
+			seed_value, "floor %d: the rest stop did not lead to the map (%s)" % [f + 1, main.state]
+		)
+
+
+# shop and rest nodes (the screens) among the nodes walked before floor f (0-based)
 func _shops_before(f: int) -> int:
 	var n = 0
 	for i in range(f):
-		if str(main.run_map["floors"][i][main.map_path[i]]["type"]) == "shop":
+		var t = str(main.run_map["floors"][i][main.map_path[i]]["type"])
+		if t == "shop" or t == "rest":
 			n += 1
 	return n
 

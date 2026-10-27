@@ -130,8 +130,11 @@ var map_floor = -1  # floor index (0-based) of the node being played, -1 before 
 var map_lane = 0  # lane of the node being played
 # map node types that are a screen of their own and not a fight: no riders, no extraction point, no ambush, no
 # round XP, no `challenges.on_round_cleared`, no entry in `round_times`, and never a perfect round. Their time is
-# counted in `shop_time` (the update loop counts the "shop" state there). The rest node (alpha B3) joins here.
-const SCREEN_NODES = ["shop"]
+# counted in `shop_time` (the update loop counts the "shop" and "rest" states there). The rest node (alpha B3)
+# joined the shop here.
+const SCREEN_NODES = ["shop", "rest"]
+var rest_opts = []  # the two choices on the rest screen (built by `shop_sys.enter_rest`)
+var rest_upgrade = false  # true while the upgrade pick on screen is the rest node's EXTRA UPGRADE, not a cleared round's
 
 var map_path = []  # the lane taken on every floor so far, in order (map_path[f] is the lane on floor f)
 var map_choices = []  # on the map screen: the lanes of the next floor the player may pick
@@ -1110,6 +1113,7 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	final_boss_dead = false
 	play_time = 0.0
 	shop_time = 0.0
+	rest_upgrade = false
 	round_times = []
 	kills = 0
 	best_rank = 0
@@ -1239,7 +1243,11 @@ func pick_node(i: int) -> void:
 	round_n = map_floor + 1
 	sfx.play("click")
 	if node_is_screen(current_node()):
-		shop_sys.enter_shop()  # a shop node is a screen, not a round: no arena, no riders (README alpha B2)
+		# a shop or rest node is a screen, not a round: no arena, no riders (README alpha B2, B3)
+		if str(current_node().get("type", "")) == "rest":
+			shop_sys.enter_rest()
+		else:
+			shop_sys.enter_shop()
 		return
 	start_round()
 
@@ -1808,7 +1816,13 @@ func update_game(dt: float) -> void:
 	if state == "play":
 		play_time += dt
 		round_t += dt
-	elif state == "clear" or state == "upgrade" or state == "shop" or state == "map":
+	elif (
+		state == "clear"
+		or state == "upgrade"
+		or state == "shop"
+		or state == "rest"
+		or state == "map"
+	):
 		shop_time += dt
 	if invuln > 0.0:
 		invuln -= dt
