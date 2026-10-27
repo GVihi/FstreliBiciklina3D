@@ -141,6 +141,14 @@ func _check_map(seed_value: int, map: Dictionary, rules: Dictionary) -> void:
 		var cap = rules["types"][t].get("max_per_map")
 		if cap != null and int(counts.get(t, 0)) > int(cap):
 			_fail(seed_value, "%d '%s' nodes, the most allowed is %d" % [counts[t], t, int(cap)])
+		# a type with weight 0 that no fixed floor names (the alpha map has no event nodes) is never drawn
+		if int(rules["types"][t]["weight"]) <= 0 and int(counts.get(t, 0)) > 0:
+			var on_fixed_floor = false
+			for key in rules["fixed_floors"]:
+				if rules["fixed_floors"][key]["types"].has(t):
+					on_fixed_floor = true
+			if not on_fixed_floor:
+				_fail(seed_value, "%d '%s' nodes although its weight is 0" % [counts[t], t])
 	if int(counts.get("boss", 0)) != 2:
 		_fail(seed_value, "expected exactly 2 boss nodes")
 
@@ -234,6 +242,8 @@ func _check_modifiers(
 	for m in mods:
 		if not mrules["types"].has(m):
 			_fail(seed_value, "%s has unknown modifier '%s'" % [where, m])
+		elif int(mrules["types"][m]["weight"]) <= 0:
+			_fail(seed_value, "%s has '%s' although its weight is 0" % [where, m])
 		elif floor_no < int(mrules["types"][m]["min_floor"]):
 			_fail(
 				seed_value,
