@@ -1332,6 +1332,9 @@ func _draw_map_screen(k: float, cx: float) -> void:
 				TEXT
 			)
 		_txt("ROUND %d" % (next_f + 1), px, size.y * 0.5, int(18 * k), TEXT)
+	# the cash waits for a shop node (README alpha B1.2): show what the player has to spend
+	_txt("CASH  $%d" % g.cash, px, size.y * 0.62, int(24 * k), GOLD)
+	_txt("SPEND IT AT A SHOP NODE", px, size.y * 0.67, int(14 * k), GRAY)
 	_txt(
 		"LEFT / RIGHT OR MOUSE TO CHOOSE   ENTER OR CLICK TO GO   1-3 PICKS DIRECTLY",
 		cx,

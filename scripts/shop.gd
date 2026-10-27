@@ -120,8 +120,8 @@ func enter_upgrade() -> void:
 	g.state_t = 0.0
 	g.clear_pickups()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	if g.offers.size() == 0:
-		enter_shop()
+	if g.offers.size() == 0:  # every upgrade is bought out: nothing to pick, go on
+		after_upgrade()
 
 
 func pick_upgrade(i: int) -> void:
@@ -131,7 +131,16 @@ func pick_upgrade(i: int) -> void:
 	g.sfx.play("pickup")
 	g.sfx.v_cheer()
 	g.sfx.say("upgrade")
-	enter_shop()
+	after_upgrade()
+
+
+# what comes after the upgrade pick (README alpha B1): on a map run, back to the map, because the shop is a node
+# there and not part of every round; a run without a map has no shop nodes, so it keeps the shop after the pick
+func after_upgrade() -> void:
+	if g.run_map.is_empty():
+		enter_shop()
+	else:
+		g.next_round()
 
 
 # ------------------------------------------------------------------ style meter + cash + perks
