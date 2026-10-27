@@ -167,7 +167,8 @@ func _check_award() -> void:
 		_fail("a run that paid nothing listed %s" % str(main.new_unlocks))
 	# a big payout lists several, none of them planned
 	_new_run(0)
-	main.score = per_coin * 100000
+	# score coins are capped (SCORE_COINS_MAX), so the big payout comes from uncapped boss coins
+	main.meta.boss_coins = 100000
 	main.meta.award_run()
 	var buyable = 0
 	for u in main.UNLOCKS:
