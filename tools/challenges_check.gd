@@ -220,11 +220,11 @@ func _check_run_time() -> void:
 # coins, counters, NEW and paying once
 func _check_award() -> void:
 	_new_run()
-	main.challenges.on_round_cleared()  # no_gun_round (5) and no_life_lost (3)
+	main.challenges.on_round_cleared()  # no_gun_round (2) and no_life_lost (1)
 	var coins = main.challenges.award()
-	if coins != 8:
-		_fail("two challenges paid %d coins, expected 8" % coins)
-	if main.challenges.award() != 8 or int(main.meta.challenge_counts.get("no_gun_rounds", 0)) != 1:
+	if coins != 3:
+		_fail("two challenges paid %d coins, expected 3" % coins)
+	if main.challenges.award() != 3 or int(main.meta.challenge_counts.get("no_gun_rounds", 0)) != 1:
 		_fail("paying the same run twice counted twice")
 	if main.challenges.unlocked_count() != 2:
 		_fail(
@@ -241,8 +241,8 @@ func _check_award() -> void:
 	main.meta.begin_run()
 	main.challenges.begin_run()
 	main.challenges.on_round_cleared()
-	if main.challenges.award() != 8:
-		_fail("the second run paid %d coins, expected 8" % main.challenges.coins)
+	if main.challenges.award() != 3:
+		_fail("the second run paid %d coins, expected 3" % main.challenges.coins)
 	if not main.challenges.new_ids.is_empty():
 		_fail("challenges done before were marked NEW again: %s" % str(main.challenges.new_ids))
 	if int(main.meta.challenge_counts.get("no_gun_rounds", 0)) != 2:
@@ -266,16 +266,16 @@ func _check_meta_file() -> void:
 	main.meta.boss_coins = 0
 	main.challenges.on_round_cleared()
 	var n = main.meta.award_run()
-	if n != 8 or main.meta_earned != 8:
-		_fail("award_run paid %d (meta_earned %d), expected 8" % [n, main.meta_earned])
-	if main.meta.balance != 18:
-		_fail("the balance is %d after the payout, expected 18" % main.meta.balance)
+	if n != 3 or main.meta_earned != 3:
+		_fail("award_run paid %d (meta_earned %d), expected 3" % [n, main.meta_earned])
+	if main.meta.balance != 13:
+		_fail("the balance is %d after the payout, expected 13" % main.meta.balance)
 	if main.meta.award_run() != 0:
 		_fail("award_run paid a second time")
 	main.meta.balance = 0
 	main.meta.challenge_counts = {}
 	main.meta.load_meta()
-	if main.meta.balance != 18 or int(main.meta.challenge_counts.get("untouched_rounds", 0)) != 1:
+	if main.meta.balance != 13 or int(main.meta.challenge_counts.get("untouched_rounds", 0)) != 1:
 		_fail(
 			(
 				"after a reload the balance is %d and untouched_rounds %s"
