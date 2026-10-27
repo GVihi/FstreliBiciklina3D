@@ -461,3 +461,13 @@ the cause was a real bug, not timing: the Delete key was not handled anywhere in
 ### A2.3 Fix `arena_style_title_check`
 
 the check made `main` from a script without setting `generated_arena`, so it stayed on the roundabout, which has no style label (`wants_generated_arena` in `scripts/main.gd`). `tools/arena_style_title_check.gd` now sets `main.generated_arena = true` before `add_child`, like `generated_run_check.gd` and `threat_check.gd` do. No game code changed. The check passes headless with Godot 4.7 (2026-10-27).
+
+### A2.4 `arena_generated_check` is too slow to run by default
+
+`tools/arena_generated_check.gd` now defaults to 30 arenas (about 3 minutes) instead of 200 (about 20 minutes) and prints `N of 30 arenas checked` every 5 arenas, so a long run is no longer silent. `tools/run_checks.py` now passes `200` explicitly for `--full` (it used to rely on the check's own default) and its comment says so. Still to do before the alpha, as the item said: run `python tools/run_checks.py --full` once on `main`.
+
+## Early Alpha Roadmap › E. Alpha gate
+
+### E5. Reset progress in the settings, with a confirmation
+
+ticked because it was already built, as the red RESET ALL PROGRESS row of the settings panel (see "Reset all progress button at the bottom of the settings panel" under Milestone A, and `docs/SAVE_FILES.md`), before the E5 text was written. It differs from the text of E5 in four ways, all on purpose: the name is RESET ALL PROGRESS; it asks twice (a second ARE YOU ABSOLUTELY SURE? page) instead of once; YES also wipes the leaderboard (`scores.json`, `hi.dat`) and not only `meta.json` and `run.json`; and it makes no `.reset.bak` copies and deletes the old backup files too, because the player is told the wipe cannot be undone. The check is `tools/progress_reset_check.gd` (E5.3 named it `reset_progress_check.gd`). It passes headless with Godot 4.7.

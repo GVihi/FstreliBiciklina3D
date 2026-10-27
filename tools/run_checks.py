@@ -48,8 +48,8 @@ MIN_GODOT = (4, 7)  # config/features in project.godot
 
 # Extra arguments after "--" for checks that take them. The normal run uses the quick numbers (the same defaults as
 # the checks' .bat files where there is one); --full uses the bigger numbers the README items were signed off with.
-# arena_generated_check takes about 6 seconds per arena since the arena became 144 m wide, so its own default of 200
-# arenas is 20 minutes and prints nothing until it is done.
+# arena_generated_check takes about 6 seconds per arena since the arena became 144 m wide: its own default is 30
+# arenas (about 3 minutes, with a progress line every 5), and --full passes 200 (about 20 minutes).
 CHECK_ARGS = {
     "generated_run_check": ["4"],  # seeds, 30 s of scripted play each
     "pickup_placement_check": ["20"],  # generated arenas
@@ -58,7 +58,7 @@ CHECK_ARGS = {
 CHECK_ARGS_FULL = {
     "generated_run_check": ["12"],
     "pickup_placement_check": ["60"],
-    "arena_generated_check": [],  # the check's own 200
+    "arena_generated_check": ["200"],
 }
 
 # Seconds before a check is killed. Everything not listed gets DEFAULT_TIMEOUT.
@@ -291,7 +291,7 @@ def reason_lines(result, limit=12):
 def run_lint(c):
     """gdlint and gdformat --check on the folders the CI checks. Returns a list of (name, passed, text)."""
     out = []
-    for tool, args in (("gdlint", ["scripts/", "tools/viewer/"]), ("gdformat", ["--check", "scripts/", "tools/viewer/"])):
+    for tool, args in (("gdlint", ["scripts/", "tools/"]), ("gdformat", ["--check", "scripts/", "tools/"])):
         exe = shutil.which(tool)
         if not exe:
             out.append((tool, None, "not installed (pip install gdtoolkit==4.5.0)"))
