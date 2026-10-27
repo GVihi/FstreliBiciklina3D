@@ -108,11 +108,11 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
 
 ### B. A run with real choices (Milestone D "Map Nodes")
 
-- [ ] **B5. Cut what has no effect from the alpha map**: `event` nodes and the `rain` modifier. The code stays; Milestone D "Event" and "Rain modifier" stay open. `double_riders` stays, it works.
-  - [ ] B5.1 In `data/map_rules.json` set the `event` type weight to 0 (if the generator does not accept a weight of 0, use `"max_per_map": 0`) and describe the change in `docs/MAP_GENERATION.md`.
-  - [ ] B5.2 Set the `rain` modifier weight to 0 in the same file.
-  - [ ] B5.3 Run `python tools/run_checks.py map` (this picks `map_check`, `map_viewer_check` and `map_walk_check`); if a check insists on events or on rain, change the check to match and say why.
-  - [ ] B5.4 Look at 20 seeds in the map viewer (`tools/viewer/map_viewer.tscn`): no event node and no rain, and floors 4 and 9 still hold a shop and a rest each.
+- [x] **B5. Cut what has no effect from the alpha map**
+  - [x] B5.1 In `data/map_rules.json` set the `event` type weight to 0 (if the generator does not accept a weight of 0, use `"max_per_map": 0`) and describe the change in `docs/MAP_GENERATION.md`.
+  - [x] B5.2 Set the `rain` modifier weight to 0 in the same file.
+  - [x] B5.3 Run `python tools/run_checks.py map` (this picks `map_check`, `map_viewer_check` and `map_walk_check`); if a check insists on events or on rain, change the check to match and say why.
+  - [x] B5.4 Look at 20 seeds in the map viewer (`tools/viewer/map_viewer.tscn`): no event node and no rain, and floors 4 and 9 still hold a shop and a rest each.
 - [ ] **B2. Shop node is a screen, not a round**: it skips the arena, opens the shop screen with the node's seeded offers and goes back to the map (Milestone D "Shop").
   - [ ] B2.1 In `pick_node` / `start_round` (`scripts/main.gd`) a node of type `shop` does not start a round: no riders, no extraction point, no ambush; it calls `shop_sys.enter_shop()` and the floor and round number still go up by one.
   - [ ] B2.2 The offers are already seeded: `build_shop` draws through `offer_shuffle`, which uses the run seed and the round number (the floor), so the same shop node gives the same shop and the Daily Run gives everybody the same shops. The node's own `seed` in its `content` is not needed for this and stays unused. The heal stays always on sale.

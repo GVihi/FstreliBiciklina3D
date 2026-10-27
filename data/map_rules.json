@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "floors": 10,
   "start_nodes": 3,
   "max_edges_out": 2,
@@ -14,7 +14,7 @@
   "types": {
     "normal": {"weight": 50, "min_floor": 1, "max_per_map": null},
     "elite": {"weight": 15, "min_floor": 3, "max_per_map": 3},
-    "event": {"weight": 15, "min_floor": 2, "max_per_map": 3},
+    "event": {"weight": 0, "min_floor": 2, "max_per_map": 3},
     "shop": {"weight": 10, "min_floor": 2, "max_per_map": null},
     "rest": {"weight": 10, "min_floor": 2, "max_per_map": null}
   },
@@ -42,7 +42,7 @@
     "modifiers": {
       "chance": {"normal": 0.2, "elite": 0.5, "boss": 0.0},
       "types": {
-        "rain": {"weight": 50, "min_floor": 3},
+        "rain": {"weight": 0, "min_floor": 3},
         "double_riders": {"weight": 50, "min_floor": 4}
       }
     }
