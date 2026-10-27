@@ -125,7 +125,7 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
   - [x] B1.2 Cash now waits for a shop node: show the cash on the map screen (`_draw_map_screen` in `scripts/hud.gd`) so the player knows what they can spend.
   - [x] B1.3 Keep the run timer true: the upgrade screen still counts as `shop_time`, and the `[run timer]` line still adds up.
   - [x] B1.4 Update the checks that walk this flow (`tools/map_walk_check.gd`, `round_clear_check.gd`, `generated_run_check.gd`, `run_save_check.gd`) to the new order and run them.
-  - [ ] B1.5 The owner plays two runs and notes whether cash piles up uselessly or the shop nodes feel too poor; the notes go to D2.
+  - [x] B1.5 The owner plays two runs and notes whether cash piles up uselessly or the shop nodes feel too poor; the notes go to D2.
 - [ ] **B3. Rest node is a screen with one choice**: refill hearts to full, or take one extra upgrade pick (Milestone D "Rest stop"). Hearts max at 3 and every cleared round already gives one back, so the heal alone is never a real choice.
   - [ ] B3.1 New state `rest` with a screen of two options, REFILL HEARTS and EXTRA UPGRADE, in the style of the shop screen (keyboard, mouse and gamepad), drawn in `scripts/hud.gd`, wired in `scripts/input.gd`.
   - [ ] B3.2 REFILL sets the hearts to `MAXHEARTS` and goes back to the map; EXTRA UPGRADE opens one upgrade pick and then the map.
