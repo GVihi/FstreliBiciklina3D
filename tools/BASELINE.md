@@ -48,6 +48,8 @@ Options after `--`:
 |---|---|
 | `--label=NAME` | Name of the run, used in the output folder name |
 | `--out=DIR` | Output folder (default `baseline_out/<label>_<time>` in the project) |
+| `--seed=HEX` | The run seed, which decides the generated arena (default `7F3A91C2`, the PLAZA style). Use the same seed for runs you want to compare |
+| `--roundabout` | Measure the old roundabout arena instead of the generated one, to compare with `docs/baseline_f1/` (that baseline is a roundabout baseline) |
 | `--seconds=N` | Measurement time per row, default 8 (plus 2 seconds of warm-up) |
 | `--requested=NAME` | Renderer you asked for; the report warns if Godot ended up using another one |
 | `--no-screens` / `--no-frametime` | Run only one half |

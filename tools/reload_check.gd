@@ -428,6 +428,8 @@ func _reset_gun(count: int) -> void:
 
 func _start_round() -> void:
 	main.start_game(false, SEED)
+	# these checks need a magazine of several darts, which the starting Dart Nerf Pistol (1 dart) does not have
+	main.equip_primary("dart_gun")
 	if main.state == "map":
 		main.pick_node(0)
 	# headless Godot cannot capture the mouse, so the test hook plays the round

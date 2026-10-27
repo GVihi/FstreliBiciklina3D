@@ -53,10 +53,10 @@ func _check_table() -> void:
 		_fail("the Loadout page calls the pistol %s" % WeaponSlots.display_name("primary", PISTOL))
 	if WeaponSlots.display_desc(WeaponSlots.PRIMARY, PISTOL) == "":
 		_fail("the pistol has no Loadout text")
-	if WeaponSlots.PRIMARY_DEFAULT != "dart_gun":
+	if WeaponSlots.PRIMARY_DEFAULT != PISTOL:
 		_fail(
 			(
-				"the starting weapon is %s (the pistol becomes it in a later item)"
+				"the starting weapon is %s, not the pistol (README alpha C1)"
 				% WeaponSlots.PRIMARY_DEFAULT
 			)
 		)
@@ -84,8 +84,10 @@ func _check_table() -> void:
 
 func _check_equip() -> void:
 	main.start_game(false, SEED_A)
-	if main.primary != "dart_gun":
-		_fail("a new run starts with %s, not the dart gun" % main.primary)
+	if main.primary != PISTOL:
+		_fail("a new run starts with %s, not the pistol" % main.primary)
+	if not main.equip_primary("dart_gun") or main.primary != "dart_gun":
+		_fail("equip_primary refused the dart gun")
 	if not main.equip_primary(PISTOL):
 		_fail("equip_primary refused the pistol")
 		return
@@ -98,27 +100,25 @@ func _check_equip() -> void:
 		_fail("the pistol pump time is %s" % str(main.pump_base))
 	if main.player_sys.cur_pump() != float(w["pump_start"]):
 		_fail("cur_pump is %s, not the pistol's pump time" % str(main.player_sys.cur_pump()))
+	main.equip_primary("dart_gun")
 	main.reset_run()
-	if main.primary != "dart_gun":
-		_fail("reset_run left %s in the slot" % main.primary)
+	if main.primary != PISTOL:
+		_fail("reset_run left %s in the slot, not the pistol" % main.primary)
 
 
-# the pistol has its own first-person model, shown while it is in the slot, and the dart gun's comes back with the dart gun
+# the pistol has its own first-person model, shown while it is in the slot (a new run starts with it), and the dart
+# gun's model is shown while the dart gun is in the slot
 func _check_model() -> void:
 	main.start_game(false, SEED_A)
 	main.state = "play"
 	main.paused = false
 	main.melee = false
 	main.player_sys.update_gun(0.016)
-	if main.gun_id != "dart_gun" or main.gun != main.guns["dart_gun"]:
-		_fail("a new run does not show the dart gun model (gun_id %s)" % main.gun_id)
+	if main.gun_id != PISTOL or main.gun != main.guns.get(PISTOL):
+		_fail("a new run does not show the pistol model (gun_id %s)" % main.gun_id)
 	if not main.guns.has(PISTOL) or main.guns[PISTOL]["root"] == main.guns["dart_gun"]["root"]:
 		_fail("the pistol has no model of its own")
 		return
-	main.equip_primary(PISTOL)
-	main.player_sys.update_gun(0.016)  # the model follows the slot by itself, whoever put the weapon there
-	if main.gun_id != PISTOL or main.gun != main.guns[PISTOL]:
-		_fail("the pistol in the slot does not show the pistol model (gun_id %s)" % main.gun_id)
 	if not main.guns[PISTOL]["root"].visible or main.guns["dart_gun"]["root"].visible:
 		_fail(
 			(
@@ -130,24 +130,38 @@ func _check_model() -> void:
 		_fail("the pistol slide rests at z %s" % str(main.gun["pump_z"]))
 	if not is_equal_approx(float(main.guns["dart_gun"]["pump_z"]), -0.30):
 		_fail("the dart gun pump no longer rests at -0.30")
+	main.equip_primary("dart_gun")
+	main.player_sys.update_gun(0.016)  # the model follows the slot by itself, whoever put the weapon there
+	if main.gun_id != "dart_gun" or main.gun != main.guns["dart_gun"]:
+		_fail("the dart gun in the slot does not show the dart gun model (gun_id %s)" % main.gun_id)
+	if not main.guns["dart_gun"]["root"].visible or main.guns[PISTOL]["root"].visible:
+		_fail(
+			(
+				"with the dart gun in the slot the dart gun is %s and the pistol %s"
+				% [main.guns["dart_gun"]["root"].visible, main.guns[PISTOL]["root"].visible]
+			)
+		)
+	main.equip_primary(PISTOL)
 	main.melee = true
 	main.player_sys.update_gun(0.016)
 	if main.guns[PISTOL]["root"].visible:
 		_fail("the pistol is shown while the melee weapon is held")
 	main.melee = false
+	main.equip_primary("dart_gun")
 	main.reset_run()
 	main.player_sys.update_gun(0.016)
 	if (
-		main.gun_id != "dart_gun"
-		or not main.guns["dart_gun"]["root"].visible
-		or main.guns[PISTOL]["root"].visible
+		main.gun_id != PISTOL
+		or not main.guns[PISTOL]["root"].visible
+		or main.guns["dart_gun"]["root"].visible
 	):
-		_fail("a new run does not bring the dart gun model back")
+		_fail("a new run does not bring the pistol model back")
 
 
 func _check_fire_and_reload() -> void:
 	main.start_game(false, SEED_A)
-	main.equip_primary(PISTOL)
+	main.equip_primary(PISTOL)  # already in the slot after start_game, so this changes nothing
+	main.shells = main.MAXSHELLS  # a round start fills the magazine; this check never starts a round
 	main.state = "play"
 	main.paused = false
 	main.melee = false
