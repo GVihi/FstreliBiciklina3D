@@ -59,7 +59,7 @@ What earns XP and how fast the levels come (roadmap, Milestone I). Loaded by `sc
 | `level_base`, `level_step` | going from level 1 to level 2 takes `level_base` XP and every level after it takes `level_step` more than the one before |
 | `max_level` | the top level, where the XP bar is full (at least 1) |
 
-The numbers are first guesses: a won run should be worth roughly 1,000 to 1,500 XP and an early loss a few hundred, so the first levels come within a run or two and level 20 takes a dozen won runs. Tune them with the balance pass in Milestone I.
+The numbers are still guesses, retuned once after the owner's first run went from level 1 to level 8 (about 4,200 XP in one run, because score at 1 XP per 20 points was most of it: scores run to tens of thousands). Now a score point is worth much less (1 XP per 150), and the fixed amounts (kills, rounds, win, challenges, bosses) are smaller too. The aim: a won run is worth roughly 1,000 to 1,300 XP and an early loss a few hundred, so one good run reaches level 3 or 4, level 10 (6,300 XP) takes about six won runs, level 20 (22,800 XP) about twenty, and the top level 50 (132,300 XP) over a hundred. The score of a typical run was estimated, not measured, so check it against a real run with `tools\run_xp_check.bat` and the XP row of the run summary, then tune `score_per_xp` first. Tune them with the balance pass in Milestone I.
 
 ## `weapons.json`
 

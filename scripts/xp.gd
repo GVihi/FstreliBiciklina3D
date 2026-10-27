@@ -8,16 +8,16 @@ extends RefCounted
 
 const PATH = "res://data/xp.json"
 const DEFAULTS = {
-	"score_per_xp": 20,
-	"per_kill": 2,
-	"per_round": 15,
-	"run_won": 200,
-	"per_challenge": 25,
+	"score_per_xp": 150,
+	"per_kill": 1,
+	"per_round": 10,
+	"run_won": 150,
+	"per_challenge": 20,
 	"level_base": 300,
 	"level_step": 100,
 	"max_level": 50
 }
-const BOSS_DEFAULTS = {"boss": 25, "runner": 10, "final": 150}
+const BOSS_DEFAULTS = {"boss": 15, "runner": 5, "final": 100}
 # values that must be at least 1 (they divide, or are a count of levels)
 const MIN_ONE = ["score_per_xp", "level_base", "max_level"]
 
