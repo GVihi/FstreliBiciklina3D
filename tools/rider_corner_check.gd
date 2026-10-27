@@ -149,7 +149,7 @@ func _cx(c: int, n: int, cell: float) -> float:
 
 
 # a walkable point for the player: it walks from spot to spot every few seconds, so the riders keep having to turn
-func _player_spot(arena, step: int, rng: RandomNumberGenerator) -> Vector3:
+func _player_spot(arena, step: int, _rng: RandomNumberGenerator) -> Vector3:
 	var half = float(arena.layout["cells"]) * float(arena.layout["cell"]) / 2.0
 	var a = float(step / 240) * 2.4
 	return arena.clamp_walk(Vector3(cos(a), 0.0, sin(a)) * half * 0.6, "player")

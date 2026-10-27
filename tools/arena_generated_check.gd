@@ -5,13 +5,15 @@ extends SceneTree
 #
 # Run from the project folder:
 #   godot --headless --path . --script res://tools/arena_generated_check.gd
-# Optionally pass how many seeds to check after "--". Exits with status 1 and prints the first problems.
+# Optionally pass how many seeds to check after "--" (default 30; tools/run_checks.py --full passes 200, which takes
+# about 20 minutes because an arena takes about 6 s to check). Prints its progress every 5 arenas. Exits with status 1
+# and prints the first problems.
 
 const ArenaGenScript = preload("res://scripts/arena_gen.gd")
 const GeneratedArena = preload("res://scripts/arena_generated.gd")
 
 var bad: Array = []
-var seeds = 200
+var seeds = 30
 var full_cheer = 0  # arenas with a spot for all six cheerleaders
 
 
@@ -35,6 +37,8 @@ func _init() -> void:
 		_check_stubs(arena, layout, i)
 		_check_cheer_spots(arena, layout, i)
 		checked += 1
+		if checked % 5 == 0 or checked == seeds:
+			print("arena_generated_check: %d of %d arenas checked" % [checked, seeds])
 	if bad.size() > 0:
 		print("arena_generated_check: %d problem(s)" % bad.size())
 		for b in bad.slice(0, 12):
