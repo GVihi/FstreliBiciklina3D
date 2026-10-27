@@ -16,11 +16,16 @@ const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 const PATH = "user://meta.json"
 const VERSION = 1
 const MAX_XP = 100000000  # sanity limit for the saved XP (far above the top level)
-const SCORE_PER_COIN = 100  # tuning knob: 100 points of score = 1 meta coin
-# tuning knobs: coins for each defeated boss, added on top of the score coins when the run ends
-const COINS_PER_BOSS = 5  # lawnmower, wifi adapter, minister
+# Tuning knobs for what a run pays. The aim is about 40 coins for a complete run (10 floors, both bosses) and a
+# few coins for a run lost in the first rounds, so the dart gun (250) takes 6 to 7 full runs. Score pays only a
+# small, capped part: one kill is worth thousands of points, so score alone made a run lost in round 2 pay 400.
+const SCORE_PER_COIN = 100000  # points of score per meta coin
+const SCORE_COINS_MAX = 5  # the most coins the score can pay in one run
+const COINS_PER_ROUND = 2  # for every round cleared (the boss rounds count; shop and rest screens do not)
+# coins for each defeated boss, added on top when the run ends
+const COINS_PER_BOSS = 3  # lawnmower, wifi adapter, minister (the mid boss)
 const COINS_PER_CYCLIST = 1  # the angry cyclist mini boss
-const COINS_FINAL_BOSS = 20  # the golden president
+const COINS_FINAL_BOSS = 8  # the golden president
 
 var g = null
 var balance = 0  # coins available to spend
@@ -130,7 +135,11 @@ func begin_run() -> void:
 
 
 func reward_for_score(score: int) -> int:
-	return floori(float(maxi(0, score)) / float(SCORE_PER_COIN))
+	return mini(SCORE_COINS_MAX, floori(float(maxi(0, score)) / float(SCORE_PER_COIN)))
+
+
+func reward_for_rounds(cleared: int) -> int:
+	return maxi(0, cleared) * COINS_PER_ROUND
 
 
 func reward_for_boss(kind: String, final: bool) -> int:
@@ -155,12 +164,12 @@ func award_run() -> int:
 		return 0
 	awarded = true
 	var challenge_coins = g.challenges.award()  # also counts the challenges done, saved below
-	var n = reward_for_score(g.score) + boss_coins + challenge_coins
-	g.meta_earned = n
-	level_before = int(xp_info()["level"])
 	# rounds cleared: the round reached minus the one the run ended in, plus that one when the run was won, and
 	# minus the shop nodes walked through on the way (a shop node is a screen, not a round: alpha B2.4)
 	var cleared = maxi(0, g.round_n - 1 - g.screens_passed()) + (1 if g.run_won else 0)
+	var n = reward_for_score(g.score) + reward_for_rounds(cleared) + boss_coins + challenge_coins
+	g.meta_earned = n
+	level_before = int(xp_info()["level"])
 	xp_earned = XpScript.run_xp(
 		g.score, g.kills, cleared, g.run_won, g.challenges.done.size(), xp_boss
 	)

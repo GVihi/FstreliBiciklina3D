@@ -8,7 +8,7 @@
 			"condition": "round_no_gun",
 			"scope": "round",
 			"target": 1,
-			"reward": 5,
+			"reward": 2,
 			"counter": "no_gun_rounds"
 		},
 		{
@@ -19,7 +19,7 @@
 			"condition": "all_caches_before_last_rider",
 			"scope": "round",
 			"target": 1,
-			"reward": 5,
+			"reward": 2,
 			"counter": "all_caches_rounds"
 		},
 		{
@@ -30,7 +30,7 @@
 			"condition": "perfect_dodge_streak",
 			"scope": "run",
 			"target": 5,
-			"reward": 3,
+			"reward": 1,
 			"counter": "dodge_streaks"
 		},
 		{
@@ -41,7 +41,7 @@
 			"condition": "round_no_life_lost",
 			"scope": "round",
 			"target": 1,
-			"reward": 3,
+			"reward": 1,
 			"counter": "untouched_rounds"
 		},
 		{
@@ -52,7 +52,7 @@
 			"condition": "run_time_under",
 			"scope": "run",
 			"target": 1200,
-			"reward": 10,
+			"reward": 4,
 			"counter": "fast_runs"
 		}
 	]
