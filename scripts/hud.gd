@@ -1269,6 +1269,40 @@ const MAP_COLORS = {
 const MAP_LETTERS = {
 	"normal": "N", "elite": "E", "shop": "S", "event": "?", "rest": "R", "boss": "B"
 }
+# One line for the highlighted node on the map screen: what choosing it does (README alpha B6). The event node has
+# none: it is switched off in the alpha (event weight 0 in `data/map_rules.json`). A boss has two, see map_node_line.
+const MAP_LINES = {
+	"normal": "A FIGHT. CLEAR IT, THEN PICK AN UPGRADE.",
+	"elite": "A HARDER FIGHT. CLEAR IT FOR TWO UPGRADES.",
+	"shop": "NO FIGHT. SPEND YOUR CASH ON ITEMS AND PERKS.",
+	"rest": "NO FIGHT. REFILL YOUR HEARTS OR TAKE AN EXTRA UPGRADE.",
+}
+const MAP_BOSS_LINE = "A BOSS GUARDS THIS FLOOR."
+const MAP_FINAL_LINE = "THE FINAL BOSS."
+
+
+# the line that says what a node of type t does; last_floor is true for the node on the final floor
+func map_node_line(t: String, last_floor: bool) -> String:
+	if t == "boss":
+		return MAP_FINAL_LINE if last_floor else MAP_BOSS_LINE
+	return str(MAP_LINES.get(t, ""))
+
+
+# left edge and width of the info panel on the right of the map screen
+func map_info_x() -> float:
+	return size.x * 0.68
+
+
+func map_info_width() -> float:
+	return size.x * 0.29
+
+
+# the line of a node, wrapped to the panel (empty for a type with no line)
+func map_node_lines(t: String, last_floor: bool, k: float) -> Array:
+	var line = map_node_line(t, last_floor)
+	if line == "":
+		return []
+	return _wrap(line, map_info_width(), int(18 * k))
 
 
 # Where the node of floor f (0-based) and lane i is drawn: floor 1 at the bottom, the final boss at the top,
@@ -1358,7 +1392,7 @@ func _draw_map_screen(k: float, cx: float) -> void:
 			draw_circle(p, r, fill)
 			_txt(MAP_LETTERS.get(t, "-"), p.x, p.y + 7.0 * k, int(20 * k), Color.BLACK, 1)
 	# the panel on the right: what the highlighted choice is
-	var px = size.x * 0.68
+	var px = map_info_x()
 	if g.map_choices.size() > 0:
 		var node = floors[next_f][g.map_choices[g.map_sel]]
 		var t = str(node["type"])
@@ -1370,15 +1404,11 @@ func _draw_map_screen(k: float, cx: float) -> void:
 			int(34 * k),
 			MAP_COLORS.get(t, TEXT)
 		)
-		if t == "boss":
-			_txt(
-				"THE FINAL BOSS" if next_f + 1 == floors.size() else "A BOSS GUARDS THIS FLOOR",
-				px,
-				size.y * 0.44,
-				int(18 * k),
-				TEXT
-			)
-		_txt("ROUND %d" % (next_f + 1), px, size.y * 0.5, int(18 * k), TEXT)
+		var ly = size.y * 0.44
+		for ln in map_node_lines(t, next_f + 1 == floors.size(), k):
+			_txt(ln, px, ly, int(18 * k), TEXT)
+			ly += 24.0 * k
+		_txt("ROUND %d" % (next_f + 1), px, size.y * 0.57, int(18 * k), TEXT)
 	# the cash waits for a shop node (README alpha B1.2): show what the player has to spend
 	_txt("CASH  $%d" % g.cash, px, size.y * 0.62, int(24 * k), GOLD)
 	_txt("SPEND IT AT A SHOP NODE", px, size.y * 0.67, int(14 * k), GRAY)
@@ -1390,7 +1420,6 @@ func _draw_map_screen(k: float, cx: float) -> void:
 		GRAY,
 		1
 	)
-	_txt("(NODE TYPES DO NOT CHANGE THE ROUND YET)", cx, size.y * 0.965, int(12 * k), GRAY, 1)
 
 
 # ---------------------------------------------------------------- pause menu
