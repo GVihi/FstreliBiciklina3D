@@ -332,11 +332,28 @@ func _check_weapons() -> void:
 	var inp = main.input_sys
 	_own(0)
 	main.meta.weapon_choice = {}
-	# nothing bought: melee and gadget list only their default; the primary slot lists the Dart Nerf Pistol, the
-	# starting weapon, first, and the dart gun after it (it has no unlock yet: README alpha C2 makes it the first buy)
+	# nothing bought: every slot lists only its default; the dart gun is a weapon unlock (README alpha C2), so the
+	# primary slot lists only the Dart Nerf Pistol, the starting weapon
 	var wp = main.WeaponSlots
-	if _ids(main.loadout_weapon_options("primary")) != ["dart_pistol", "dart_gun"]:
+	if _ids(main.loadout_weapon_options("primary")) != ["dart_pistol"]:
 		_fail("primary lists %s" % str(_ids(main.loadout_weapon_options("primary"))))
+	if main.weapon_owned("dart_gun"):
+		_fail("the dart gun is owned from the start")
+	main.meta.weapon_choice = {"primary": "dart_gun"}
+	if main.loadout_weapon_id("primary") != "dart_pistol":
+		_fail("a dart gun that is not bought was still chosen for the primary slot")
+	main.meta.weapon_choice = {}
+	# buying it (the weapon_dart_gun unlock) puts it in the list, after the pistol
+	main.meta.owned["weapon_dart_gun"] = true
+	if not main.weapon_owned("dart_gun"):
+		_fail("the dart gun is not owned after buying weapon_dart_gun")
+	if _ids(main.loadout_weapon_options("primary")) != ["dart_pistol", "dart_gun"]:
+		_fail(
+			(
+				"primary after buying the dart gun lists %s"
+				% str(_ids(main.loadout_weapon_options("primary")))
+			)
+		)
 	if _ids(main.loadout_weapon_options("melee")) != ["melee"]:
 		_fail("melee lists %s" % str(_ids(main.loadout_weapon_options("melee"))))
 	if _ids(main.loadout_weapon_options("gadget")) != [""]:
@@ -474,4 +491,22 @@ func _check_weapon_runs() -> void:
 	main.start_game()
 	if main.primary != "dart_pistol" or main.gadget != "":
 		_fail("a run with no choice did not start with the defaults")
+	# the dart gun (alpha C2): not bought, a run that asks for it still starts with the pistol; bought and chosen,
+	# a normal run, a Daily Run and a typed seed all start with it in the primary slot
+	main.meta.weapon_choice = {"primary": "dart_gun"}
+	main.start_game()
+	if main.primary != "dart_pistol":
+		_fail("a run started with the dart gun before it was bought (primary %s)" % main.primary)
+	main.meta.owned["weapon_dart_gun"] = true
+	for mode in ["normal", "daily", "seed"]:
+		if mode == "normal":
+			main.start_game()
+		elif mode == "daily":
+			main.start_game(true)
+		else:
+			main.start_game(false, 0x1234ABCD)
+		if main.primary != "dart_gun":
+			_fail("a %s run with the bought dart gun started with %s" % [mode, main.primary])
+	main.meta.owned.erase("weapon_dart_gun")
+	main.meta.weapon_choice = {}
 	_remove_fake_weapons()
