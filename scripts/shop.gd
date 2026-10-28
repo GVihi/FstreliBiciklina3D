@@ -155,6 +155,8 @@ func show_upgrade() -> void:
 	if g.offers.size() == 0:  # every upgrade is bought out: nothing to pick, go on (and no extra pick either)
 		g.upgrade_extra = 0
 		after_upgrade()
+	else:
+		g.settings.trigger_hint("upgrade")  # first-run hint (README alpha E1.3): only when there is a pick to make
 
 
 func pick_upgrade(i: int) -> void:
@@ -356,6 +358,7 @@ func enter_shop() -> void:
 	g.state_t = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	g.sfx.say("shop")
+	g.settings.trigger_hint("shop")  # first-run hint (README alpha E1.3), shown once
 
 
 func leave_shop() -> void:
@@ -404,6 +407,7 @@ func enter_rest() -> void:
 	g.state_t = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	g.sfx.say("shop")
+	g.settings.trigger_hint("rest")  # first-run hint (README alpha E1.3), shown once
 
 
 # i is 0 (REFILL HEARTS) or 1 (EXTRA UPGRADE). A choice with nothing to do (full hearts, no upgrade left) is

@@ -1370,6 +1370,13 @@ func map_node_line(t: String, last_floor: bool) -> String:
 	return str(MAP_LINES.get(t, ""))
 
 
+# where the key prompt at the bottom of the map screen is drawn (a baseline). Lower than the other screens' prompts so a
+# first-run hint line fits between it and the first row of nodes (README early alpha E1.5); tools/hint_screens_check.gd
+# uses it too.
+func map_prompt_y(_k: float) -> float:
+	return size.y * 0.955
+
+
 # left edge and width of the info panel on the right of the map screen
 func map_info_x() -> float:
 	return size.x * 0.68
@@ -1497,7 +1504,7 @@ func _draw_map_screen(k: float, cx: float) -> void:
 	_txt(
 		"LEFT / RIGHT OR MOUSE TO CHOOSE   ENTER OR CLICK TO GO   1-3 PICKS DIRECTLY",
 		cx,
-		size.y * 0.93,
+		map_prompt_y(k),
 		int(14 * k),
 		GRAY,
 		1
@@ -1816,6 +1823,7 @@ const ALL_SETTING_ROWS = [
 	{"id": "fullscreen", "label": "FULLSCREEN", "toggle": true},
 	{"id": "sound", "label": "SOUND", "toggle": true},
 	{"id": "voices", "label": "VOICES", "toggle": true},
+	{"id": "hints", "label": "FIRST-TIME HINTS", "toggle": true},
 	# a button, not a setting: opens the two warnings of RESET ALL PROGRESS (input.gd reset_progress_open)
 	{"id": "reset_progress", "label": "RESET ALL PROGRESS", "action": true, "danger": true}
 ]
@@ -2133,6 +2141,9 @@ func _draw() -> void:
 	elif state == "map":
 		_draw_map_screen(k, cx)
 
+	if state != "title":
+		_draw_hint(k, cx)
+
 	if g.paused:
 		if g.pause_page == "settings":
 			_dim(0.86)
@@ -2156,6 +2167,51 @@ func _draw() -> void:
 
 
 # ---------------------------------------------------------------- pieces
+# The first-run hint line (README early alpha E1.2): one line of text with a dark strip behind it, bottom centre, for
+# Settings.HINT_SECONDS and fading out at the end. Only drawn: no rect is registered for a click, no key is read, so it
+# never blocks input. In a round it sits above the dash bar and the FREE DARTS line. On the upgrade and rest screens it
+# sits at 86.5 % of the height, between the cards and the bottom of the window. The shop has its CONTINUE and REROLL buttons
+# there, so its line goes at the top, in the gap between the CASH line and the cards. The map has its first row of nodes
+# at 84 % of the height, so its line goes in the gap between that row and the key prompt (which sits a little lower for
+# it, see map_prompt_y). The pause menu and the other pages are drawn over it. Checked by tools/hint_screens_check.gd.
+func hint_y(k: float) -> float:
+	if g.state == "play":
+		return size.y - 118.0 * k
+	if g.state == "shop":
+		return size.y * 0.17 + 32.0 * k
+	if g.state == "map":
+		return size.y * 0.84 + 54.0 * k
+	return size.y * 0.865
+
+
+# the font size of the hint line: 18 at 720p, made smaller when the line would not fit the window width
+func hint_fs(k: float) -> int:
+	var fs = int(18 * k)
+	var max_w = size.x - 48.0 * k
+	while fs > 8 and font.get_string_size(g.hint_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w:
+		fs -= 1
+	return fs
+
+
+# the dark strip behind the hint line (an empty Rect2 while no hint is showing); also what tools/hint_line_check.gd measures
+func hint_rect(k: float) -> Rect2:
+	if g.hint_txt == "":
+		return Rect2()
+	var tw = font.get_string_size(g.hint_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, hint_fs(k)).x
+	var w = tw + 28.0 * k
+	return Rect2((size.x - w) * 0.5, hint_y(k) - 20.0 * k, w, 32.0 * k)
+
+
+func _draw_hint(k: float, cx: float) -> void:
+	var a = g.settings.hint_alpha()
+	if a <= 0.0:
+		return
+	draw_rect(hint_rect(k), Color(0.04, 0.04, 0.05, 0.72 * a))
+	var col = TEXT
+	col.a = a
+	_txt(g.hint_txt, cx, hint_y(k), hint_fs(k), col, 1)
+
+
 func _draw_top_bar(k: float) -> void:
 	var bar_h = 58.0 * k
 	draw_rect(Rect2(0, 0, size.x, bar_h), Color(0.05, 0.05, 0.055, 0.72))

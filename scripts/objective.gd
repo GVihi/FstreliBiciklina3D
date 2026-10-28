@@ -94,6 +94,7 @@ func begin_extraction() -> void:
 	_style_goal(true)
 	g.add_note("ALL DOWN - REACH THE EXTRACTION POINT", GREEN)
 	g.sfx.play("pickup")
+	g.settings.trigger_hint("extract")  # first-run hint (README alpha E1.3), shown once
 
 
 func update(dt: float) -> void:
@@ -114,7 +115,10 @@ func update(dt: float) -> void:
 		var cn: Node3D = c["crate"]
 		cn.rotation.y += dt * 1.6
 		cn.position.y = 0.8 + 0.12 * sin(_t * 2.4 + c["pos"].x)
-		if dist_to(c["pos"]) < CACHE_RADIUS:
+		var d = dist_to(c["pos"])
+		if d < SENSE_RANGE:
+			g.settings.trigger_hint("cache")  # first-run hint (README alpha E1.3): the first cache in sense range
+		if d < CACHE_RADIUS:
 			_take(c)
 	if extracting and dist_to(goal["pos"]) < GOAL_RADIUS:
 		extracting = false

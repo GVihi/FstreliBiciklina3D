@@ -6,6 +6,26 @@ const SaveUtil = preload("res://scripts/save_util.gd")
 const GOLD = Color(0.95, 0.71, 0.19)
 const SETTINGS_PATH = "user://settings.cfg"
 const VERSION = 1  # settings.cfg: [meta] version. Version 0 (before versioning) had no [meta] section.
+# First-run hints (README early alpha E1): one line the first time the player meets a screen or an object. These are
+# the six triggers of E1.3. A hint is "seen" once it was shown, and the flags are saved under [hints] in settings.cfg.
+# A missing section, a missing key or a value that is not true / false counts as "not seen", so a hand-edited file can
+# only make a hint show again, never break the game. Settings, not progress: RESET ALL PROGRESS keeps them.
+const HINT_IDS = ["map", "upgrade", "shop", "rest", "extract", "cache"]
+# How long a hint line stays on screen (seconds, the last HINT_FADE of them fading out). The line is only drawn, it never
+# takes a click or a key, and it does not pause or slow the game.
+const HINT_SECONDS = 5.0
+const HINT_FADE = 0.8
+const HINT_MAX_CHARS = 90  # one line at the smallest window; E1.3 texts stay under this
+# The six hint lines (README early alpha E1.3), one per id of HINT_IDS, each under HINT_MAX_CHARS. They say what the
+# screen does not already say: the prompts on the screens name the keys, so these name the idea.
+const HINT_TEXTS = {
+	"map": "EACH STOP IS A ROUND, A SHOP OR A REST. PICK ONE THAT IS CONNECTED TO YOU",
+	"upgrade": "AN UPGRADE STAYS WITH YOU FOR THE REST OF THE RUN. TAKE ONE THAT FITS YOU",
+	"shop": "THIS IS WHERE YOUR CASH GOES. WHAT YOU DO NOT SPEND WAITS FOR THE NEXT SHOP",
+	"rest": "A REST STOP GIVES ONE CHOICE: REFILL YOUR HEARTS OR PICK AN EXTRA UPGRADE",
+	"extract": "THE WAY OUT IS OPEN: RUN TO THE GREEN LIGHT, THE SQUARE ON YOUR RADAR",
+	"cache": "A GOLD LIGHT IS A SUPPLY CACHE: WALK INTO IT FOR CASH AND A PICK-UP",
+}
 
 var g = null
 # audio / window values read from the file before the sound system exists; apply_loaded() uses them
@@ -99,6 +119,12 @@ func load_settings() -> void:
 	_voices = bool(cf.get_value("game", "voices", _voices))
 	_fullscreen = bool(cf.get_value("game", "fullscreen", _fullscreen))
 	g.player_name = str(cf.get_value("game", "player_name", g.player_name))
+	# the HINTS switch: anything that is not true / false counts as ON, the default
+	var show_hints = cf.get_value("game", "show_hints", true)
+	g.hints_on = typeof(show_hints) != TYPE_BOOL or show_hints
+	for id in HINT_IDS:
+		var seen = cf.get_value("hints", id, false)
+		g.hints_seen[id] = typeof(seen) == TYPE_BOOL and seen
 
 
 func save_settings() -> void:
@@ -119,7 +145,57 @@ func save_settings() -> void:
 	cf.set_value("game", "voices", g.sfx.voices_on)
 	cf.set_value("game", "fullscreen", is_fullscreen())
 	cf.set_value("game", "player_name", g.player_name)
+	cf.set_value("game", "show_hints", g.hints_on)
+	for id in HINT_IDS:
+		cf.set_value("hints", id, hint_seen(id))
 	cf.save(SETTINGS_PATH)
+
+
+# true when this first-run hint was already shown (an id that is not in HINT_IDS counts as not seen)
+func hint_seen(id: String) -> bool:
+	return bool(g.hints_seen.get(id, false))
+
+
+# Marks a hint as shown and saves it. Returns true the first time (the caller draws the hint then), and false for a
+# hint that was already seen or an id that is not in HINT_IDS (nothing is stored for it).
+func mark_hint_seen(id: String) -> bool:
+	if not HINT_IDS.has(id) or hint_seen(id):
+		return false
+	g.hints_seen[id] = true
+	save_settings()
+	return true
+
+
+# Puts a hint line on screen for HINT_SECONDS, replacing the one that is showing. Does not touch the "seen" flags.
+func show_hint(text: String) -> void:
+	g.hint_txt = text
+	g.hint_t0 = g.time
+
+
+# The call E1.3's triggers make: shows `text` the first time `id` comes up and never again (the flag is saved).
+# With the HINTS setting OFF nothing is shown and the flag is left alone, so switching the hints on again shows the
+# ones the player has not met yet. Returns true when the line was shown.
+func hint_once(id: String, text: String) -> bool:
+	if not g.hints_on or not mark_hint_seen(id):
+		return false
+	show_hint(text)
+	return true
+
+
+# What the six triggers call: the HINT_TEXTS line for `id`, shown the first time only (see hint_once).
+func trigger_hint(id: String) -> bool:
+	return hint_once(id, str(HINT_TEXTS.get(id, "")))
+
+
+# 0 when no hint is showing (or the HINTS setting is OFF: switching it off takes a line that is up away at once), 1 while
+# it is fully shown, falling to 0 over the last HINT_FADE seconds
+func hint_alpha() -> float:
+	if g.hint_txt == "" or not g.hints_on:
+		return 0.0
+	var age = g.time - g.hint_t0
+	if age < 0.0 or age >= HINT_SECONDS:
+		return 0.0
+	return clampf((HINT_SECONDS - age) / HINT_FADE, 0.0, 1.0)
 
 
 func get_setting(id: String):
@@ -147,6 +223,8 @@ func get_setting(id: String):
 		return g.sfx.voices_on
 	if id == "fullscreen":
 		return is_fullscreen()
+	if id == "hints":
+		return g.hints_on
 	return null
 
 
@@ -182,6 +260,8 @@ func set_setting(id: String, v) -> void:
 			g.sfx.toggle_voices()
 	elif id == "fullscreen":
 		set_fullscreen(bool(v))
+	elif id == "hints":
+		g.hints_on = bool(v)
 	save_settings()
 
 
