@@ -1282,6 +1282,7 @@ func enter_map() -> void:
 	state = "map"
 	state_t = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	settings.trigger_hint("map")  # first-run hint (README alpha E1.3), shown once
 	save_checkpoint()
 
 
