@@ -56,7 +56,7 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
 
 | Built | What is missing | Alpha item |
 |---|---|---|
-| XP and levels (earned, saved, shown on the title screen and the run summary) | a level does not unlock or change anything | C4 |
+| XP and levels (earned, saved, shown on the title screen and the run summary) | a level does not unlock or change anything, on purpose for the alpha (decided in C4, done) | after the alpha |
 | Map node types `elite`, `shop`, `rest` and `event` (generated, drawn, named on the map screen) | the shop node is a screen since B2 and the rest node since B3; elite and normal still play the same ordinary round, and the `seed` that rest and event nodes carry is never read. Only the elite's harder content (10 to 12 riders, 40 % armoured) takes effect | B1, B3, B4 |
 | The `rain` round modifier | the node carries it (`round_modifiers`), but nothing draws or does rain | B5 (switched off) |
 | Weapon slots, the Dart Nerf Pistol, weapon choice on the Loadout page | built on `milestone-c/weapon-slots` and not merged, so `main` has none of it | A1 |
@@ -190,9 +190,9 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
   - [x] C3.3 Remove the "has no effect yet" lines in `data/README.md` and make the Unlocks page text match. *Done:* the "no effect yet" line and the "Decide that when the shop filter is built" paragraph in `data/README.md` (now the C3 decision), the `shop_item` row, the header comment of `scripts/unlocks.gd`, and the lines in this README. The Unlocks page text "JOINS THE SHOP" already matched and is unchanged.
   - [x] C3.4 `tools/unlocks_check.gd` or a new check: a fresh save's shop has none of the six, a bought one appears. *Built:* new `tools/shop_filter_check.gd` (the runner finds it, no `.bat`): exactly six `shop_item` unlocks; on a fresh save none is sold or on a shelf over 5 seeds, 5 floors and 4 rerolls in a normal run, a Daily Run and a custom seed; everything else still sold and the shelf keeps four items; owning one brings back that one only; the same state gives the same shelf. It fails without the fix. Run with `python tools/run_checks.py shop_filter unlocks offer_sense map_walk node_types rest_node elite_upgrade round_clear generated_run run_save loadout`: all passed (Godot 4.7, Linux).
   - [x] C3.5 The owner checks on a fresh save and after one purchase. A thinner early shop feeds into D2.
-- [ ] **C4. What a level does (decided with the owner):** for the alpha "a number only, shown on the title and the summary" (Milestone I "Decide whether a level unlocks anything"). Then merge or drop `roadmap/level-rewards`; its XP numbers only matter once a level does something.
-  - [ ] C4.1 Tick Milestone I "Decide whether a level unlocks anything" with the answer: for the alpha a level is only shown; the first use of levels comes after the alpha.
-  - [ ] C4.2 The owner decides on `roadmap/level-rewards` (XP about 7 times slower): merge it as the new XP numbers, or drop the branch. If merged, `python tools/run_checks.py xp` passes and the "about 1,000 to 1,500 XP for a won run" note in `data/README.md` is corrected.
+- [x] **C4. What a level does (decided with the owner):** for the alpha "a number only, shown on the title and the summary" (Milestone I "Decide whether a level unlocks anything"). Then merge or drop `roadmap/level-rewards`; its XP numbers only matter once a level does something. (Verified 2026-10-28, note in `docs/ROADMAP_HISTORY.md`.)
+  - [x] C4.1 Tick Milestone I "Decide whether a level unlocks anything" with the answer: for the alpha a level is only shown; the first use of levels comes after the alpha.
+  - [x] C4.2 The owner decides on `roadmap/level-rewards` (XP about 7 times slower): merge it as the new XP numbers, or drop the branch. If merged, `python tools/run_checks.py xp` passes and the "about 1,000 to 1,500 XP for a won run" note in `data/README.md` is corrected. (Merged earlier as PR #97; `xp_check` passes.)
 - [ ] **C5. The end of a run leads on**: the run summary gets NEW RUN and UNLOCKS buttons (UNLOCKS highlighted when the new coins can buy something that was out of reach), and the title menu puts the loop first (CONTINUE, PLAY, LOADOUT, UNLOCKS, then the rest). Done when a player can go from a lost run to the next one in two clicks, with coins spent on the way.
   - [ ] C5.1 Buttons on the run summary: NEW RUN, UNLOCKS and TITLE, with mouse, keyboard and gamepad, drawn clear of the table and the unlock lines at 1280x720 and 1920x1080 (`_draw_run_summary` in `scripts/hud.gd`).
   - [ ] C5.2 UNLOCKS is the selected button when `g.new_unlocks` is not empty, otherwise NEW RUN is.
@@ -773,11 +773,11 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [x] Define the unlock list and price curve in a data table (like `data/items.json`)
 - [ ] Balance pass: the first runs with the starting loadout must be winnable but hard, and each unlock should feel meaningful
 - [ ] Reset progress option in Settings, with confirmation
-- [ ] **PARTLY BUILT:** XP is earned, saved and shown, but a level does nothing yet (alpha C4). XP and levels (the in-game side; the website shows the same numbers, see Milestone N)
+- [ ] **PARTLY BUILT:** XP is earned, saved and shown, but a level does nothing yet, on purpose for the alpha (decided in alpha C4). XP and levels (the in-game side; the website shows the same numbers, see Milestone N)
   - [x] Decide what earns XP (for example score, kills, boss kills, finished rounds and runs, challenges) and write the XP table and the level curve in a data table (like `data/items.json`), so the numbers can be tuned without touching code
   - [x] Keep XP and level in the versioned save files (see `docs/SAVE_FILES.md`), separate from meta currency (XP is never spent, it only goes up)
   - [x] Show XP, level and a progress bar to the next level on the title screen, and the XP gained and any level-up on the run summary screen
-  - [ ] Decide whether a level unlocks anything (items, cosmetics, titles) or is only a number to show off
+  - [x] Decide whether a level unlocks anything (items, cosmetics, titles) or is only a number to show off: **for the early alpha a level is only a number to show off** (title screen and run summary); the first use of levels comes after the alpha (alpha C4)
   - [ ] Send XP and level to the website with the other progress (needs the account and API in Milestone N; without an account XP and level still work locally and are only shown in the game), and make sure the server is the one that adds up XP from the runs it is sent, so an edited number in a save file cannot raise a level
 
 ---
