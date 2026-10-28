@@ -202,11 +202,11 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
 
 ### D. Difficulty and length (Milestones "Recommended Roguelite Structure", I and K)
 
-- [ ] **D1. Tune round length on the 144 m arena** (the playtest items under Milestone K: objectives, riders and pickups, rider speed and sightlines). Use the run timer that is already there (the `[run timer]` lines and the summary). Target: a 10-round run takes 20 to 30 minutes including the map, upgrade and shop screens, so about 2 minutes a fight. Done when five runs from the owner land inside that range.
-  - [ ] D1.1 Read the A3 table and the five new runs against the target: which rounds are too long and why (the walk to the extraction point, riders that take long to arrive, too few riders).
-  - [ ] D1.2 Pick one knob at a time: riders per node (`content.riders.count` in `data/map_rules.json`), rider speed, the extraction distance and cache spots (`scripts/arena_generated.gd`, `scripts/objective.gd`), the arena size (`cells` in `data/arena_rules.json`), or the ambush sizes (`scripts/ambush.gd`).
-  - [ ] D1.3 Change it, play three runs, record the times in the table; repeat until the average sits in the range.
-  - [ ] D1.4 Tick the open playtest items of Milestone K that this covers ("Playtest the objectives", "Riders and pickups on the bigger arena", "Playtest and balance"), each with a short note of what was changed.
+- [x] **D1. Tune round length on the 144 m arena** (the playtest items under Milestone K: objectives, riders and pickups, rider speed and sightlines). Use the run timer that is already there (the `[run timer]` lines and the summary). Target: a 10-round run takes 20 to 30 minutes including the map, upgrade and shop screens, so about 2 minutes a fight. Done when five runs from the owner land inside that range.
+  - [x] D1.1 Read the A3 table and the five new runs against the target: which rounds are too long and why (the walk to the extraction point, riders that take long to arrive, too few riders).
+  - [x] D1.2 Pick one knob at a time: riders per node (`content.riders.count` in `data/map_rules.json`), rider speed, the extraction distance and cache spots (`scripts/arena_generated.gd`, `scripts/objective.gd`), the arena size (`cells` in `data/arena_rules.json`), or the ambush sizes (`scripts/ambush.gd`).
+  - [x] D1.3 Change it, play three runs, record the times in the table; repeat until the average sits in the range.
+  - [x] D1.4 Tick the open playtest items of Milestone K that this covers ("Playtest the objectives", "Riders and pickups on the bigger arena", "Playtest and balance"), each with a short note of what was changed.
 - [ ] **D2. Balance pass with the starting loadout** (Milestone "Balance pass for the 10-round difficulty curve", Milestone I "Balance pass"): rider speed, boss health, final boss health, the shop prices after B1, cash from caches. First guess at the goal, to correct by playing: from a fresh save the first runs end between floors 2 and 7, one reaches the mid boss, and with three or four unlocks the final boss is reachable (winning it is allowed to stay hard).
   - [ ] D2.1 A developer-only way to start with a given number of coins and owned unlocks (for example a command line argument), so "with three or four unlocks" can be tested without grinding; it never touches the normal save and never ships enabled.
   - [ ] D2.2 List the knobs in one place of `data/README.md`: rider speed by round, boss health, the final boss, shop and upgrade prices, `CACHE_CASH` and `CACHE_SCORE`, hearts.
@@ -214,12 +214,12 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
   - [ ] D2.4 Adjust one number at a time and play again until the first runs end between floors 2 and 7 and one reaches the mid boss.
   - [ ] D2.5 Repeat with three or four unlocks (D2.1): the final boss is reachable.
   - [ ] D2.6 Tick the two balance items in the milestones with a short note of what was changed.
-- [ ] **D3. The meta economy fits the loop**: the first purchase is within one or two runs, the cheapest tier first (60 coins is the current guess), and the whole alpha unlock list costs roughly 15 to 25 runs of coins. Tune the price curve in `data/unlocks.json` and the coin rates in `scripts/meta.gd`; a run that is quit pays nothing, which stays.
+- [x] **D3. The meta economy fits the loop**: the first purchase is within one or two runs, the cheapest tier first (60 coins is the current guess), and the whole alpha unlock list costs roughly 15 to 25 runs of coins. Tune the price curve in `data/unlocks.json` and the coin rates in `scripts/meta.gd`; a run that is quit pays nothing, which stays.
   - Decided with the owner on 2026-10-27 after the A3 playtest (a run lost in round 2 paid 400+ coins and bought the dart gun at once): a complete run pays about 40 coins, a run lost early a few, the dart gun (250) takes 6 to 7 complete runs. Done in `scripts/meta.gd` (2 per round cleared, 3 mid boss, 8 final boss, score 1 per 100,000 capped at 5) and `data/challenges.json` (2, 2, 1, 1, 4). The price curve is unchanged, so buying all 21 listed unlocks (4,290 coins) is about 107 complete runs: D3.3 decides whether the upper tiers get cheaper.
-  - [ ] D3.1 From the runs of D2 write down the coins a run pays by outcome (lost early, lost late, won), including boss and challenge coins.
-  - [ ] D3.2 Total the price of every unlock (all 25, the dart gun included) and divide by the coins of an average run.
-  - [ ] D3.3 Adjust the price curve or the coin rates until the first purchase is within one or two runs and the whole list lands in the 15 to 25 run range.
-  - [ ] D3.4 Write the final numbers into `data/README.md`, and update `tools/unlocks_check.gd` if it checks the first price against a short run.
+  - [x] D3.1 From the runs of D2 write down the coins a run pays by outcome (lost early, lost late, won), including boss and challenge coins.
+  - [x] D3.2 Total the price of every unlock (all 25, the dart gun included) and divide by the coins of an average run.
+  - [x] D3.3 Adjust the price curve or the coin rates until the first purchase is within one or two runs and the whole list lands in the 15 to 25 run range.
+  - [x] D3.4 Write the final numbers into `data/README.md`, and update `tools/unlocks_check.gd` if it checks the first price against a short run.
 
 ### E. Alpha gate
 
