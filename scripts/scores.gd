@@ -55,6 +55,8 @@ func load_scores() -> void:
 
 
 func save_scores() -> void:
+	if SaveUtil.read_only:
+		return
 	var f = FileAccess.open(PATH, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify({"version": VERSION, "entries": entries}))

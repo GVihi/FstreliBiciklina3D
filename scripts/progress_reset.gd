@@ -7,6 +7,7 @@ extends RefCounted
 # What the rest of the game does after the files are gone is in main.gd `reset_all_progress`; the texts of the two
 # warnings are in hud.gd CONFIRM_TEXT; the flow is in input.gd. Format notes: docs/SAVE_FILES.md
 
+const SaveUtil = preload("res://scripts/save_util.gd")
 const DIR = "user://"
 const FILES = ["meta.json", "scores.json", "run.json", "hi.dat"]
 
@@ -41,6 +42,8 @@ static func find_files() -> Array:
 # deletes every progress file; returns the names of the ones that could not be deleted (empty when all are gone)
 static func delete_files() -> Array:
 	var failed = []
+	if SaveUtil.read_only:
+		return failed
 	for file_name in find_files():
 		var err = DirAccess.remove_absolute(ProjectSettings.globalize_path(DIR + file_name))
 		if err != OK:

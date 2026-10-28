@@ -87,6 +87,8 @@ func load_meta() -> void:
 
 
 func save_meta() -> void:
+	if SaveUtil.read_only:
+		return
 	var f = FileAccess.open(PATH, FileAccess.WRITE)
 	if f:
 		var ids = owned.keys()
@@ -123,6 +125,18 @@ func reset_all() -> void:
 	xp_boss = 0
 	xp_earned = 0
 	level_before = 1
+
+
+# The developer start options (dev_start.gd, roadmap alpha D2.1): the coins and the unlocks of a test session. Only the
+# values in memory change, and SaveUtil.read_only goes on, so this session never writes the real meta.json (or any other
+# save file). `opts` is what `DevStart.parse` returned.
+func apply_dev_start(opts: Dictionary) -> void:
+	SaveUtil.read_only = true
+	if int(opts["coins"]) >= 0:
+		balance = int(opts["coins"])
+		total_earned = maxi(total_earned, balance)
+	for id in opts["unlocks"]:
+		owned[str(id)] = true
 
 
 # called when a new run starts

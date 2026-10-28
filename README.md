@@ -15,6 +15,11 @@ Mostly vibe coded Godot game
 - The game starts in a 1280x720 window (the base size in `project.godot`). Fullscreen is built in: F11, or the FULLSCREEN row in the settings, and the choice is saved.
 - If the game runs inside the editor's embedded game view, fullscreen and other window changes do not work there, because the game is not its own window. Turn off the editor's embedded game window option (in the game view toolbar) so the game runs in a separate window, or run an exported build.
 
+## Developer start options (roadmap alpha D2.1)
+- To test the game with coins and unlocks without grinding for them, start it from the editor binary with user arguments: `godot --path . -- --dev-coins=500 --dev-unlocks=item_magnet,item_heart,weapon_dart_gun` (`--dev-unlocks=all` owns everything that is in the game; ids are `id` in `data/unlocks.json`). The coins are set to that number, not added.
+- **Nothing is saved in such a session**: no settings, scores, coins, unlocks or run are written or deleted, so the real save is never touched. One `[dev start]` line in the console says what was applied and names any value that was left out. An exported game ignores these arguments.
+- Details and the rule for new save writers: `docs/SAVE_FILES.md`. Check: `python tools/run_checks.py dev_start`.
+
 ## Secrets and credentials (this repository is public)
 > **WARNING: never commit or push secrets.** Everything in this repository, including every old commit, is visible to the whole internet, and deleting a secret in a later commit does not remove it from the history. Once a key has been pushed, treat it as stolen and replace it.
 - Never commit: API keys (including the game-to-website key from Milestone N), passwords, login or refresh tokens, Django `SECRET_KEY`, database or server credentials, SSH keys, `.env` files, code signing certificates, Godot encryption keys (`script_encryption_key` and the save encryption key), or a player's save and settings files.
@@ -209,7 +214,7 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
   - [x] D1.3 Change it, play three runs, record the times in the table; repeat until the average sits in the range.
   - [x] D1.4 Tick the open playtest items of Milestone K that this covers ("Playtest the objectives", "Riders and pickups on the bigger arena", "Playtest and balance"), each with a short note of what was changed.
 - [ ] **D2. Balance pass with the starting loadout** (Milestone "Balance pass for the 10-round difficulty curve", Milestone I "Balance pass"): rider speed, boss health, final boss health, the shop prices after B1, cash from caches. First guess at the goal, to correct by playing: from a fresh save the first runs end between floors 2 and 7, one reaches the mid boss, and with three or four unlocks the final boss is reachable (winning it is allowed to stay hard).
-  - [ ] D2.1 A developer-only way to start with a given number of coins and owned unlocks (for example a command line argument), so "with three or four unlocks" can be tested without grinding; it never touches the normal save and never ships enabled.
+  - [x] D2.1 A developer-only way to start with a given number of coins and owned unlocks (for example a command line argument), so "with three or four unlocks" can be tested without grinding; it never touches the normal save and never ships enabled.
   - [x] D2.2 List the knobs in one place of `data/README.md`: rider speed by round, boss health, the final boss, shop and upgrade prices, `CACHE_CASH` and `CACHE_SCORE`, hearts.
   - [ ] D2.3 Five runs from a fresh save with the pistol: record the floor reached and why each run ended; collect the notes from B1.5, C1.4 and C3.5.
   - [ ] D2.4 Adjust one number at a time and play again until the first runs end between floors 2 and 7 and one reaches the mid boss.
