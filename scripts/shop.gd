@@ -114,6 +114,16 @@ func upgrade_stat(id: String) -> String:
 	)
 
 
+# The text a card or a shelf item shows. It is the item's `desc` except for EXTENDED CLIP, whose step depends on the
+# weapon in the primary slot (README alpha B9.2: the text follows the weapon): +1 dart with the pistol, +2 with the
+# dart gun. The stat line of the card (`upgrade_stat`) shows the same step as numbers.
+func item_desc(it: Dictionary) -> String:
+	if str(it.get("id", "")) == "clip":
+		var step = int(g.primary_stats()["clip_step"])
+		return "+%d dart%s per clip" % [step, "" if step == 1 else "s"]
+	return str(it["desc"])
+
+
 # true while the node being played (or just cleared) is an elite node
 func node_is_elite() -> bool:
 	return str(g.current_node().get("type", "")) == "elite"

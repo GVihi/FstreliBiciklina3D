@@ -58,6 +58,7 @@ CHECK_ARGS = {
 CHECK_ARGS_FULL = {
     "generated_run_check": ["12"],
     "pickup_placement_check": ["60"],
+    "offer_sense_check": ["60"],  # seeds per weapon (the normal run uses 10, about 2 seconds)
     "arena_generated_check": ["200"],
 }
 
