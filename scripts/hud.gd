@@ -1370,6 +1370,13 @@ func map_node_line(t: String, last_floor: bool) -> String:
 	return str(MAP_LINES.get(t, ""))
 
 
+# where the key prompt at the bottom of the map screen is drawn (a baseline). Lower than the other screens' prompts so a
+# first-run hint line fits between it and the first row of nodes (README early alpha E1.5); tools/hint_screens_check.gd
+# uses it too.
+func map_prompt_y(_k: float) -> float:
+	return size.y * 0.955
+
+
 # left edge and width of the info panel on the right of the map screen
 func map_info_x() -> float:
 	return size.x * 0.68
@@ -1497,7 +1504,7 @@ func _draw_map_screen(k: float, cx: float) -> void:
 	_txt(
 		"LEFT / RIGHT OR MOUSE TO CHOOSE   ENTER OR CLICK TO GO   1-3 PICKS DIRECTLY",
 		cx,
-		size.y * 0.93,
+		map_prompt_y(k),
 		int(14 * k),
 		GRAY,
 		1
@@ -2162,11 +2169,18 @@ func _draw() -> void:
 # ---------------------------------------------------------------- pieces
 # The first-run hint line (README early alpha E1.2): one line of text with a dark strip behind it, bottom centre, for
 # Settings.HINT_SECONDS and fading out at the end. Only drawn: no rect is registered for a click, no key is read, so it
-# never blocks input. In a round it sits above the dash bar and the FREE DARTS line; on the map, upgrade, shop and rest
-# screens it sits in the gap above the bottom prompt. The pause menu and the other pages are drawn over it.
+# never blocks input. In a round it sits above the dash bar and the FREE DARTS line. On the upgrade and rest screens it
+# sits at 86.5 % of the height, between the cards and the bottom of the window. The shop has its CONTINUE and REROLL buttons
+# there, so its line goes at the top, in the gap between the CASH line and the cards. The map has its first row of nodes
+# at 84 % of the height, so its line goes in the gap between that row and the key prompt (which sits a little lower for
+# it, see map_prompt_y). The pause menu and the other pages are drawn over it. Checked by tools/hint_screens_check.gd.
 func hint_y(k: float) -> float:
 	if g.state == "play":
 		return size.y - 118.0 * k
+	if g.state == "shop":
+		return size.y * 0.17 + 32.0 * k
+	if g.state == "map":
+		return size.y * 0.84 + 54.0 * k
 	return size.y * 0.865
 
 

@@ -189,7 +189,7 @@ func _check_rect(where: String, in_round: bool) -> void:
 				_fail("%s: the strip is not at the bottom (ends at %.0f)" % [label, r.end.y])
 			if in_round and r.end.y > s.y - 96.0 * k:
 				_fail("%s: the strip reaches the FREE DARTS line (ends at %.0f)" % [label, r.end.y])
-			if not in_round and r.end.y > s.y * 0.93 - 16.0 * k:
+			if not in_round and r.end.y > hud.map_prompt_y(k) - 12.0 * k:
 				_fail("%s: the strip reaches the bottom prompt (ends at %.0f)" % [label, r.end.y])
 			if hud.hint_fs(k) < 8:
 				_fail("%s: the font shrank below 8 px" % label)
