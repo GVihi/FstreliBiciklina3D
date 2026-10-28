@@ -1816,6 +1816,7 @@ const ALL_SETTING_ROWS = [
 	{"id": "fullscreen", "label": "FULLSCREEN", "toggle": true},
 	{"id": "sound", "label": "SOUND", "toggle": true},
 	{"id": "voices", "label": "VOICES", "toggle": true},
+	{"id": "hints", "label": "FIRST-TIME HINTS", "toggle": true},
 	# a button, not a setting: opens the two warnings of RESET ALL PROGRESS (input.gd reset_progress_open)
 	{"id": "reset_progress", "label": "RESET ALL PROGRESS", "action": true, "danger": true}
 ]

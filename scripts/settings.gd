@@ -119,6 +119,9 @@ func load_settings() -> void:
 	_voices = bool(cf.get_value("game", "voices", _voices))
 	_fullscreen = bool(cf.get_value("game", "fullscreen", _fullscreen))
 	g.player_name = str(cf.get_value("game", "player_name", g.player_name))
+	# the HINTS switch: anything that is not true / false counts as ON, the default
+	var show_hints = cf.get_value("game", "show_hints", true)
+	g.hints_on = typeof(show_hints) != TYPE_BOOL or show_hints
 	for id in HINT_IDS:
 		var seen = cf.get_value("hints", id, false)
 		g.hints_seen[id] = typeof(seen) == TYPE_BOOL and seen
@@ -140,6 +143,7 @@ func save_settings() -> void:
 	cf.set_value("game", "voices", g.sfx.voices_on)
 	cf.set_value("game", "fullscreen", is_fullscreen())
 	cf.set_value("game", "player_name", g.player_name)
+	cf.set_value("game", "show_hints", g.hints_on)
 	for id in HINT_IDS:
 		cf.set_value("hints", id, hint_seen(id))
 	cf.save(SETTINGS_PATH)
@@ -167,9 +171,10 @@ func show_hint(text: String) -> void:
 
 
 # The call E1.3's triggers make: shows `text` the first time `id` comes up and never again (the flag is saved).
-# Returns true when the line was shown.
+# With the HINTS setting OFF nothing is shown and the flag is left alone, so switching the hints on again shows the
+# ones the player has not met yet. Returns true when the line was shown.
 func hint_once(id: String, text: String) -> bool:
-	if not mark_hint_seen(id):
+	if not g.hints_on or not mark_hint_seen(id):
 		return false
 	show_hint(text)
 	return true
@@ -180,9 +185,10 @@ func trigger_hint(id: String) -> bool:
 	return hint_once(id, str(HINT_TEXTS.get(id, "")))
 
 
-# 0 when no hint is showing, 1 while it is fully shown, falling to 0 over the last HINT_FADE seconds
+# 0 when no hint is showing (or the HINTS setting is OFF: switching it off takes a line that is up away at once), 1 while
+# it is fully shown, falling to 0 over the last HINT_FADE seconds
 func hint_alpha() -> float:
-	if g.hint_txt == "":
+	if g.hint_txt == "" or not g.hints_on:
 		return 0.0
 	var age = g.time - g.hint_t0
 	if age < 0.0 or age >= HINT_SECONDS:
@@ -215,6 +221,8 @@ func get_setting(id: String):
 		return g.sfx.voices_on
 	if id == "fullscreen":
 		return is_fullscreen()
+	if id == "hints":
+		return g.hints_on
 	return null
 
 
@@ -250,6 +258,8 @@ func set_setting(id: String, v) -> void:
 			g.sfx.toggle_voices()
 	elif id == "fullscreen":
 		set_fullscreen(bool(v))
+	elif id == "hints":
+		g.hints_on = bool(v)
 	save_settings()
 
 

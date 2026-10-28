@@ -159,6 +159,7 @@ var best_rank = 0  # highest style rank reached this run (0 = D .. 4 = S)
 var last_rank = -1  # leaderboard place of the run that just ended (0 = first), -1 = not on the list
 var player_name = "PLAYER"  # last name typed on the leaderboard (saved), offered again next time
 var hints_seen = {}  # first-run hint id -> true once it was shown (saved in settings.cfg under [hints], see settings.gd)
+var hints_on = true  # HINTS setting (README alpha E1.4): false = no first-run hint is shown; saved as [game] show_hints
 var hint_txt = ""  # the first-run hint line on screen (E1.2), "" = none; drawn bottom centre by Hud._draw_hint
 var hint_t0 = -100.0  # g.time when hint_txt was set; the line fades out after Settings.HINT_SECONDS
 var name_entry = false  # true on the run summary while the player is typing a name for a new leaderboard entry
