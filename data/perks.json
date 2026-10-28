@@ -5,7 +5,10 @@
 			"name": "HAGGLER",
 			"desc": "Everything in the shop costs 15% less",
 			"cost": 110,
-			"min": 1
+			"min": 1,
+			"needs": {
+				"shop_ahead": true
+			}
 		},
 		{
 			"id": "steady",
@@ -19,7 +22,10 @@
 			"name": "SALVAGE",
 			"desc": "Armoured riders always drop ammo",
 			"cost": 100,
-			"min": 1
+			"min": 1,
+			"needs": {
+				"clip_min": 3
+			}
 		},
 		{
 			"id": "sprinter",
@@ -40,7 +46,10 @@
 			"name": "BOUNTY",
 			"desc": "All cash you earn x1.35",
 			"cost": 120,
-			"min": 2
+			"min": 2,
+			"needs": {
+				"shop_ahead": true
+			}
 		},
 		{
 			"id": "adrenaline",
@@ -54,14 +63,20 @@
 			"name": "SCAVENGER",
 			"desc": "Ammo drops are twice as big and more common",
 			"cost": 105,
-			"min": 2
+			"min": 2,
+			"needs": {
+				"clip_min": 3
+			}
 		},
 		{
 			"id": "counter",
 			"name": "COUNTER",
 			"desc": "Deflecting a phone refunds 1 dart",
 			"cost": 115,
-			"min": 2
+			"min": 2,
+			"needs": {
+				"clip_min": 3
+			}
 		},
 		{
 			"id": "closeshave",
@@ -82,7 +97,10 @@
 			"name": "DEADEYE",
 			"desc": "Weak spot hits deal +1 extra damage",
 			"cost": 140,
-			"min": 3
+			"min": 3,
+			"needs": {
+				"boss_ahead": true
+			}
 		},
 		{
 			"id": "boomerang",
@@ -104,13 +122,19 @@
 			"a": "slideshot",
 			"b": "closeshave",
 			"name": "MATADOR",
-			"desc": "Perfect dodges refill 3 darts"
+			"desc": "Perfect dodges refill 3 darts",
+			"needs": {
+				"clip_min": 3
+			}
 		},
 		{
 			"a": "boomerang",
 			"b": "bounty",
 			"name": "BOUNTY HUNTER",
-			"desc": "Deflect kills pay x3 cash"
+			"desc": "Deflect kills pay x3 cash",
+			"needs": {
+				"shop_ahead": true
+			}
 		},
 		{
 			"a": "slideshot",
@@ -128,25 +152,38 @@
 			"a": "deadeye",
 			"b": "scavenger",
 			"name": "HEADHUNTER",
-			"desc": "Weak spot hits refund 2 darts"
+			"desc": "Weak spot hits refund 2 darts",
+			"needs": {
+				"clip_min": 3,
+				"boss_ahead": true
+			}
 		},
 		{
 			"a": "secondwind",
 			"b": "bounty",
 			"name": "LIFE INSURANCE",
-			"desc": "Second wind pays $80"
+			"desc": "Second wind pays $80",
+			"needs": {
+				"shop_ahead": true
+			}
 		},
 		{
 			"a": "lastshell",
 			"b": "deadeye",
 			"name": "SNIPER",
-			"desc": "Weak spot hit with the last dart: +2 damage"
+			"desc": "Weak spot hit with the last dart: +2 damage",
+			"needs": {
+				"boss_ahead": true
+			}
 		},
 		{
 			"a": "salvage",
 			"b": "scavenger",
 			"name": "SCRAPYARD",
-			"desc": "Armoured riders drop two ammo and cash"
+			"desc": "Armoured riders drop two ammo and cash",
+			"needs": {
+				"clip_min": 3
+			}
 		},
 		{
 			"a": "counter",

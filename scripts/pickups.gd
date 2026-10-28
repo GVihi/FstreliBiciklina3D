@@ -3,6 +3,7 @@ extends RefCounted
 # Shared game state stays on main.gd (g); this file holds the logic.
 
 const Models = preload("res://scripts/models.gd")
+const Needs = preload("res://scripts/needs.gd")
 
 const LAND_TRIES = 12  # directions tried for a landing spot
 const LAND_NEAR = 0.5  # metres: a drop comes down at least this far from the kill ...
@@ -22,15 +23,29 @@ func _init(game) -> void:
 	g = game
 
 
+# true when a drop of this kind can change the next round for what the player holds now (DROP_NEEDS, needs.gd)
+func drop_ok(t: String) -> bool:
+	return Needs.ok(g.DROP_NEEDS.get(t, {}), g)
+
+
+# The drop that is really spawned for a drawn kind: the kind itself when it can matter, otherwise cash (what a heart
+# has always become at full hearts) when cash can matter, otherwise "" (nothing). Only the pool changes, never the draw.
+func matter_drop(t: String) -> String:
+	if drop_ok(t):
+		return t
+	if t != "cash" and drop_ok("cash"):
+		return "cash"
+	return ""
+
+
 func maybe_drop(pos: Vector3, chance: float) -> void:
 	if g.state != "play" or g.pickups.size() >= MAX_ON_FIELD:
 		return
 	if randf() > chance + g.up["luck"]:
 		return
-	var t = g.pick_one(g.DROPS)
-	if t == "heart" and g.hearts >= g.MAXHEARTS:
-		t = "cash"
-	spawn_pickup(t, pos)
+	var t = matter_drop(g.pick_one(g.DROPS))
+	if t != "":
+		spawn_pickup(t, pos)
 
 
 # every defeated rider feeds you: usually ammo, sometimes cash or a life, now and then a power-up
@@ -41,8 +56,8 @@ func drop_kill(pos: Vector3, tough: bool) -> void:
 	var drops = []
 	if randf() < 0.28 + 0.04 * float(rank) + (0.15 if g.perks.has("scavenger") else 0.0):
 		drops.append("ammo")
-	if g.hearts < g.MAXHEARTS and randf() < 0.07 + 0.02 * float(rank):
-		drops.append("heart")
+	if randf() < 0.07 + 0.02 * float(rank):
+		drops.append("heart")  # kept only while hearts are missing, by the drop test below
 	if randf() < 0.15:
 		drops.append("cash")
 	if tough and g.perks.has("salvage"):
@@ -54,7 +69,7 @@ func drop_kill(pos: Vector3, tough: bool) -> void:
 	if randf() < (0.7 if tough else 0.12) + g.up["luck"]:
 		drops.append(g.pick_one(["rapid", "big", "slow", "shield"]))
 	for t in drops:
-		if g.pickups.size() < MAX_ON_FIELD:
+		if g.pickups.size() < MAX_ON_FIELD and drop_ok(t):  # a drop that cannot matter now is simply not dropped
 			spawn_pickup(t, pos)
 
 

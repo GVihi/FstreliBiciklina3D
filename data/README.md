@@ -16,7 +16,7 @@ It is loaded by `scripts/items.gd`; bad entries are skipped and logged with `pus
 
 **Keep the order of both lists unless you mean to change it:** every run now shuffles these lists with a generator seeded by the run seed, so reordering changes what every player sees for the same seed.
 
-Every entry has `id`, `kind` (`heal`, `pack` or `tier`), `name`, `desc`, `cost` (base price in dollars) and `min` (first round it can appear in).
+Every entry has `id`, `kind` (`heal`, `pack` or `tier`), `name`, `desc`, `cost` (base price in dollars) and `min` (first round it can appear in), and may have `needs`: what it needs to matter (see "What an entry needs to matter" below).
 
 | kind | extra fields | what it does |
 |---|---|---|
@@ -34,19 +34,40 @@ Perks (bought once per run) and the duos that two perks form together. Loaded by
 
 ```
 {
-  "perks": [ {"id", "name", "desc", "cost", "min"}, ... ],   // shop pool order, after the items in items.json
-  "duos":  [ {"a", "b", "name", "desc"}, ... ]               // "a" and "b" are perk ids
+  "perks": [ {"id", "name", "desc", "cost", "min", "needs"?}, ... ],   // shop pool order, after the items in items.json
+  "duos":  [ {"a", "b", "name", "desc", "needs"?}, ... ]               // "a" and "b" are perk ids
 }
 ```
 
-`cost` and `min` mean the same as for items. A duo needs two different perks that exist in the file, and duo names must be unique (the game looks a duo up by name).
+`cost` and `min` mean the same as for items, and `needs` is optional on perks and duos too (below). A duo needs two different perks that exist in the file, and duo names must be unique (the game looks a duo up by name).
 **Keep the order unless you mean to change it**, for the same seeded-run reason as above.
 
 What a perk *does* is still coded where it applies, by id (`g.perks.has("deadeye")` and so on in `combat.gd`, `player.gd`, `pickups.gd`, `bosses.gd`, `main.gd`), and duo effects are checked by name with `has_duo(...)`. A new perk or duo therefore needs code too; the table only holds its name, text, price and pairing.
 
+## What an entry needs to matter (`needs`, roadmap alpha B9)
+
+Nothing should be dropped, offered or sold that cannot change the next round for what the player holds now. The game does not hard-code that for each item: an entry says what it **needs**, and one function answers for all of them, `Needs.ok` in `scripts/needs.gd`. An entry without `needs` always passes. The test reads the player's state, not only the weapon id: the pistol holds 1 dart and passes `clip_min` 3 only after three EXTENDED CLIP levels, the dart gun holds 6 from the start.
+
+`needs` is an object whose keys are all required (every one has to hold):
+
+| key | holds when | example |
+|---|---|---|
+| `"clip_min": N` | the clip the player holds is at least N darts (ammo goes through `add_shells`, which stops at the clip) | SCAVENGER `{"clip_min": 3}` |
+| `"hurt": true` | hearts are below the maximum | PATCH UP, the heart drop |
+| `"shop_ahead": true` | a shop node is still ahead on the run map: cash only pays there | HAGGLER, BOUNTY, the CASH drop |
+| `"boss_ahead": true` | a boss node is still ahead on the run map: weak spots exist only on bosses | DEADEYE |
+
+"Ahead" is read from the run map (`node_type_ahead` in `scripts/main.gd`): nodes on later floors that the current node leads to. Shops are guaranteed on floors 4 and 9 and bosses on floors 5 and 10, so these only fail late in a run. A run without a map has both, every round.
+
+Where `needs` goes: on an entry of `items.json` or a perk of `perks.json`; on a duo, where it decides whether the shop advertises the pairing (the effect itself still runs when both perks are owned); and for the drops in `DROP_NEEDS` in `scripts/content.gd`. Unknown keys and values of the wrong kind are logged with `push_error` and left out, so check the Godot output panel after editing.
+
+What the game does with an entry that fails: an upgrade card or shop item is left out of the pool before the offers are drawn, so the three cards and the four shelves are still filled from what is left; a duo is not advertised; a drop is not spawned (`drop_ok` and `matter_drop` in `scripts/pickups.gd`): a single draw from the drop table (a boss's drop, a cache's reward) turns it into cash when cash matters and into nothing otherwise, and a kill's separate chances simply skip it, as they always skipped a heart at full hearts. The test never draws a random number: the offers still come from the seeded `offer_shuffle`, so the same seed and the same loadout give everybody the same offers, the Daily Run included.
+
+**A new item, perk, duo or drop has to say what it needs.** Ask of it, for the pistol (a 1-dart clip) and for the dart gun: does it change the next round? If it does for both, leave `needs` out. If it only does while something holds, write that as `needs`. If the condition is not one of the four keys, add it in `needs.gd` (the list `KEYS`, `ok` and `clean`) and say what it reads here. A new weapon is covered without edits: `tools/offer_sense_check.gd` runs every weapon in `PRIMARY_WEAPONS` and fails when anything it offers or drops cannot matter; run it with `python tools/run_checks.py offer_sense`.
+
 ## Does it matter for what you hold? (the B9.1 audit, 2026-10-28)
 
-Roadmap alpha B9: nothing should be dropped, offered or sold that cannot change the next round for the loadout the player holds. This table is the first step (B9.1): every drop, upgrade card, shop item, perk and duo, what it needs to matter, and what it does today with the two primary weapons. It was written by reading the code, not by playing, so the owner reads it and decides (B9.2); the **Decision** column is for those decisions and is empty on purpose. Hearts are the model case: `drop_kill` only drops one when you are hurt, `maybe_drop` and the cache turn one into cash at full hearts, `shop_ok` offers PATCH UP only when hurt.
+Roadmap alpha B9: nothing should be dropped, offered or sold that cannot change the next round for the loadout the player holds. This table is the first step (B9.1): every drop, upgrade card, shop item, perk and duo, what it needs to matter, and what it does today with the two primary weapons. It was written by reading the code, not by playing, so the owner read it and decided (B9.2, 2026-10-28); the **Decision** column holds those decisions. A row with an empty Decision passes the test (`OK`) and needs none. Hearts are the model case: `drop_kill` only drops one when you are hurt, `maybe_drop` and the cache turn one into cash at full hearts, `shop_ok` offers PATCH UP only when hurt.
 
 Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 dart (`start_clip` 1, `max_clip` 4, `clip_step` 1, one dart per pull), the **dart gun** holds 6 (`max_clip` 12, `clip_step` 2). Refilling the pistol's one dart takes 0.55 s (0.25 s with three SPEEDLOADER levels); refilling the dart gun from empty takes 2.4 s (0.9 s with three levels). The clip is refilled to full at the start of every round (`start_round`), so ammo only matters inside a round. `add_shells` (`combat.gd`) never goes past the clip, which is what makes ammo weak with a small clip. Style rank S also gives back one dart every 3 s, whatever you hold.
 
@@ -63,14 +84,14 @@ Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 da
 | FAT DARTS (10 s) | same | nothing | bigger hit area | same | OK | |
 | SLOW MO (6 s) | same | nothing | slows the world to 55 % | same | OK | |
 | SHIELD | same | nothing | absorbs the next hit | same | OK | |
-| CASH +$15 | `drop_kill` 15 %, 2 of 11 in `DROPS`, 2 of 9 cache rewards | cash to spend | +500 score always; the cash only pays at a shop node | same | COND (the cash half) | |
-| AMMO +2 (+4 with SCAVENGER) | `drop_kill` 28 % + 4 % per style rank (+15 % SCAVENGER), SALVAGE, SCRAPYARD, 1 of 11 in `DROPS`, 2 of 9 cache rewards | a clip that is not full | does nothing with the dart in the gun; with the pistol empty it only fills the one dart (saves a 0.55 s reload); with 3 EXTENDED CLIP levels up to 2 darts | up to 2 of 6 darts, about 0.8 s of reload | WEAK | |
+| CASH +$15 | `drop_kill` 15 %, 2 of 11 in `DROPS`, 2 of 9 cache rewards | cash to spend | +500 score always; the cash only pays at a shop node | same | COND (the cash half) | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead on the map. |
+| AMMO +2 (+4 with SCAVENGER) | `drop_kill` 28 % + 4 % per style rank (+15 % SCAVENGER), SALVAGE, SCRAPYARD, 1 of 11 in `DROPS`, 2 of 9 cache rewards | a clip that is not full | does nothing with the dart in the gun; with the pistol empty it only fills the one dart (saves a 0.55 s reload); with 3 EXTENDED CLIP levels up to 2 darts | up to 2 of 6 darts, about 0.8 s of reload | WEAK | **Hide until the clip is 3+** (B9.2): not dropped, not a cache reward, while the clip the player holds is below 3 darts. The AMMO family below follows the same rule. |
 
 ### Upgrade cards (`UPGRADES`, offered by `upgrade_ok`; the same ids are the `tier` items of the shop, which `shop_ok` filters through `upgrade_ok`)
 
 | Entry | Needs | Pistol today | Dart gun today | Verdict | Decision |
 |---|---|---|---|---|---|
-| EXTENDED CLIP | clip below `max_clip` (`upgrade_ok` reads the weapon) | +1 dart a level, 1 to 4, 3 levels; the card text says "+2 darts per clip"; the stat line (`upgrade_stat`) shows the real step | +2 a level, 6 to 12, 3 levels | TEXT on the pistol | |
+| EXTENDED CLIP | clip below `max_clip` (`upgrade_ok` reads the weapon) | +1 dart a level, 1 to 4, 3 levels; the card text says "+2 darts per clip"; the stat line (`upgrade_stat`) shows the real step | +2 a level, 6 to 12, 3 levels | TEXT on the pistol | **Text follows the weapon** (B9.2): the card shows the real step of the weapon in the slot (+1 with the pistol, +2 with the dart gun), not a fixed "+2 darts per clip". |
 | GREASED SLIDE | pump above `pump_min` | 0.26 s to 0.14 s, 4 levels | 0.20 s to 0.10 s, 3 levels | OK | |
 | SPEEDLOADER | fewer than 3 levels | refilling one dart goes from 0.55 s to 0.25 s: small, and bigger once the clip is | 2.4 s to 0.9 s | OK | |
 | FAT DARTS | fewer than 4 levels | bigger hit area | same | OK | |
@@ -90,38 +111,46 @@ Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 da
 | FAT DART PACK (25 s) | nothing | bigger hit area | same | OK | |
 | SHIELD PACK | nothing | starts the round with a shield | same | OK | |
 | HYPE PACK | nothing | starts with the hype bar full | same | OK | |
-| FREE DARTS (first 12 darts cost no ammo) | nothing | 12 darts without a reload: about 6.6 s of reloading saved, and the pistol would otherwise reload after every dart | 12 darts is two full clips: about 4.8 s saved | OK, but nobody has decided what it should be worth (the pack is counted in darts, not clips) | |
+| FREE DARTS (first 12 darts cost no ammo) | nothing | 12 darts without a reload: about 6.6 s of reloading saved, and the pistol would otherwise reload after every dart | 12 darts is two full clips: about 4.8 s saved | OK, but nobody has decided what it should be worth (the pack is counted in darts, not clips) | **Keep 12 darts** (B9.2): worth the same reload time saved on either weapon, so it stays counted in darts. |
 
 ### Perks (`data/perks.json`) and duos
 
 | Entry | Needs | Pistol today | Dart gun today | Verdict | Decision |
 |---|---|---|---|---|---|
-| HAGGLER | a shop node ahead | 15 % off, only at shop nodes | same | COND | |
+| HAGGLER | a shop node ahead | 15 % off, only at shop nodes | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |
 | STEADY HANDS | nothing | 30 % less spread (the pistol's spread is wider, so it helps more) | same | OK | |
-| SALVAGE | an armoured rider, and an ammo drop that matters | armoured riders always drop ammo, which is WEAK here | same, but 2 of 6 darts is worth something | WEAK on the pistol | |
+| SALVAGE | an armoured rider, and an ammo drop that matters | armoured riders always drop ammo, which is WEAK here | same, but 2 of 6 darts is worth something | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
 | SPRINTER | nothing | sprint 12 % faster | same | OK | |
-| SLIDE SHOT | nothing | 3 free darts on a dash or slide: each one is a whole clip with the pistol | 3 of 6 | OK | |
-| BOUNTY | cash to spend | cash x1.35, only useful at a shop node | same | COND | |
+| SLIDE SHOT | nothing | 3 free darts on a dash or slide: each one is a whole clip with the pistol | 3 of 6 | OK | **Keep as it is** (B9.2). |
+| BOUNTY | cash to spend | cash x1.35, only useful at a shop node | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |
 | ADRENALINE | nothing | dash cooldown -40 % | same | OK | |
-| SCAVENGER | an ammo drop that matters | +15 % ammo drops and +4 darts, capped at the clip | +4 of 6 | WEAK on the pistol | |
-| COUNTER | a clip that is not full | refunds 1 dart on a deflect: with the pistol only after you fired its one dart | +1 of 6 | WEAK on the pistol | |
+| SCAVENGER | an ammo drop that matters | +15 % ammo drops and +4 darts, capped at the clip | +4 of 6 | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
+| COUNTER | a clip that is not full | refunds 1 dart on a deflect: with the pistol only after you fired its one dart | +1 of 6 | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
 | CLOSE SHAVE | hearts below the maximum | heals on every 2nd perfect dodge, but only when hurt | same | COND | |
-| LAST SHELL | nothing | every magazine dart is the last one, so every dart does double damage: not what the card or the balance assumes | one dart in six | ODD on the pistol | |
-| DEADEYE | a boss ahead | weak spots exist only on bosses (`hit_boss`; riders have none), so it does nothing against riders | same | COND | |
+| LAST SHELL | nothing | every magazine dart is the last one, so every dart does double damage: not what the card or the balance assumes | one dart in six | ODD on the pistol | **Keep it as a pistol perk** (B9.2): no change to the effect or the offer. |
+| DEADEYE | a boss ahead | weak spots exist only on bosses (`hit_boss`; riders have none), so it does nothing against riders | same | COND | **Filter by what is ahead** (B9.2): not offered once no boss is ahead (bosses are on floors 5 and 10). |
 | BOOMERANG | nothing | a deflected phone chains on | same | OK | |
 | SECOND WIND | nothing | once a round a deadly hit leaves 1 life | same | OK | |
-| MATADOR (SLIDE SHOT + CLOSE SHAVE) | a clip that is not full | perfect dodges refill 3 darts, capped at 1 | 3 of 6 | WEAK on the pistol | |
-| BOUNTY HUNTER (BOOMERANG + BOUNTY) | cash to spend | deflect kills pay x3 cash | same | COND | |
-| QUICK DRAW (SLIDE SHOT + BOUNTY) | nothing | 5 free darts on a dash or slide | 5 of 6 | OK | |
+| MATADOR (SLIDE SHOT + CLOSE SHAVE) | a clip that is not full | perfect dodges refill 3 darts, capped at 1 | 3 of 6 | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
+| BOUNTY HUNTER (BOOMERANG + BOUNTY) | cash to spend | deflect kills pay x3 cash | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |
+| QUICK DRAW (SLIDE SHOT + BOUNTY) | nothing | 5 free darts on a dash or slide | 5 of 6 | OK | **Keep as it is** (B9.2). |
 | GHOST (ADRENALINE + CLOSE SHAVE) | nothing | dash invulnerability 0.15 s longer | same | OK | |
-| HEADHUNTER (DEADEYE + SCAVENGER) | a boss ahead, and a clip that is not full | refunds 2 darts on a boss weak spot hit, capped at 1 | 2 of 6 | COND and WEAK | |
-| LIFE INSURANCE (SECOND WIND + BOUNTY) | cash to spend | second wind pays $80 | same | COND | |
-| SNIPER (LAST SHELL + DEADEYE) | a boss ahead | +2 damage on a weak spot hit with the last dart: with the pistol that is every boss weak spot hit after the first dart | only the last of 6 | COND and ODD on the pistol | |
-| SCRAPYARD (SALVAGE + SCAVENGER) | an armoured rider, and an ammo drop that matters | two ammo and cash from armoured riders; the ammo is WEAK, the cash is COND | same | WEAK and COND | |
+| HEADHUNTER (DEADEYE + SCAVENGER) | a boss ahead, and a clip that is not full | refunds 2 darts on a boss weak spot hit, capped at 1 | 2 of 6 | COND and WEAK | **Both rules** (B9.2): hide until the clip is 3+, and not offered once no boss is ahead. |
+| LIFE INSURANCE (SECOND WIND + BOUNTY) | cash to spend | second wind pays $80 | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |
+| SNIPER (LAST SHELL + DEADEYE) | a boss ahead | +2 damage on a weak spot hit with the last dart: with the pistol that is every boss weak spot hit after the first dart | only the last of 6 | COND and ODD on the pistol | **Keep it as a pistol perk** (B9.2) for the effect, and **filter by what is ahead**: not offered once no boss is ahead. |
+| SCRAPYARD (SALVAGE + SCAVENGER) | an armoured rider, and an ammo drop that matters | two ammo and cash from armoured riders; the ammo is WEAK, the cash is COND | same | WEAK and COND | **Both rules** (B9.2): hide until the clip is 3+ (the ammo), and filter the cash by what is ahead (not offered once no shop node is ahead). |
 | RICOCHET (COUNTER + BOOMERANG) | nothing | a deflected phone chains on to 4 targets | same | OK | |
 | SPEEDSTER (SPRINTER + ADRENALINE) | nothing | dash cooldown a further -20 % | same | OK | |
 
 **Reading the result.** Of the 47 rows, 30 are `OK`. The ones that fail the test with the pistol are the ammo family (the AMMO drop and the cache ammo reward, SCAVENGER, SALVAGE, COUNTER, MATADOR, the ammo half of HEADHUNTER and SCRAPYARD): they all go through `add_shells`, which stops at the clip. EXTENDED CLIP says the wrong step on the pistol. LAST SHELL and SNIPER do something the card does not say. The cash entries (CASH, HAGGLER, BOUNTY, BOUNTY HUNTER, LIFE INSURANCE) and the boss-only ones (DEADEYE, HEADHUNTER, SNIPER) pass the test only while a shop node or a boss is still ahead, which the run map can answer (`g.run_map`). A weapon with a bigger clip lifts most of the `WEAK` rows to `OK`, which is why the test has to read the player's clip and not only the weapon id.
+
+**The owner's decisions (B9.2, 2026-10-28).** Five, and B9.3 to B9.5 build on them:
+
+1. **The ammo family is hidden until the clip is 3+** (recommended option taken). The AMMO drop, the cache ammo reward, SCAVENGER, SALVAGE, COUNTER, MATADOR, HEADHUNTER and SCRAPYARD are left out of the pool while the clip the player holds is below 3 darts. The test reads the player's clip, so three levels of EXTENDED CLIP on the pistol (1 to 4) bring them back, and the dart gun (6) always has them.
+2. **EXTENDED CLIP's text follows the weapon** (recommended option taken): the card shows the step of the weapon in the slot, +1 with the pistol and +2 with the dart gun.
+3. **LAST SHELL and SNIPER stay as they are**, a pistol perk: with a one-dart clip every dart is the last one. (SNIPER still needs a boss ahead, see 4.)
+4. **Entries are filtered by what is ahead on the map** (recommended option taken). The cash entries (CASH drop, HAGGLER, BOUNTY, BOUNTY HUNTER, LIFE INSURANCE) need a shop node ahead, and DEADEYE, HEADHUNTER and SNIPER need a boss ahead. Shops are guaranteed on floors 4 and 9 and bosses on floors 5 and 10, so these entries only drop out late in a run.
+5. **FREE DARTS, SLIDE SHOT and QUICK DRAW stay as they are.** FREE DARTS stays at the first 12 darts of the next round (not counted in clips); SLIDE SHOT (3 free darts) and QUICK DRAW (5) keep their numbers. They skip the magazine, so they are worth something with either weapon and need no filter.
 
 ## `xp.json`
 

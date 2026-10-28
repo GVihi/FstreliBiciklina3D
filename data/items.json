@@ -19,7 +19,10 @@
 			"desc": "+1 life",
 			"cost": 70,
 			"min": 1,
-			"heal": 1
+			"heal": 1,
+			"needs": {
+				"hurt": true
+			}
 		},
 		{
 			"id": "pack_rapid",

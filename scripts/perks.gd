@@ -3,6 +3,8 @@ extends RefCounted
 # Perk *effects* stay in code (they check g.perks.has("id") where they apply). Format and rules: data/README.md.
 # JSON numbers arrive as floats, so they are cast to the types the game code expects.
 
+const Needs = preload("res://scripts/needs.gd")
+
 const PATH = "res://data/perks.json"
 
 
@@ -54,7 +56,7 @@ static func _clean_perk(raw, ids: Dictionary) -> Dictionary:
 	if ids.has(raw["id"]):
 		push_error('perks: duplicate id "%s"' % raw["id"])
 		return {}
-	return {
+	var p = {
 		"id": raw["id"],
 		"kind": "perk",
 		"name": raw["name"],
@@ -62,6 +64,10 @@ static func _clean_perk(raw, ids: Dictionary) -> Dictionary:
 		"cost": int(raw["cost"]),
 		"min": int(raw["min"])
 	}
+	var needs = Needs.clean(raw.get("needs"), raw["id"])  # optional: what the perk needs to matter (needs.gd)
+	if needs.size() > 0:
+		p["needs"] = needs
+	return p
 
 
 # a duo needs two different perks that exist, and a unique name (the name is how the game looks a duo up)
@@ -84,4 +90,8 @@ static func _clean_duo(raw, ids: Dictionary, seen_names: Dictionary) -> Dictiona
 	if seen_names.has(raw["name"]):
 		push_error('perks: duplicate duo name "%s"' % raw["name"])
 		return {}
-	return {"a": raw["a"], "b": raw["b"], "name": raw["name"], "desc": raw["desc"]}
+	var d = {"a": raw["a"], "b": raw["b"], "name": raw["name"], "desc": raw["desc"]}
+	var needs = Needs.clean(raw.get("needs"), raw["name"])  # optional: what the duo needs to matter (needs.gd)
+	if needs.size() > 0:
+		d["needs"] = needs
+	return d

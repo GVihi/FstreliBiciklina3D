@@ -178,7 +178,7 @@ func _draw_upgrade(k: float) -> void:
 			_txt(ln, r.position.x + r.size.x * 0.5, ly, int(22 * k), TEXT, 1)
 			ly += 30.0 * k
 		var dy = r.position.y + 175.0 * k
-		for ln2 in _wrap(u["desc"], r.size.x - 36.0 * k, int(15 * k)):
+		for ln2 in _wrap(g.shop_sys.item_desc(u), r.size.x - 36.0 * k, int(15 * k)):
 			_txt(ln2, r.position.x + r.size.x * 0.5, dy, int(15 * k), Color(0.79, 0.81, 0.83), 1)
 			dy += 24.0 * k
 		_txt(
@@ -270,7 +270,7 @@ func _draw_shop(k: float) -> void:
 			_txt(ln, r.position.x + r.size.x * 0.5, ly, int(22 * k), TEXT, 1)
 			ly += 28.0 * k
 		var dy = r.position.y + 150.0 * k
-		for ln2 in _wrap(it["desc"], r.size.x - 36.0 * k, int(15 * k)):
+		for ln2 in _wrap(g.shop_sys.item_desc(it), r.size.x - 36.0 * k, int(15 * k)):
 			_txt(ln2, r.position.x + r.size.x * 0.5, dy, int(15 * k), Color(0.79, 0.81, 0.83), 1)
 			dy += 22.0 * k
 		var ty = r.position.y + 205.0 * k

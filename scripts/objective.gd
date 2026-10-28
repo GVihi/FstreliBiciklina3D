@@ -130,10 +130,9 @@ func _take(c: Dictionary) -> void:
 	g.add_popup(at + Vector3(0, 1.4, 0), "CACHE  +%d" % CACHE_SCORE, GOLD)
 	g.score += CACHE_SCORE * (2 if g.hype_t > 0.0 else 1)
 	g.shop_sys.add_cash(CACHE_CASH)
-	var kind = REWARDS[randi() % REWARDS.size()]
-	if kind == "heart" and g.hearts >= g.MAXHEARTS:
-		kind = "cash"
-	g.pickup_sys.spawn_pickup(kind, at + Vector3(0, 1.0, 0))
+	var kind = g.pickup_sys.matter_drop(REWARDS[randi() % REWARDS.size()])
+	if kind != "":
+		g.pickup_sys.spawn_pickup(kind, at + Vector3(0, 1.0, 0))
 	g.sfx.play("pickup")
 	g.add_hype(10.0)
 	g.hi_check()

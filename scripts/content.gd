@@ -135,6 +135,11 @@ static var CHEER_PX = [108.0, 146.0, 184.0, 612.0, 650.0, 688.0]
 static var DROPS = [
 	"heart", "rapid", "rapid", "big", "big", "slow", "shield", "shield", "cash", "cash", "ammo"
 ]
+# what a drop needs to matter (needs.gd; a drop that is not listed always matters). A drop that fails is not spawned:
+# `matter_drop` in pickups.gd turns it into cash where cash matters, and into nothing otherwise
+static var DROP_NEEDS = {
+	"heart": {"hurt": true}, "cash": {"shop_ahead": true}, "ammo": {"clip_min": 3}
+}
 static var DROP_INFO = {
 	"heart": {"col": Color.html("#e5533d"), "ch": "+", "name": "EXTRA LIFE"},
 	"rapid": {"col": Color.html("#ff7a1a"), "ch": "R", "name": "RAPID FIRE"},

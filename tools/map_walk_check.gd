@@ -197,13 +197,23 @@ func _check_shop_node(seed_value: int, f: int) -> void:
 		_fail(seed_value, "the shop node on floor %d made round %d" % [f + 1, main.round_n])
 	if not main.riders.is_empty() or not main.bosses.is_empty():
 		_fail(seed_value, "the shop node on floor %d has riders or a boss" % (f + 1))
-	if main.shop_items.is_empty():
-		_fail(seed_value, "the shop node on floor %d offers nothing" % (f + 1))
+	# the shelves stay full (README alpha B9.4): the test of scripts/needs.gd only shrinks the pool, and the five
+	# packs have no needs, so a shop always shows its four items, and each one passes the test
+	if main.shop_items.size() != 4:
+		_fail(
+			seed_value,
+			"the shop node on floor %d shows %d items, not 4" % [f + 1, main.shop_items.size()]
+		)
 	var heal_on_sale = false
 	for it in main.shop_items:
 		if it["kind"] == "heal":
 			heal_on_sale = true
-	# the heal is on sale exactly when the player is hurt (`shop_ok` in scripts/shop.gd), as in any other shop
+		if not main.shop_sys.shop_ok(str(it["id"])):
+			_fail(
+				seed_value,
+				"the shop node on floor %d sells %s, which fails its test" % [f + 1, it["id"]]
+			)
+	# the heal is on sale exactly when the player is hurt (its `needs` in data/items.json, read by `shop_ok`)
 	if heal_on_sale != (main.hearts < main.MAXHEARTS):
 		_fail(seed_value, "the shop node on floor %d: heal on sale is %s" % [f + 1, heal_on_sale])
 	if main.screens_passed() != _shops_before(f):
