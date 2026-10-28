@@ -14,6 +14,13 @@ extends RefCounted
 #
 # "Ahead" is read from the run map (`main.node_type_ahead`): nodes on later floors that the current node leads to.
 # A run without a map (the roundabout) has a shop after every round and bosses in its rounds, so both pass there.
+#
+# Fair draws (B9.4, the rule of C3.2): the test only decides what is IN a pool, it never draws a random number and
+# never touches a seeded stream. The offers of an upgrade screen and a shop still come from `offer_shuffle`, seeded by
+# the run seed, the round and the part, so the same seed with the same loadout (weapon, clip, hearts, perks, place on
+# the map) gives everybody the same offers, the Daily Run included. A drop that fails is not re-drawn: `matter_drop`
+# (pickups.gd) turns it into cash when cash matters and into nothing otherwise, and a kill's separate chances
+# (`drop_kill`) just skip it, as they always skipped a heart at full hearts. Drops are not seeded.
 # Format and rules for the data files: data/README.md.
 
 const KEYS = ["clip_min", "hurt", "shop_ahead", "boss_ahead"]
