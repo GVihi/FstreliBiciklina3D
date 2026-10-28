@@ -13,6 +13,14 @@ The game keeps four small files in Godot's `user://` folder (on Windows: `%APPDA
 
 A file written before versioning has no version number and counts as **version 0**. Loading it works as before, and the next save writes version 1.
 
+## First-run hints (`[hints]` in `settings.cfg`)
+
+`settings.cfg` has a `[hints]` section with one `true` / `false` per first-run hint: `map`, `upgrade`, `shop`, `rest`, `extract` and `cache` (`HINT_IDS` in `scripts/settings.gd`). `true` means the hint was shown once and is not shown again. It is a field with a default, so there is no version bump.
+
+- A file without the section, a missing key, or a value that is not `true` / `false` loads as **not seen**: the worst a hand-edited file can do is show a hint again. A key that is not one of the six ids is ignored (and dropped the next time the file is saved).
+- `Settings.mark_hint_seen(id)` sets the flag and saves; it returns `true` only the first time, so the caller knows when to draw the hint.
+- The flags are **settings, not progress**: RESET ALL PROGRESS keeps `settings.cfg`, so a reset does not show the hints again. To see them again, delete the `[hints]` section (or set the values to `false`) by hand.
+
 ## Safety rules (`scripts/save_util.gd`)
 
 - A file that cannot be read is copied to `<file>.bad.bak` before the game saves over it.
