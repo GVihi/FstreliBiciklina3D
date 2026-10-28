@@ -477,10 +477,93 @@ Without `arena_generated_check` the suite takes about 7 minutes; the slowest pas
 - [ ] Implement weapon
 - [ ] Create upgrade path
 
+> **Added 2026-10-28 (owner): a bunch of new weapons, melee variants and gadgets** (the rest of this section, up to "Synergies"). They follow the same rules as the weapons above: a new weapon is **bought first** on the Unlocks page (an entry in `data/unlocks.json` with `kind: "weapon"`, a name, a description and a tier of the price curve, `planned: true` until it is built), then **chosen on the Loadout page**, and never found in the shop pool. The tiers named below are first guesses (the price curve is 60, 120, 250, 450 and 750 coins), and so is every number. **A new weapon is done when:** (1) its numbers are in `data/weapons.json` and described in `data/README.md`; (2) it is listed in the constant of its slot in `scripts/weapon_slots.gd` (`PRIMARY_WEAPONS`, `MELEE_WEAPONS` or `GADGET_WEAPONS`); (3) a `tools/<name>_check.gd` covers what is special about it (the runner finds it by its name, no `.bat`); (4) `python tools/run_checks.py offer_sense` passes, because that check goes through every weapon in `PRIMARY_WEAPONS`: decide for each new primary weapon what the ammo drops, FREE DARTS, the cache ammo reward and the clip upgrades mean for it (the same question as B9.2), and give the entries that do nothing for it a `needs` (`data/README.md`, "What an entry needs to matter"); (5) the owner plays a run with it. Run only the checks of the code touched, not the whole suite (testing rule).
+
+### Scoped Sniper Rifle
+
+> A single-shot, long-range dart rifle with a zoom scope, for the player who wants to pick riders off across the 144 m arena instead of fighting in the street. A primary weapon, tier 4 (450 coins) as a first guess. It is slow and wants a steady aim, so it is strong at range and weak up close; the pistol and the dart gun stay the answer to a rider on top of you.
+
+- [ ] Implement weapon: one dart per shot, a bolt-action pause after every shot (blocks the next shot, longer than the pistol's), a clip of 3 and a slow reload; damage high enough that one hit removes a normal rider, while armoured riders and bosses take it as a big hit and not an instant kill (check against the rider health in `data/`)
+- [ ] Add the scope: hold the aim button to zoom (narrower field of view, a scope overlay with a crosshair, slower look speed so it stays controllable); leaving the scope is instant when the player is hit or switches weapon, and the overlay never covers the hearts or the ammo
+- [ ] Add scope sway and a steady breath: the crosshair drifts slowly while zoomed, standing still or crouching shrinks it, moving makes it worse, and a short HOLD BREATH (own key and gamepad button, limited, recovers by itself) freezes it for a moment; the sway and any camera kick follow the SHAKE AND FLASH setting (`fx_scale`)
+- [ ] Hip fire is deliberately bad (wide spread), so the scope is how the weapon is meant to be used; range well above the dart gun's 80 m (first guess 150 m, enough to cross the arena)
+- [ ] Decide what a weak spot hit does with the rifle (weak spots already exist: DEADEYE gives +1 damage on one), since aiming through a scope is where a player will go for them; and note that the duo perk SNIPER (LAST SHELL plus DEADEYE, `data/perks.json`) already has that name, so the weapon is called the Scoped Sniper Rifle in the game's text and the duo keeps its name
+- [ ] Make shots readable at a distance: a thin tracer or dart trail, a clear hit marker, and riders far away stay visible against each of the six arena styles
+- [ ] `tools/sniper_check.gd`: the bolt pause, the zoom state, the sway (smaller when still, smaller while holding the breath), the range, and that leaving the scope on a hit or a weapon switch works
+- [ ] Create upgrade path (five tiers, bought in the run like the pistol's):
+  - [ ] Tier 1, Spare Darts: bigger clip
+  - [ ] Tier 2, Smooth Bolt: shorter bolt pause and reload
+  - [ ] Tier 3, Steady Scope: less sway and a longer held breath
+  - [ ] Tier 4, Second Zoom: a second zoom level (mouse wheel while zoomed)
+  - [ ] Tier 5, Sticky Tip: a rider hit by the rifle is marked for a few seconds and takes extra damage from every other weapon
+
+### Marshmallow Blaster
+
+> A short-range scatter gun: a cone of soft marshmallows that is brutal up close and useless at 30 m. A primary weapon, tier 3 (250 coins).
+
+- [ ] Implement weapon: a cone of pellets per shot (first guess 8), a clip of 2, reload shell by shell (so a reload can be interrupted), range about 20 m
+- [ ] Add falloff: full damage inside a few metres, close to nothing at the end of the range, so the weapon rewards getting close
+- [ ] Add knockback: a close hit shoves the rider back and sideways, breaking its approach line (a rider that is pushed does not throw its phone that moment)
+- [ ] Create upgrade path (five tiers: clip, reload, spread, knockback, damage)
+
+### Super Soaker
+
+> A water blaster that fires a continuous stream. A primary weapon, tier 4 (450 coins). Its quirk is a tank instead of a clip and the puddles it leaves.
+
+- [ ] Implement weapon: the stream fires while the button is held and drains a tank, the tank refills slowly while not firing, damage is small per tick and adds up
+- [ ] Decide what ammo means for a tank (the same question as B9.2): for example an ammo drop and the cache ammo reward refill a share of the tank, and write it in the table of `data/README.md`
+- [ ] Add puddles: ground the stream lands on gets wet for a few seconds, and a rider that rides through slows down (and a slow rider is an easier target)
+- [ ] Create upgrade path (five tiers: tank size, refill speed, range, puddle size and time, damage)
+
+### Rubber Band Repeater
+
+> A fast automatic gun that fires rubber bands: low damage per band, a big clip, wild bloom. A primary weapon, tier 3 (250 coins). Its quirk is that a band bounces once.
+
+- [ ] Implement weapon: automatic fire (hold to shoot), a clip of 30, a short reload, heavy bloom that grows while the button is held and settles when released
+- [ ] Add the bounce: a band that hits a wall or building bounces once and can still hit a rider, so corners can be shot around; use the same wall test as the other shots. Call it "bounce" in the game's text, because the duo perk RICOCHET (COUNTER plus BOOMERANG, deflected phones chain on) already owns that name
+- [ ] Create upgrade path (five tiers: clip, reload, bloom, number of bounces, damage)
+
+### Slingshot
+
+> A hand slingshot with a draw: hold to pull back, release to fire. A primary weapon, tier 2 (120 coins), the cheapest new one. Its quirk is that how long you hold decides the shot.
+
+- [ ] Implement weapon: the draw takes about a second, a tap fires a weak, slow, short shot and a full draw a fast, hard, long one; one shot at a time, and a very short reload (picking the next stone)
+- [ ] Add the draw feedback: the band stretches on the weapon model, the camera narrows slightly (follows `fx_scale`), and a full draw is clearly marked (sound and a small pulse) so the player knows when to let go
+- [ ] Create upgrade path (five tiers: draw speed, full-draw damage, range, a second stone on a full draw, a wobble-free hold)
+
+## New Melee Weapons
+
+> The gummy worm (`melee` in `data/weapons.json`: 0.3 s cooldown, damage 2, it deflects phones) stays the starting melee weapon and the baseline. Each variant below has **one quirk that makes it play differently, not just a bigger number**. They sit in the melee slot (`MELEE_WEAPONS`, read through `melee_stats()`), are bought on the Unlocks page (tiers 1 to 3 as a first guess) and chosen on the Loadout page; the melee lock at level 5 stays out of the alpha (see "Not in the early alpha"). Q, wheel, 1 and 2 keep switching between the primary and the melee weapon. The Melee Reach upgrade (`reach_per_level`) applies to every variant, and every variant still deflects phones (a quirk may make it do that better or worse, never not at all).
+
+- [ ] Audit the melee code for what is tied to the gummy worm (the swing, the HUD name, the deflect, Melee Reach, the `round_no_gun` rule) and make it read `melee_stats()` everywhere, so the first variant does not need special cases
+- [ ] **Pool Noodle** (tier 1, 60 coins), quirk **reach and sweep**: the longest reach and a wide arc, so one swing can hit several riders; damage 1, so it needs a few hits, and the longest deflect range of all
+  - [ ] Implement weapon, and the sweep (every rider inside the arc is hit once per swing)
+- [ ] **Squeaky Hammer** (tier 2, 120 coins), quirk **slow slam and stun**: a slow wind-up and a heavy overhead hit, big damage and a short stun on every rider in a small ring around the impact; nothing is deflected during the wind-up, which is the price
+  - [ ] Implement weapon, the wind-up and the stun ring
+- [ ] **Fly Swatter** (tier 2, 120 coins), quirk **speed and combo**: a very fast swat (first guess 0.15 s cooldown) with damage 1; swats in a row inside a short window build a combo and the third is a big finisher, a miss resets it; the widest deflect cone, good at swatting phones out of the air
+  - [ ] Implement weapon and the combo counter (shown in the HUD slot display)
+- [ ] **Spring Glove** (tier 3, 250 coins), quirk **lunge**: a boxing glove on a spring that shoots the player forward about 4 m on a swing (a gap closer), with a long cooldown and the player exposed afterwards; the lunge never carries the player through a wall or off the arena
+  - [ ] Implement weapon and the lunge (ground test as for the player's walking)
+- [ ] **Tennis Racket** (tier 3, 250 coins), quirk **timed return**: a deflect inside a tight window sends the phone back at the rider that threw it, fast, and removes that rider; an early or late swing deflects normally; the hit itself is weak
+  - [ ] Implement weapon and the timing window (first guess a tenth of a second, tuned by playing; shown by a short flash)
+- [ ] `tools/melee_variants_check.gd`: every variant is in `MELEE_WEAPONS`, loads from `data/weapons.json`, deflects, respects Melee Reach, and its quirk happens (the sweep, the stun, the combo, the lunge, the return)
+
+## New Gadgets
+
+> Gadgets go in the gadget slot (`GADGET_WEAPONS`, read through `gadget_stats()`), which is empty today because no gadget exists. A gadget is used on the spot with its own key and gamepad button (the "Gadget use key" item above, built together with the first one) and has a **cooldown or a number of uses per round**, shown in the HUD slot display. The Stink Bomb above is the first gadget; these are more. Rules for all of them: a gadget never harms or affects a pedestrian or a cheerleader (a civilian hit loses the run), and no gadget effect is a chance roll, so the same seed plays the same in the Daily Run. Tiers 1 to 4 as a first guess; each gets a five-tier upgrade path later (uses, cooldown, area, duration).
+
+- [ ] **Banana Peel Trap** (tier 1, 60 coins): placed on the ground in front of the player, 3 uses per round; the first rider to ride over it crashes and is stunned for a few seconds; it stays until triggered or the round ends
+- [ ] **Whoopee Decoy** (tier 2, 120 coins): a loud toy thrown to a spot; riders steer towards it for about 4 seconds (the opposite of the Stink Bomb, which pushes them away), cooldown about 20 s; good for pulling riders into a trap or a clear line of fire
+- [ ] **Glitter Bomb** (tier 2, 120 coins): thrown; the cloud dazzles riders inside it, so for about 5 seconds they throw their phones wide
+- [ ] **Roller Skates** (tier 3, 250 coins): a burst of speed and a long slide for about 3 seconds, cooldown about 15 s; no jumping, since jumping is Milestone L
+- [ ] **Pool Float Shield** (tier 4, 450 coins): hold to raise an inflatable ring in front; it blocks phones from the front but the player moves slower and cannot shoot while it is up, and it deflates after a few hits and has to recover
+- [ ] `tools/gadgets_check.gd`: every gadget is in `GADGET_WEAPONS`, uses or cooldown are counted and shown, a pedestrian is never affected, and the same seed gives the same result twice
+
 ## Synergies
 
 - [ ] Create perk interactions
 - [ ] Create duo synergies with existing perk system
+- [ ] Decide which existing perks and duos work with the new weapons and gadgets (for example STEADY HANDS with the sniper's scope sway, DEADEYE with the sniper rifle's weak spot hits, the duo RICOCHET with the Tennis Racket's timed return, SLIDE SHOT with the Marshmallow Blaster, SPRINTER with the Roller Skates). Every perk and duo already says what it needs to matter (`needs`, B9.7), so say what each one needs for the new weapons, and check `offer_sense` still passes
 
 ---
 
