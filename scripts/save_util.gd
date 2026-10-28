@@ -4,11 +4,18 @@ extends RefCounted
 # Rules: a file that cannot be read, or that was written by a newer version of the game, is copied to a ".bak" file
 # before the game saves over it, so an older build or a damaged file can never destroy a player's data.
 # How to change a save format: docs/SAVE_FILES.md
+# `read_only`: switched on by the developer start options (dev_start.gd) for the rest of the session. While it is on,
+# nothing in user:// is written or deleted (every writer checks it first), so a test session with made-up coins and
+# unlocks can never reach the player's own files. It is never on in a normal start.
+
+static var read_only = false
 
 
 # Copies a save file next to itself as "<name>.<tag>.bak" (for example "scores.json.bad.bak").
 # An empty or missing file is not worth a backup. An older backup with the same tag is replaced.
 static func backup(path: String, tag: String) -> void:
+	if read_only:
+		return
 	if not FileAccess.file_exists(path):
 		return
 	var bytes = FileAccess.get_file_as_bytes(path)

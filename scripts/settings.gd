@@ -102,6 +102,8 @@ func load_settings() -> void:
 
 
 func save_settings() -> void:
+	if SaveUtil.read_only:
+		return
 	var cf = ConfigFile.new()
 	cf.set_value("meta", "version", VERSION)
 	cf.set_value("game", "fov", g.fov_hip)

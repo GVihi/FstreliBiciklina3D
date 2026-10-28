@@ -21,6 +21,10 @@ A file written before versioning has no version number and counts as **version 0
 - RESET LEADERBOARD on the High Scores page copies `scores.json` to `scores.json.reset.bak` before it erases the list, so one mistaken reset can be undone by copying that file back.
 - The game deletes a save file in one case only: RESET ALL PROGRESS (see below). Every value is clamped or cast on load, so a hand-edited file cannot crash it.
 
+## Developer start options: a read-only session (`scripts/dev_start.gd`)
+
+`godot --path . -- --dev-coins=500 --dev-unlocks=item_magnet,weapon_dart_gun` starts the game with 500 meta coins and those unlocks owned, for the balance pass (roadmap alpha D2). `--dev-unlocks=all` owns every unlock that is not planned. The values are set in memory only. As soon as either argument is given, `SaveUtil.read_only` is on for the whole session: `settings.cfg`, `scores.json`, `meta.json` and `run.json` are not written or deleted (including by RESET ALL PROGRESS), and no `.bak` copy is made. The real files are still read, so the session starts from the real settings, scores and saved run. Every writer checks the switch first, so **a new writer of a file in `user://` has to check `SaveUtil.read_only` too**. The options work only when the game runs from the Godot editor binary; an exported game ignores them. `tools/dev_start_check.gd` covers all of it.
+
 ## RESET ALL PROGRESS (last row of the settings panel)
 
 The red button at the bottom of the settings panel (title screen and pause menu) wipes the player's progress after two warnings: first "all progress will be wiped and cannot be recovered", then "are you absolutely sure". Only YES on the second one does it (`scripts/progress_reset.gd`, `reset_all_progress` in `scripts/main.gd`).

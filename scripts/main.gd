@@ -19,6 +19,8 @@ const Rim = preload("res://scripts/rim.gd")
 const ObjectiveScript = preload("res://scripts/objective.gd")
 const AmbushScript = preload("res://scripts/ambush.gd")
 const ExploreScript = preload("res://scripts/explore_map.gd")
+const DevStartScript = preload("res://scripts/dev_start.gd")
+const UnlocksScript = preload("res://scripts/unlocks.gd")
 const SfxScript = preload("res://scripts/sfx.gd")
 const Content = preload("res://scripts/content.gd")
 const WeaponSlots = preload("res://scripts/weapon_slots.gd")
@@ -336,6 +338,8 @@ func _ready() -> void:
 	run_save_enabled = get_tree().current_scene == self
 	refresh_saved_run()
 	settings.load_settings()
+	if get_tree().current_scene == self:
+		start_dev_options(OS.get_cmdline_user_args())
 	hearts = MAXHEARTS
 	shells = MAXSHELLS
 
@@ -599,6 +603,33 @@ static func wants_generated_arena(args: PackedStringArray, is_game: bool, alread
 	if args.has(GENERATED_ARENA_ARG):
 		return true
 	return already or is_game
+
+
+# The developer start options (dev_start.gd, roadmap alpha D2.1): `args` are the user arguments (after `--`). Without
+# --dev-coins or --dev-unlocks nothing happens. In an exported game they are ignored. Otherwise the coins and the
+# unlocks are set in memory, nothing is saved for the whole session (SaveUtil.read_only), and one line says so.
+# Returns what DevStart.parse found, with "applied" added, for the check.
+func start_dev_options(args: PackedStringArray) -> Dictionary:
+	var opts = DevStartScript.parse(args, UnlocksScript.load_table()["unlocks"])
+	opts["applied"] = false
+	if not opts["active"]:
+		return opts
+	if not DevStartScript.allowed():
+		print(
+			"[dev start] ignored: the developer start options only work when run from the Godot editor"
+		)
+		return opts
+	meta.apply_dev_start(opts)
+	opts["applied"] = true
+	for problem in opts["problems"]:
+		push_warning("[dev start] " + str(problem))
+	print(
+		(
+			"[dev start] coins %s, owned unlocks %s. NOTHING IS SAVED in this session (settings, scores, coins, run)."
+			% [str(meta.balance), str(opts["unlocks"])]
+		)
+	)
+	return opts
 
 
 # Recomputes today's daily seed (UTC date). Called at start-up and whenever the title screen opens,

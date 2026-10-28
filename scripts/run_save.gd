@@ -87,6 +87,8 @@ static func load_file() -> Dictionary:
 
 
 static func write_file(run: Dictionary) -> bool:
+	if SaveUtil.read_only:
+		return false
 	var f = FileAccess.open(path(), FileAccess.WRITE)
 	if f == null:
 		return false
