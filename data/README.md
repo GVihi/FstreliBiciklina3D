@@ -208,7 +208,7 @@ Numbers for the procedural run map (floors, widths, boss and prep floors, node t
 
 ## `unlocks.json`
 
-What the player can buy with meta coins (see `scripts/meta.gd`) and the price of each thing. Loaded by `scripts/unlocks.gd`; bad entries are skipped and logged with `push_error`, so check the Godot output panel after editing. Only the Unlocks page of the title menu reads it so far (`g.UNLOCKS`, from `Content.UNLOCK_TABLE`); buying happens there too (the ids bought are saved in `meta.json`, see `docs/SAVE_FILES.md`). Owning a `starting_perk` unlock lets the player choose that perk on the Loadout page, and a normal run then starts with it (a Daily Run or a typed seed does not). Owning a `shop_item` has no effect yet: the shop filter is a separate item of Milestone I in the README.
+What the player can buy with meta coins (see `scripts/meta.gd`) and the price of each thing. Loaded by `scripts/unlocks.gd`; bad entries are skipped and logged with `push_error`, so check the Godot output panel after editing. Only the Unlocks page of the title menu reads it so far (`g.UNLOCKS`, from `Content.UNLOCK_TABLE`); buying happens there too (the ids bought are saved in `meta.json`, see `docs/SAVE_FILES.md`). Owning a `starting_perk` unlock lets the player choose that perk on the Loadout page, and a normal run then starts with it (a Daily Run or a typed seed does not). Owning a `shop_item` puts that item in the shop: until it is bought `shop_ok` (`scripts/shop.gd`) leaves it out of every shop, through `g.shop_item_owned` in `scripts/main.gd` (alpha C3); every item that is not a `shop_item` unlock, and the heal, is always sold.
 
 ```
 {
@@ -222,7 +222,7 @@ Every entry has `id` (unique), `kind`, `target` and `tier` (1 to the length of t
 | kind | `target` | name and text | what buying it will do |
 |---|---|---|---|
 | `starting_perk` | a perk id from `perks.json` | taken from the perk | the perk can be chosen to start a run with |
-| `shop_item` | an item id from `items.json` (not the heal, which is always on sale) | taken from the item | the item joins the shop pool |
+| `shop_item` | an item id from `items.json` (not the heal, which is always on sale) | taken from the item | the item joins the shop pool once bought; until then no shop sells it (a normal run, the Daily Run and a custom seed alike) |
 | `weapon` | a weapon id: a new id for a weapon that does not exist yet (`planned`), or an existing primary weapon that is held back until bought (`dart_gun`) | `name` and `desc` are written in the entry | the weapon can be chosen on the Loadout page for its slot once bought (Milestone C); it does not join the shop pool |
 | `cosmetic` | a new id | `name` and `desc` are written in the entry | the skin can be equipped (Milestone B); no entries yet, each one is added with its art |
 
@@ -232,7 +232,7 @@ Every entry has `id` (unique), `kind`, `target` and `tier` (1 to the length of t
 
 **The price curve is a first guess.** A run pays 2 coins per round cleared, 3 for the mid boss (1 for the angry cyclist), 8 for the final boss, 1 coin per 100,000 points of score (at most 5) and the coins of its challenges (`scripts/meta.gd`, `challenges.json`). That is about 40 coins for a complete run and a few coins for a run lost in the first rounds. Tier 1 (60) is meant to be reachable in one or two good runs, the dart gun (250, tier 3) takes 6 to 7 complete runs, and buying everything listed takes 4,290 coins (about 107 complete runs: the price curve is still the first guess, see D3). Tune the numbers after real runs, in the balance pass of Milestone I.
 
-Not decided here, because it changes how runs play: a shop that skips the unlocked-only items means a seed no longer offers the same items to every player, so the Daily Run (and a custom seed) will probably need the full pool and no starting perk. Decide that when the shop filter is built.
+Decided with the owner when the shop filter was built (alpha C3): the Daily Run and a custom seed use the same shop filter as a normal run. The filter only changes which items are in the pool, never the seeded draws (`offer_shuffle`), so two players with the same seed and the same unlocks get the same shops, but a player who owns a `shop_item` unlock sees a different shop from one who does not. A Daily Run still starts without a starting perk.
 ## `challenges.json`
 
 The meta challenges: small goals that pay meta coins (Milestone B, "Earn from challenges"). Loaded by `scripts/challenges.gd`, which also watches the run for each condition and pays the coins with the run; bad entries are skipped and logged with `push_error`, so check the Godot output panel after editing. They show on the run summary and on the CHALLENGES page of the title menu.
