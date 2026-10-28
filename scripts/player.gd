@@ -246,8 +246,12 @@ func apply_aim_assist(dt: float) -> void:
 func grant_free_shots() -> void:
 	if not g.perks.has("slideshot"):
 		return
-	g.free_shots = 5 if g.shop_sys.has_duo("QUICK DRAW") else 3
-	g.add_note("SLIDE SHOT: %d FREE DARTS" % g.free_shots, g.GOLD)
+	var quick_draw = g.shop_sys.has_duo("QUICK DRAW")
+	g.free_shots = 5 if quick_draw else 3
+	# name the perk that is actually giving the darts: with the duo it is QUICK DRAW (5), not plain SLIDE SHOT (3)
+	g.add_note(
+		"%s: %d FREE DARTS" % ["QUICK DRAW" if quick_draw else "SLIDE SHOT", g.free_shots], g.GOLD
+	)
 
 
 func dash_cooldown() -> float:
