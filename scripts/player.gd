@@ -128,6 +128,8 @@ func update_player(dt: float, captured: bool) -> void:
 		g.dash_t -= dt
 	if g.slide_cd > 0.0:
 		g.slide_cd -= dt
+	if g.free_shots_cd > 0.0:
+		g.free_shots_cd -= dt
 	if g.dodge_cd > 0.0:
 		g.dodge_cd -= dt
 
@@ -244,10 +246,13 @@ func apply_aim_assist(dt: float) -> void:
 
 
 func grant_free_shots() -> void:
-	if not g.perks.has("slideshot"):
+	if not g.perks.has("slideshot") or g.free_shots_cd > 0.0:
 		return
 	var quick_draw = g.shop_sys.has_duo("QUICK DRAW")
 	g.free_shots = 5 if quick_draw else 3
+	g.free_shots_cd = g.FREE_SHOTS_COOLDOWN
+	if g.melee:  # the darts wait for the gun; a popup for something the held weapon cannot use is only noise
+		return
 	# name the perk that is actually giving the darts: with the duo it is QUICK DRAW (5), not plain SLIDE SHOT (3)
 	g.add_note(
 		"%s: %d FREE DARTS" % ["QUICK DRAW" if quick_draw else "SLIDE SHOT", g.free_shots], g.GOLD

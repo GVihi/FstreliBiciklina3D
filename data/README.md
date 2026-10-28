@@ -121,7 +121,7 @@ Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 da
 | STEADY HANDS | nothing | 30 % less spread (the pistol's spread is wider, so it helps more) | same | OK | |
 | SALVAGE | an armoured rider, and an ammo drop that matters | armoured riders always drop ammo, which is WEAK here | same, but 2 of 6 darts is worth something | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
 | SPRINTER | nothing | sprint 12 % faster | same | OK | |
-| SLIDE SHOT | nothing | 3 free darts on a dash or slide: each one is a whole clip with the pistol | 3 of 6 | OK | **Keep as it is** (B9.2). |
+| SLIDE SHOT | nothing | 3 free darts on a dash or slide, at most once every 15 s (`FREE_SHOTS_COOLDOWN`, added 2026-10-28 because a fast dash cooldown made it nearly constant): each one is a whole clip with the pistol | 3 of 6 | OK | **Keep as it is** (B9.2); the 15 s limit was added later. |
 | BOUNTY | cash to spend | cash x1.35, only useful at a shop node | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |
 | ADRENALINE | nothing | dash cooldown -40 % | same | OK | |
 | SCAVENGER | an ammo drop that matters | +15 % ammo drops and +4 darts, capped at the clip | +4 of 6 | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
@@ -133,7 +133,7 @@ Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 da
 | SECOND WIND | nothing | once a round a deadly hit leaves 1 life | same | OK | |
 | MATADOR (SLIDE SHOT + CLOSE SHAVE) | a clip that is not full | perfect dodges refill 3 darts, capped at 1 | 3 of 6 | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
 | BOUNTY HUNTER (BOOMERANG + BOUNTY) | cash to spend | deflect kills pay x3 cash | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |
-| QUICK DRAW (SLIDE SHOT + BOUNTY) | nothing | 5 free darts on a dash or slide | 5 of 6 | OK | **Keep as it is** (B9.2). |
+| QUICK DRAW (SLIDE SHOT + BOUNTY) | nothing | 5 free darts on a dash or slide, at most once every 15 s (same limit as SLIDE SHOT) | 5 of 6 | OK | **Keep as it is** (B9.2); the 15 s limit was added later. |
 | GHOST (ADRENALINE + CLOSE SHAVE) | nothing | dash invulnerability 0.15 s longer | same | OK | |
 | HEADHUNTER (DEADEYE + SCAVENGER) | a boss ahead, and a clip that is not full | refunds 2 darts on a boss weak spot hit, capped at 1 | 2 of 6 | COND and WEAK | **Both rules** (B9.2): hide until the clip is 3+, and not offered once no boss is ahead. |
 | LIFE INSURANCE (SECOND WIND + BOUNTY) | cash to spend | second wind pays $80 | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |

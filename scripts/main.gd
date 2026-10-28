@@ -78,6 +78,7 @@ const DASH_TIME = 0.22
 const DASH_SPEED = 15.0
 const SLIDE_TIME = 0.75
 const SLIDE_SPEED = 9.0
+const FREE_SHOTS_COOLDOWN = 15.0  # seconds between two SLIDE SHOT / QUICK DRAW grants, however fast the dash recharges
 
 const GOLD = Color(0.95, 0.71, 0.19)
 const WHITE = Color(1, 1, 1)
@@ -260,6 +261,7 @@ var slide_dir = Vector3.ZERO
 var was_sprint = false
 var crouch_prev = false
 var free_shots = 0  # darts that cost no ammo (SLIDE SHOT perk)
+var free_shots_cd = 0.0  # > 0 while SLIDE SHOT / QUICK DRAW cannot grant free darts again (not saved: a loaded run starts ready)
 var dodge_cd = 0.0
 var perfect_dodges = 0
 var hitstop = 0.0  # brief freeze-frame on big hits
@@ -958,6 +960,7 @@ func reset_run() -> void:
 	style = 0.0
 	perks = {}
 	free_shots = 0
+	free_shots_cd = 0.0
 	dash_cd = 0.0
 	dash_t = 0.0
 	dash_inv = 0.0
