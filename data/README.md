@@ -16,7 +16,7 @@ It is loaded by `scripts/items.gd`; bad entries are skipped and logged with `pus
 
 **Keep the order of both lists unless you mean to change it:** every run now shuffles these lists with a generator seeded by the run seed, so reordering changes what every player sees for the same seed.
 
-Every entry has `id`, `kind` (`heal`, `pack` or `tier`), `name`, `desc`, `cost` (base price in dollars) and `min` (first round it can appear in).
+Every entry has `id`, `kind` (`heal`, `pack` or `tier`), `name`, `desc`, `cost` (base price in dollars) and `min` (first round it can appear in), and may have `needs`: what it needs to matter (see "What an entry needs to matter" below).
 
 | kind | extra fields | what it does |
 |---|---|---|
@@ -34,15 +34,36 @@ Perks (bought once per run) and the duos that two perks form together. Loaded by
 
 ```
 {
-  "perks": [ {"id", "name", "desc", "cost", "min"}, ... ],   // shop pool order, after the items in items.json
-  "duos":  [ {"a", "b", "name", "desc"}, ... ]               // "a" and "b" are perk ids
+  "perks": [ {"id", "name", "desc", "cost", "min", "needs"?}, ... ],   // shop pool order, after the items in items.json
+  "duos":  [ {"a", "b", "name", "desc", "needs"?}, ... ]               // "a" and "b" are perk ids
 }
 ```
 
-`cost` and `min` mean the same as for items. A duo needs two different perks that exist in the file, and duo names must be unique (the game looks a duo up by name).
+`cost` and `min` mean the same as for items, and `needs` is optional on perks and duos too (below). A duo needs two different perks that exist in the file, and duo names must be unique (the game looks a duo up by name).
 **Keep the order unless you mean to change it**, for the same seeded-run reason as above.
 
 What a perk *does* is still coded where it applies, by id (`g.perks.has("deadeye")` and so on in `combat.gd`, `player.gd`, `pickups.gd`, `bosses.gd`, `main.gd`), and duo effects are checked by name with `has_duo(...)`. A new perk or duo therefore needs code too; the table only holds its name, text, price and pairing.
+
+## What an entry needs to matter (`needs`, roadmap alpha B9)
+
+Nothing should be dropped, offered or sold that cannot change the next round for what the player holds now. The game does not hard-code that for each item: an entry says what it **needs**, and one function answers for all of them, `Needs.ok` in `scripts/needs.gd`. An entry without `needs` always passes. The test reads the player's state, not only the weapon id: the pistol holds 1 dart and passes `clip_min` 3 only after three EXTENDED CLIP levels, the dart gun holds 6 from the start.
+
+`needs` is an object whose keys are all required (every one has to hold):
+
+| key | holds when | example |
+|---|---|---|
+| `"clip_min": N` | the clip the player holds is at least N darts (ammo goes through `add_shells`, which stops at the clip) | SCAVENGER `{"clip_min": 3}` |
+| `"hurt": true` | hearts are below the maximum | PATCH UP, the heart drop |
+| `"shop_ahead": true` | a shop node is still ahead on the run map: cash only pays there | HAGGLER, BOUNTY, the CASH drop |
+| `"boss_ahead": true` | a boss node is still ahead on the run map: weak spots exist only on bosses | DEADEYE |
+
+"Ahead" is read from the run map (`node_type_ahead` in `scripts/main.gd`): nodes on later floors that the current node leads to. Shops are guaranteed on floors 4 and 9 and bosses on floors 5 and 10, so these only fail late in a run. A run without a map has both, every round.
+
+Where `needs` goes: on an entry of `items.json` or a perk of `perks.json`; on a duo, where it decides whether the shop advertises the pairing (the effect itself still runs when both perks are owned); and for the drops in `DROP_NEEDS` in `scripts/content.gd`. Unknown keys and values of the wrong kind are logged with `push_error` and left out, so check the Godot output panel after editing.
+
+What the game does with an entry that fails: an upgrade card or shop item is left out of the pool before the offers are drawn, so the three cards and the four shelves are still filled from what is left; a duo is not advertised; a drop is not spawned (`drop_ok` and `matter_drop` in `scripts/pickups.gd`): a single draw from the drop table (a boss's drop, a cache's reward) turns it into cash when cash matters and into nothing otherwise, and a kill's separate chances simply skip it, as they always skipped a heart at full hearts. The test never draws a random number: the offers still come from the seeded `offer_shuffle`, so the same seed and the same loadout give everybody the same offers, the Daily Run included.
+
+**A new item, perk, duo or drop has to say what it needs.** Ask of it, for the pistol (a 1-dart clip) and for the dart gun: does it change the next round? If it does for both, leave `needs` out. If it only does while something holds, write that as `needs`. If the condition is not one of the four keys, add it in `needs.gd` (the list `KEYS`, `ok` and `clean`) and say what it reads here. A new weapon is covered without edits: `tools/offer_sense_check.gd` runs every weapon in `PRIMARY_WEAPONS` and fails when anything it offers or drops cannot matter; run it with `python tools/run_checks.py offer_sense`.
 
 ## Does it matter for what you hold? (the B9.1 audit, 2026-10-28)
 
