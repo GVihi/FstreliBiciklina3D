@@ -6,6 +6,11 @@ const SaveUtil = preload("res://scripts/save_util.gd")
 const GOLD = Color(0.95, 0.71, 0.19)
 const SETTINGS_PATH = "user://settings.cfg"
 const VERSION = 1  # settings.cfg: [meta] version. Version 0 (before versioning) had no [meta] section.
+# First-run hints (README early alpha E1): one line the first time the player meets a screen or an object. These are
+# the six triggers of E1.3. A hint is "seen" once it was shown, and the flags are saved under [hints] in settings.cfg.
+# A missing section, a missing key or a value that is not true / false counts as "not seen", so a hand-edited file can
+# only make a hint show again, never break the game. Settings, not progress: RESET ALL PROGRESS keeps them.
+const HINT_IDS = ["map", "upgrade", "shop", "rest", "extract", "cache"]
 
 var g = null
 # audio / window values read from the file before the sound system exists; apply_loaded() uses them
@@ -99,6 +104,9 @@ func load_settings() -> void:
 	_voices = bool(cf.get_value("game", "voices", _voices))
 	_fullscreen = bool(cf.get_value("game", "fullscreen", _fullscreen))
 	g.player_name = str(cf.get_value("game", "player_name", g.player_name))
+	for id in HINT_IDS:
+		var seen = cf.get_value("hints", id, false)
+		g.hints_seen[id] = typeof(seen) == TYPE_BOOL and seen
 
 
 func save_settings() -> void:
@@ -117,7 +125,24 @@ func save_settings() -> void:
 	cf.set_value("game", "voices", g.sfx.voices_on)
 	cf.set_value("game", "fullscreen", is_fullscreen())
 	cf.set_value("game", "player_name", g.player_name)
+	for id in HINT_IDS:
+		cf.set_value("hints", id, hint_seen(id))
 	cf.save(SETTINGS_PATH)
+
+
+# true when this first-run hint was already shown (an id that is not in HINT_IDS counts as not seen)
+func hint_seen(id: String) -> bool:
+	return bool(g.hints_seen.get(id, false))
+
+
+# Marks a hint as shown and saves it. Returns true the first time (the caller draws the hint then), and false for a
+# hint that was already seen or an id that is not in HINT_IDS (nothing is stored for it).
+func mark_hint_seen(id: String) -> bool:
+	if not HINT_IDS.has(id) or hint_seen(id):
+		return false
+	g.hints_seen[id] = true
+	save_settings()
+	return true
 
 
 func get_setting(id: String):

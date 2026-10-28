@@ -158,6 +158,7 @@ var kills = 0  # riders and bosses taken down this run
 var best_rank = 0  # highest style rank reached this run (0 = D .. 4 = S)
 var last_rank = -1  # leaderboard place of the run that just ended (0 = first), -1 = not on the list
 var player_name = "PLAYER"  # last name typed on the leaderboard (saved), offered again next time
+var hints_seen = {}  # first-run hint id -> true once it was shown (saved in settings.cfg under [hints], see settings.gd)
 var name_entry = false  # true on the run summary while the player is typing a name for a new leaderboard entry
 var name_buf = ""
 var new_unlocks = []  # names of the unlocks this run's coins put within reach for the first time (set in Meta.award_run)
