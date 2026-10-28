@@ -2,6 +2,8 @@ extends RefCounted
 # Shop: between-round upgrades, the shop and its prices, perks and duos, plus style meter and cash.
 # Shared game state stays on main.gd (g); this file holds the logic.
 
+const Needs = preload("res://scripts/needs.gd")
+
 var g = null
 
 
@@ -10,7 +12,10 @@ func _init(game) -> void:
 
 
 # ------------------------------------------------------------------ upgrades
+# true when the upgrade can be offered: its own needs (data/items.json, needs.gd) hold and it still has a level to give
 func upgrade_ok(id: String) -> bool:
+	if not Needs.ok(shop_item(id).get("needs", {}), g):
+		return false
 	if id == "clip":
 		return g.MAXSHELLS < int(g.primary_stats()["max_clip"])
 	if id == "pump":
@@ -220,24 +225,25 @@ func shop_ok(id: String) -> bool:
 	var it = shop_item(id)
 	if it.size() == 0 or int(it["min"]) > g.round_n:
 		return false
+	if not Needs.ok(it.get("needs", {}), g):  # PATCH UP needs hurt hearts, HAGGLER a shop ahead, and so on
+		return false
 	var kind = it["kind"]
-	if kind == "heal":
-		return g.hearts < g.MAXHEARTS
 	if kind == "tier":
 		return upgrade_ok(id)
-	if kind == "pack":
+	if kind == "pack" or kind == "heal":  # a heal's own need (hurt) is in its `needs`
 		return true
 	return not g.perks.has(id)
 
 
 func shop_tag(id: String) -> String:
+	# a duo that cannot matter now (its needs, needs.gd) is not advertised
 	for d in g.DUOS:
-		if d["a"] == id or d["b"] == id:
+		if (d["a"] == id or d["b"] == id) and Needs.ok(d.get("needs", {}), g):
 			var other = d["b"] if d["a"] == id else d["a"]
 			if g.perks.has(other):
 				return "DUO: " + d["name"] + " - " + d["desc"]
 	for d2 in g.DUOS:
-		if d2["a"] == id or d2["b"] == id:
+		if (d2["a"] == id or d2["b"] == id) and Needs.ok(d2.get("needs", {}), g):
 			var other2 = d2["b"] if d2["a"] == id else d2["a"]
 			return "PAIRS WITH " + perk_name(other2)
 	return ""

@@ -102,6 +102,7 @@ var BOSS_KINDS = Content.BOSS_KINDS
 var BOSS_INFO = Content.BOSS_INFO
 var CHEER_PX = Content.CHEER_PX
 var DROPS = Content.DROPS
+var DROP_NEEDS = Content.DROP_NEEDS
 var DROP_INFO = Content.DROP_INFO
 var SHOP_POOL = Content.SHOP_POOL
 var DUOS = Content.DUOS
@@ -1225,6 +1226,31 @@ func next_lanes() -> Array:
 		for j in current_node()["next"]:
 			out.append(int(j))
 	return out
+
+
+# true if a node of this type ("shop", "boss", ...) is still ahead of the player: on a later floor and reachable from
+# the node being played (every node of floor 1 before the first pick). A run without a map (the roundabout) has a shop
+# after every round and bosses in its rounds, so it answers true. Read by the `shop_ahead` and `boss_ahead` needs
+# (needs.gd), which is how cash and boss-only entries stop being offered once no shop or boss is left.
+func node_type_ahead(type: String) -> bool:
+	if run_map.is_empty():
+		return true
+	var floors = run_map["floors"]
+	var lanes = next_lanes()
+	var f = map_floor + 1
+	while f < floors.size() and not lanes.is_empty():
+		var seen = {}
+		for lane in lanes:
+			if int(lane) >= floors[f].size():
+				continue
+			var node = floors[f][int(lane)]
+			if str(node.get("type", "")) == type:
+				return true
+			for j in node.get("next", []):
+				seen[int(j)] = true
+		lanes = seen.keys()
+		f += 1
+	return false
 
 
 # opens the map screen with the choices for the next round

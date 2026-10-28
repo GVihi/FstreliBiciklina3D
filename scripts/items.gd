@@ -3,6 +3,8 @@ extends RefCounted
 # Perks and duos are in data/perks.json (perks.gd). Item *effects* (what a tier changes) stay in shop.gd.
 # Format and rules: data/README.md. JSON numbers arrive as floats, so they are cast to the types the game code expects.
 
+const Needs = preload("res://scripts/needs.gd")
+
 const PATH = "res://data/items.json"
 const KINDS = ["heal", "pack", "tier"]
 const PACK_KEYS = ["rapid", "big", "shield", "hype", "free"]
@@ -69,6 +71,9 @@ static func _clean(raw, by_id: Dictionary) -> Dictionary:
 		"cost": int(raw["cost"]),
 		"min": int(raw["min"])
 	}
+	var needs = Needs.clean(raw.get("needs"), raw["id"])  # optional: what the item needs to matter (needs.gd)
+	if needs.size() > 0:
+		it["needs"] = needs
 	if raw["kind"] == "heal":
 		it["heal"] = int(raw.get("heal", 1))
 	if raw["kind"] == "pack":
