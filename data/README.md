@@ -152,6 +152,30 @@ Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 da
 4. **Entries are filtered by what is ahead on the map** (recommended option taken). The cash entries (CASH drop, HAGGLER, BOUNTY, BOUNTY HUNTER, LIFE INSURANCE) need a shop node ahead, and DEADEYE, HEADHUNTER and SNIPER need a boss ahead. Shops are guaranteed on floors 4 and 9 and bosses on floors 5 and 10, so these entries only drop out late in a run.
 5. **FREE DARTS, SLIDE SHOT and QUICK DRAW stay as they are.** FREE DARTS stays at the first 12 darts of the next round (not counted in clips); SLIDE SHOT (3 free darts) and QUICK DRAW (5) keep their numbers. They skip the magazine, so they are worth something with either weapon and need no filter.
 
+## Balance knobs (roadmap alpha D2.2)
+
+Every number the balance pass (D2) can turn, in one place. Most of them are written in code, not in a data file, so the second column says where. `round_n` is the floor (1 to 10). Values were read from the code on 2026-10-28; if you change one, change it here too. Change **one number at a time** and play again (D2.4).
+
+| Knob | Where | Now | What it does |
+|---|---|---|---|
+| Rider speed | `spawn_rider` in `scripts/riders.gd` | `165 * RIDER_SCALE (0.05) * diff * type speed`, with `diff = 1 + 0.13 * (round_n - 1) + 0.03 * riders already sent in the round` | The speed a rider aims for in metres per second. A `pro` rider that is the first of its round rides at 8.2 m/s on floor 1, 10.4 on floor 3, 12.5 on floor 5, 14.7 on floor 7 and 17.9 on floor 10. The type speeds (`sp`) are in `TYPES` in `scripts/content.gd`: pro 1.0, sprinter 1.4, courier 0.72, tough 0.85 |
+| Rider speed, while it rides | `scripts/riders.gd` (the update of `spd`) | the target is 0.7 to 1.4 times the base speed, times `1 + 0.08 * age in seconds`. For a rider that never gives up the age counts for at most `AGE_SPEED_CAP` (6 s), so the extra speed stops at 1.48 times; any other rider keeps speeding up until it gives up | Makes a rider surge and brake. A rider that gives up speeds up towards 39 m/s |
+| Riders per node, their kinds, the armoured share | `content.riders` in `data/map_rules.json` | normal 8 to 10, elite 10 to 12, boss 6 to 8; kinds by weight and `min_floor` | How many riders a round has and how many are fast or armoured. This is the main knob of D1 |
+| Armoured rider health | `spawn_rider` in `scripts/riders.gd` | 2 darts, 3 from floor 5 | Health of the `tough` rider |
+| Boss base health | `BOSS_INFO` in `scripts/content.gd` | ROGUE LUBA 16, MESH WIFI ADAPTER 16, MINISTER MIKROFON 22 (the angry cyclist is 3 and has its own rule in `scripts/bosses.gd`) | Health on floor 2 and below |
+| Boss health by floor | `boss_hp` in `scripts/bosses.gd` | `base * (1 + 0.32 * (round_n - 2))` | The mid boss on floor 5 has 31 (mower, wifi) or 43 (minister) darts of health. Floor 3 has 21 or 29, floor 7 has 42 or 57 |
+| Final boss | `FINAL_HP_MUL` in `scripts/bosses.gd` | 1.3 on top of the floor growth, on the minister | The final boss on floor 10 has 101 health (78 from the floor growth, times 1.3) |
+| Boss speed | `boss_speed` in `scripts/bosses.gd`, `speed` in `BOSS_INFO` | `speed * (1 + 0.10 * (phase - 1)) * (1 + 0.03 * (round_n - 1))` and more | How fast a boss walks; `dur` and `lat` in `BOSS_INFO` shape its attacks |
+| Shop prices | `cost` in `data/items.json`, `shop_price` in `scripts/shop.gd` | `cost * (1 + 0.12 * (round_n - 1)) * (1 + 0.06 * buys so far this run)`, times `1 + 0.45 * level` for a tier item already bought, times 0.85 with HAGGLER, rounded to 5, at least 5 | The base costs are heal 70, packs 55 to 75, tiers 80 to 100 and 170 for the extra heart. On floor 10 the floor factor alone is 2.08 times the base, and every purchase of the run adds 6 % on top |
+| Upgrade picks (the cards after a cleared round) | `upgrade_order` in `data/items.json`, `upgrade_ok` in `scripts/shop.gd` | free | Which tier items are offered; the pick itself costs nothing. The same ids are the tier items of the shop, where they cost cash |
+| Cash earned | `add_cash` in `scripts/shop.gd` | `n * (1 + 0.08 * (round_n - 1))`, times 1.35 with BOUNTY | Every cash source below goes through this, so cash is worth more on later floors, and prices rise faster (0.12 a floor) than pay (0.08 a floor) |
+| Cash sources | in code, see the next rows | rider 5 (armoured 13), CASH drop 15, perfect dodge 2, return to sender 12 (36 with BOUNTY HUNTER), a boss crashing 12 (angry cyclist 5), a boss beaten 55 (angry cyclist 18) | `riders.gd`, `pickups.gd`, `player.gd`, `combat.gd`, `bosses.gd` |
+| Cache | `CACHE_CASH`, `CACHE_SCORE` in `scripts/objective.gd` | 25 cash and 750 score each | The reward of one cache |
+| All caches | `ALL_CACHES_CASH`, `ALL_CACHES_SCORE` in `scripts/objective.gd` | 50 cash and 2500 score | The bonus for taking every cache of a round |
+| Hearts | `MAXHEARTS` in `scripts/main.gd` (reset at the start of a run), the `heart` tier in `scripts/shop.gd` | 3 at the start of a run, 4 at most (one extra-heart upgrade) | PATCH UP gives 1 back, a heart drop gives 1, a rest node refills to the maximum |
+
+Not in this table, but part of the feel of a round: the number of caches and the extraction rules (`scripts/objective.gd`), the arena size and style (`data/arena_rules.json`), the coin rates and unlock prices of the meta game (`data/unlocks.json`, tuned in D3) and the XP numbers (`data/xp.json`).
+
 ## `xp.json`
 
 What earns XP and how fast the levels come (roadmap, Milestone I). Loaded by `scripts/xp.gd`; a missing or bad value is logged with `push_error` and replaced by the built-in number listed in `DEFAULTS` there. A finished run pays its XP once, when it ends (`Meta.award_run`); a run that is quit pays nothing. XP is never spent. The total is saved as `xp` in `meta.json` (see `docs/SAVE_FILES.md`) and the level is worked out from it.
