@@ -14,6 +14,8 @@ func _init(game) -> void:
 # ------------------------------------------------------------------ upgrades
 # true when the upgrade can be offered: its own needs (data/items.json, needs.gd) hold and it still has a level to give
 func upgrade_ok(id: String) -> bool:
+	if not g.shop_item_owned(id):  # an unlock (POCKET MAGNET, HYPE MACHINE, ...) is offered as a card only once bought (C3)
+		return false
 	if not Needs.ok(shop_item(id).get("needs", {}), g):
 		return false
 	if id == "clip":
@@ -234,6 +236,8 @@ func shop_item(id: String) -> Dictionary:
 func shop_ok(id: String) -> bool:
 	var it = shop_item(id)
 	if it.size() == 0 or int(it["min"]) > g.round_n:
+		return false
+	if not g.shop_item_owned(id):  # an unlock (POCKET MAGNET, HYPE PACK, ...) is sold only once it is bought (C3)
 		return false
 	if not Needs.ok(it.get("needs", {}), g):  # PATCH UP needs hurt hearts, HAGGLER a shop ahead, and so on
 		return false

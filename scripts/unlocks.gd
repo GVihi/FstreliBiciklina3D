@@ -1,7 +1,7 @@
 extends RefCounted
 # Loads the unlock table (what the player can buy with meta coins) from res://data/unlocks.json.
-# Nothing in the game reads it yet: the Unlocks page, the Loadout page and the shop filter are separate
-# roadmap items (Milestone I). Format and rules: data/README.md.
+# The Unlocks page, the Loadout page and the shop filter (`shop_item_owned` in main.gd, used by `shop_ok` in shop.gd)
+# read it. Format and rules: data/README.md.
 # JSON numbers arrive as floats, so they are cast to the types the game code expects.
 
 const ItemsTable = preload("res://scripts/items.gd")

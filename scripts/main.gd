@@ -651,6 +651,15 @@ func weapon_owned(id: String) -> bool:
 	return true
 
 
+# true when the shop may sell an item: an item that data/unlocks.json lists as a "shop_item" unlock stays out of every
+# shop (a normal run, the Daily Run and a custom seed alike) until it is bought; every other item is always allowed
+func shop_item_owned(id: String) -> bool:
+	for u in UNLOCKS:
+		if u["kind"] == "shop_item" and u["target"] == id:
+			return meta.owns(u["id"])
+	return true
+
+
 # the rows of one weapon slot on the Loadout page: the weapons the player owns that fit the slot, the slot's
 # default first (the gadget slot starts with "NO GADGET"). Each row is {"id", "name", "desc"}.
 func loadout_weapon_options(slot: String) -> Array:
