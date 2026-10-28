@@ -183,6 +183,21 @@ func _check_triggers(m) -> void:
 	if m.hint_txt != "OTHER LINE":
 		_fail("map screen, second time: the line on screen was replaced (got '%s')" % m.hint_txt)
 
+	# upgrade screen with nothing to pick (every upgrade bought out): the game goes on, so no hint and no flag
+	m.hint_txt = ""
+	var all_upgrades = m.UPGRADES
+	m.UPGRADES = []
+	m.shop_sys.show_upgrade()
+	m.UPGRADES = all_upgrades
+	if m.settings.hint_seen("upgrade") or m.hint_txt != "":
+		_fail(
+			(
+				"an upgrade screen with no offers showed or used up the upgrade hint (line '%s')"
+				% m.hint_txt
+			)
+		)
+	m.enter_map()
+
 	# upgrade screen
 	m.hint_txt = ""
 	m.shop_sys.show_upgrade()
