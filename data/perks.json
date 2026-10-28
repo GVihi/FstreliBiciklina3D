@@ -37,7 +37,7 @@
 		{
 			"id": "slideshot",
 			"name": "SLIDE SHOT",
-			"desc": "Dash or slide: your next 3 darts are free",
+			"desc": "Dash or slide: your next 3 darts are free (every 15 s)",
 			"cost": 130,
 			"min": 2
 		},
@@ -140,7 +140,7 @@
 			"a": "slideshot",
 			"b": "bounty",
 			"name": "QUICK DRAW",
-			"desc": "Dash / slide gives 5 free darts"
+			"desc": "Dash / slide gives 5 free darts (every 15 s)"
 		},
 		{
 			"a": "adrenaline",
