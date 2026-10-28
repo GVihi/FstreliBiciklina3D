@@ -303,7 +303,7 @@ var saved_run = {}  # the run on file that the title screen's CONTINUE resumes (
 var saved_run_rounds = 0  # how many rounds that run has, for the CONTINUE button
 var run_save_enabled = false  # true in the game itself: a check that builds a main leaves user://run.json alone
 var unlock_sel = 0  # highlighted entry (index into UNLOCKS) of the Unlocks page of the title screen
-var summary_sel = 0  # highlighted button of the run summary (index into hud.SUMMARY_ITEMS: NEW RUN, UNLOCKS, TITLE)
+var summary_sel = 0  # highlighted button of the run summary (index into hud.SUMMARY_ITEMS: NEW RUN, UNLOCKS, TITLE); starts on summary_default_sel()
 var loadout_sel = 0  # highlighted row of the Loadout page (index into loadout_options)
 var loadout_col = 0  # which list of the Loadout page is active: 0 = starting perks, 1 = the three weapon slots
 var loadout_slot = 0  # highlighted weapon slot of the Loadout page (index into WeaponSlots.SLOTS)
@@ -1562,11 +1562,21 @@ func end_round() -> void:
 		over_reason = "riders"
 		clear_saved_run()
 		meta.award_run()
-		summary_sel = 0
+		summary_sel = summary_default_sel()
 		scores.submit_run()
 		sfx.play("over")
 		sfx.v_groan()
 		sfx.say("game_over")
+
+
+# The button the run summary starts on (alpha C5.2): UNLOCKS when this run's coins put something within reach for the
+# first time (`new_unlocks`, filled by meta.award_run, so call this after it), otherwise NEW RUN.
+func summary_default_sel() -> int:
+	var want = "new_run" if new_unlocks.is_empty() else "unlocks"
+	for i in range(hud.SUMMARY_ITEMS.size()):
+		if hud.SUMMARY_ITEMS[i]["id"] == want:
+			return i
+	return 0
 
 
 # the last round was cleared: the run is won. It ends on the same summary screen as a loss.
@@ -1577,7 +1587,7 @@ func win_run() -> void:
 	clear_saved_run()
 	challenges.on_run_won(play_time + shop_time)
 	meta.award_run()
-	summary_sel = 0
+	summary_sel = summary_default_sel()
 	scores.submit_run()
 	fx_sys.confetti()
 	sfx.play("clear")
@@ -1598,7 +1608,7 @@ func game_over(reason: String) -> void:
 	clear_saved_run()
 	hi_check()
 	meta.award_run()
-	summary_sel = 0
+	summary_sel = summary_default_sel()
 	scores.submit_run()
 	sfx.play("over")
 	if reason == "civ":
