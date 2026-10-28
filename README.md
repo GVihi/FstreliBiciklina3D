@@ -209,7 +209,7 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
   - [x] D1.4 Tick the open playtest items of Milestone K that this covers ("Playtest the objectives", "Riders and pickups on the bigger arena", "Playtest and balance"), each with a short note of what was changed.
 - [ ] **D2. Balance pass with the starting loadout** (Milestone "Balance pass for the 10-round difficulty curve", Milestone I "Balance pass"): rider speed, boss health, final boss health, the shop prices after B1, cash from caches. First guess at the goal, to correct by playing: from a fresh save the first runs end between floors 2 and 7, one reaches the mid boss, and with three or four unlocks the final boss is reachable (winning it is allowed to stay hard).
   - [ ] D2.1 A developer-only way to start with a given number of coins and owned unlocks (for example a command line argument), so "with three or four unlocks" can be tested without grinding; it never touches the normal save and never ships enabled.
-  - [ ] D2.2 List the knobs in one place of `data/README.md`: rider speed by round, boss health, the final boss, shop and upgrade prices, `CACHE_CASH` and `CACHE_SCORE`, hearts.
+  - [x] D2.2 List the knobs in one place of `data/README.md`: rider speed by round, boss health, the final boss, shop and upgrade prices, `CACHE_CASH` and `CACHE_SCORE`, hearts.
   - [ ] D2.3 Five runs from a fresh save with the pistol: record the floor reached and why each run ended; collect the notes from B1.5, C1.4 and C3.5.
   - [ ] D2.4 Adjust one number at a time and play again until the first runs end between floors 2 and 7 and one reaches the mid boss.
   - [ ] D2.5 Repeat with three or four unlocks (D2.1): the final boss is reachable.
