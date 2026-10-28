@@ -165,19 +165,30 @@ func _walk(seed_value: int, n: int) -> void:
 		)
 
 
-# after a fight the upgrade pick goes straight to the map, not to the shop (README alpha B1.1)
+# after a fight the upgrade pick goes straight to the map, not to the shop (README alpha B1.1); an elite node gives
+# two picks in a row, every other fight one (README alpha B4.1)
 func _check_upgrade_then_map(seed_value: int, f: int) -> void:
+	var elite = str(main.current_node()["type"]) == "elite"
 	main.shop_sys.enter_upgrade()
 	if main.state != "upgrade" and main.state != "map":
 		_fail(seed_value, "floor %d: after a fight the state is %s" % [f + 1, main.state])
 		return
-	if main.state == "upgrade":
+	var picks = 0
+	while main.state == "upgrade" and picks < 3:
 		if main.offers.is_empty():
 			_fail(seed_value, "floor %d: the upgrade screen has no offers" % (f + 1))
 			return
 		main.shop_sys.pick_upgrade(0)
+		picks += 1
 	if main.state == "shop":
 		_fail(seed_value, "floor %d: the upgrade pick went to the shop, not the map" % (f + 1))
+	# fewer picks are fine only when every upgrade is bought out
+	var want = 2 if elite else 1
+	if picks > want or (picks < want and main.shop_sys.upgrades_left() > 0):
+		_fail(
+			seed_value,
+			"floor %d: %d upgrade picks after a fight node, expected %d" % [f + 1, picks, want]
+		)
 
 
 # what a shop node leaves behind: no round, no riders, no round counted as cleared (README alpha B2.1 and B2.4)

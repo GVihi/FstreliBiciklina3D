@@ -109,18 +109,34 @@ func upgrade_stat(id: String) -> String:
 	)
 
 
+# true while the node being played (or just cleared) is an elite node
+func node_is_elite() -> bool:
+	return str(g.current_node().get("type", "")) == "elite"
+
+
+# the first upgrade screen of a cleared round or of the rest node's EXTRA UPGRADE. A cleared elite node (README alpha
+# B4) pays a second pick on top of it: `after_upgrade` opens it, with offers of their own.
 func enter_upgrade() -> void:
+	g.upgrade_extra = 1 if (not g.rest_upgrade and node_is_elite()) else 0
+	g.upgrade_part = "upgrade"
+	show_upgrade()
+
+
+# draws three offers for the pick of `g.upgrade_part`: `offer_shuffle` depends only on the run seed, the round and
+# that part, so the extra pick of an elite clear needs a part of its own or it would repeat the first offers
+func show_upgrade() -> void:
 	var pool = []
 	for u in g.UPGRADES:
 		if upgrade_ok(u["id"]):
 			pool.append(u)
-	g.offer_shuffle(pool, "upgrade")
+	g.offer_shuffle(pool, g.upgrade_part)
 	g.offers = pool.slice(0, 3)
 	g.state = "upgrade"
 	g.state_t = 0.0
 	g.clear_pickups()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	if g.offers.size() == 0:  # every upgrade is bought out: nothing to pick, go on
+	if g.offers.size() == 0:  # every upgrade is bought out: nothing to pick, go on (and no extra pick either)
+		g.upgrade_extra = 0
 		after_upgrade()
 
 
@@ -137,6 +153,12 @@ func pick_upgrade(i: int) -> void:
 # what comes after the upgrade pick (README alpha B1): on a map run, back to the map, because the shop is a node
 # there and not part of every round; a run without a map has no shop nodes, so it keeps the shop after the pick
 func after_upgrade() -> void:
+	if g.upgrade_extra > 0:  # an elite clear: one more pick, from fresh offers
+		g.upgrade_extra -= 1
+		g.upgrade_part = "upgrade2"
+		g.menu_sel = 0
+		show_upgrade()
+		return
 	g.rest_upgrade = false
 	if g.run_map.is_empty():
 		enter_shop()

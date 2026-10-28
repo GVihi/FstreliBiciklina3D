@@ -135,6 +135,8 @@ var map_lane = 0  # lane of the node being played
 const SCREEN_NODES = ["shop", "rest"]
 var rest_opts = []  # the two choices on the rest screen (built by `shop_sys.enter_rest`)
 var rest_upgrade = false  # true while the upgrade pick on screen is the rest node's EXTRA UPGRADE, not a cleared round's
+var upgrade_extra = 0  # upgrade picks still to come after the one on screen (an elite clear gives 1, README alpha B4)
+var upgrade_part = "upgrade"  # the `offer_shuffle` part of the pick on screen: the extra pick has its own, so its offers differ
 
 var map_path = []  # the lane taken on every floor so far, in order (map_path[f] is the lane on floor f)
 var map_choices = []  # on the map screen: the lanes of the next floor the player may pick
@@ -1114,6 +1116,8 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	play_time = 0.0
 	shop_time = 0.0
 	rest_upgrade = false
+	upgrade_extra = 0
+	upgrade_part = "upgrade"
 	round_times = []
 	kills = 0
 	best_rank = 0
