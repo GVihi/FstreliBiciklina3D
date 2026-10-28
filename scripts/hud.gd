@@ -500,12 +500,14 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 
 
 # ---------------------------------------------------------------- title screen menu
+# The loop comes first (alpha C5.4): CONTINUE (drawn above PLAY when a run is saved), PLAY, LOADOUT, UNLOCKS, then the
+# rest. Code and checks find an entry by its id; only a few checks rely on PLAY being entry 0 and QUIT the last.
 const TITLE_ITEMS = [
 	{"id": "play", "label": "PLAY"},
-	{"id": "daily", "label": "DAILY RUN"},
-	{"id": "seed", "label": "CUSTOM SEED"},
 	{"id": "loadout", "label": "LOADOUT"},
 	{"id": "unlocks", "label": "UNLOCKS"},
+	{"id": "daily", "label": "DAILY RUN"},
+	{"id": "seed", "label": "CUSTOM SEED"},
 	{"id": "challenges", "label": "CHALLENGES"},
 	{"id": "scores", "label": "HIGH SCORES"},
 	{"id": "controls", "label": "CONTROLS"},

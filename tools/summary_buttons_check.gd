@@ -14,8 +14,12 @@ extends SceneTree
 #   - nothing reacts for the first 0.8 s, nor while a leaderboard name is typed (a click or Enter then only confirms
 #     the name), a click beside the buttons does nothing, and Enter, the pad's A and a click press the highlighted
 #     button; TITLE leaves the summary for the title screen, and the other two leave it too
-#   - a run that ends (a lost round, the end of the game and a win) starts the summary on the first button
+#   - a run that ends (a lost round, the end of the game and a win) starts the summary on the first button, NEW RUN,
+#     and on UNLOCKS instead when the run's coins put an unlock within reach for the first time (C5.2)
 #   - the summary draws at every size, with every button highlighted, ready, not yet ready and with a name box
+#   - NEW RUN starts the next run the way RESTART RUN does (a normal run on a new seed, a Daily Run on today's seed, a
+#     typed-seed run on that seed again) and UNLOCKS opens the Unlocks page on the title screen, where Esc and the pad's
+#     B go back to the title menu with UNLOCKS highlighted (C5.3)
 # game_over and win_run write the meta, score and settings files like run_save_check does, which is why the runner's
 # empty save folder matters.
 # Exits with status 1 and prints the problems when a check fails.
@@ -43,7 +47,9 @@ func _initialize() -> void:
 	_check_moving()
 	_check_not_ready()
 	_check_pressing()
+	_check_actions()
 	_check_new_summary()
+	_check_default_button()
 	await _check_drawing()
 	_finish()
 
@@ -63,9 +69,10 @@ func _pad(button: int) -> void:
 	main.input_sys.on_pad_button(button)
 
 
-# a lost run on its summary, 1 s in, with the first button highlighted
-func _to_summary() -> void:
-	main.start_game(false, SEED)
+# a lost run on its summary, 1 s in, with the first button highlighted. By default the run is on the typed seed SEED;
+# `daily` makes it a Daily Run, and a custom_seed of -1 a normal run on a random seed
+func _to_summary(daily: bool = false, custom_seed: int = SEED) -> void:
+	main.start_game(daily, custom_seed)
 	main.score = 5000
 	main.kills = 12
 	main.round_n = 5
@@ -77,6 +84,119 @@ func _to_summary() -> void:
 	main.state = "over"
 	main.state_t = 1.0
 	main.summary_sel = 0
+
+
+# the index of the summary button with this id, -1 when there is none
+func _summary_button(id: String) -> int:
+	for i in range(main.hud.SUMMARY_ITEMS.size()):
+		if main.hud.SUMMARY_ITEMS[i]["id"] == id:
+			return i
+	return -1
+
+
+# NEW RUN starts the next run the way RESTART RUN does, UNLOCKS opens the page on the title screen and Esc or the pad's
+# B go back to the title menu with UNLOCKS highlighted (C5.3)
+func _check_actions() -> void:
+	var new_run_i = _summary_button("new_run")
+	var unlocks_i = _summary_button("unlocks")
+	if unlocks_i < 0 or new_run_i < 0:
+		_fail("the summary has no UNLOCKS or no NEW RUN button")
+		return
+	# a normal run gets a new seed
+	_to_summary(false, -1)
+	var old_seed = main.run_seed
+	main.input_sys.summary_activate(new_run_i)
+	_check_new_run("a normal run's NEW RUN")
+	if main.daily_mode or main.custom_seed_run:
+		_fail("NEW RUN after a normal run started a Daily Run or a typed seed")
+	if main.run_seed == old_seed:
+		_fail("NEW RUN after a normal run replayed seed %d instead of drawing a new one" % old_seed)
+	# a Daily Run plays today's seed again
+	_to_summary(true)
+	main.input_sys.summary_activate(new_run_i)
+	_check_new_run("a Daily Run's NEW RUN")
+	if not main.daily_mode or main.custom_seed_run:
+		_fail("NEW RUN after a Daily Run did not start a Daily Run")
+	if main.run_seed != main.daily_seed:
+		_fail(
+			(
+				"NEW RUN after a Daily Run played seed %d, today's is %d"
+				% [main.run_seed, main.daily_seed]
+			)
+		)
+	# a run on a typed seed replays that seed
+	var typed = 0x1234ABCD
+	_to_summary(false, typed)
+	main.input_sys.summary_activate(new_run_i)
+	_check_new_run("a typed-seed run's NEW RUN")
+	if main.daily_mode or not main.custom_seed_run or main.run_seed != typed:
+		_fail(
+			(
+				"NEW RUN after a typed-seed run gave daily %s, typed %s and seed %d, expected seed %d"
+				% [str(main.daily_mode), str(main.custom_seed_run), main.run_seed, typed]
+			)
+		)
+	# the keyboard's Enter does the same as a click on the highlighted NEW RUN
+	_to_summary(false, -1)
+	main.summary_sel = new_run_i
+	_key(KEY_ENTER)
+	_check_new_run("Enter on NEW RUN")
+	# UNLOCKS: the page on the title screen, with the menu entry UNLOCKS behind it
+	for how in ["Esc", "the pad's B"]:
+		_to_summary()
+		main.input_sys.summary_activate(unlocks_i)
+		if main.state != "title" or main.title_page != "unlocks":
+			_fail(
+				(
+					"UNLOCKS gave state %s and page '%s', expected the title screen on the unlocks page"
+					% [main.state, main.title_page]
+				)
+			)
+			continue
+		if main.unlock_sel != 0:
+			_fail(
+				(
+					"the Unlocks page opened from the summary has row %d picked, not 0"
+					% main.unlock_sel
+				)
+			)
+		var behind = str(main.hud.TITLE_ITEMS[main.title_sel]["id"])
+		if behind != "unlocks":
+			_fail("the title menu behind the Unlocks page highlights %s, not unlocks" % behind)
+		if how == "Esc":
+			_key(KEY_ESCAPE)
+		else:
+			_pad(JOY_BUTTON_B)
+		if main.state != "title" or main.title_page != "":
+			_fail(
+				(
+					"%s on the Unlocks page gave state %s and page '%s', expected the title menu"
+					% [how, main.state, main.title_page]
+				)
+			)
+		else:
+			var after = str(main.hud.TITLE_ITEMS[main.title_sel]["id"])
+			if after != "unlocks":
+				_fail(
+					"%s on the Unlocks page left the title menu on %s, not unlocks" % [how, after]
+				)
+	main.go_to_title()
+
+
+# a run has just been started from the summary: a fresh run, nothing of the last one left
+func _check_new_run(what: String) -> void:
+	if main.state == "over" or main.state == "title":
+		_fail("%s did not start a run (state %s)" % [what, main.state])
+		return
+	if main.round_n != 1 or main.score != 0 or main.kills != 0:
+		_fail(
+			(
+				"%s left round %d, score %d and %d kills of the last run"
+				% [what, main.round_n, main.score, main.kills]
+			)
+		)
+	if not main.new_unlocks.is_empty():
+		_fail("%s left the last run's new unlocks %s" % [what, str(main.new_unlocks)])
 
 
 func _tag(s: Vector2) -> String:
@@ -335,7 +455,7 @@ func _left_summary(what: String, i: int) -> void:
 		_fail("%s did not go to the title screen (state %s)" % [what, main.state])
 
 
-# a run that ends starts its summary on the first button
+# a run that ends starts its summary on the first button (a fresh save has no new unlocks, see _check_default_button)
 func _check_new_summary() -> void:
 	main.start_game(false, SEED)
 	main.summary_sel = 2
@@ -362,6 +482,77 @@ func _check_new_summary() -> void:
 		_fail("a lost round did not end on the summary (state %s)" % main.state)
 	elif main.summary_sel != 0:
 		_fail("a round that ended the run started its summary on button %d" % main.summary_sel)
+	main.go_to_title()
+
+
+# the index of the button with this id on the summary
+func _button_index(id: String) -> int:
+	for i in range(main.hud.SUMMARY_ITEMS.size()):
+		if main.hud.SUMMARY_ITEMS[i]["id"] == id:
+			return i
+	return -1
+
+
+# a run that ends starts its summary on UNLOCKS when its coins put an unlock within reach, otherwise on NEW RUN (C5.2)
+func _check_default_button() -> void:
+	var unlocks_i = _button_index("unlocks")
+	var new_run_i = _button_index("new_run")
+	if unlocks_i < 0 or new_run_i < 0:
+		_fail("the summary has no UNLOCKS or no NEW RUN button")
+		return
+	# the helper alone: it follows new_unlocks
+	main.new_unlocks = []
+	if main.summary_default_sel() != new_run_i:
+		_fail("with nothing new in reach the default button is %d" % main.summary_default_sel())
+	main.new_unlocks = ["POCKET MAGNET"]
+	if main.summary_default_sel() != unlocks_i:
+		_fail("with a new unlock in reach the default button is %d" % main.summary_default_sel())
+	main.new_unlocks = []
+	# the cheapest buyable unlock is the first one a small payout reaches (as in new_unlocks_check)
+	var cheapest = null
+	for u in main.UNLOCKS:
+		if not u["planned"] and (cheapest == null or int(u["cost"]) < int(cheapest["cost"])):
+			cheapest = u
+	if cheapest == null:
+		_fail("the unlock table has nothing buyable, nothing to check")
+		return
+	var cost = int(cheapest["cost"])
+	var per_coin = int(main.meta.SCORE_PER_COIN)
+	# each way a run can end, once with coins that cross the cheapest price and once with nothing new in reach
+	for how in ["game_over", "win_run", "end_round"]:
+		for crossing in [false, true]:
+			var tag = "%s %s" % [how, "that crosses a price" if crossing else "with nothing new"]
+			main.start_game(false, SEED)
+			main.summary_sel = 2
+			main.meta.owned = {}
+			if crossing:
+				main.meta.balance = cost - 1
+				main.score = per_coin * 2
+			else:
+				main.meta.balance = 1000000  # every price is already behind the player: nothing can be new
+				main.score = 0
+			main.state = "play"
+			if how == "game_over":
+				main.game_over("riders")
+			elif how == "win_run":
+				main.win_run()
+			else:
+				main.hearts = 0
+				main.round_n = 1
+				main.end_round()
+			if main.state != "over":
+				_fail("%s did not end on the summary (state %s)" % [tag, main.state])
+				continue
+			var want = unlocks_i if crossing else new_run_i
+			if crossing and main.new_unlocks.is_empty():
+				_fail("%s: the coins did not put anything in reach, the check is not testing" % tag)
+			if main.summary_sel != want:
+				_fail(
+					(
+						"%s started the summary on button %d, expected %d"
+						% [tag, main.summary_sel, want]
+					)
+				)
 	main.go_to_title()
 
 
