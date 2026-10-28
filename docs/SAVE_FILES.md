@@ -20,6 +20,7 @@ A file written before versioning has no version number and counts as **version 0
 - A file without the section, a missing key, or a value that is not `true` / `false` loads as **not seen**: the worst a hand-edited file can do is show a hint again. A key that is not one of the six ids is ignored (and dropped the next time the file is saved).
 - `Settings.mark_hint_seen(id)` sets the flag and saves; it returns `true` only the first time, so the caller knows when to draw the hint.
 - The flags are **settings, not progress**: RESET ALL PROGRESS keeps `settings.cfg`, so a reset does not show the hints again. To see them again, delete the `[hints]` section (or set the values to `false`) by hand.
+- The **FIRST-TIME HINTS** row of the settings page is `show_hints` under `[game]` (`true` = ON, the default). A missing key or a value that is not `true` / `false` loads as ON. With it OFF no hint is shown and the flags above are **not** used up, so switching it ON again shows the hints the player has not met yet; a hint that was already seen stays seen. Switching it OFF also takes a line that is on screen away at once. Like the flags it is kept by RESET ALL PROGRESS.
 
 ## Safety rules (`scripts/save_util.gd`)
 
