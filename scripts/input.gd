@@ -301,11 +301,11 @@ func summary_activate(i: int) -> void:
 		return
 	g.summary_sel = i
 	var id = g.hud.SUMMARY_ITEMS[i]["id"]
-	if id == "title":
-		g.go_to_title()
+	if id == "new_run":
+		g.restart_run()  # a new seed in a normal run, the same seed again in a Daily Run or a run on a typed-in seed
+	elif id == "unlocks":
+		open_unlocks_from_summary()  # Esc goes back to the title menu, not to this summary
 	else:
-		# NEW RUN and UNLOCKS are given their own actions by alpha C5.3. Until then they leave the summary the way the old
-		# CLICK TO CONTINUE did, so nothing is a dead button.
 		g.go_to_title()
 
 
@@ -508,6 +508,19 @@ func title_activate(i: int) -> void:
 			g.unlock_msg = ""
 		g.title_page = id  # loadout / unlocks / scores / settings
 		g.sfx.play("click")
+
+
+# the Unlocks page, opened from the run summary (alpha C5.3): the title screen with the page already open and UNLOCKS
+# the highlighted menu entry, so Esc / B / a click beside the page land on the menu right where UNLOCKS is
+func open_unlocks_from_summary() -> void:
+	g.go_to_title()
+	for n in range(g.hud.TITLE_ITEMS.size()):
+		if g.hud.TITLE_ITEMS[n]["id"] == "unlocks":
+			g.title_sel = n
+	g.unlock_sel = 0
+	g.unlock_msg = ""
+	g.title_page = "unlocks"
+	g.sfx.play("click")
 
 
 # ---- the Loadout page: Left / Right (D-pad) switch between the perk list and the weapon slots
@@ -749,7 +762,7 @@ func confirm_activate(i: int) -> void:
 		return
 	g.pause_page = ""
 	if id == "restart":
-		g.start_game(g.daily_mode, g.run_seed if g.custom_seed_run else -1)
+		g.restart_run()
 	elif id == "title":
 		g.abandon_run()
 

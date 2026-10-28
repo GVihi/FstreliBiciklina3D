@@ -1090,6 +1090,12 @@ func continue_run() -> void:
 	enter_map()
 
 
+# Starts the next run the way the one in front of the player was started (pause menu RESTART RUN, run summary NEW RUN):
+# a normal run draws a new seed, a Daily Run plays today's daily seed again, a run on a typed-in seed replays that seed.
+func restart_run() -> void:
+	start_game(daily_mode, run_seed if custom_seed_run else -1)
+
+
 # `daily`: a Daily Run (today's seed). `custom_seed`: 0 to 4294967295 to play that seed (typed in on the title
 # screen); -1 draws a random one.
 func start_game(daily: bool = false, custom_seed: int = -1) -> void:
