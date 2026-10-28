@@ -246,7 +246,7 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
   - [ ] E3.4 Open the save files after the runs (`settings.cfg`, `scores.json`, `meta.json`, `run.json`): all readable, nothing damaged.
 - [ ] **E4. Ship notes**: set `config/version` to `0.2.0`, and add a short `docs/ALPHA_NOTES.md`: how to run it, the controls, what is in and what is not, known issues, and where to send feedback.
   - [x] E4.1 `config/version` in `project.godot` to `0.2.0` (the one place the version is written), and `tools/version_check.gd` still passes.
-  - [ ] E4.2 Write `docs/ALPHA_NOTES.md`: how to run it, the controls (point to the Controls page), what is in and what is not (the "Not in the early alpha" list below), known issues, where to send feedback.
+  - [x] E4.2 Write `docs/ALPHA_NOTES.md`: how to run it, the controls (point to the Controls page), what is in and what is not (the "Not in the early alpha" list below), known issues, where to send feedback.
   - [ ] E4.3 Optional, the owner decides: tag the commit `v0.2.0-alpha` on GitHub.
 
 ### Not in the early alpha (on purpose)
