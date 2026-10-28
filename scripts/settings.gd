@@ -11,6 +11,11 @@ const VERSION = 1  # settings.cfg: [meta] version. Version 0 (before versioning)
 # A missing section, a missing key or a value that is not true / false counts as "not seen", so a hand-edited file can
 # only make a hint show again, never break the game. Settings, not progress: RESET ALL PROGRESS keeps them.
 const HINT_IDS = ["map", "upgrade", "shop", "rest", "extract", "cache"]
+# How long a hint line stays on screen (seconds, the last HINT_FADE of them fading out). The line is only drawn, it never
+# takes a click or a key, and it does not pause or slow the game.
+const HINT_SECONDS = 5.0
+const HINT_FADE = 0.8
+const HINT_MAX_CHARS = 90  # one line at the smallest window; E1.3 texts stay under this
 
 var g = null
 # audio / window values read from the file before the sound system exists; apply_loaded() uses them
@@ -143,6 +148,31 @@ func mark_hint_seen(id: String) -> bool:
 	g.hints_seen[id] = true
 	save_settings()
 	return true
+
+
+# Puts a hint line on screen for HINT_SECONDS, replacing the one that is showing. Does not touch the "seen" flags.
+func show_hint(text: String) -> void:
+	g.hint_txt = text
+	g.hint_t0 = g.time
+
+
+# The call E1.3's triggers make: shows `text` the first time `id` comes up and never again (the flag is saved).
+# Returns true when the line was shown.
+func hint_once(id: String, text: String) -> bool:
+	if not mark_hint_seen(id):
+		return false
+	show_hint(text)
+	return true
+
+
+# 0 when no hint is showing, 1 while it is fully shown, falling to 0 over the last HINT_FADE seconds
+func hint_alpha() -> float:
+	if g.hint_txt == "":
+		return 0.0
+	var age = g.time - g.hint_t0
+	if age < 0.0 or age >= HINT_SECONDS:
+		return 0.0
+	return clampf((HINT_SECONDS - age) / HINT_FADE, 0.0, 1.0)
 
 
 func get_setting(id: String):

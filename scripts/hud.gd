@@ -2133,6 +2133,9 @@ func _draw() -> void:
 	elif state == "map":
 		_draw_map_screen(k, cx)
 
+	if state != "title":
+		_draw_hint(k, cx)
+
 	if g.paused:
 		if g.pause_page == "settings":
 			_dim(0.86)
@@ -2156,6 +2159,44 @@ func _draw() -> void:
 
 
 # ---------------------------------------------------------------- pieces
+# The first-run hint line (README early alpha E1.2): one line of text with a dark strip behind it, bottom centre, for
+# Settings.HINT_SECONDS and fading out at the end. Only drawn: no rect is registered for a click, no key is read, so it
+# never blocks input. In a round it sits above the dash bar and the FREE DARTS line; on the map, upgrade, shop and rest
+# screens it sits in the gap above the bottom prompt. The pause menu and the other pages are drawn over it.
+func hint_y(k: float) -> float:
+	if g.state == "play":
+		return size.y - 118.0 * k
+	return size.y * 0.865
+
+
+# the font size of the hint line: 18 at 720p, made smaller when the line would not fit the window width
+func hint_fs(k: float) -> int:
+	var fs = int(18 * k)
+	var max_w = size.x - 48.0 * k
+	while fs > 8 and font.get_string_size(g.hint_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w:
+		fs -= 1
+	return fs
+
+
+# the dark strip behind the hint line (an empty Rect2 while no hint is showing); also what tools/hint_line_check.gd measures
+func hint_rect(k: float) -> Rect2:
+	if g.hint_txt == "":
+		return Rect2()
+	var tw = font.get_string_size(g.hint_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, hint_fs(k)).x
+	var w = tw + 28.0 * k
+	return Rect2((size.x - w) * 0.5, hint_y(k) - 20.0 * k, w, 32.0 * k)
+
+
+func _draw_hint(k: float, cx: float) -> void:
+	var a = g.settings.hint_alpha()
+	if a <= 0.0:
+		return
+	draw_rect(hint_rect(k), Color(0.04, 0.04, 0.05, 0.72 * a))
+	var col = TEXT
+	col.a = a
+	_txt(g.hint_txt, cx, hint_y(k), hint_fs(k), col, 1)
+
+
 func _draw_top_bar(k: float) -> void:
 	var bar_h = 58.0 * k
 	draw_rect(Rect2(0, 0, size.x, bar_h), Color(0.05, 0.05, 0.055, 0.72))
