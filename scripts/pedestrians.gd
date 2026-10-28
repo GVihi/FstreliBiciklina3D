@@ -20,6 +20,11 @@ const LOOKAHEAD_TIME = 0.03  # seconds of walking: the point to steer at is this
 # or -1 once it is in a tunnel, so the code that removes a pedestrian at "left" < 0 is the same on both kinds of
 # arena.
 const GOAL_REACH = 0.5  # metres short of the gate's exit point at which a pedestrian counts as gone
+# A pedestrian never walks into a building: the steering (riders.gd avoid_obstacles) looks ahead and turns away,
+# but when it is boxed in it only picks a heading 120 degrees round, and until the turn is made the old code walked
+# on into the wall (pedestrian_check, "deep inside a building": about 2 in 100 arena and random stream pairs). So a
+# step that would end in a building is not taken (it stands and turns), and one that is in a building anyway (a
+# spawn, a flee turn, a frame that was too long) is put on the nearest free ground, as move_rider does for riders.
 
 var g = null
 
@@ -138,6 +143,8 @@ func move_civ(c: Dictionary, speed_street: float, dt: float) -> void:
 	var open = g.arena.rider_pursuit()
 	if open and not c["hidden"]:
 		c["entered"] = true
+		if g.arena.rider_blocked(c["pos"]):
+			c["pos"] = g.arena.clamp_walk(c["pos"], "boss")
 	var in_tunnel = open and c["hidden"] and not c["entered"]  # still in the tunnel it started in
 	var target: Vector3
 	if open:
@@ -157,7 +164,9 @@ func move_civ(c: Dictionary, speed_street: float, dt: float) -> void:
 	var turn = wrapf(want - c["yaw"], -PI, PI)
 	var max_turn = TURN_RATE * dt
 	c["yaw"] = wrapf(c["yaw"] + clampf(turn, -max_turn, max_turn), -PI, PI)
-	c["pos"] += rs.heading_vec(c["yaw"]) * speed * dt
+	var step: Vector3 = rs.heading_vec(c["yaw"]) * speed * dt
+	if not (open and g.arena.rider_blocked(c["pos"] + step)):
+		c["pos"] += step
 	c["hidden"] = rs.is_hidden(c["pos"])
 	if open:
 		# back inside a gate's tunnel after coming out of one: it has left the arena, by its own gate or another

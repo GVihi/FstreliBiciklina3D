@@ -313,6 +313,18 @@ func pursuit_turn_rate(speed: float) -> float:
 	return minf(PURSUIT_MAX_TURN, PURSUIT_ACCEL / maxf(speed, 1.0))
 
 
+# put a rider that cannot go on back where a new one starts: in the tunnel of the gate nearest to it, facing in, so it
+# rides straight out and chases the player again
+func return_to_gate(r: Dictionary) -> void:
+	var gate = nearest_gate(r["pos"])
+	r["pos"] = gate_spawn_point(gate)
+	r["yaw"] = yaw_of(-gate["outward"])
+	r["entered"] = false
+	r["hidden"] = is_hidden(r["pos"])
+	r["pursuit"] = "chase"
+	r["run_left"] = 0.0
+
+
 # ride for dt seconds: steer at the lane point ahead (no faster than TURN_RATE), then move along the heading.
 # Where the arena has rider pursuit, steer at the player instead (pursuit_target) with the sideways limit.
 func move_rider(r: Dictionary, dt: float) -> void:
@@ -321,6 +333,11 @@ func move_rider(r: Dictionary, dt: float) -> void:
 		# inside a wall (a rider cannot ride out of one: it has no speed there, and a dart cannot reach it): put
 		# it on the nearest free ground
 		r["pos"] = g.arena.clamp_walk(r["pos"], "boss")
+	if pursuit and r["entered"] and r["hidden"] and g.arena.rider_speed_at(r["pos"]) <= 0.0:
+		# hidden but on ground where nothing can be ridden: past the outer edge of the grid, in the opening in front of
+		# a gate (hidden_at counts that as the tunnel). The rider has no speed there and a dart cannot reach it, so a
+		# round that waits for it never ends (the soft lock seen on a tunnel arena): start it again in its gate
+		return_to_gate(r)
 	var lane_z = g.LANE_Z[r["ln"]]
 	# metres per second over the ground: on open ground the surface under the rider sets its share of the speed
 	var speed = (
