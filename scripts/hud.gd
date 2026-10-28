@@ -330,6 +330,87 @@ func _draw_shop(k: float) -> void:
 
 
 # ---------------------------------------------------------------- run summary (game over)
+# The table of the summary is SUMMARY_HALF_WIDTH * 2 wide, centred, and its first row sits at SUMMARY_TABLE_TOP of
+# the window height with SUMMARY_ROW_STEP between rows (all times k = window height / 720). The buttons use the same
+# numbers to stay clear of it.
+const SUMMARY_HALF_WIDTH = 190.0
+const SUMMARY_TABLE_TOP = 0.29
+const SUMMARY_ROW_STEP = 28.0
+const SUMMARY_ROWS = 10  # rows of the table
+# The buttons the summary ends on (alpha C5), top to bottom. Index = `g.summary_sel`.
+const SUMMARY_ITEMS = [
+	{"id": "new_run", "label": "NEW RUN"},
+	{"id": "unlocks", "label": "UNLOCKS"},
+	{"id": "title", "label": "TITLE"}
+]
+const SUMMARY_BTN_W = 240.0
+const SUMMARY_BTN_H = 44.0
+const SUMMARY_BTN_GAP = 12.0
+const SUMMARY_BTN_MIN_W = 130.0  # narrower than this and the column would crowd the table: a row at the bottom instead
+
+
+# true when the buttons take input: not during the first 0.8 s (keys and clicks still going from the end of the
+# fight must not leave the screen) and not while a leaderboard name is being typed (Enter or a click confirms it)
+func summary_active() -> bool:
+	return g != null and g.state == "over" and g.state_t > 0.8 and not g.name_entry
+
+
+# The buttons are a column to the right of the table, level with its first row, centred in the free space. The text
+# below the table is centred and can be long (challenge lines, three unlock names, a leaderboard rank and a name box
+# all at once), so nothing placed under it is safe; beside the table nothing else is drawn. Only in a window too
+# narrow for that (under about 4:3) they become a row near the bottom.
+func summary_rect(i: int) -> Rect2:
+	var k = size.y / 720.0
+	var w = SUMMARY_BTN_W * k
+	var h = SUMMARY_BTN_H * k
+	var gap = SUMMARY_BTN_GAP * k
+	var table_right = size.x * 0.5 + SUMMARY_HALF_WIDTH * k
+	var free = size.x - table_right
+	w = minf(w, free - 40.0 * k)
+	if w >= SUMMARY_BTN_MIN_W * k:
+		var x = table_right + (free - w) * 0.5
+		var top = size.y * SUMMARY_TABLE_TOP - 18.0 * k
+		return Rect2(x, top + i * (h + gap), w, h)
+	var n = SUMMARY_ITEMS.size()
+	var rw = minf(SUMMARY_BTN_W * k, (size.x - 36.0 * k - float(n - 1) * gap) / float(n))
+	var total = n * rw + float(n - 1) * gap
+	return Rect2((size.x - total) * 0.5 + i * (rw + gap), size.y * 0.885, rw, h)
+
+
+# the button under `pos`, or -1
+func summary_at(pos: Vector2) -> int:
+	if g == null or g.state != "over":
+		return -1
+	for i in range(SUMMARY_ITEMS.size()):
+		if summary_rect(i).has_point(pos):
+			return i
+	return -1
+
+
+func _draw_summary_buttons(k: float) -> void:
+	var live = summary_active()
+	var a = 1.0 if live else 0.35  # dim while they would not react yet
+	for i in range(SUMMARY_ITEMS.size()):
+		var r = summary_rect(i)
+		var on = g.summary_sel == i  # the mouse updates summary_sel in input.gd (hover_menu)
+		var fill = Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16)
+		var edge = ACCENT if on else Color(0.29, 0.31, 0.33)
+		var col = TEXT if on else GRAY
+		fill.a = a
+		edge.a = a
+		col.a = a
+		draw_rect(r, fill)
+		draw_rect(r, edge, false, 3.0 * k)
+		_txt(
+			SUMMARY_ITEMS[i]["label"],
+			r.position.x + r.size.x * 0.5,
+			r.position.y + 30.0 * k,
+			int(20 * k),
+			col,
+			1
+		)
+
+
 func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	if g.run_won:
 		_txt("RUN COMPLETE", cx, size.y * 0.15, int(66 * k), GOLD, 1)
@@ -353,10 +434,10 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		coin_label = "META COINS (%d FROM CHALLENGES)" % challenge_coins
 	var rcols = [GRAY, TEXT, Color(0.35, 0.7, 0.42), GOLD, ACCENT]
 	var letters = ["D", "C", "B", "A", "S"]
-	var lx = cx - 190.0 * k
-	var rx = cx + 190.0 * k
-	var y0 = size.y * 0.29
-	var step = 28.0 * k  # ten rows now (the XP row was added); 28 instead of 30 keeps the table's end close to where it was
+	var lx = cx - SUMMARY_HALF_WIDTH * k
+	var rx = cx + SUMMARY_HALF_WIDTH * k
+	var y0 = size.y * SUMMARY_TABLE_TOP
+	var step = SUMMARY_ROW_STEP * k  # ten rows now (the XP row was added); 28 instead of 30 keeps the table's end close to where it was
 	var rows = [
 		["SCORE", str(g.score).pad_zeros(6), TEXT],
 		["KILLS", str(g.kills), TEXT],
@@ -409,8 +490,7 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		var shown = unlock_summary_lines(g.new_unlocks)
 		for i in range(shown.size()):
 			_txt(shown[i], cx, uy + 26.0 * k + i * 24.0 * k, int(18 * k), GOLD, 1)
-	if g.state_t > 0.8 and blink and not g.name_entry:
-		_txt("CLICK TO CONTINUE", cx, size.y * 0.93, int(24 * k), TEXT, 1)
+	_draw_summary_buttons(k)
 	var seed_label = "RUN SEED  " + g.DailyScript.seed_text(g.run_seed)
 	if g.daily_mode:
 		seed_label = "DAILY RUN SEED  " + g.DailyScript.seed_text(g.run_seed)
@@ -541,7 +621,7 @@ func _draw_title_menu(k: float, cx: float) -> void:
 
 # Label of the XP row on the run summary: the level and how far the next one is, or a level-up message
 # The lines of the "now affordable" block of the run summary: at most three, so a full summary (leaderboard rank,
-# high score and challenge lines at once) still ends above CLICK TO CONTINUE. With more than three names the third
+# high score and challenge lines at once) is not made any longer by the buttons, which stand beside the table. With more than three names the third
 # line says how many are left out.
 const UNLOCK_LINES_MAX = 3
 

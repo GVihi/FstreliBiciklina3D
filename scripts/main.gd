@@ -301,6 +301,7 @@ var saved_run = {}  # the run on file that the title screen's CONTINUE resumes (
 var saved_run_rounds = 0  # how many rounds that run has, for the CONTINUE button
 var run_save_enabled = false  # true in the game itself: a check that builds a main leaves user://run.json alone
 var unlock_sel = 0  # highlighted entry (index into UNLOCKS) of the Unlocks page of the title screen
+var summary_sel = 0  # highlighted button of the run summary (index into hud.SUMMARY_ITEMS: NEW RUN, UNLOCKS, TITLE)
 var loadout_sel = 0  # highlighted row of the Loadout page (index into loadout_options)
 var loadout_col = 0  # which list of the Loadout page is active: 0 = starting perks, 1 = the three weapon slots
 var loadout_slot = 0  # highlighted weapon slot of the Loadout page (index into WeaponSlots.SLOTS)
@@ -1558,6 +1559,7 @@ func end_round() -> void:
 		over_reason = "riders"
 		clear_saved_run()
 		meta.award_run()
+		summary_sel = 0
 		scores.submit_run()
 		sfx.play("over")
 		sfx.v_groan()
@@ -1572,6 +1574,7 @@ func win_run() -> void:
 	clear_saved_run()
 	challenges.on_run_won(play_time + shop_time)
 	meta.award_run()
+	summary_sel = 0
 	scores.submit_run()
 	fx_sys.confetti()
 	sfx.play("clear")
@@ -1592,6 +1595,7 @@ func game_over(reason: String) -> void:
 	clear_saved_run()
 	hi_check()
 	meta.award_run()
+	summary_sel = 0
 	scores.submit_run()
 	sfx.play("over")
 	if reason == "civ":

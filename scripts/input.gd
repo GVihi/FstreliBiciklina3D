@@ -90,11 +90,13 @@ func handle_input(event: InputEvent) -> void:
 			settings_adjust(1)
 		elif kc == KEY_UP or kc == KEY_W:
 			title_move(-1)
+			summary_move(-1)
 			pause_move(-1)
 			confirm_move()
 			settings_move(-1)
 		elif kc == KEY_DOWN or kc == KEY_S:
 			title_move(1)
+			summary_move(1)
 			pause_move(1)
 			confirm_move()
 			settings_move(1)
@@ -195,10 +197,12 @@ func on_pad_button(btn: int) -> void:
 		return
 	if btn == JOY_BUTTON_DPAD_UP:
 		title_move(-1)
+		summary_move(-1)
 		confirm_move()
 		settings_move(-1)
 	elif btn == JOY_BUTTON_DPAD_DOWN:
 		title_move(1)
+		summary_move(1)
 		confirm_move()
 		settings_move(1)
 	elif btn == JOY_BUTTON_DPAD_LEFT:
@@ -218,7 +222,7 @@ func on_pad_button(btn: int) -> void:
 			if g.name_entry:
 				confirm_name()
 			else:
-				g.go_to_title()
+				summary_activate(g.summary_sel)
 		else:
 			menu_confirm()
 	elif btn == JOY_BUTTON_B and g.state == "title":
@@ -245,6 +249,8 @@ func menu_move(d: int) -> void:
 		g.menu_sel = posmod(g.menu_sel + d, maxi(1, g.shop_items.size()))
 	elif g.state == "rest":
 		g.menu_sel = posmod(g.menu_sel + d, maxi(1, g.rest_opts.size()))
+	elif g.state == "over":
+		summary_move(d)
 
 
 func menu_confirm() -> void:
@@ -263,6 +269,44 @@ func menu_confirm() -> void:
 		g.shop_sys.rest_choose(g.menu_sel)
 	elif g.state == "clear" and g.state_t > 0.8:
 		g.shop_sys.enter_upgrade()
+	elif g.state == "over":
+		summary_activate(g.summary_sel)
+
+
+# ---- run summary buttons: NEW RUN, UNLOCKS, TITLE (listed in hud.gd SUMMARY_ITEMS, drawn by _draw_summary_buttons)
+# Up / Down / W / S and the pad's D-pad (and Left / Right through menu_move) move the highlight, Enter or the pad's A
+# press it, the mouse highlights what it is over and a click presses it. Nothing reacts for the first 0.8 s or while a
+# leaderboard name is typed (hud.summary_active).
+func summary_move(d: int) -> void:
+	if not g.hud.summary_active():
+		return
+	g.summary_sel = posmod(g.summary_sel + d, g.hud.SUMMARY_ITEMS.size())
+	g.sfx.play("click")
+
+
+# a left click on the summary: the name box confirms a typed name, a button is pressed, anything else does nothing
+func click_summary(pos: Vector2) -> void:
+	if g.name_entry:
+		confirm_name()
+		return
+	var i = g.hud.summary_at(pos)
+	if i >= 0:
+		summary_activate(i)
+
+
+func summary_activate(i: int) -> void:
+	if not g.hud.summary_active():
+		return
+	if i < 0 or i >= g.hud.SUMMARY_ITEMS.size():
+		return
+	g.summary_sel = i
+	var id = g.hud.SUMMARY_ITEMS[i]["id"]
+	if id == "title":
+		g.go_to_title()
+	else:
+		# NEW RUN and UNLOCKS are given their own actions by alpha C5.3. Until then they leave the summary the way the old
+		# CLICK TO CONTINUE did, so nothing is a dead button.
+		g.go_to_title()
 
 
 # ---- leaderboard name entry (run summary)
@@ -359,6 +403,9 @@ func hover_menu(pos: Vector2) -> void:
 	var ui = g.hud.unlock_at(pos)
 	if ui >= 0:
 		g.unlock_sel = ui
+	var ni = g.hud.summary_at(pos)
+	if ni >= 0:
+		g.summary_sel = ni
 	var li = g.hud.loadout_at(pos)
 	if li >= 0:
 		g.loadout_sel = li
@@ -783,10 +830,7 @@ func on_click() -> void:
 		elif g.hud.reroll_rect().has_point(mp):
 			g.shop_sys.reroll()
 	elif g.state == "over" and g.state_t > 0.8:
-		if g.name_entry:
-			confirm_name()
-		else:
-			g.go_to_title()
+		click_summary(g.get_viewport().get_mouse_position())
 	elif g.state == "play":
 		if not captured:
 			var pmp = g.get_viewport().get_mouse_position()
