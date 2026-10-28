@@ -46,7 +46,7 @@ What a perk *does* is still coded where it applies, by id (`g.perks.has("deadeye
 
 ## Does it matter for what you hold? (the B9.1 audit, 2026-10-28)
 
-Roadmap alpha B9: nothing should be dropped, offered or sold that cannot change the next round for the loadout the player holds. This table is the first step (B9.1): every drop, upgrade card, shop item, perk and duo, what it needs to matter, and what it does today with the two primary weapons. It was written by reading the code, not by playing, so the owner read it and decided (B9.2, 2026-10-28); the **Decision** column holds those decisions. A row with an empty Decision passes the test or was not put to the owner (FREE DARTS, SLIDE SHOT and QUICK DRAW are not decided yet). Hearts are the model case: `drop_kill` only drops one when you are hurt, `maybe_drop` and the cache turn one into cash at full hearts, `shop_ok` offers PATCH UP only when hurt.
+Roadmap alpha B9: nothing should be dropped, offered or sold that cannot change the next round for the loadout the player holds. This table is the first step (B9.1): every drop, upgrade card, shop item, perk and duo, what it needs to matter, and what it does today with the two primary weapons. It was written by reading the code, not by playing, so the owner read it and decided (B9.2, 2026-10-28); the **Decision** column holds those decisions. A row with an empty Decision passes the test (`OK`) and needs none. Hearts are the model case: `drop_kill` only drops one when you are hurt, `maybe_drop` and the cache turn one into cash at full hearts, `shop_ok` offers PATCH UP only when hurt.
 
 Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 dart (`start_clip` 1, `max_clip` 4, `clip_step` 1, one dart per pull), the **dart gun** holds 6 (`max_clip` 12, `clip_step` 2). Refilling the pistol's one dart takes 0.55 s (0.25 s with three SPEEDLOADER levels); refilling the dart gun from empty takes 2.4 s (0.9 s with three levels). The clip is refilled to full at the start of every round (`start_round`), so ammo only matters inside a round. `add_shells` (`combat.gd`) never goes past the clip, which is what makes ammo weak with a small clip. Style rank S also gives back one dart every 3 s, whatever you hold.
 
@@ -90,7 +90,7 @@ Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 da
 | FAT DART PACK (25 s) | nothing | bigger hit area | same | OK | |
 | SHIELD PACK | nothing | starts the round with a shield | same | OK | |
 | HYPE PACK | nothing | starts with the hype bar full | same | OK | |
-| FREE DARTS (first 12 darts cost no ammo) | nothing | 12 darts without a reload: about 6.6 s of reloading saved, and the pistol would otherwise reload after every dart | 12 darts is two full clips: about 4.8 s saved | OK, but nobody has decided what it should be worth (the pack is counted in darts, not clips) | |
+| FREE DARTS (first 12 darts cost no ammo) | nothing | 12 darts without a reload: about 6.6 s of reloading saved, and the pistol would otherwise reload after every dart | 12 darts is two full clips: about 4.8 s saved | OK, but nobody has decided what it should be worth (the pack is counted in darts, not clips) | **Keep 12 darts** (B9.2): worth the same reload time saved on either weapon, so it stays counted in darts. |
 
 ### Perks (`data/perks.json`) and duos
 
@@ -100,7 +100,7 @@ Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 da
 | STEADY HANDS | nothing | 30 % less spread (the pistol's spread is wider, so it helps more) | same | OK | |
 | SALVAGE | an armoured rider, and an ammo drop that matters | armoured riders always drop ammo, which is WEAK here | same, but 2 of 6 darts is worth something | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
 | SPRINTER | nothing | sprint 12 % faster | same | OK | |
-| SLIDE SHOT | nothing | 3 free darts on a dash or slide: each one is a whole clip with the pistol | 3 of 6 | OK | |
+| SLIDE SHOT | nothing | 3 free darts on a dash or slide: each one is a whole clip with the pistol | 3 of 6 | OK | **Keep as it is** (B9.2). |
 | BOUNTY | cash to spend | cash x1.35, only useful at a shop node | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |
 | ADRENALINE | nothing | dash cooldown -40 % | same | OK | |
 | SCAVENGER | an ammo drop that matters | +15 % ammo drops and +4 darts, capped at the clip | +4 of 6 | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
@@ -112,7 +112,7 @@ Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 da
 | SECOND WIND | nothing | once a round a deadly hit leaves 1 life | same | OK | |
 | MATADOR (SLIDE SHOT + CLOSE SHAVE) | a clip that is not full | perfect dodges refill 3 darts, capped at 1 | 3 of 6 | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
 | BOUNTY HUNTER (BOOMERANG + BOUNTY) | cash to spend | deflect kills pay x3 cash | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |
-| QUICK DRAW (SLIDE SHOT + BOUNTY) | nothing | 5 free darts on a dash or slide | 5 of 6 | OK | |
+| QUICK DRAW (SLIDE SHOT + BOUNTY) | nothing | 5 free darts on a dash or slide | 5 of 6 | OK | **Keep as it is** (B9.2). |
 | GHOST (ADRENALINE + CLOSE SHAVE) | nothing | dash invulnerability 0.15 s longer | same | OK | |
 | HEADHUNTER (DEADEYE + SCAVENGER) | a boss ahead, and a clip that is not full | refunds 2 darts on a boss weak spot hit, capped at 1 | 2 of 6 | COND and WEAK | **Both rules** (B9.2): hide until the clip is 3+, and not offered once no boss is ahead. |
 | LIFE INSURANCE (SECOND WIND + BOUNTY) | cash to spend | second wind pays $80 | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |
@@ -123,12 +123,13 @@ Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 da
 
 **Reading the result.** Of the 47 rows, 30 are `OK`. The ones that fail the test with the pistol are the ammo family (the AMMO drop and the cache ammo reward, SCAVENGER, SALVAGE, COUNTER, MATADOR, the ammo half of HEADHUNTER and SCRAPYARD): they all go through `add_shells`, which stops at the clip. EXTENDED CLIP says the wrong step on the pistol. LAST SHELL and SNIPER do something the card does not say. The cash entries (CASH, HAGGLER, BOUNTY, BOUNTY HUNTER, LIFE INSURANCE) and the boss-only ones (DEADEYE, HEADHUNTER, SNIPER) pass the test only while a shop node or a boss is still ahead, which the run map can answer (`g.run_map`). A weapon with a bigger clip lifts most of the `WEAK` rows to `OK`, which is why the test has to read the player's clip and not only the weapon id.
 
-**The owner's decisions (B9.2, 2026-10-28).** Four, and B9.3 to B9.5 build on them:
+**The owner's decisions (B9.2, 2026-10-28).** Five, and B9.3 to B9.5 build on them:
 
 1. **The ammo family is hidden until the clip is 3+** (recommended option taken). The AMMO drop, the cache ammo reward, SCAVENGER, SALVAGE, COUNTER, MATADOR, HEADHUNTER and SCRAPYARD are left out of the pool while the clip the player holds is below 3 darts. The test reads the player's clip, so three levels of EXTENDED CLIP on the pistol (1 to 4) bring them back, and the dart gun (6) always has them.
 2. **EXTENDED CLIP's text follows the weapon** (recommended option taken): the card shows the step of the weapon in the slot, +1 with the pistol and +2 with the dart gun.
 3. **LAST SHELL and SNIPER stay as they are**, a pistol perk: with a one-dart clip every dart is the last one. (SNIPER still needs a boss ahead, see 4.)
 4. **Entries are filtered by what is ahead on the map** (recommended option taken). The cash entries (CASH drop, HAGGLER, BOUNTY, BOUNTY HUNTER, LIFE INSURANCE) need a shop node ahead, and DEADEYE, HEADHUNTER and SNIPER need a boss ahead. Shops are guaranteed on floors 4 and 9 and bosses on floors 5 and 10, so these entries only drop out late in a run.
+5. **FREE DARTS, SLIDE SHOT and QUICK DRAW stay as they are.** FREE DARTS stays at the first 12 darts of the next round (not counted in clips); SLIDE SHOT (3 free darts) and QUICK DRAW (5) keep their numbers. They skip the magazine, so they are worth something with either weapon and need no filter.
 
 ## `xp.json`
 
