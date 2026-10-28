@@ -16,6 +16,16 @@ const HINT_IDS = ["map", "upgrade", "shop", "rest", "extract", "cache"]
 const HINT_SECONDS = 5.0
 const HINT_FADE = 0.8
 const HINT_MAX_CHARS = 90  # one line at the smallest window; E1.3 texts stay under this
+# The six hint lines (README early alpha E1.3), one per id of HINT_IDS, each under HINT_MAX_CHARS. They say what the
+# screen does not already say: the prompts on the screens name the keys, so these name the idea.
+const HINT_TEXTS = {
+	"map": "EACH STOP IS A ROUND, A SHOP OR A REST. PICK ONE THAT IS CONNECTED TO YOU",
+	"upgrade": "AN UPGRADE STAYS WITH YOU FOR THE REST OF THE RUN. TAKE ONE THAT FITS YOU",
+	"shop": "THIS IS WHERE YOUR CASH GOES. WHAT YOU DO NOT SPEND WAITS FOR THE NEXT SHOP",
+	"rest": "A REST STOP GIVES ONE CHOICE: REFILL YOUR HEARTS OR PICK AN EXTRA UPGRADE",
+	"extract": "THE WAY OUT IS OPEN: RUN TO THE GREEN LIGHT, THE SQUARE ON YOUR RADAR",
+	"cache": "A GOLD LIGHT IS A SUPPLY CACHE: WALK INTO IT FOR CASH AND A PICK-UP",
+}
 
 var g = null
 # audio / window values read from the file before the sound system exists; apply_loaded() uses them
@@ -163,6 +173,11 @@ func hint_once(id: String, text: String) -> bool:
 		return false
 	show_hint(text)
 	return true
+
+
+# What the six triggers call: the HINT_TEXTS line for `id`, shown the first time only (see hint_once).
+func trigger_hint(id: String) -> bool:
+	return hint_once(id, str(HINT_TEXTS.get(id, "")))
 
 
 # 0 when no hint is showing, 1 while it is fully shown, falling to 0 over the last HINT_FADE seconds
