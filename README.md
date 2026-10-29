@@ -28,7 +28,7 @@ Mostly vibe coded Godot game
 - Check before every commit: run `git status` and `git diff --staged` and read what is going in. If a key was pushed by mistake, tell the owner right away, replace the key first (the old one is burned), and only then clean the history.
 - Godot warning: `export_presets.cfg` is tracked. If PCK encryption is ever switched on, its key is written into that file, so keep the key out of the tracked file (set it with the `GODOT_SCRIPT_ENCRYPTION_KEY` environment variable at export time, and leave the key field empty in the repository).
 - The same rule applies to anyone working on this repository, including AI coding sessions: do not paste real keys into prompts, code, commit messages, docs or screenshots.
-- The plan for automatic checks (secret scanning, push protection, a pre-commit hook and a CI check) is in "Keeping secrets out of the public repository" in Milestone N.
+- The plan for automatic checks (secret scanning, push protection, a pre-commit hook and a CI check) is in "Keeping secrets out of the public repository" in Milestone N, and is built first, as V1 of the Web Integration Roadmap (v0.3.0).
 
 # Web Integration Roadmap (v0.3.0)
 
@@ -867,6 +867,8 @@ Today the game is first person only (the camera is the player's eyes and the gun
 
 The game gets a home on the web: a new Django app on the existing website (Django + PostgreSQL + nginx + gunicorn, already running), a launcher where players log in, cloud saves, leaderboards, bug reports, and a proper installer with auto updates. Planning only for now: nothing below is built yet, except what the early alpha's website milestone (W) builds first: the app `fb3d`, its Info articles and its Feedback section.
 
+> **Being built now (2026-10-29):** the first release that builds this milestone has its own working plan, the **Web Integration Roadmap (v0.3.0)** near the top of this file (ids V1 to V10): secrets and `.gitignore`, the version and git hash, the API and its key, the update check, the launcher and login, the installer and auto updates, save protection, cloud saves, and Discord Rich Presence. An item there that also exists below is the same work: tick both, and write the long note under the V heading in `docs/ROADMAP_HISTORY.md`. Leaderboards, the account page and the game-side bug report log stay below for after 0.3.0.
+
 > Design rules: the game talks to the website only through a REST API. The website, not the game, is the authority on accounts, XP and levels, leaderboards and which version is current. Only the superuser can publish a new game version. An account is optional (decided): the whole game, with its local saves, leaderboard, unlocks and XP, works without one, and a player who never logs in only misses the web features (cloud saves, online leaderboards, the account page, bug reports through the game). A missing network or a down website never blocks a run either, it only delays syncing.
 
 ## Website: Django app and REST API
@@ -962,7 +964,7 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 
 ## Suggested order inside this milestone
 
-> Roughly: API doc and Django app, then accounts and login, then the launcher, then the API key, then save protection (before saves go online, so no unprotected save is ever uploaded), then cloud saves, then leaderboards, the account page and XP, then bug reports, and last the installer and auto updates (they need a stable launcher and API first).
+> Roughly: API doc and Django app, then accounts and login, then the launcher, then the API key, then save protection (before saves go online, so no unprotected save is ever uploaded), then cloud saves, then leaderboards, the account page and XP, then bug reports, and last the installer and auto updates (they need a stable launcher and API first). **For 0.3.0 the order differs on one point:** the installer and auto updates come right after the launcher and before save protection and cloud saves, because they never touch saves or accounts and testers then receive the sync release by auto update (see the Web Integration Roadmap).
 
 ---
 
