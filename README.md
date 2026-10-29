@@ -261,7 +261,7 @@ TITLE -> LOADOUT -> RUN: map (pick a node) -> fight -> upgrade pick -> map -> ..
 >
 > **Where it fits.** The site's code is separate from the game's, so W1 to W4 can be built at any point and do not touch the game's checks (the Django app has its own tests, run with `python manage.py test fb3d`, not with `tools/run_checks.py`). The two articles need the finished build, so write W5 early, finish W6 after E2.4, and **publish both as the last step of the gate** (W7). The things the website must never hold are the same as for the repository: no `SECRET_KEY`, database or server credentials in the code or in a commit (see "Secrets and credentials").
 
-- [ ] **W1. The Django app `fb3d`** (the same work as Milestone N "Create a new Django app for the game on the existing website")
+- [x] **W1. The Django app `fb3d`** (the same work as Milestone N "Create a new Django app for the game on the existing website")
   - [x] W1.1 Look at the existing site, which is not in this repository, and write what you find in `docs/WEBSITE.md`: the Django and Python versions, how accounts work (login, registration, password reset: Feedback needs logged-in players, so **use these accounts and do not add a second account system**), the base template and how static files are served, where uploaded files go (`MEDIA_ROOT` and nginx), and whether a rich text editor is already installed.
   - [x] W1.2 Decide where the app's code lives (in this repository, for example in `website/fb3d/`, or in the site's own repository **Decided: site's own repository**; Milestone N asks the same). This repository is public, so the settings, keys and database details stay out of it either way.
   - [x] W1.3 Create the app (`python manage.py startapp fb3d`) with its own models, migrations, templates, static files and tests, mounted at the URL prefix `/fb3d/` (a first guess: `/fb3d/info/`, `/fb3d/feedback/`). The one line that includes its URLs is the only change outside the app.
@@ -364,13 +364,13 @@ Without `arena_generated_check` the suite takes about 7 minutes; the slowest pas
 ### Recommended Roguelite Structure
 
 - [x] Create runs of ~10 rounds
-- [ ] Target 20–30 minute run duration
+- [x] Target 20–30 minute run duration (alpha D1)
   - [x] Add a run timer (run summary + console log per round) to measure it
-  - [ ] Tune round length once real run times are known
+  - [x] Tune round length once real run times are known (alpha D1)
 - [x] Add final boss encounter (reuses the golden president model)
   - [ ] Give the final boss its own model, attacks and arena moment
-- [ ] Implement permanent unlocks between runs (partly done: coins, buying, starting perks and the Loadout page work, see Milestone I; the rest is alpha C1 to C5)
-- [ ] Balance pass for the 10-round difficulty curve (rider speed, boss health, final boss health)
+- [x] Implement permanent unlocks between runs (coins, buying, starting perks, the Dart Gun and the Loadout page work, see Milestone I; alpha C1 to C5)
+- [x] Balance pass for the 10-round difficulty curve (rider speed, boss health, final boss health) (alpha D2)
 
 ---
 
@@ -639,10 +639,10 @@ Without `arena_generated_check` the suite takes about 7 minutes; the slowest pas
 ### Map Nodes
 
 - [x] Normal encounter (works: the node's content sets the theme, the rider count and mix and the open gates, see Milestone K "Connect the arena to the run map")
-- [ ] Elite encounter (an elite node has 10 to 12 riders and 40 % armoured ones, and since alpha B4 a second upgrade pick on clearing it; built on branch `roadmap/b4-elite-extra-upgrade`, waits for the owner's run, B4.4)
-- [ ] Shop (alpha B1, B2; today a shop node plays an ordinary round)
+- [x] Elite encounter (an elite node has 10 to 12 riders and 40 % armoured ones, and since alpha B4 a second upgrade pick on clearing it)
+- [x] Shop (alpha B1, B2: a shop node is a screen with the node's seeded offers, not a round)
 - [ ] Event (left out of the alpha, event weight set to 0 in alpha B5)
-- [ ] Rest stop (alpha B3; built on branch `roadmap/b3-rest-node`, a rest node is now a screen with REFILL HEARTS or EXTRA UPGRADE; waits for the owner's run, B3.5)
+- [x] Rest stop (alpha B3: a rest node is a screen with REFILL HEARTS or EXTRA UPGRADE)
 - [x] Boss node (works: a boss node has its boss after every rider is down, and the last one is the final boss, see Milestone K "Connect the arena to the run map")
 
 ## Relics
@@ -917,8 +917,8 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [x] Save unlocks and purchases in the versioned save files (see `docs/SAVE_FILES.md`)
 - [x] Show newly unlocked items on the run summary screen
 - [x] Define the unlock list and price curve in a data table (like `data/items.json`)
-- [ ] Balance pass: the first runs with the starting loadout must be winnable but hard, and each unlock should feel meaningful
-- [ ] Reset progress option in Settings, with confirmation
+- [x] Balance pass: the first runs with the starting loadout must be winnable but hard, and each unlock should feel meaningful (alpha D2)
+- [x] Reset progress option in Settings, with confirmation (alpha E5, the RESET ALL PROGRESS row)
 - [ ] **PARTLY BUILT:** XP is earned, saved and shown, but a level does nothing yet, on purpose for the alpha (decided in alpha C4). XP and levels (the in-game side; the website shows the same numbers, see Milestone N)
   - [x] Decide what earns XP (for example score, kills, boss kills, finished rounds and runs, challenges) and write the XP table and the level curve in a data table (like `data/items.json`), so the numbers can be tuned without touching code
   - [x] Keep XP and level in the versioned save files (see `docs/SAVE_FILES.md`), separate from meta currency (XP is never spent, it only goes up)
@@ -1012,8 +1012,8 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [x] Show them: a line at the top of the HUD (REACH THE EXTRACTION POINT with the distance, or the dimmed EXTRACTION POINT line saying to down every rider to open it) and CACHES n / 4 under it; a world marker for the point (a diamond with its distance, or an arrow on the screen edge when it is behind or to the side) and for each cache within 45 m; and on the radar a green square (dim until it opens) for the point and gold diamonds for the caches in range (`_draw_objective`, `_world_marker`, `_draw_radar_objectives` in `scripts/hud.gd`)
 - [x] Crash fix: `clear()` in `scripts/objective.gd` stopped with "Trying to assign invalid previously freed instance" when the player reached the extraction point after taking a cache
 - [x] Checks
-- [ ] Playtest the objectives: do the caches pull the player across the map, is the extraction walk too long on a 144 m arena once the riders are down, do `CACHE_CASH`, `CACHE_SCORE`, `CACHE_COUNT` and the 45 m sense range feel right (first guesses in `scripts/objective.gd`)
-- [ ] Riders and pickups on the bigger arena: riders spawn at the gates and ride at the player over a map about twice as wide, so check that a round is not too slow, and whether the extraction point should open earlier or the arena be smaller for the early rounds
+- [x] (covered by alpha D1) Playtest the objectives: do the caches pull the player across the map, is the extraction walk too long on a 144 m arena once the riders are down, do `CACHE_CASH`, `CACHE_SCORE`, `CACHE_COUNT` and the 45 m sense range feel right (first guesses in `scripts/objective.gd`)
+- [x] (covered by alpha D1) Riders and pickups on the bigger arena: riders spawn at the gates and ride at the player over a map about twice as wide, so check that a round is not too slow, and whether the extraction point should open earlier or the arena be smaller for the early rounds
 - [x] Extraction on other nodes: shop, rest, event and elite nodes (Milestone D) have no riders to put down, so decide what, if anything, they use the extraction point for
 - [x] Ambush when the extraction point opens: the walk to the point is quiet today because every rider is already down, so send a short last wave or reinforcements through the gates once it opens (a few riders, or a boss node's escort), so the walk is a moment of its own and the caches become a trade-off between the gold detour and the straight run out. Decide the size and the timing while building it, and keep the round clear rule (`finish_wave_set`, `objective_reached`) and the perfect-round rule working
 - [ ] Caches with a catch (today they are pure reward): some of the 4 caches get a variant, chosen by the same seeded stream so the Daily Run gives everybody the same ones
@@ -1057,7 +1057,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
   - [ ] Playtest and balance each style: rider speed, sightlines and run length per style, how a bridge with only 2 gates plays against 3 to 6 riders, whether a tunnel's short sightlines are fair, and the weights (all 1 now; a style can be made rarer by lowering its `weight`)
   - [x] Show the style on the run map or the title screen
   - [x] Show the style on the run map screen too
-- [ ] Playtest and balance: rider speed, run length and sightlines on the bigger arena
+- [x] Playtest and balance: rider speed, run length and sightlines on the bigger arena (covered by alpha D1)
 
 ---
 
@@ -1106,7 +1106,7 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 
 ## Website: Django app and REST API
 
-- [ ] Create a new Django app for the game on the existing website (**the app is called `fb3d`, decided 2026-10-28, and is built first for the early alpha as W1 to W4**; the URL prefix is a first guess `/fb3d/`), with its own models, migrations, templates and tests, so it does not touch the rest of the site
+- [x] Create a new Django app for the game on the existing website (**the app is called `fb3d`, decided 2026-10-28, and is built first for the early alpha as W1 to W4**; the URL prefix is a first guess `/fb3d/`), with its own models, migrations, templates and tests, so it does not touch the rest of the site
 - [ ] Write down the REST API in a short doc (`docs/WEBSITE_API.md`): endpoints, request and response shapes, error codes, auth headers, the API version in the URL (so an old game build keeps working after the API changes), and rate limits
 - [ ] Set up the REST API (Django REST Framework or similar) behind nginx and gunicorn, with HTTPS only, CORS closed (the game is not a browser), and request size limits (saves are small)
 - [ ] Keep the game's website code in the repo or next to it (decide which), and describe the deploy steps for Django + PostgreSQL + nginx + gunicorn (migrations, static files, restart) in `docs/`
