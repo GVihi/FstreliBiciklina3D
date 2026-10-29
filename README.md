@@ -128,76 +128,29 @@ Mostly vibe coded Godot game
 
 # Roguelite Development Roadmap
 
-> The game is already most of the way to a roguelite. It has runs made of rounds, a shop, perks that pair into duos, and bosses. Almost everything on this list is a layer on top of that, plus the missing "between runs" progression.
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Roguelite Development Roadmap". Only what is still open stays here.
 
-## Proper version control
-- [x] GitHub
+> The game is already most of the way to a roguelite. It has runs made of rounds, a shop, perks that pair into duos, and bosses. Almost everything on this list is a layer on top of that, plus the missing "between runs" progression.
 
 ## Big Design Choice
 
-- [x] Decide on the game's long-term direction
-  - [x] Full roguelite focus (recommended)
-
 ### Recommended Roguelite Structure
 
-- [x] Create runs of ~10 rounds
-- [x] Target 20–30 minute run duration (alpha D1)
-  - [x] Add a run timer (run summary + console log per round) to measure it
-  - [x] Tune round length once real run times are known (alpha D1)
 - [x] Add final boss encounter (reuses the golden president model)
   - [ ] Give the final boss its own model, attacks and arena moment
-- [x] Implement permanent unlocks between runs (coins, buying, starting perks, the Dart Gun and the Loadout page work, see Milestone I; alpha C1 to C5)
-- [x] Balance pass for the 10-round difficulty curve (rider speed, boss health, final boss health) (alpha D2)
 
 ---
 
 # Milestone A: Menu, Game Flow, Saves & High Scores
 
-## Menu & Game Flow
-
-- [x] Create title screen
-  - [x] Play button
-  - [x] Loadout button (opens a "coming soon" page until loadouts exist)
-  - [x] Unlocks button (opens a "coming soon" page until unlocks exist)
-  - [x] High Scores button
-  - [x] Settings button
-  - [x] Quit button
-
-- [x] Create proper pause menu
-
-- [x] Create run summary screen
-  - [x] Display score
-  - [x] Display kills
-  - [x] Display accuracy
-  - [x] Display best style rank
-  - [x] Display newly unlocked items (shows "nothing this run" until the unlock system exists)
-
-- [x] Connect existing settings system to menus
-
-### Menu follow-ups (found while checking the list)
-
-- [x] Keyboard and gamepad navigation for the settings panel (sliders were mouse-only)
-- [x] Controls / "How to play" page (the long controls text was removed from the title screen)
-- [x] Pause automatically when the game window loses focus
-- [x] Confirm before Restart Run / Quit to Title (a run is lost with one click)
-- [x] Optional: "Continue" button to resume an interrupted run
-- [x] Reset all progress button at the bottom of the settings panel (red, two warnings)
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone A: Menu, Game Flow, Saves & High Scores". Only what is still open stays here.
 
 ## High Scores
 
-- [x] Implement local Top 10 leaderboard
-- [x] Add player name entry
 - [ ] Support separate leaderboards per difficulty (needs a difficulty system first: build it together with Heat in Milestone B, then split the boards by Heat level)
-- [x] **BUG:** the DELETE key does nothing (it is printed on the page and described below, but no code handles it; `scores_reset_check` fails on it, alpha A2.2). The button click and gamepad X work. Reset leaderboard option (F8 used to reset only the old single high score and is gone now)
-- [x] Show run time on the leaderboard (it is already saved with each entry)
-- [x] Use the leaderboard's best entry for the HI score shown in the HUD, and retire `hi.dat`
 
 ### Daily Seed Mode
 
-- [x] Generate a daily seed
-- [x] Use same seed for all players on that day
-  - [x] Separate "Daily Run" entry on the title menu; normal Play stays fully random
-  - [x] Seed only the run layout (rider mix, shop and upgrade offers, starting boss and lighting theme), not moment-to-moment combat
 - [ ] Make the Daily Run feel different from a normal run
   - [ ] One shared daily modifier for everybody that day (chosen from the seed, shown on the title screen and in the run bar), such as double riders, rain or fast riders
   - [ ] Shareable result card: the date, seed, score, time, rounds and caches, as an image or text the player can copy
@@ -213,21 +166,10 @@ Mostly vibe coded Godot game
 
 # Milestone B: Meta Currency, Unlocks & Skins
 
-## Meta Progression
-
-- [x] Add meta currency
-  - [x] Earn from score
-  - [x] Earn from boss kills
-  - [x] Earn from challenges
-    - [x] Write the challenge list (`data/challenges.json`, described in `data/README.md`: five challenges, each with an `id`, `name`, `desc`, `condition` key, `scope` (round or run), `target`, meta coin `reward` and save `counter` name; a challenge pays at most once per run. Loaded by `scripts/challenges.gd`, see the next item) (a data table like `data/items.json`, each with a condition, a reward in meta coins and a counter in the save file, see `docs/SAVE_FILES.md`): clear a round without using the gun, take every cache before the last rider falls, perfect-dodge five riders in a row, clear a round without losing a life, finish a run in under 20 minutes
-    - [x] Show them on the run summary (done, new, progress) and on a page of the title menu
-    - [x] Optional: achievements for the same list, with a name and a small icon
-
-- [x] Keep meta currency separate from run cash
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone B: Meta Currency, Unlocks & Skins". Only what is still open stays here.
 
 ## Meta Unlocks
 
-- [x] Unlock starting perks (done under Milestone I: buy them on the Unlocks page, choose one on the Loadout page, and a run starts with it)
 - [ ] Unlock additional weapons in shop pool (wording out of date: weapons are bought and then chosen on the Loadout page, never found in the shop; see alpha A1.6)
 - [ ] Unlock cosmetics
 
@@ -264,17 +206,14 @@ Mostly vibe coded Godot game
 
 # Milestone C: Weapon System Expansion
 
-## Weapon Slots
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone C: Weapon System Expansion". Only what is still open stays here.
 
-- [x] Add primary weapon slot
-- [x] Add melee weapon slot
-- [x] Add gadget slot
+## Weapon Slots
 
 ### Choosing weapons: unlock, then pick a loadout
 
 > Decided with the owner. New weapons are **bought first** with meta coins on the Unlocks page (the four weapons are already in `data/unlocks.json` as `planned`; the dart gun is bought too since alpha C2, `weapon_dart_gun`; **the melee weapon is not meant to stay always owned: see "Melee weapon is locked at the start" below**). Before a run the player **chooses one weapon per slot** (primary, melee, gadget) on the Loadout screen, and the run starts with those three equipped through `equip_primary`, `equip_melee` and `equip_gadget`. Weapons are not found or bought inside a run, so they leave the shop pool (the "joins the shop pool" note in `data/README.md` changes when the first weapon is built). **A Daily Run still allows choosing a loadout** of weapons (everyone shares the seed, not the weapons). Q / wheel / 1 / 2 keep switching between the primary and the melee weapon; a gadget is used on the spot with its own key and is not switched to. Assumed slots for the new weapons: Suction-Dart Crossbow, Confetti Cannon and Phone Launcher are primary weapons, the Stink Bomb is a gadget (say if the Phone Launcher should be something else). Decided: a custom-seed run uses the chosen weapons too, and the starting perk of the Loadout page now applies in a Daily Run and a custom-seed run as well (it did not before).
 
-- [x] Loadout screen: choose primary, melee and gadget before a run
 - [ ] HUD slot display: show the primary, melee and gadget slots with the weapon in each and the one in the player's hands highlighted (replaces the `DARTS / [Q] SWITCH` text in the bottom right)
 - [ ] Gadget use key (keyboard and gamepad button): uses the gadget on the spot, with a cooldown or a number of uses shown in the HUD slot display; built together with the first gadget (Stink Bomb)
 - [ ] Melee weapon is locked at the start, and unlocks very fast: **after the alpha** (decided with the owner in C1: for the alpha the melee weapon stays owned from the start). The full text is under "Not in the early alpha" in the Early Alpha Roadmap.
@@ -285,14 +224,12 @@ Mostly vibe coded Godot game
 
 > A small, single-dart nerf pistol: one dart per trigger pull, no pump, light and quick. It is meant to **replace the dart gun as the starting primary weapon** (the starting weapon is switched last, once the pistol is built and its upgrades work, so the game stays playable meanwhile). Assumed: it is a primary weapon (`PRIMARY_WEAPONS` in `scripts/weapon_slots.gd`) with its tuning in `data/weapons.json`, the dart gun stays in the game as a primary weapon that can be unlocked later (say if it should go instead), and all numbers below are first guesses to tune by playing.
 
-- [x] Implement weapon
 - [ ] Create upgrade path (five tiers, bought in the run like the other upgrade tiers of `data/items.json`, each one stronger and dearer than the last; the pistol's tuning numbers grow with the tier):
   - [ ] Tier 1, Spare Darts: bigger clip
   - [ ] Tier 2, Quick Loader: shorter reload
   - [ ] Tier 3, Steady Grip: less spread and less bloom while shooting
   - [ ] Tier 4, Hair Trigger: faster fire rate
   - [ ] Tier 5, Hard-Tip Darts: more damage per dart (the last tier, so it pays off after the others)
-- [x] Make it the starting primary weapon
 
 ### Suction-Dart Crossbow
 
@@ -316,7 +253,6 @@ Mostly vibe coded Godot game
 
 - [ ] Implement weapon
 - [ ] Create upgrade path
-
 > **Added 2026-10-28 (owner): a bunch of new weapons, melee variants and gadgets** (the rest of this section, up to "Synergies"). They follow the same rules as the weapons above: a new weapon is **bought first** on the Unlocks page (an entry in `data/unlocks.json` with `kind: "weapon"`, a name, a description and a tier of the price curve, `planned: true` until it is built), then **chosen on the Loadout page**, and never found in the shop pool. The tiers named below are first guesses (the price curve is 60, 120, 250, 450 and 750 coins), and so is every number. **A new weapon is done when:** (1) its numbers are in `data/weapons.json` and described in `data/README.md`; (2) it is listed in the constant of its slot in `scripts/weapon_slots.gd` (`PRIMARY_WEAPONS`, `MELEE_WEAPONS` or `GADGET_WEAPONS`); (3) a `tools/<name>_check.gd` covers what is special about it (the runner finds it by its name, no `.bat`); (4) `python tools/run_checks.py offer_sense` passes, because that check goes through every weapon in `PRIMARY_WEAPONS`: decide for each new primary weapon what the ammo drops, FREE DARTS, the cache ammo reward and the clip upgrades mean for it (the same question as B9.2), and give the entries that do nothing for it a `needs` (`data/README.md`, "What an entry needs to matter"); (5) the owner plays a run with it. Run only the checks of the code touched, not the whole suite (testing rule).
 
 ### Scoped Sniper Rifle
@@ -409,18 +345,13 @@ Mostly vibe coded Godot game
 
 # Milestone D: Run Map, Relics & Modifiers
 
-## Run Structure
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone D: Run Map, Relics & Modifiers". Only what is still open stays here.
 
-- [x] **BUILT, NOT FULLY USED YET:** a run walks the map, but `shop`, `rest`, `elite` and `event` nodes all play an ordinary round (alpha B1 to B5). Replace linear round progression
+## Run Structure
 
 ### Map Nodes
 
-- [x] Normal encounter (works: the node's content sets the theme, the rider count and mix and the open gates, see Milestone K "Connect the arena to the run map")
-- [x] Elite encounter (an elite node has 10 to 12 riders and 40 % armoured ones, and since alpha B4 a second upgrade pick on clearing it)
-- [x] Shop (alpha B1, B2: a shop node is a screen with the node's seeded offers, not a round)
 - [ ] Event (left out of the alpha, event weight set to 0 in alpha B5)
-- [x] Rest stop (alpha B3: a rest node is a screen with REFILL HEARTS or EXTRA UPGRADE)
-- [x] Boss node (works: a boss node has its boss after every rider is down, and the last one is the final boss, see Milestone K "Connect the arena to the run map")
 
 ## Relics
 
@@ -435,20 +366,13 @@ Mostly vibe coded Godot game
 
 - [ ] Night modifier (the NIGHT theme exists and nodes use it, but not as a modifier a node can add)
 - [ ] Rain modifier (nodes can carry it, but it has no effect; switched off in alpha B5)
-- [x] Double riders modifier (works: `double_riders` makes every wave a pair and shows DOUBLE RIDERS at the start of the round, `has_modifier` in `scripts/main.gd` and `scripts/riders.gd`)
 - [ ] Additional modifier ideas
-
-## New Arenas
-
-> These become arena styles of the procedural arena generator (Milestone K), chosen once per run, instead of hand-built scenes.
-
-- [x] Bridge arena (now the `bridge` arena style, see Milestone K "Arena styles chosen by the seed")
-- [x] Market arena (now the `market` arena style)
-- [x] Tunnel arena (now the `tunnel` arena style)
 
 ---
 
 # Milestone E: Polish & Accessibility
+
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone E: Polish & Accessibility". Only what is still open stays here.
 
 ## Dynamic Presentation
 
@@ -464,15 +388,6 @@ Mostly vibe coded Godot game
 
 - [ ] Directional warning sounds for riders: a bike bell or horn from a rider that is close and approaching from behind or the side (louder and panned by its direction, louder the closer it gets and the faster it closes), so a player can hear what the threat arrows and the radar show; also helps players who miss visual cues. Builds on the 3D audio item S7 and `closing` and `dist` in `threat_list` (`scripts/main.gd`); a setting to turn it off or make it quieter
 - [ ] English localization
-- [x] Screen shake and screen flash intensity options (reduced-motion / photosensitivity)
-
-## Release Readiness
-
-- [x] Rename the game from FstreliBiciklina3D to FB3D everywhere the player can see it: the title screen and logo text, the window title, the credits screen and any other in-game text that shows the name. This is a small change. The internal name stays as it is: the GitHub repository, the folder and file names, the project files and the docs keep "FstreliBiciklina3D", so no clone URLs, CI links or save files change (the Godot project name in `project.godot` also stays, because `user://` follows it and the old settings, scores and meta currency must keep loading, see `docs/SAVE_FILES.md`)
-- [x] Create app icon
-- [x] Configure Windows export presets
-- [x] Show the game version on the title screen
-- [x] Bring `README.txt` up to date
 
 ## Code signing
 
@@ -491,6 +406,8 @@ Mostly vibe coded Godot game
 
 # Milestone F: Graphics & Sound Overhaul
 
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone F: Graphics & Sound Overhaul". Only what is still open stays here.
+
 > Complete, hard overhaul of how the game looks and sounds. The current toon look (outlines, flat unlit colours, smooth primitive models) is removed and replaced by a chunky, rugged low-poly style with strong light and dark contrast and glowing accents, inspired by the Deep Rock franchise and built to run on low-end PCs. Direction and rules: [`docs/ART_DIRECTION.md`](docs/ART_DIRECTION.md). Free asset sources and licences: [`docs/ASSET_SOURCES.md`](docs/ASSET_SOURCES.md).
 >
 > **3D models: Claude is the 3D modeler.** Models are written as Python scripts for **Blender used as a Python module (`bpy`)**, kept in `tools/models/`, and exported as `.glb` into `assets/models/`. Claude cannot run Godot in its working environment, so every model step ends with an in-game check by the owner.
@@ -499,41 +416,8 @@ Mostly vibe coded Godot game
 
 ## Graphics
 
-### F1. Foundation (before any new asset)
-- [x] Answer the first open questions (minimum spec, who makes models, references, bright look): done, see `docs/ART_DIRECTION.md`
-- [x] Answer the remaining questions (UI language, ammo on the weapon, rarity colours, hazard-stripe motif, logo): done, see section 9 of `docs/ART_DIRECTION.md`
-- [x] Record the "before" baseline: screenshots of every screen and theme, plus frame time
-- [x] Set up the model pipeline (Claude as modeler, Blender as a Python module `bpy`): scripts in `tools/models/`, output to `assets/models/*.glb` with a preview sheet per model in `docs/model_previews/`, automatic budget and file validation, conventions (1 unit = 1 metre), and an in-game model viewer (`tools/viewer/model_viewer.tscn`). How to use it: `tools/models/README.md`
-- [x] Build the shared style kit: bevelled primitive helpers, the colour palette and material set (`tools/models/kit/`), and a test model (`test_crate`)
-- [x] Owner check: open `tools/viewer/model_viewer.tscn` in Godot (F6) and confirm `test_crate` looks right in the game (colours, bevels, hazard stripes, the glowing lamp, scale) (confirmed by the owner)
-- [x] Create `CREDITS.md` and the rule that every third-party asset gets an entry when it is added (see `CREDITS.md`; the voice recorders' names are still to be added under S6)
-- [x] **BUILT, LEAVES DEAD CODE:** `Toon.ENABLED = false` leaves the outline code in `scripts/toon.gd` unused until F12 removes it. Switch off the outline pass and flat unlit toon materials behind a flag; simple lit low-poly materials become the default
-- [x] Lighting baseline for DAY: bright sun with soft readable shadows, light sky, tone mapping, glow on gameplay accents
-- [x] Lighting for GOLDEN HOUR, DUSK and NIGHT (warm lamp pools and lit windows, medium-dark sky, nothing hides in the dark)
-- [x] Test the Compatibility renderer against Forward+ on old hardware and decide which to ship
-- [x] Anti-aliasing choice (MSAA or cheaper FXAA) and re-define the F9 quality presets for the new look
-
-### F2. Dart gun (first person)
-- [x] Viewmodel setup: separate camera and FOV so the gun never clips into walls (`scripts/viewmodel.gd`; checked in game by the owner: no clipping, same look, frame time fine; `VIEWMODEL_PASS = false` in `main.gd` switches it off)
-- [x] Chunky low-poly gun model with a hand-painted texture
-- [x] Idle sway and walk / sprint bob (written in `update_gun` in `scripts/player.gd`, tuning constants at the top of that file; waiting for your in-game check: breathing sway, walk and sprint bob, and a small lag when you turn; all of it fades out while aiming)
-- [x] Shoot and recoil animation (springy kick-back, muzzle rise and a little roll that overshoot and settle, rapid fire stacks up to a limit; `update_kick` in `scripts/player.gd`, tuning constants at the top of that file; waiting for your in-game check)
-- [x] Pump / reload animation
-- [x] Aim-down-sights pose and crosshair behaviour
-- [x] Dart and shell models
-- [x] Muzzle flash and shell ejection
-- [x] (Optional) Ammo count shown on the gun itself
-
-### F3. Melee
-- [x] Chunky model with a glossy rubber material
-- [x] No alternating colors (the whole club is one glossy pink; the light and dark pink ribs of the old worm are gone; confirmed by the owner in game)
-- [x] More detail (like the Dart gun)
-- [x] More rubbery look (glossy jelly material with toon highlights and a pink rim glow, ridges and rings that bend with the wobble, a squash and stretch on every swing and a flash on every hit; confirmed by the owner in game)
-- [x] No eyes (the new club has none; confirmed by the owner in game)
-- [x] Rubbery wobble swing animation
-- [x] Hit, deflect and phone-return feedback
-
 ### F4. Riders and bikes
+
 - [ ] Base rider and bike model ("pro") with a rig
 - [ ] Pedal, lean and steer animation cycle
 - [ ] Sprinter variant
@@ -544,17 +428,19 @@ Mostly vibe coded Godot game
 - [ ] Readability check of all riders against all four themes
 
 ### F5. Thrown phones
+
 - [ ] Desk phone model
 - [ ] Throw, flight trail and smash effect
 
 ### F6. Pedestrians and cheerleaders
+
 - [ ] Pedestrian models (several body types and outfits) and walk cycle
 - [ ] Pedestrian hit reaction
-- [x] Rim glow (fresnel) that tells foes from bystanders: red-orange on riders and bosses, green-cyan on pedestrians and cheerleaders
 - [ ] Pedestrian vs rider readability check, including NIGHT (the rim glow above is the first help for it; the check itself waits for the in-game look)
 - [ ] Cheerleader models and animations
 
 ### F7. Bosses
+
 - [ ] Rogue lawnmower (model, animation, attack telegraphs)
 - [ ] Mesh wifi adapter (model, hover, animation, attack telegraphs)
 - [ ] Minister (model, animation)
@@ -563,10 +449,12 @@ Mostly vibe coded Godot game
 - [ ] Boss health bar, weak-spot marker and defeat effects
 
 ### F8. Pickups
+
 - [ ] Pickup models or icons for rapid fire, fat darts, slow motion, shield, extra life and cash
 - [ ] Glow, pickup and magnet effects
 
 ### F9. World
+
 - [ ] Road, lane markings and curbs (stylised asphalt and concrete)
 - [ ] Central fountain
 - [ ] Buildings (chunky facade kit with windows that light up at dusk and night)
@@ -576,6 +464,7 @@ Mostly vibe coded Godot game
 - [ ] Weather and atmosphere touches per theme
 
 ### F10. Effects
+
 - [ ] Dart impact and hit sparks
 - [ ] Dust, debris and rider crash effects
 - [ ] Boss telegraphs (lane strip, slam circle, volley warning) as bold glowing overlays or decals
@@ -584,6 +473,7 @@ Mostly vibe coded Godot game
 - [ ] Confetti (perfect round, victory)
 
 ### F11. UI and menus
+
 - [ ] UI theme: condensed bold font, dark translucent panels with amber accents, icons, key-hint chips (see section 4 of the art direction)
 - [ ] HUD top bar (hearts, score, round, round progress)
 - [ ] HUD bottom (ammo, dash, style rank), crosshair and hit marker
@@ -595,6 +485,7 @@ Mostly vibe coded Godot game
 - [ ] Ultrawide and resolution scaling check
 
 ### F12. Final pass
+
 - [ ] Remove `toon.gd`, the outline option and all leftover cartoon assets and code
 - [ ] Performance pass on the minimum-spec machine (instancing, shadow and light counts, particle overdraw)
 - [ ] Final colour grade and consistency review of every screen and theme
@@ -605,18 +496,21 @@ Mostly vibe coded Godot game
 Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/ASSET_SOURCES.md). Plan: use professional free libraries for effects and ambience, keep your own voice recordings, and keep the existing synthesised sounds only until each is replaced.
 
 ### S1. Foundation
+
 - [ ] Set up the audio pipeline: folders, naming, one loudness target, and a `CREDITS.md` entry for every file
 - [ ] Download the sources worth mining (the latest Sonniss GDC bundle, Freesound CC0 / CC-BY searches, Kenney) and build a shortlist per sound category
 - [ ] Bus layout: Master with Music, SFX, Voice, Ambience and UI buses; voice ducking
 - [ ] One volume slider per bus in Settings (only one master slider today)
 
 ### S2. Weapons and combat
+
 - [ ] Dart gun: shot, pump / reload, empty click, shell drops
 - [ ] Dart impact on rider, pedestrian, boss armour and weak spot
 - [ ] Melee: swing, hit and deflect
 - [ ] Phone: throw whoosh, flight, smash
 
 ### S3. Riders and world
+
 - [ ] Bike and rider loop (with pitch and volume by speed)
 - [ ] Footsteps, landing, slide and dash
 - [ ] Crashes and falling parts
@@ -624,27 +518,32 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 - [ ] Passing cars, birds, sirens and crowd cheer
 
 ### S4. Bosses
+
 - [ ] Lawnmower and wifi loops, intro and hit sounds
 - [ ] Minister and golden president sounds
 - [ ] Boss defeat and final boss defeat stingers
 
 ### S5. UI and flow
+
 - [ ] Menu sounds: hover, confirm, back, error
 - [ ] Pickup, hype, shield and slow-motion sounds
 - [ ] Stingers: round start, round clear, game over, run complete
 - [ ] Leaderboard name entry sounds
 
 ### S6. Voice lines
+
 - [ ] Normalise all 79 lines to one loudness and remove the unused `voice_old` files
 - [ ] Record new lines: run start, final boss intro, victory
 - [ ] Note who recorded each line (for the credits)
 
 ### S7. 3D audio and mixing pass
+
 - [ ] Distance attenuation, doppler for riders, tunnel reverb
 - [ ] Mix pass of every theme and boss fight
 - [ ] Remove `tools/bake_audio.py` and the synthesised files once nothing uses them
 
 ### S8. Music
+
 - [ ] Music: see "Dynamic music system" in Milestone E
 
 ---
@@ -672,18 +571,11 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 # Milestone I: Roguelite Progression
 
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone I: Roguelite Progression". Only what is still open stays here.
+
 > The player starts every run with the simplest possible loadout and earns everything else across runs.
 
-- [x] Starting loadout: the Dart Nerf Pistol and the melee weapon
 - [ ] Unlock and buy new weapons with meta currency (adds them to the shop pool)
-- [x] **BUILT, NOT FULLY USED YET:** starting perks work (Loadout page); the six shop-item unlocks are sold in the shop only once bought (alpha C3, built on branch `roadmap/c3-shop-unlock-filter`, waits for the owner's check C3.5). Unlock and buy upgrades and starting perks with meta currency
-- [x] Unlock screen replaces the "coming soon" Unlocks page (items, price, owned / locked state)
-- [x] Loadout screen replaces the "coming soon" Loadout page (choose what you start a run with from what you own)
-- [x] Save unlocks and purchases in the versioned save files (see `docs/SAVE_FILES.md`)
-- [x] Show newly unlocked items on the run summary screen
-- [x] Define the unlock list and price curve in a data table (like `data/items.json`)
-- [x] Balance pass: the first runs with the starting loadout must be winnable but hard, and each unlock should feel meaningful (alpha D2)
-- [x] Reset progress option in Settings, with confirmation (alpha E5, the RESET ALL PROGRESS row)
 - [ ] **PARTLY BUILT:** XP is earned, saved and shown, but a level does nothing yet, on purpose for the alpha (decided in alpha C4). XP and levels (the in-game side; the website shows the same numbers, see Milestone N)
   - [x] Decide what earns XP (for example score, kills, boss kills, finished rounds and runs, challenges) and write the XP table and the level curve in a data table (like `data/items.json`), so the numbers can be tuned without touching code
   - [x] Keep XP and level in the versioned save files (see `docs/SAVE_FILES.md`), separate from meta currency (XP is never spent, it only goes up)
@@ -695,99 +587,33 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 # Milestone J: Manual Reload
 
-- [x] Remove the automatic reload after a few seconds
-- [x] Press R to reload manually
-- [x] Automatically reload when the magazine reaches 0
-- [x] Cannot shoot while reloading; reloading can be interrupted by dashing or switching to melee (decide the exact rule when building it)
-- [x] **BUILT, NOT USED YET:** `reload_started` and `reload_interrupted` have no listener, and the sound and jolt on `reload_finished` are placeholders (after the alpha). Reload animation and sound hooks (builds on the pump / reload animation in F2)
-- [x] HUD and ammo label on the gun show the reloading state
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone J: Manual Reload". Only what is still open stays here.
+
 - [ ] Add reload to the key rebinding list and the Controls page (the Controls page exists now and lists R and X for reload; key rebinding does not exist yet, so only the rebinding list is left)
 - [ ] Rebalance darts per magazine and reload time now that reloading is not free
-- [x] Check how perks and items that touch ammo (rapid fire, infinite ammo, fat darts) interact with the new reload
 
 ---
 
 # Milestone K: Procedural Arenas
 
-> **Note 2026-10-27:** the notes under Foundation, Generation, Building the world and Generated arena class that say "not used by the game yet", "nothing in the game uses it yet" or "not connected" are history: the generated arena is the default since "Make the generated arena the default" below. They are left as they were written.
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone K: Procedural Arenas". Only what is still open stays here.
 
 > Every run gets one generated arena, about four times bigger than the roundabout, that the player walks through freely and where riders can ride on roads, sidewalks, grass and anywhere open. Design, owner decisions, current-code notes and open questions: [`docs/PROCEDURAL_ARENAS.md`](docs/PROCEDURAL_ARENAS.md). Needs the seed from Milestone G; the world kit from Milestone F9 should be reused for the dressing. This replaces how riders, bosses and pedestrians move (street coordinates become world positions), so it is large: work top to bottom, and the first steps keep the roundabout playing as it does today.
 
 ## Decisions
 
-- [x] Size: about 4 times the walkable area (about 6,000 m² against about 1,500 m² now)
-- [x] The player walks through the whole arena
-- [x] Riders do not lap or follow a fixed lane: they can ride on road, sidewalk, grass, anywhere open
-- [x] One arena per run (generated once from the run seed)
-- [x] Riders ride toward the player, pass if they are not shot, then turn round in a smooth arc (limited turning rate, never a sharp 180 degree switch) and ride toward the player again
-- [x] Map nodes: every node uses the whole arena with its own set-up (rider mix, gates in use, props, theme and modifiers), and the player starts each round in a clear start area (the owner left this choice to Claude, reasons in the design note)
-- [x] A rider that passes the player does damage as it does now (same dash and perfect-dodge rules); riders keep coming back until they are killed, with no cap on passes and no time limit (the melee weapon is the fallback), and a round ends when every rider is down
-- [x] Decide whether road, sidewalk and grass change rider speed
 - [ ] Set the performance budget (triangles, lights, shadows, draw distance) on the minimum-spec machine (deferred by the owner: not needed yet, but needed before the world is built)
-
-## Foundation
-
-- [x] Put the arena behind one `Arena` interface with world-space queries (player bounds, surface at a point, obstacles, gates), with the roundabout as its first implementation (no visible change)
-- [x] Move rider, boss and pedestrian movement from street coordinates to world positions with steering and obstacle avoidance (the roundabout must still play the same)
-- [x] Player bounds from the arena instead of `PLAYER_R_MIN` / `PLAYER_R_MAX`
-
-## Generation
-
-- [x] Arena generator: seed in, terrain layout out (size, roads, plazas, grass, building blocks, gates); same seed, same arena
-- [x] **BUILT, NOT USED YET:** `nav_clearance` is used (validation, cheerleader spots), but `nav_cost` is only called by a check; nothing searches the grid (after the alpha). Generate the navigation grid with the layout
-- [x] Validate every generated arena (all gates connected, no sealed areas, minimum corridor widths, a clear start area, sightlines)
-- [x] Debug tool: enter a seed and preview the generated arena
-
-## Building the world
-
-- [x] Ground surfaces, curbs and markings from the layout
-- [x] Place buildings, props, lamps and gates (tunnels, alleys) from the layout (reuse the F9 kit)
-- [x] Theme lighting and lit windows on generated arenas
-
-## Generated arena class
-
-> Puts the `Arena` interface on a generated layout (`scripts/arena_generated.gd`, checked by `tools/arena_generated_check.gd`), so the game can be played on a generated arena. One small step at a time, each pushed to its own branch commit. It is the base of the "Connect the arena to the run map" item below.
-
-- [x] Skeleton and ground queries: `surface_at`, `rider_speed_at`, `start_position`, `gates` in world space, `rider_pursuit()` and `rider_avoidance()` true (checked against 200 layouts, and broken on purpose three ways: swapped start axes, flipped gate directions, wrong rider speeds; not used by the game yet)
-- [x] Bounds and blocking: `clamp_walk` for player, boss and pickup, `obstacle_at`, `ray_blocked`, `rider_blocked` (open through the gates), `hidden_at` (inside a gate's tunnel)
-- [x] Street-coordinate stubs (`tw`, `to_track`, `lim`, `clamp_road`, ...) that return safe values, so code that still thinks in street coordinates cannot crash on a generated arena
-- [x] Build the world from the arena: `WorldGen` ground, `WorldDress` buildings, lamps and trees, `Lighting.apply_theme`, handed to `main.gd` in the shape `world.gd` gives for the roundabout
-- [x] Switch `main.gd` to a generated arena behind a flag (off by default), with a headless load check and a short scripted run on a generated arena
-- [x] Make the generated arena the default and keep the roundabout behind `--roundabout`
-
-## Gameplay on open ground
-
-- [x] Rider pursuit steering: ride toward the player on any open surface, pass, then turn round in a smooth arc and return; spawning at gates
-- [x] Round clear rule for riders that cannot escape: the round ends when every rider is down; rework the round progress icons, the "N of 10 hit" count, `NEED`, the perfect-round rule and style and score rules in `main.gd` and `hud.gd`
-- [x] Boss attacks (strips, slam circles, volleys) on open ground
-- [x] Pedestrians, cheerleaders and pickups placed on generated arenas
-- [x] Riders no longer creep into walls in narrow corridors
-- [x] Threat arrows, radar and aim assist for attacks from every direction and distance
-- [x] Thrown phones and boss volleys respect buildings on open ground (found while playtesting: `update_phones` in `scripts/phones.gd` flies a phone in a straight lob from the rider to the player and never asks the arena, so riders throw phones through buildings, and boss volleys do the same. Two parts: riders and bosses only start a throw when they can see the player, which can reuse `Threats.sight_clear`, and a phone already in flight smashes on the wall it meets (the smash effect and sound exist, `plastic_burst` and `phone_smash`). The roundabout must play as before.
-  Done on branch `roadmap/phone-walls` (`tools\run_phone_wall_check.bat` PASSED on the owner's machine and the gameplay was played and looked good): where `arena.rider_pursuit()` is true a rider starts a throw (`scripts/riders.gd`) and a boss throws a phone (`boss_throws` in `scripts/bosses.gd`) only when `PhoneSys.throw_clear` says nothing solid is between them and the player (`scripts/phones.gd`, which reuses `Threats.sight_clear`); a rider whose wind-up ends behind a building holds the phone and tries again after 0.3 s, a boss waits 0.3 s; a phone in flight that meets a building smashes there (`flight_blocked` and `wall_smash`: no hit, no popup, no score). Boss volleys (`do_volley`) are not held back, their phones smash on the wall. Deflected phones flying back are not changed. `tools/phone_wall_check.gd` (`tools\run_phone_wall_check.bat`) checks all of it on a flat test arena with one wall and the roundabout, and it passed; gdlint and gdformat are clean)
-- [x] **BUILT, NOT FULLY USED YET:** fight nodes use their content (theme, riders, gates, double riders), but the `rain` modifier is only carried, and shop, rest and event nodes still play a round (alpha B2, B3, B5). Connect the arena to the run map (every node uses the whole arena with its own set-up)
 
 ## Exploration and extraction
 
 > The round no longer ends by itself when the last rider falls. Supply caches are spread over the (now bigger) arena for the curious, and once every rider and boss is down an extraction point opens at the far end and the round is cleared when the player walks into it. Built on branch `rework/caches-extraction-point-fresnel-wip-crash-on-round-end`, which is a work in progress (commit "WIP rework", then "Crash fix"): nothing here is ticked off as playtested, and the lines that say "waiting for your in-game check" are still to be played. The roundabout has none of it (`objective_sys.enabled()` is false there) and plays as before.
 
-- [x] Pick the spots: an extraction point far from the start and supply caches spread over the arena
-- [x] Supply caches
-- [x] Extraction point instead of "last rider down ends the round"
-- [x] Show them: a line at the top of the HUD (REACH THE EXTRACTION POINT with the distance, or the dimmed EXTRACTION POINT line saying to down every rider to open it) and CACHES n / 4 under it; a world marker for the point (a diamond with its distance, or an arrow on the screen edge when it is behind or to the side) and for each cache within 45 m; and on the radar a green square (dim until it opens) for the point and gold diamonds for the caches in range (`_draw_objective`, `_world_marker`, `_draw_radar_objectives` in `scripts/hud.gd`)
-- [x] Crash fix: `clear()` in `scripts/objective.gd` stopped with "Trying to assign invalid previously freed instance" when the player reached the extraction point after taking a cache
-- [x] Checks
-- [x] (covered by alpha D1) Playtest the objectives: do the caches pull the player across the map, is the extraction walk too long on a 144 m arena once the riders are down, do `CACHE_CASH`, `CACHE_SCORE`, `CACHE_COUNT` and the 45 m sense range feel right (first guesses in `scripts/objective.gd`)
-- [x] (covered by alpha D1) Riders and pickups on the bigger arena: riders spawn at the gates and ride at the player over a map about twice as wide, so check that a round is not too slow, and whether the extraction point should open earlier or the arena be smaller for the early rounds
-- [x] Extraction on other nodes: shop, rest, event and elite nodes (Milestone D) have no riders to put down, so decide what, if anything, they use the extraction point for
-- [x] Ambush when the extraction point opens: the walk to the point is quiet today because every rider is already down, so send a short last wave or reinforcements through the gates once it opens (a few riders, or a boss node's escort), so the walk is a moment of its own and the caches become a trade-off between the gold detour and the straight run out. Decide the size and the timing while building it, and keep the round clear rule (`finish_wave_set`, `objective_reached`) and the perfect-round rule working
 - [ ] Caches with a catch (today they are pure reward): some of the 4 caches get a variant, chosen by the same seeded stream so the Daily Run gives everybody the same ones
   - [ ] Cursed cache: pays more but calls riders from the nearest gate when taken
   - [ ] Locked cache: needs a key that is found at another cache or dropped by a rider
   - [ ] Vanishing cache: a countdown starts when the player comes within range, so it has to be taken quickly
   - [ ] Mark the variants on the HUD and the radar so the player can tell them apart (colour and shape, not colour alone)
 - [ ] Choose your exit: the arena has several gates and the run map branches, so the extraction point could be one per exit gate, each matching a next node on the map (the player leaves through the gate of the node they want), instead of one fixed point. Needs the node choice (`pick_node`, Milestone D) to be made on the way out instead of on the map screen, and the HUD, radar and world markers to show more than one point
-- [x] Arena map (hold M; it was a pause-screen map first): a top-down view of the arena, shown while M is held, showing the layout the player has explored, the start, the gates, the caches (taken and not) and the extraction point; a cache or the point is revealed when the player first comes within sense range, so exploring is rewarded and nothing is shown that the player has not found. Reuse the drawing from `tools/viewer/arena_viewer.tscn`
 
 ## Rider variety and arena hazards
 
@@ -822,7 +648,6 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
   - [ ] Playtest and balance each style: rider speed, sightlines and run length per style, how a bridge with only 2 gates plays against 3 to 6 riders, whether a tunnel's short sightlines are fair, and the weights (all 1 now; a style can be made rarer by lowering its `weight`)
   - [x] Show the style on the run map or the title screen
   - [x] Show the style on the run map screen too
-- [x] Playtest and balance: rider speed, run length and sightlines on the bigger arena (covered by alpha D1)
 
 ---
 
@@ -970,25 +795,16 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 
 # Tooling & QA
 
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Tooling & QA". Only what is still open stays here.
+
 - [ ] Playtest pass of everything built in Milestone A (title, pause, settings, run, win / lose, leaderboard, name entry). It was written without running the game
 - [ ] Bot playthrough balance harness: a headless script (`tools/bot_run.gd` with a `tools\\run_bot_run.bat` next to it, as the testing rule asks) where a simple bot plays whole runs on many seeds (aims at the nearest rider, dashes away from a threat that is about to hit, takes the nearest cache, walks to the extraction point) and logs, for every round, the time, lives lost, damage taken, kills, caches taken and whether it reached the extraction point; a summary per seed and across seeds gives real numbers for the playtest and balance items in Milestone K, the 10-round difficulty curve and the run length target. Reuse `tools/generated_run_check.gd` for the scripted run; the bot does not have to be good, only the same every time, so changes show as changes in the numbers
-- [x] CI check on every pull request: GDScript lint / format (gdtoolkit) and a headless Godot project load
-- [x] Save-file safety: version the settings and score files so later changes do not break old saves
 
 ---
 
 # Technical Refactor (Recommended Before Milestone D)
 
-## Code Structure
-
-- [x] Break up `main.gd` (~3,600 lines)
-- [x] Move systems into dedicated modules
-
-## Data-Driven Content
-
-- [x] Move items into data tables (shop items, packs and upgrade tiers are in `data/items.json`; see `data/README.md`)
-- [x] Move perks into data tables (perks and duos are in `data/perks.json`; see `data/README.md`)
-- [x] Move weapons into data tables (dart gun and melee tuning are in `data/weapons.json`; see `data/README.md`)
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Technical Refactor (Recommended Before Milestone D)". Only what is still open stays here.
 
 ## Future-Proofing
 
