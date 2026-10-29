@@ -10,16 +10,10 @@ Mostly vibe coded Godot game
 ## Roadmap history
 - The long notes written after ticked roadmap items (what was built, decisions, checks run, what still waits for an in-game check) are in [`docs/ROADMAP_HISTORY.md`](docs/ROADMAP_HISTORY.md), grouped under the same milestone and section headings as here. A ticked item below keeps only its title.
 - **Rule for new notes:** when an item is ticked, write its note (what was built, decisions, checks run, what still waits for an in-game check) in `docs/ROADMAP_HISTORY.md`, under the same milestone and section heading, with the item title as the entry heading. The README line keeps only the checkbox and the title, so the README stays short. Notes on open items that are still being worked on can stay in the README until the item is ticked.
-- **Finished roadmaps and milestones** move out of this file once none of their boxes is open, and leave a short stub with a link, so references like "Milestone G" or "alpha D1" still find them: [`docs/ALPHA_ROADMAP.md`](docs/ALPHA_ROADMAP.md) (the early alpha, 0.2.0) and [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) (finished milestones).
+- **Finished work moves out of this file.** A whole roadmap or milestone with no open box, a section with no open box, and every ticked item without an open box inside it go to docs (a heading stays, with a pointer, where a milestone lost something), so references like "Milestone G" or "alpha D1" still find them: [`docs/ALPHA_ROADMAP.md`](docs/ALPHA_ROADMAP.md) (the early alpha, 0.2.0) and [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) (finished milestones).
 
-## Running from the Godot editor
-- The game starts in a 1280x720 window (the base size in `project.godot`). Fullscreen is built in: F11, or the FULLSCREEN row in the settings, and the choice is saved.
-- If the game runs inside the editor's embedded game view, fullscreen and other window changes do not work there, because the game is not its own window. Turn off the editor's embedded game window option (in the game view toolbar) so the game runs in a separate window, or run an exported build.
-
-## Developer start options (roadmap alpha D2.1)
-- To test the game with coins and unlocks without grinding for them, start it from the editor binary with user arguments: `godot --path . -- --dev-coins=500 --dev-unlocks=item_magnet,item_heart,weapon_dart_gun` (`--dev-unlocks=all` owns everything that is in the game; ids are `id` in `data/unlocks.json`). The coins are set to that number, not added.
-- **Nothing is saved in such a session**: no settings, scores, coins, unlocks or run are written or deleted, so the real save is never touched. One `[dev start]` line in the console says what was applied and names any value that was left out. An exported game ignores these arguments.
-- Details and the rule for new save writers: `docs/SAVE_FILES.md`. Check: `python tools/run_checks.py dev_start`.
+## Running and developing
+- How to run the game from the Godot editor (fullscreen, the embedded game view) and the developer start options (`--dev-coins`, `--dev-unlocks`, nothing saved in such a session) are in [`docs/DEVELOPING.md`](docs/DEVELOPING.md). Save file rules: [`docs/SAVE_FILES.md`](docs/SAVE_FILES.md). Check for the start options: `python tools/run_checks.py dev_start`.
 
 ## Secrets and credentials (this repository is public)
 > **WARNING: never commit or push secrets.** Everything in this repository, including every old commit, is visible to the whole internet, and deleting a secret in a later commit does not remove it from the history. Once a key has been pushed, treat it as stolen and replace it.
