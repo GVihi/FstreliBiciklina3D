@@ -38,3 +38,36 @@ build/
 # Output of tools/run_checks.py (logs, the remembered Godot path)
 check_logs/
 tools/godot_path.local.txt
+
+# --- Secrets and credentials (roadmap V1.1; this repository is public) ---
+# See "Secrets and credentials" in README.md. Real values live in environment
+# variables or in an untracked local file, never in the repository.
+# Environment and local secret files (templates such as secrets.example.cfg
+# and .env.example stay tracked)
+.env
+.env.*
+!.env.example
+secrets.local.*
+# Keys, certificates and code signing files
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+id_rsa*
+id_ed25519*
+# Token and credential files that could end up in the project folder
+*.token
+token.json
+tokens.json
+credentials.json
+credentials.cfg
+# Generated at build time (roadmap V2.1, V4.1); never tracked
+build_info.json
+api_key.*
+# Release and installer output (roadmap V2.5, V6.2)
+dist/
+releases/
+release_manifest.json
+# Django settings override of the website's code, in case a copy is ever put here
+local_settings.py
