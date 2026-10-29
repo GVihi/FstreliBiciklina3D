@@ -561,19 +561,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 # Milestone G: Procedural Map Generation
 
-> **Note 2026-10-27:** several items below say "rounds do not follow the map yet", "nothing reads the rules file yet" or "NOT RUN YET". Those parts are history: a run walks this map (Milestone D) and the checks were run (see "Roadmap audit" at the top). They are left as they were written.
-
-> Works together with the run map in Milestone D: the seed decides the map, and the map decides which encounters, shops and bosses a run contains.
-
-- [x] Generate the run map procedurally from a seed (all three parts below are done; the map is generated and printed to the console, but rounds do not follow it yet: that is Milestone D)
-  - [x] Same seed always produces the same map
-  - [x] Daily seed produces the same map for every player that day (builds on Daily Seed Mode in Milestone A) (a Daily Run uses the daily seed as its run seed, so it gets the same map as every other player that day; checked headless with Godot 4.7: two Daily Runs started in a row printed the same map)
-  - [x] Random seed for normal runs, shown on the run summary so a run can be replayed
-- [x] Define the map generation rules (number of nodes, branching, guaranteed shop / rest stop / boss placement)
-- [x] **BUILT, NOT FULLY USED YET:** the `seed` that shop, rest and event nodes get is never read, and `rain` has no effect (alpha B2, B3, B5). Generate arena layouts and encounter contents from the seed (the arena layout is the run seed's layout from `scripts/arena_gen.gd` (Milestone K); every map node gets a `content` entry from `scripts/map_content.gd`: theme, rider count and mix, open gates, 0 or 1 modifier, boss kind, or a seed for shop / rest / event nodes; each node has its own generator so one node never changes another and the floors, edges and types of every seed are unchanged; numbers in the `content` section of `data/map_rules.json`, explained in `docs/MAP_GENERATION.md`; `tools/map_check.gd` checks the content of 2,000 maps. Headless check run 2026-10-27 with Godot 4.7: `map_check` PASSED (`python tools/run_checks.py map_check`). (Old note: rounds did not use the content yet, it is used now: that is Milestone D)
-- [x] Validate that every generated map is completable (no dead ends, boss always reachable)
-- [x] Debug tool: enter a seed and preview the generated map
-- [x] Optional: let the player type in a custom seed on the title screen
+> **Done, every item is ticked.** The full milestone (seed-based map generation, the generation rules, the completability check, the seed debug tool and the custom seed page) moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29. The rules are explained in [`docs/MAP_GENERATION.md`](docs/MAP_GENERATION.md). The heading stays here so references to "Milestone G" still find it.
 
 ---
 
@@ -926,7 +914,7 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 - [ ] Milestone D: Run map, relics, modifiers
 - [ ] Milestone E: Polish, tutorial, music
 - [ ] Milestone F: Graphics and sound overhaul (art direction first; can start any time after Milestone A)
-- [ ] Milestone G: Procedural map generation (build together with the run map in Milestone D)
+- [x] Milestone G: Procedural map generation (done, see `docs/COMPLETED_MILESTONES.md`)
 - [ ] Milestone H: Run start sequence (needs the map from Milestone G to fade into)
 - [ ] Milestone I: Roguelite progression (builds on the meta currency and unlocks in Milestone B)
 - [ ] Milestone J: Manual reload (small and independent, can be done at any time)
