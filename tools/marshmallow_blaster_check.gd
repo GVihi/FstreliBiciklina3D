@@ -201,7 +201,7 @@ func _check_model() -> void:
 	for kept in ["Cercle_011", "Cercle_012", "Cercle_013", "Cercle_014", "Cercle_015"]:
 		if node.find_children(kept, "Node3D", true, false).is_empty():
 			_fail("the shell %s of the drum is missing from the model" % kept)
-	var box = _mesh_bounds(node)
+	var box = _mesh_bounds(node, g["muzzle"])
 	if box.size == Vector3.ZERO:
 		_fail("the blaster model has no meshes")
 		return
@@ -225,11 +225,14 @@ func _check_model() -> void:
 		)
 
 
-# the bounds of every mesh under `node`, in the space of `node`
-func _mesh_bounds(node: Node3D) -> AABB:
+# the bounds of every mesh under `node`, in the space of `node`, except the muzzle flash (it hangs on the muzzle and
+# sticks out far in front of the gun)
+func _mesh_bounds(node: Node3D, skip: Node3D) -> AABB:
 	var total = AABB()
 	var first = true
 	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		if skip.is_ancestor_of(mi):
+			continue
 		var chain = Transform3D.IDENTITY
 		var cur: Node = mi
 		while cur != node and cur != null:
