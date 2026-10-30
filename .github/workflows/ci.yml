@@ -4,6 +4,7 @@ name: CI
 #   lint    - gdlint on the GDScript
 #   format  - gdformat --check (run `gdformat scripts/ tools/` to fix a failure)
 #   load    - imports the project and runs it headless in Godot, fails on any script error
+#   secrets - tools/secrets_check.py over every commit of the pull request (or push), fails on a key-like string
 #   checks  - runs every tools/*_check.gd headless with `python tools/run_checks.py` (about 10 minutes)
 
 on:
@@ -43,6 +44,37 @@ jobs:
           python-version: "3.12"
       - run: pip install "gdtoolkit==${GDTOOLKIT_VERSION}"
       - run: gdformat --check scripts/ tools/
+
+  secrets:
+    name: Secrets scan (tools/secrets_check.py)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The whole history, so the commits of the pull request can be listed against the base branch.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Self-test of the scanner
+        run: python tools/secrets_check.py --self-test
+      - name: Scan the commits of this pull request or push
+        env:
+          # Passed as environment variables, never pasted into the script text.
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          # Prints the file, line and kind of each finding, never the value.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            range="origin/${BASE_REF}..HEAD"
+          elif [ -n "$PUSH_BEFORE" ] && [ "${PUSH_BEFORE//0/}" != "" ] && git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
+            range="${PUSH_BEFORE}..HEAD"
+          else
+            range="HEAD~1..HEAD"
+          fi
+          echo "Scanning ${range}"
+          python tools/secrets_check.py --range "$range"
 
   load:
     name: Godot headless project load
