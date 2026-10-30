@@ -4,6 +4,7 @@ name: CI
 #   lint    - gdlint on the GDScript
 #   format  - gdformat --check (run `gdformat scripts/ tools/` to fix a failure)
 #   load    - imports the project and runs it headless in Godot, fails on any script error
+#   build_info - tools/make_build_info.py --self-test (roadmap V2.1)
 #   secrets - tools/secrets_check.py over every commit of the pull request (or push), fails on a key-like string
 #   checks  - runs every tools/*_check.gd headless with `python tools/run_checks.py` (about 10 minutes)
 
@@ -75,6 +76,17 @@ jobs:
           fi
           echo "Scanning ${range}"
           python tools/secrets_check.py --range "$range"
+
+  build_info:
+    name: Build info (tools/make_build_info.py)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Self-test of the build info script
+        run: python tools/make_build_info.py --self-test
 
   load:
     name: Godot headless project load
