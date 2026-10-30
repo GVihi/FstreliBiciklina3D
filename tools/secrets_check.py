@@ -5,6 +5,7 @@
     python tools/secrets_check.py --self-test     run the scanner on made-up secrets it must catch and on clean
                                                   text it must pass, then end to end in a throw-away git repository
     python tools/secrets_check.py --install-hook  install it as this clone's pre-commit hook (once per clone)
+    python tools/secrets_check.py --range BASE..HEAD  scan every commit in a range, one by one (CI, roadmap V1.5)
 
 Exit code: 0 = nothing found, 1 = something key-like was found (the commit is stopped), 2 = it could not run.
 
@@ -272,13 +273,32 @@ def scan_staged(cwd=None):
     return scan_diff(diff.stdout, [n for n in names.stdout.split("\n") if n])
 
 
-def report(findings, out=sys.stdout):
+def scan_range(rev_range, cwd=None):
+    """Scan what each commit in `rev_range` (for example origin/main..HEAD) ADDS, one commit at a time, so a key that
+    was added in one commit and removed in the next is still found (it stays in the history). Returns a list of
+    (path, line, kind) with the short commit hash put in front of the path."""
+    commits = git(["rev-list", "--no-merges", "--reverse", rev_range], cwd)
+    if commits.returncode != 0:
+        raise RuntimeError("git could not list the commits of %r: %s" % (rev_range, commits.stderr.strip()[:200]))
+    findings = []
+    for commit in [c for c in commits.stdout.split("\n") if c]:
+        flags = ["--format=", "--no-color", "--no-ext-diff", "--diff-filter=ACMR", "--root"]
+        diff = git(["show", "-U0"] + flags + [commit], cwd)
+        names = git(["show", "--name-only"] + flags + [commit], cwd)
+        if diff.returncode != 0 or names.returncode != 0:
+            raise RuntimeError("git could not read commit %s: %s" % (commit[:7], (diff.stderr or names.stderr)[:200]))
+        for path, number, kind in scan_diff(diff.stdout, [n for n in names.stdout.split("\n") if n]):
+            findings.append(("%s %s" % (commit[:7], path), number, kind))
+    return findings
+
+
+def report(findings, out=sys.stdout, what="the staged changes, commit stopped."):
     for path, number, kind in findings:
         where = "%s:%d" % (path, number) if number else path
         print("%s: %s" % (where, kind), file=out)
     if findings:
         print(
-            "\nsecrets_check: %d possible secret(s) in the staged changes, commit stopped." % len(findings),
+            "\nsecrets_check: %d possible secret(s) in %s" % (len(findings), what),
             "Nothing above shows the value. Take it out, keep it in an environment variable or in secrets.local.cfg",
             "(README.md, 'Secrets and credentials'). If a real key was already pushed anywhere, it is burned:",
             "replace it first. If this is a false alarm (a test or an example), put 'secrets-check: ignore' in a",
@@ -585,6 +605,39 @@ def _selftest_git():
         commit = run(["commit", "-q", "-m", "clean"])
         if commit.returncode != 0:
             problems.append("the pre-commit hook stopped a clean commit: " + commit.stdout.strip()[:200])
+        # a range: a secret added in one commit and removed in the next is still found, a clean range is not
+        base = run(["rev-parse", "HEAD"]).stdout.strip()
+        with open(os.path.join(tmp, "later.gd"), "w", encoding="utf-8") as f:
+            f.write('var api_key = "' + secret_value + '"\n')
+        run(["add", "later.gd"])
+        run(["commit", "-q", "--no-verify", "-m", "adds a secret"])
+        os.remove(os.path.join(tmp, "later.gd"))
+        run(["add", "-A"])
+        run(["commit", "-q", "--no-verify", "-m", "removes it again"])
+        found = scan_range(base + "..HEAD", tmp)
+        if [(p.split(" ", 1)[1], n) for p, n, _ in found] != [("later.gd", 1)]:
+            problems.append("range scan: expected later.gd line 1, got %s" % found)
+        proc = subprocess.run(
+            [sys.executable, os.path.join(tmp, "tools", "secrets_check.py"), "--range", base + "..HEAD"],
+            cwd=tmp,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if proc.returncode != 1 or secret_value in proc.stdout or "later.gd:1" not in proc.stdout:
+            problems.append("--range on a bad range: exit %d, output %r" % (proc.returncode, proc.stdout[:120]))
+        if scan_range("HEAD..HEAD", tmp) != []:
+            problems.append("range scan: an empty range found something")
+        if scan_range("HEAD~2", tmp) != []:  # the first (clean) commit alone, read with --root
+            problems.append("range scan: the clean first commit was reported")
+        try:
+            scan_range("no-such-ref..HEAD", tmp)
+            problems.append("range scan: a bad ref did not raise")
+        except RuntimeError:
+            pass
         # a different hook is never overwritten
         os.remove(os.path.join(tmp, ".git", "hooks", "pre-commit"))
         with open(os.path.join(tmp, ".git", "hooks", "pre-commit"), "w", encoding="utf-8") as f:
@@ -615,8 +668,19 @@ def main(argv):
         return self_test()
     if args == ["--install-hook"]:
         return install_hook()
+    if len(args) == 2 and args[0] == "--range" and not args[1].startswith("-"):
+        try:
+            findings = scan_range(args[1])
+        except (RuntimeError, OSError) as e:
+            print("secrets_check: " + str(e), file=sys.stderr)
+            return 2
+        report(findings, what="the commits of " + args[1] + ", the check fails.")
+        return 1 if findings else 0
     if args:
-        print(__doc__.split("\n\n")[0] + "\n\nUsage: secrets_check.py [--self-test | --install-hook]", file=sys.stderr)
+        print(
+            __doc__.split("\n\n")[0] + "\n\nUsage: secrets_check.py [--self-test | --install-hook | --range A..B]",
+            file=sys.stderr,
+        )
         return 2
     try:
         findings = scan_staged()
