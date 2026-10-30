@@ -36,13 +36,13 @@ Mostly vibe coded Godot game
 >
 > **Working order:** V1, V2, V3, V4, V5, V6, V7, V8, V10, with **V9 (Discord) at any time after V2**, because it needs no website. One checkbox at a time on its own branch (`roadmap/<id>-<short-name>`), the checks of the code it touched (`python tools/run_checks.py <name>`), a tick here and in Milestone N, and the long note in `docs/ROADMAP_HISTORY.md` under the heading "Web Integration Roadmap (v0.3.0)". Website code is built in the site's repository and has its own tests (`python manage.py test fb3d`). Steps that need Windows, the real website, Discord, GitHub settings or a person at a PC are marked **Owner:**.
 
-- [ ] **V1. Repository hygiene before any secret exists** (Milestone N "Keeping secrets out of the public repository"). Done when a key-like string cannot be pushed by accident: ignored, scanned before commit and in CI, and the procedure for a leak is written down.
+- [x] **V1. Repository hygiene before any secret exists** (Milestone N "Keeping secrets out of the public repository"). Done when a key-like string cannot be pushed by accident: ignored, scanned before commit and in CI, and the procedure for a leak is written down.
   - [x] V1.1 Extend `.gitignore`.
   - [x] V1.2 `secrets.example.cfg` and the loader `scripts/secrets.gd`.
-  - [ ] V1.3 **Owner:** turn on GitHub secret scanning and push protection (Settings > Code security) and tell Claude when it is on.
+  - [x] V1.3 **Owner:** turn on GitHub secret scanning and push protection (Settings > Code security) and tell Claude when it is on.
   - [x] V1.4 `tools/secrets_check.py`, the scan of the staged changes, with `--self-test` and `--install-hook`.
   - [x] V1.5 CI runs the same scan on every pull request.
-  - [ ] V1.6 One look through the whole git history for anything key-like before the web work starts (nothing was found in the current files), and the result written down.
+  - [x] V1.6 One look through the whole git history for anything key-like before the web work starts (nothing was found in the current files), and the result written down.
   - [x] V1.7 `docs/SECRETS.md`: where each real key lives, who has it, how to rotate it, and the "a key leaked" procedure.
 - [ ] **V2. Build identity: version and git hash** (Milestone N "Decide how the version number is kept in step", and the Windows version info). Done when every build can say exactly which commit it was made from, and the hash reaches the title screen, the log and the API.
   - [ ] V2.1 `tools/make_build_info.py` writes `build_info.json` at the project root: `version` (read from `config/version`, which stays the one place the version is written), `commit` and `short` (7 characters), `dirty` (uncommitted changes in the tree), `built_utc` and `channel` (`dev`, `alpha` or `release`). The file is generated, untracked (V1.1) and added to the export preset's `include_filter`, which holds only `data/*.json` today, so a file in the project root would otherwise be left out of the exe.
