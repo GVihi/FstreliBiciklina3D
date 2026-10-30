@@ -93,7 +93,9 @@ DRF's defaults are made for a browser and a website, and this API is for one gam
   `DEFAULT_PARSER_CLASSES` is `JSONParser` only, so form and multipart bodies are refused with a stable error code.
 - **No session authentication.** `SessionAuthentication` is not in `DEFAULT_AUTHENTICATION_CLASSES`. DRF only enforces
   CSRF for session authentication, so with it absent a browser cookie is never accepted as a login (fact 2). The two
-  authentications are the game key ("The game key" in `docs/WEBSITE_API.md`) and the bearer token of V5.
+  checks of a call are the game key ("The game key" in `docs/WEBSITE_API.md`; built in V3.4 as a check in `ApiView.initial`
+  right after the throttles, not as a DRF authentication class, so a rejected key still counts against the rate limit)
+  and the bearer token of V5.
 - **One error shape.** A custom `EXCEPTION_HANDLER` turns every DRF and Django error, including 404, 405, 415 and
   throttling, into the `{"error": {"code": ..., "message": ...}}` shape of `docs/WEBSITE_API.md`, and never returns a
   traceback or a DRF default body.

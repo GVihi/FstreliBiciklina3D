@@ -40,7 +40,8 @@ is in [`docs/WEBSITE.md`](WEBSITE.md); where each secret lives is in [`docs/SECR
 | `If-Match` | the save revision the client last saw | `PUT saves/current` |
 
 `X-FB3D-Version` and `X-FB3D-Build` are **information, not proof**: the server uses them to decide "update required" and
-to write logs, and never to trust anything. A missing or malformed `X-FB3D-Version` is `bad_request`.
+to write logs, and never to trust anything. A missing or malformed `X-FB3D-Version` is `bad_request`. The key is checked
+**before** these headers (see "The game key"), so a call with no good key gets `key_missing` or `key_rejected`, never `bad_request`.
 
 ### The one error shape
 
@@ -99,7 +100,7 @@ All numbers are **first guesses** to be measured in V3.3 and V8.1; the doc and t
 | Request body, auth calls | 4 KiB |
 | Request body, `PUT saves/current` | 256 KiB (the four save files are small; V8.1 measures) |
 | nginx `client_max_body_size` for `/fb3d/api/` | 300k, a little above the largest call, so nginx stops oversized bodies before Django does |
-| Rate, any call, per IP | 120 per minute (built in V3.3; the default in-memory cache is enough for the one-worker site) |
+| Rate, any call, per IP | 120 per minute (built in V3.3; the default in-memory cache is enough for the one-worker site). A call with a missing or wrong key counts too (V3.4) |
 | Rate, `auth/login`, per IP | 10 per minute |
 | Rate, `auth/login`, per username | 5 per 10 minutes (on top of the site's 5 s pause) |
 | Rate, `auth/refresh`, per session | 30 per hour |
@@ -135,6 +136,22 @@ anything that is not a build of the game. The owner can change this.)
 - The key is **compared in constant time**. A missing key gives `key_missing`, a wrong, expired or switched-off key
   gives `key_rejected`. Neither writes the key to a log, to the `errors` database or to a response.
 - A call with a rejected key still counts towards the per-IP rate limit, so key guessing is throttled.
+- **As built (V3.4):**
+  - **Shape.** The server makes every key; nobody types one. It is `fb3dk_` and 43 URL-safe characters from 32 random
+    bytes (`fb3dk_` is there so a secret scanner can find a leaked one). The game sends it unchanged. A header that is not
+    exactly that shape is `key_rejected` at once, without a database lookup.
+  - **Storage.** HMAC-SHA256 of the key, keyed with a secret of the site (`FB3D_API_KEY_PEPPER`, in the site's environment,
+    never in the database or in this repository). A stolen database alone gives no working key. Changing that secret
+    makes every stored key stop working, which is the same as rotating all of them. Without it the site cannot check
+    a key and answers `server_error`: it fails closed.
+  - **Order.** The key is checked after the call was counted by the rate limit and before everything else in the call: the
+    other headers, the method and the body (a `POST` to `ping` without a key is `key_missing`, not `method_not_allowed`,
+    and its body is not read). Three answers come earlier because they need no key: an unknown path (`not_found`), plain HTTP
+    (`https_required`) and a body over the hard limit (`payload_too_large`).
+  - **Switching off.** In the Django admin (Ključi igre, superuser only) a key has a label, an on/off switch, an optional
+    expiry and a "last used" time. Off and expired give `key_rejected` on the next call. "Last used" is written at most
+    once an hour per key, so the owner can see whether an old key is still in use before switching it off.
+  - **Not built yet:** limits per key (the next section's "per account as well as per key" is only per account and per IP so far).
 - **The limit, stated plainly:** the key is inside a program that runs on the player's own PC, so a determined person
   can extract it. It stops casual and automated abuse and lets a leaked key be shut off; it is **not** a proof that a
   call comes from an honest build. So the server never trusts the client: every call also needs a valid token where the
@@ -146,7 +163,7 @@ anything that is not a build of the game. The owner can change this.)
 
 ### `GET /fb3d/api/v1/ping`
 
-Is the site up, and is this key and build accepted? Needs the key headers only. Never needs a token. (**Built in V3.3 without the key check**: the key arrives with V3.4, and `update` is always
+Is the site up, and is this key and build accepted? Needs the key headers only. Never needs a token. (**Built in V3.3 without the key check; V3.4 added it**, so `ping` now needs a good key like every call, and `update` is always
 `none` until releases exist, V4.3.)
 
 ```
@@ -347,8 +364,10 @@ Not part of the contract, written so V3.3 starts from one place. The code is `fb
 
 - Django REST Framework, configured closed as described in `docs/WEBSITE.md`: JSON renderer and parser only, no session
   authentication, `URLPathVersioning`, one `EXCEPTION_HANDLER` that produces the error shape above.
-- Two authentication steps: `GameKeyAuthentication` (the key, on every call) and `BearerTokenAuthentication` (the user,
-  where the table asks for a token). A call can have a key and no user.
+- Two checks: the **game key**, on every call, and `BearerTokenAuthentication` (the user, where the table asks for a
+  token). A call can have a key and no user. **As built (V3.4) the key is not a DRF authentication class:** DRF authenticates
+  before it throttles, so a rejected key would never be counted by the rate limit, which this file promises. It is checked in
+  `ApiView.initial` (`fb3d/api/views.py`, `fb3d/api/keys.py`) right after the throttles. V5 must run the bearer step after it.
 - Rate limits as DRF throttle classes keyed by IP, username, session and account, on a **shared** cache, which has to be
   chosen first (`docs/WEBSITE.md`, fact 1).
 - Tests (`python manage.py test fb3d`) cover every `code` in the table above, the headers, the body limits, a session
