@@ -1,0 +1,11 @@
+Model Information:
+* title:	Battle hammer
+* source:	https://sketchfab.com/3d-models/battle-hammer-fd6ccd051fa64e03b5ff52dcb259038d
+* author:	davidskalin (https://sketchfab.com/davidskalin)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Battle hammer" (https://sketchfab.com/3d-models/battle-hammer-fd6ccd051fa64e03b5ff52dcb259038d) by davidskalin (https://sketchfab.com/davidskalin) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

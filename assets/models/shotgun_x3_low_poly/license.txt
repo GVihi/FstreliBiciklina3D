@@ -1,0 +1,11 @@
+Model Information:
+* title:	shotgun x3 low poly
+* source:	https://sketchfab.com/3d-models/shotgun-x3-low-poly-d6533c4db7494b54bfadcd20b57c312c
+* author:	kawuru (https://sketchfab.com/kawuru)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "shotgun x3 low poly" (https://sketchfab.com/3d-models/shotgun-x3-low-poly-d6533c4db7494b54bfadcd20b57c312c) by kawuru (https://sketchfab.com/kawuru) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

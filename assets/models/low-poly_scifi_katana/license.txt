@@ -1,0 +1,11 @@
+Model Information:
+* title:	low-poly scifi Katana
+* source:	https://sketchfab.com/3d-models/low-poly-scifi-katana-a522335c06e7432d8ab365a991e8d138
+* author:	Max (https://sketchfab.com/maximpuzenko22)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "low-poly scifi Katana" (https://sketchfab.com/3d-models/low-poly-scifi-katana-a522335c06e7432d8ab365a991e8d138) by Max (https://sketchfab.com/maximpuzenko22) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

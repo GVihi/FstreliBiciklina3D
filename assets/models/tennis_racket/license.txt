@@ -1,0 +1,11 @@
+Model Information:
+* title:	Tennis racket
+* source:	https://sketchfab.com/3d-models/tennis-racket-a79f01ba56774f61bbe5a3196e2d7cf4
+* author:	turtlemode (https://sketchfab.com/turtlemode)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Tennis racket" (https://sketchfab.com/3d-models/tennis-racket-a79f01ba56774f61bbe5a3196e2d7cf4) by turtlemode (https://sketchfab.com/turtlemode) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

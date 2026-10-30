@@ -1,0 +1,11 @@
+Model Information:
+* title:	VN-1 Suppressed Infantry Rifle
+* source:	https://sketchfab.com/3d-models/vn-1-suppressed-infantry-rifle-fe9cf1d9428448ca949ca98c39263338
+* author:	captain_tronix (https://sketchfab.com/captain_tronix)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "VN-1 Suppressed Infantry Rifle" (https://sketchfab.com/3d-models/vn-1-suppressed-infantry-rifle-fe9cf1d9428448ca949ca98c39263338) by captain_tronix (https://sketchfab.com/captain_tronix) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
