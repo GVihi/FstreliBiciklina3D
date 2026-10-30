@@ -7,6 +7,11 @@ extends RefCounted
 # through walls. The hit flash (`Main.set_flash`) uses the same overlay slot, so it puts the rim back when it ends.
 # Turn it off with `ENABLED` here or the RIM OUTLINE row in settings.
 #
+# Distance: from FAR_START to FAR_END metres from the camera the rim gets thicker, brighter and gets a soft fill
+# inside the silhouette, so a rider or pedestrian far across the arena is still a clear coloured shape instead of
+# a thin line. Up close nothing changes. The fill is the part that matters most: a thin rim is under a pixel wide
+# at 60 m, a filled shape is not. Playtester report 2026-10-30.
+#
 # Red against green is the hardest pair for colour-blind players, so the foe tint is a hot red-orange and the
 # bystander tint a cool green-cyan, and the setting can switch the whole effect off.
 
@@ -19,6 +24,12 @@ const META = "rim_mat"  # meta key on a MeshInstance3D holding the rim material 
 const COLORS = {FOE: Color(1.0, 0.25, 0.1), FRIEND: Color(0.2, 0.95, 0.6)}
 const STRENGTH = 0.55  # peak opacity of the glow at the silhouette
 const POWER = 2.6  # higher = thinner rim
+const FAR_START = 18.0  # metres: the rim starts to grow
+const FAR_END = 75.0  # metres: fully grown from here on (the dart gun reaches 80 m)
+const FAR_STRENGTH = 0.9  # peak opacity of the rim at FAR_END
+const FAR_POWER = 1.2  # a much thicker rim at FAR_END
+const FAR_FILL = 0.4  # how much of the colour fills the whole shape at FAR_END
+const FAR_BOOST = 1.5  # the colour is brighter by this factor at FAR_END (glow picks it up)
 
 const SHADER = """
 shader_type spatial;
@@ -27,11 +38,20 @@ render_mode blend_add, unshaded, cull_back, depth_draw_never, fog_disabled;
 uniform vec3 rim_color : source_color = vec3(1.0, 0.25, 0.1);
 uniform float strength = 0.55;
 uniform float power = 2.6;
+uniform float far_start = 18.0;
+uniform float far_end = 75.0;
+uniform float far_strength = 0.9;
+uniform float far_power = 1.2;
+uniform float far_fill = 0.4;
+uniform float far_boost = 1.5;
 
 void fragment() {
-	float f = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), power);
-	ALBEDO = rim_color;
-	ALPHA = clamp(f * strength, 0.0, 1.0);
+	float k = smoothstep(far_start, far_end, length(VERTEX));
+	float p = mix(power, far_power, k);
+	float f = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), p);
+	float a = max(f * mix(strength, far_strength, k), far_fill * k);
+	ALBEDO = rim_color * mix(1.0, far_boost, k);
+	ALPHA = clamp(a, 0.0, 1.0);
 }
 """
 
@@ -50,6 +70,12 @@ static func material_for(kind: String) -> ShaderMaterial:
 	m.set_shader_parameter("rim_color", COLORS[kind])
 	m.set_shader_parameter("strength", STRENGTH)
 	m.set_shader_parameter("power", POWER)
+	m.set_shader_parameter("far_start", FAR_START)
+	m.set_shader_parameter("far_end", FAR_END)
+	m.set_shader_parameter("far_strength", FAR_STRENGTH)
+	m.set_shader_parameter("far_power", FAR_POWER)
+	m.set_shader_parameter("far_fill", FAR_FILL)
+	m.set_shader_parameter("far_boost", FAR_BOOST)
 	_mats[kind] = m
 	return m
 

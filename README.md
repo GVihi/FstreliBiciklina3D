@@ -436,6 +436,7 @@ Mostly vibe coded Godot game
 
 - [ ] Desk phone model
 - [ ] Throw, flight trail and smash effect
+- [x] **Far visibility of foes and thrown phones** (not on the roadmap; added 2026-10-30 after a playtester report)
 
 ### F6. Pedestrians and cheerleaders
 
