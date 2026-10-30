@@ -12,9 +12,11 @@ signal reload_interrupted  # the reload was stopped before it finished (dash, me
 
 const Util = preload("res://scripts/util.gd")
 const Halo = preload("res://scripts/halo.gd")
+const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 
 var g = null
 var dart_pool = []
+var pellet_pool = []  # the marshmallows of a scatter weapon, pooled apart from the darts
 var dart_scene = null  # the dart model, loaded the first time a dart is made
 
 const DART_MODEL_GLB = true  # Milestone F2: darts use assets/models/dart.glb; false = the old box and ball
@@ -137,7 +139,11 @@ func fire() -> void:
 		else:
 			g.shells -= 1
 			used_magazine = true
-	var dart_dmg = int(g.primary_stats()["damage"])
+	var w = g.primary_stats()
+	var dart_dmg = int(w["damage"])
+	# a scatter weapon (`pellets` in data/weapons.json) sends that many pellets from one shell, each along its own ray
+	# inside the spread cone; every other weapon sends one dart
+	var pellets = maxi(1, int(w.get("pellets", 1)))
 	# LAST SHELL is the last dart of the magazine: a free dart or a rapid fire shot from an empty gun is not that
 	var lastshot = g.perks.has("lastshell") and used_magazine and g.shells == 0
 	g.pump_dur = g.player_sys.cur_pump()
@@ -148,14 +154,42 @@ func fire() -> void:
 	g.shake = 0.15
 	g.shots_fired += 1
 	g.challenges.on_dart_fired()
-	g.sfx.play("shot")
+	g.sfx.play(WeaponSlots.shot_sound(g.primary))
 	g.pitch = clampf(g.pitch + deg_to_rad(0.7 * (1.0 - 0.5 * g.ads_t)), -1.45, 1.45)
 
+	var first = {}
+	for i in range(pellets):
+		var res = shoot_dart(dart_dmg * (2 if lastshot else 1), pellets > 1)
+		if i == 0:
+			first = res
+		if g.state != "play":  # the run ended on this shot: the rest of the shell changes nothing
+			break
+	g.bloom = minf(g.bloom + float(w["bloom_per_shot"]), float(w["bloom_max"]))
+
+	# near-miss reaction for pedestrians (not the one we hit), once per shot and along the first dart or pellet
+	var org = g.cam.global_position
+	var dir = first["dir"]
+	for c3 in g.civs:
+		if c3["state"] != "walk" or c3 == first["obj"] or c3["flinch"] > 0.0 or c3["hidden"]:
+			continue
+		var to = c3["pos"] + Vector3(0.0, 0.9, 0.0) - org
+		var proj = to.dot(dir)
+		if proj > 0.0 and proj < 45.0:
+			var perp = (to - dir * proj).length()
+			if perp < 1.5:
+				c3["flinch"] = 0.6
+				var cp = c3["pos"] + Vector3(0.0, 1.2, 0.0)
+				g.sfx.v_gasp(cp)
+				g.add_popup(c3["pos"] + Vector3(0.0, 2.0, 0.0), "JOJ!", g.WHITE, true)
+
+
+# One dart or one pellet: a ray inside the spread cone, the nearest thing it hits, the flying dart (a marshmallow for a
+# pellet) and what the hit does. `dmg` is already doubled by LAST SHELL when that applies. `scatter` is true for a
+# pellet of a scatter weapon: the small dust and spark puffs are cut down, because one shell sends several of them.
+# Returns the direction of the ray and the object it hit, for the near-miss reaction in fire().
+func shoot_dart(dmg: int, scatter: bool) -> Dictionary:
 	var dir = ray_dir_with_spread()
 	var org = g.cam.global_position
-	g.bloom = minf(
-		g.bloom + float(g.primary_stats()["bloom_per_shot"]), float(g.primary_stats()["bloom_max"])
-	)
 	var ex = g.player_sys.ex_bonus()
 
 	# how far can the dart travel before hitting the world?
@@ -242,25 +276,11 @@ func fire() -> void:
 	var muzzle_pt: Vector3 = g.gun["muzzle"].global_position
 	if g.viewmodel != null:
 		muzzle_pt = g.viewmodel.muzzle_point(g.gun["muzzle"])
-	spawn_dart(muzzle_pt, end_pt, stick)
-
-	# near-miss reaction for pedestrians (not the one we hit)
-	for c3 in g.civs:
-		if c3["state"] != "walk" or c3 == best_obj or c3["flinch"] > 0.0 or c3["hidden"]:
-			continue
-		var to = c3["pos"] + Vector3(0.0, 0.9, 0.0) - org
-		var proj = to.dot(dir)
-		if proj > 0.0 and proj < 45.0:
-			var perp = (to - dir * proj).length()
-			if perp < 1.5:
-				c3["flinch"] = 0.6
-				var cp = c3["pos"] + Vector3(0.0, 1.2, 0.0)
-				g.sfx.v_gasp(cp)
-				g.add_popup(c3["pos"] + Vector3(0.0, 2.0, 0.0), "JOJ!", g.WHITE, true)
+	spawn_dart(muzzle_pt, end_pt, stick, scatter)
 
 	if target_hit:
 		if best_kind == "rider":
-			g.rider_sys.hit_rider(best_obj, dart_dmg * (2 if lastshot else 1))
+			g.rider_sys.hit_rider(best_obj, dmg)
 		elif best_kind == "civ":
 			g.civ_sys.hit_civ(best_obj)
 		elif best_kind == "boss":
@@ -269,16 +289,14 @@ func fire() -> void:
 			var is_weak = (
 				hit_y >= float(g.BOSS_INFO[bo["kind"]]["weak_y"]) + g.boss_sys.boss_hover(bo)
 			)
-			g.boss_sys.hit_boss(
-				bo, dart_dmg * (2 if lastshot else 1), is_weak, 30.0 if is_weak else 14.0
-			)
+			g.boss_sys.hit_boss(bo, dmg, is_weak, 30.0 if is_weak else 14.0)
 		elif best_kind == "phone":
 			g.phone_sys.shoot_phone(best_obj)
 		elif best_kind == "pickup":
 			g.pickup_sys.collect_pickup(best_obj)
 	else:
 		if world_kind == "floor":
-			for i in range(3):
+			for i in range(1 if scatter else 3):
 				g.fx_sys.spawn_particle(
 					end_pt,
 					Vector3(randf_range(-0.8, 0.8), randf_range(0.6, 1.6), randf_range(-0.8, 0.8)),
@@ -288,7 +306,7 @@ func fire() -> void:
 					4.0
 				)
 		elif world_kind == "wall":
-			for i in range(5):
+			for i in range(2 if scatter else 5):
 				g.fx_sys.spawn_particle(
 					end_pt,
 					Vector3(randf_range(-2.0, 2.0), randf_range(0.5, 2.5), randf_range(-2.0, 2.0)),
@@ -297,6 +315,7 @@ func fire() -> void:
 					Vector3(0.04, 0.04, 0.04),
 					8.0
 				)
+	return {"dir": dir, "obj": best_obj}
 
 
 # --- melee: a giant gummy worm swung at whatever is close to the player
@@ -495,7 +514,10 @@ func flat_dist_v(a: Vector3, b: Vector3) -> float:
 
 func release_dart(node: Node3D) -> void:
 	node.visible = false
-	dart_pool.append(node)
+	if node.has_meta("pellet"):
+		pellet_pool.append(node)
+	else:
+		dart_pool.append(node)
 
 
 # a fresh copy of the modelled dart, or null when the model is switched off or missing
@@ -511,20 +533,29 @@ func dart_model() -> Node3D:
 	return dart_scene.instantiate() as Node3D
 
 
-func spawn_dart(a: Vector3, b: Vector3, stick: bool) -> void:
+# `pellet` is true for the marshmallows of a scatter weapon: a short white cylinder instead of the dart
+func spawn_dart(a: Vector3, b: Vector3, stick: bool, pellet: bool = false) -> void:
 	var node: Node3D
-	if dart_pool.size() > 0:
-		node = dart_pool.pop_back()
+	var pool = pellet_pool if pellet else dart_pool
+	if pool.size() > 0:
+		node = pool.pop_back()
 		node.visible = true
 		node.rotation = Vector3.ZERO
 	else:
 		node = Node3D.new()
-		var model = dart_model()
-		if model != null:
-			node.add_child(model)  # the model's tip points to -Z, the way look_at aims
+		if pellet:
+			node.set_meta("pellet", true)
+			var puff = Util.cyl(
+				node, 0.04, 0.04, 0.08, Vector3.ZERO, Util.mat(Color.html("#fff1ee"), 0.9)
+			)
+			puff.rotation.x = PI * 0.5  # lies along -Z, the way look_at aims
 		else:
-			Util.box(node, Vector3(0.025, 0.025, 0.16), Vector3.ZERO, g.mat_dart)
-			Util.sphere(node, 0.022, Vector3(0, 0, -0.09), g.mat_tip)
+			var model = dart_model()
+			if model != null:
+				node.add_child(model)  # the model's tip points to -Z, the way look_at aims
+			else:
+				Util.box(node, Vector3(0.025, 0.025, 0.16), Vector3.ZERO, g.mat_dart)
+				Util.sphere(node, 0.022, Vector3(0, 0, -0.09), g.mat_tip)
 		Util.trim_shadows(node, 1.0)
 		g.add_child(node)
 	node.position = a

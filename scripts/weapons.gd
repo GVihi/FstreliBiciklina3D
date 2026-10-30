@@ -1,11 +1,11 @@
 extends RefCounted
-# Loads the player weapon tuning (dart gun, dart pistol and melee worm) from res://data/weapons.json.
+# Loads the player weapon tuning (dart gun, dart pistol, marshmallow blaster and melee worm) from res://data/weapons.json.
 # What each number does is documented in data/README.md. JSON numbers arrive as floats; whole-number fields are cast to int.
 # A missing or invalid value is logged with push_error and replaced by the fallback below, so a typo cannot crash a run.
 # The fallback values mirror data/weapons.json as shipped; the JSON file is the one to edit.
 
 const PATH = "res://data/weapons.json"
-const WHOLE = ["start_clip", "max_clip", "clip_step", "damage", "semi_auto"]  # fields that must be integers
+const WHOLE = ["start_clip", "max_clip", "clip_step", "damage", "semi_auto", "pellets"]  # fields that must be integers
 const FALLBACK = {
 	"dart_gun":
 	{
@@ -55,6 +55,31 @@ const FALLBACK = {
 		"damage": 1,
 		"semi_auto": 1
 	},
+	"marshmallow_blaster":
+	{
+		"start_clip": 2,
+		"max_clip": 6,
+		"clip_step": 1,
+		"pump_start": 0.55,
+		"pump_min": 0.35,
+		"pump_step": 0.05,
+		"rapid_pump": 0.2,
+		"hype_pump_mul": 0.65,
+		"reload_step": 0.6,
+		"reload_cut_per_level": 0.22,
+		"reload_extra": 0.15,
+		"spread_hip": 7.0,
+		"spread_aimed": 4.0,
+		"spread_move_extra": 0.5,
+		"spread_crouch_mul": 0.7,
+		"spread_steady_mul": 0.7,
+		"bloom_per_shot": 1.0,
+		"bloom_max": 2.0,
+		"range": 20.0,
+		"damage": 1,
+		"semi_auto": 1,
+		"pellets": 8
+	},
 	"melee":
 	{
 		"cooldown": 0.3,
@@ -68,7 +93,7 @@ const FALLBACK = {
 }
 
 
-# returns {"dart_gun": {...}, "dart_pistol": {...}, "melee": {...}}, every key of FALLBACK present with the right type
+# returns {"dart_gun": {...}, "dart_pistol": {...}, "marshmallow_blaster": {...}, "melee": {...}}, every key of FALLBACK present with the right type
 static func load_table() -> Dictionary:
 	var data = {}
 	if not FileAccess.file_exists(PATH):
@@ -85,7 +110,7 @@ static func load_table() -> Dictionary:
 		else:
 			push_error(
 				(
-					'weapons: %s is not valid, expected an object with "dart_gun", "dart_pistol" and "melee", using built-in values'
+					'weapons: %s is not valid, expected an object with "dart_gun", "dart_pistol", "marshmallow_blaster" and "melee", using built-in values'
 					% PATH
 				)
 			)
@@ -117,7 +142,7 @@ static func load_table() -> Dictionary:
 		if not FALLBACK.has(weapon):
 			push_error(
 				(
-					'weapons: "%s" is not a known weapon (only dart_gun, dart_pistol and melee exist so far), ignored'
+					'weapons: "%s" is not a known weapon (only dart_gun, dart_pistol, marshmallow_blaster and melee exist so far), ignored'
 					% str(weapon)
 				)
 			)

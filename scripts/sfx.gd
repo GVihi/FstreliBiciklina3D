@@ -74,6 +74,18 @@ const VOICE_LINES = {
 	"minister_out": ["Odstopam!"]
 }
 const MAX_PLAYERS = 48
+# sounds that are not baked WAVs: a file and the part of it to play (the file may hold several sounds). "start" and
+# "length" are in seconds, "gain_db" is added to the volume the caller asks for. audio/fx/u_f09vejvoga-gun-shot-350315.mp3
+# holds six shots one after another: the first one sounds from 0.14 s to 0.76 s and the next one starts at 1.39 s.
+const CLIPS = {
+	"shotgun":
+	{
+		"path": "res://audio/fx/u_f09vejvoga-gun-shot-350315.mp3",
+		"start": 0.12,
+		"length": 0.7,
+		"gain_db": 4.0
+	}
+}
 const BUS = "SFX"
 
 # Who says what. Every category gets its own bus with its own effects (see _make_voice_bus) so you can tell
@@ -238,6 +250,10 @@ func _ready() -> void:
 	for n in VARIANTS.keys():
 		for i in range(VARIANTS[n]):
 			_load("%s_%d" % [n, i])
+	for n in CLIPS:
+		var clip_path = str(CLIPS[n]["path"])
+		if ResourceLoader.exists(clip_path):
+			streams[n] = load(clip_path)
 	for n in LOOPS:
 		var s = load("res://audio/%s.wav" % n)
 		if s != null:
@@ -280,13 +296,18 @@ func play(n: String, vol_db: float = -20.0) -> void:
 	var s = _pick(n)
 	if s == null:
 		return
+	var clip = CLIPS.get(n)
 	var p = AudioStreamPlayer.new()
 	p.stream = s
-	p.volume_db = vol_db
+	p.volume_db = vol_db + (float(clip["gain_db"]) if clip != null else 0.0)
 	p.bus = BUS
 	add_child(p)
 	p.finished.connect(p.queue_free)
-	p.play()
+	if clip != null:  # only the part of the file that is this sound
+		p.play(float(clip["start"]))
+		get_tree().create_timer(float(clip["length"])).timeout.connect(p.queue_free)
+	else:
+		p.play()
 
 
 func play3d(n: String, pos: Vector3, vol_db: float = 0.0) -> void:
