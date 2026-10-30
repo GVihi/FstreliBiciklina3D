@@ -4,7 +4,7 @@ name: CI
 #   lint    - gdlint on the GDScript
 #   format  - gdformat --check (run `gdformat scripts/ tools/` to fix a failure)
 #   load    - imports the project and runs it headless in Godot, fails on any script error
-#   build_info - tools/make_build_info.py --self-test (roadmap V2.1)
+#   build_info - tools/make_build_info.py and tools/version_compare.py --self-test (roadmap V2.1, V2.3)
 #   secrets - tools/secrets_check.py over every commit of the pull request (or push), fails on a key-like string
 #   checks  - runs every tools/*_check.gd headless with `python tools/run_checks.py` (about 10 minutes)
 
@@ -87,6 +87,8 @@ jobs:
           python-version: "3.12"
       - name: Self-test of the build info script
         run: python tools/make_build_info.py --self-test
+      - name: Version comparison against the shared cases
+        run: python tools/version_compare.py --self-test
 
   load:
     name: Godot headless project load

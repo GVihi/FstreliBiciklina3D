@@ -634,3 +634,15 @@ Decisions (first guesses, the owner can change them): (1) a damaged file is neve
 Checked: `tools/version_check.gd` is extended (no file, a good file, a dirty file, 15 kinds of damaged text, a left-over file, a good, an empty and an oversized file read from disk, empty info, and `Main.version_label()` with and without a game version); gdformat and gdlint are clean on the whole of `scripts/` and `tools/`.
 
 Not covered: **written in a session without Godot**, so run `python tools/run_checks.py version` once on Windows (the check was not run, only formatted and linted), and look at the title screen to see the label fits in the bottom right corner at your window size.
+
+### V2.3 One version comparison, shared test cases
+
+Same branch (`roadmap/v2-1-build-info`). Files: `scripts/version_compare.gd` (the game), `tools/version_compare.py` (Python, for the build tools and as the model for the site), `tools/version_compare_cases.json` (the rules in words and the cases), `tools/version_compare_check.gd` (runs the cases in Godot).
+
+What it does: `VersionCompare.compare(a, b)` gives `OLDER` (-1), `EQUAL` (0), `NEWER` (1) or `INVALID` (-99, there is no answer; the update check V4.4 will show "unknown" for it and never "up to date"). `0.10.0` is newer than `0.9.0`, `0.3.0-alpha` is older than `0.3.0`, `alpha.2` is older than `alpha.10`, a number is older than a text, `alpha` is older than `alpha.1`. The cases file holds 24 pairs (each is checked both ways round), 10 valid and 29 invalid texts and 3 invalid pairs; `python tools/version_compare.py --self-test` runs all of it (119 checks) and a new CI step does the same. The website's repository must copy `tools/version_compare_cases.json` and run it against its own comparison.
+
+Decisions (first guesses, the owner can change them): (1) the version grammar is strict: three numbers without leading zeros and at most 9 digits, an optional `-pre.release` of letters and digits, no `+build`, no leading `v`, no spaces, no hyphen inside a pre-release. It is the same grammar for the comparison, `scripts/build_info.gd` (`config/version` and the file) and `tools/make_build_info.py`; before this item those two used a looser pattern that let `03.0.0` through. (2) No regular expressions in the parser, only characters and counts, because `$` in a regex also matches before a trailing line break and Python, Godot and Django do not agree on every detail; the commit and time checks in `build_info.gd` now test the length before the pattern for the same reason. (3) Comparing two texts uses the ASCII order, so `Alpha` is older than `alpha`.
+
+Checked: the Python side was run (119 checks pass, flake8 clean at 120 characters), `make_build_info.py --self-test` still passes, gdformat and gdlint are clean on `scripts/` and `tools/`.
+
+Not covered: **written in a session without Godot**, so `python tools/run_checks.py version_compare version` was not run for the GDScript side; the GDScript and Python code were written to the same steps, but only the cases file can prove they agree. The website's copy does not exist yet (V3.3).

@@ -24,13 +24,13 @@ import sys
 import tempfile
 from datetime import datetime, timezone
 
+import version_compare  # tools/version_compare.py: the one definition of a valid version (roadmap V2.3)
+
 CHANNELS = ["dev", "alpha", "release"]
 DEFAULT_CHANNEL = "dev"
 OUTPUT_NAME = "build_info.json"
 SHORT_LENGTH = 7
 
-# 0.3.0, 0.10.0 or 0.3.0-alpha (the same shape that V2.3 will compare)
-VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -80,14 +80,14 @@ def read_version(root: str) -> str:
 
     if version is None:
         raise BuildInfoError("config/version not found in the [application] section of project.godot")
-    if not VERSION_PATTERN.match(version):
+    if not version_compare.is_valid(version):
         raise BuildInfoError("config/version is not like 0.3.0 or 0.3.0-alpha: " + version)
     return version
 
 
 def read_commit(root: str) -> str:
     commit = run_git(root, ["rev-parse", "HEAD"]).strip()
-    if not COMMIT_PATTERN.match(commit):
+    if not COMMIT_PATTERN.fullmatch(commit):
         raise BuildInfoError("git gave something that is not a commit hash")
     return commit
 
@@ -172,7 +172,7 @@ def self_test() -> int:
 
         info = make_info(repo, "alpha")
         expect("version is read from project.godot", info["version"] == "0.3.0")
-        expect("commit is 40 hex characters", COMMIT_PATTERN.match(info["commit"]) is not None)
+        expect("commit is 40 hex characters", COMMIT_PATTERN.fullmatch(info["commit"]) is not None)
         expect("short is the first 7 characters", info["short"] == info["commit"][:7])
         expect("a clean tree is not dirty", info["dirty"] is False)
         expect("channel is kept", info["channel"] == "alpha")

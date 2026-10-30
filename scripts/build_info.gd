@@ -11,6 +11,7 @@ extends RefCounted
 # The title screen shows `title_text()`: "v0.3.0 (a1b2c3d)", with a "+" after the hash for a dirty build.
 # Check: `python tools/run_checks.py version`.
 
+const VersionCompare = preload("res://scripts/version_compare.gd")
 const FILE = "res://build_info.json"
 const MAX_FILE = 4096
 const CHANNELS = ["dev", "alpha", "release"]
@@ -19,16 +20,17 @@ const SOURCE_FILE = "file"
 const SOURCE_FALLBACK = "fallback"
 const SOURCE_DAMAGED = "damaged"
 const SOURCE_STALE = "stale"
-const VERSION_PATTERN = "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.]+)?$"
 const COMMIT_PATTERN = "^[0-9a-f]{40}$"
+const COMMIT_LENGTH = 40
 const TIME_PATTERN = "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+const TIME_LENGTH = 20
 const SHORT_LENGTH = 7
 
 
 # The version written in project.godot, or "" when it is missing or not shaped like a version.
 static func project_version() -> String:
 	var stored = str(ProjectSettings.get_setting("application/config/version", ""))
-	if _matches(VERSION_PATTERN, stored):
+	if VersionCompare.is_valid(stored):
 		return stored
 	return ""
 
@@ -117,13 +119,14 @@ static func _is_valid(data: Dictionary) -> bool:
 			return false
 	if not data.has("dirty") or typeof(data["dirty"]) != TYPE_BOOL:
 		return false
-	if not _matches(VERSION_PATTERN, data["version"]):
+	if not VersionCompare.is_valid(data["version"]):
 		return false
-	if not _matches(COMMIT_PATTERN, data["commit"]):
+	# the length is checked first, because `$` in a pattern also matches before a trailing line break
+	if data["commit"].length() != COMMIT_LENGTH or not _matches(COMMIT_PATTERN, data["commit"]):
 		return false
 	if data["short"] != str(data["commit"]).substr(0, SHORT_LENGTH):
 		return false
-	if not _matches(TIME_PATTERN, data["built_utc"]):
+	if data["built_utc"].length() != TIME_LENGTH or not _matches(TIME_PATTERN, data["built_utc"]):
 		return false
 	return CHANNELS.has(data["channel"])
 
