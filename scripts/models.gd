@@ -4,6 +4,7 @@ extends RefCounted
 
 const Util = preload("res://scripts/util.gd")
 const Toon = preload("res://scripts/toon.gd")
+const Halo = preload("res://scripts/halo.gd")
 
 const SKIN = "#e8b98a"
 const SKIN_DARK = "#c79869"
@@ -651,6 +652,7 @@ static func build_phone() -> Node3D:
 				Util.mat(Color.html("#6b727c"), 0.5)
 			)
 	Util.sphere(root, 0.02, Vector3(0.2, 0.065, 0.12), Util.glow_shared(Color(1.0, 0.2, 0.15), 2.0))
+	Halo.attach(root)  # a glow that stays visible from far away (halo.gd)
 	return root
 
 

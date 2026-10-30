@@ -11,6 +11,7 @@ signal reload_finished  # the magazine is full
 signal reload_interrupted  # the reload was stopped before it finished (dash, melee switch, or a shot with rapid fire)
 
 const Util = preload("res://scripts/util.gd")
+const Halo = preload("res://scripts/halo.gd")
 
 var g = null
 var dart_pool = []
@@ -375,6 +376,7 @@ func deflect_scan() -> bool:
 
 func deflect_phone(ph: Dictionary) -> void:
 	ph["ret"] = true
+	Halo.hide_on(ph["node"])  # a deflected phone is no danger: its warning glow goes off
 	ph["chain"] = 2 if g.perks.has("boomerang") else 0
 	if g.shop_sys.has_duo("RICOCHET"):
 		ph["chain"] = 4

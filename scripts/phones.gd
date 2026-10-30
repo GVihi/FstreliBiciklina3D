@@ -117,7 +117,7 @@ func update_phones(dt: float) -> void:
 		node.position = pos
 		node.rotation += ph["rotv"] * dt
 		var rm: StandardMaterial3D = ph["rmat"]
-		rm.albedo_color = Color(1.0, 0.24, 0.16, 0.25 + 0.5 * minf(1.0, ph["p"]))
+		rm.albedo_color = Color(1.0, 0.24, 0.16, 0.4 + 0.45 * minf(1.0, ph["p"]))
 		if ph["p"] >= 1.0:
 			g.phones.remove_at(i)
 			var near = (
