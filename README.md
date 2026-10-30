@@ -1,6 +1,15 @@
 # FstreliBiciklina3D
 Mostly vibe coded Godot game
 
+## Note to self: keep AI sessions cheap
+- **Every step re-reads the whole conversation**, so cost grows with each tool call. Fewer, bigger steps beat many small ones.
+- **Combine checks into one command** (for example the self-test, the scan and `git status` together) instead of one call each.
+- **Show only the lines that matter** (`grep -n`, `sed -n 10,30p`, `| head`, `--stat`). Do not print whole files, the whole roadmap or whole workflow files into the conversation.
+- **Commit before any risky test.** Never `git reset --hard` or `git checkout .` with uncommitted work in the tree; test breaks on a copy or a throw-away branch. Redoing lost edits doubles the cost.
+- **Run checks once, at the end**, not after every small edit. Run only the checks that cover the touched code (see the testing rule below).
+- **Keep notes short.** A `docs/ROADMAP_HISTORY.md` entry and a commit body need what was built, decisions, what was checked and what is not covered, in a few lines each, not pages.
+- **One roadmap item per session.** Start a fresh session for the next item; a long thread makes every later step more expensive.
+
 ## Testing rule
 - **One command runs every check: `python tools/run_checks.py`** (on Windows, double click `tools\run_checks.bat`). It finds Godot by itself and remembers the path after the first time, so there is no path to type. It runs every `tools/*_check.gd`, each with its own empty save folder (your real settings, scores, meta coins and saved run are never touched), prints PASSED or FAILED for each one with the lines that explain a failure, kills a check that hangs, and writes `check_logs/summary.txt` and one log per check (send `summary.txt` back when something fails). `python tools/run_checks.py unlocks xp` runs only the checks whose name contains those words, `--list` lists them, `--full` uses the bigger seed and arena counts of the slow ones, `--lint` also runs gdlint and gdformat, `--godot PATH` sets the Godot path, `--help` shows the rest. Exit code 0 = everything passed.
 - **While building an item, run only the checks that cover the code it touched** (for example `python tools/run_checks.py pickup rider`), not the whole suite, which takes about 14 minutes. The whole suite is for the gate items (B7.3 and E3.1 in `docs/ALPHA_ROADMAP.md`, V10.1 in the Web Integration Roadmap) and for when the owner asks for it. Decided with the owner on 2026-10-27.
