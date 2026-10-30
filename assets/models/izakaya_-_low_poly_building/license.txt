@@ -1,0 +1,11 @@
+Model Information:
+* title:	Izakaya - Low Poly Building
+* source:	https://sketchfab.com/3d-models/izakaya-low-poly-building-3f43e5429171408e9bd19553ea813364
+* author:	BenMaher (https://sketchfab.com/BenMaher)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Izakaya - Low Poly Building" (https://sketchfab.com/3d-models/izakaya-low-poly-building-3f43e5429171408e9bd19553ea813364) by BenMaher (https://sketchfab.com/BenMaher) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
