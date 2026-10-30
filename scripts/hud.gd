@@ -596,8 +596,8 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		)
 	_txt("META COINS %d" % g.meta.balance, 18.0 * k, 30.0 * k, int(14 * k), GOLD)
 	_draw_title_level(k)
-	if g.game_version != "":
-		_txt("v" + g.game_version, size.x - 18.0 * k, size.y * 0.975, int(14 * k), GRAY, 2)
+	if g.version_label() != "":
+		_txt(g.version_label(), size.x - 18.0 * k, size.y * 0.975, int(14 * k), GRAY, 2)
 	_txt(g.daily_label, size.x - 18.0 * k, 30.0 * k, int(14 * k), GRAY, 2)
 	if g.daily_arena != "":
 		_txt("DAILY ARENA: " + g.daily_arena, size.x - 18.0 * k, 50.0 * k, int(14 * k), GRAY, 2)

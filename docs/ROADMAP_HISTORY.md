@@ -622,3 +622,15 @@ Decisions (first guesses, the owner can change them): (1) the default channel is
 Checked: `python tools/make_build_info.py --self-test` runs 16 checks in throw-away git repositories (version read, commit and short, clean and dirty by an untracked and by a changed file, the written file does not make the tree dirty, read back, unknown channel, pre-release version, damaged and missing version, not a git repository) and passes; a real run on this clone wrote the right file and `git status` did not show it; flake8 is clean at 120 characters. A new CI job `build_info` runs the self-test.
 
 Not covered: Godot does not read the file yet (V2.2), and the export was not run, so that the file really ends up in the exe waits for the **Owner** on Windows (V2.5 will run the export; until then, export once and look for `build_info.json` in the pck). The CI job has not run on GitHub yet. Milestone N's "Decide how the version number is kept in step" is not ticked, because the release page side is still open (V2.3, V4.3).
+
+### V2.2 `scripts/build_info.gd`, the title screen and the console line
+
+Built on branch `roadmap/v2-1-build-info` (the same branch as V2.1, as the owner asked on 2026-10-30), one commit per item.
+
+What it does: `scripts/build_info.gd` (`BuildInfo.load_info()`) reads `res://build_info.json` and always returns the same keys (`version`, `commit`, `short`, `dirty`, `built_utc`, `channel`, plus `source`). No file (an editor run, a fresh clone) gives the version from `config/version` and the commit `dev`. The title screen draws `v0.3.0 (a1b2c3d)` (`v0.2.0 (dev)` without a file, `(a1b2c3d+)` for a dirty build) through `Main.version_label()`, and `Main._ready()` prints `FB3D 0.3.0 (a1b2c3d)` as the first line the game itself prints (Godot's own banner comes before it).
+
+Decisions (first guesses, the owner can change them): (1) a damaged file is never half used: one wrong key, type, hash, channel or time, an empty file or one over 4096 bytes gives the whole fallback (`source` is `damaged`). (2) A file whose `version` is not the `config/version` of the running game is a left-over from an older build and is ignored too (`source` is `stale`), so bumping the version never shows an old hash. (3) The `+` goes right after the hash inside the brackets. (4) `Main.game_version` stays as it was (the plain `config/version`), because the update check (V4.4) compares versions and not labels.
+
+Checked: `tools/version_check.gd` is extended (no file, a good file, a dirty file, 15 kinds of damaged text, a left-over file, a good, an empty and an oversized file read from disk, empty info, and `Main.version_label()` with and without a game version); gdformat and gdlint are clean on the whole of `scripts/` and `tools/`.
+
+Not covered: **written in a session without Godot**, so run `python tools/run_checks.py version` once on Windows (the check was not run, only formatted and linted), and look at the title screen to see the label fits in the bottom right corner at your window size.
