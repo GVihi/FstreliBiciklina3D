@@ -21,6 +21,7 @@ const AmbushScript = preload("res://scripts/ambush.gd")
 const ExploreScript = preload("res://scripts/explore_map.gd")
 const DevStartScript = preload("res://scripts/dev_start.gd")
 const UnlocksScript = preload("res://scripts/unlocks.gd")
+const BuildInfo = preload("res://scripts/build_info.gd")
 const SfxScript = preload("res://scripts/sfx.gd")
 const Content = preload("res://scripts/content.gd")
 const WeaponSlots = preload("res://scripts/weapon_slots.gd")
@@ -294,6 +295,8 @@ var fx_scale = 1.0  # 0 to 1: how strong screen shake and screen flashes are (ac
 var drag_id = ""
 # the game version, written in one place: `config/version` in project.godot (shown on the title screen)
 var game_version = str(ProjectSettings.get_setting("application/config/version", ""))
+# which build this is: version, git hash, channel (build_info.json, see build_info.gd; no file = "dev")
+var build_info = BuildInfo.load_info()
 var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / scores
 var pause_page = ""  # "" = pause menu, "settings" = settings panel, "controls", "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
@@ -334,7 +337,15 @@ var confetti_mats = []
 
 
 # ================================================================== setup
+# "v0.3.0 (a1b2c3d)" for the title screen, "" when there is no game version
+func version_label() -> String:
+	if game_version == "":
+		return ""
+	return BuildInfo.title_text(build_info)
+
+
 func _ready() -> void:
+	print(BuildInfo.console_line(build_info))
 	get_window().title = GAME_TITLE
 	randomize()
 	refresh_daily_seed()
