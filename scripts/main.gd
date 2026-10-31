@@ -1947,7 +1947,7 @@ func update_game(dt: float) -> void:
 		hit_marker -= dt
 	if swing_t > 0.0:
 		swing_t -= dt
-		if swing_t > 0.08 and state == "play":
+		if state == "play" and combat_sys.deflecting():
 			combat_sys.deflect_scan()
 	if swing_cd > 0.0:
 		swing_cd -= dt
