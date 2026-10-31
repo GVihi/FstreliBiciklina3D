@@ -11,6 +11,8 @@ extends RefCounted
 #   "hurt": true      hearts are below the maximum (a heart, PATCH UP)
 #   "shop_ahead": true  a shop node is still ahead of the player on the run map: cash only pays there
 #   "boss_ahead": true  a boss node is still ahead on the run map: weak spots exist only on bosses
+#   "melee": true     a melee weapon is in the melee slot (`has_melee`): a deflect, and so everything that
+#                     rewards one, needs it. The slot starts empty until the gummy worm is bought
 #
 # "Ahead" is read from the run map (`main.node_type_ahead`): nodes on later floors that the current node leads to.
 # A run without a map (the roundabout) has a shop after every round and bosses in its rounds, so both pass there.
@@ -23,7 +25,7 @@ extends RefCounted
 # (`drop_kill`) just skip it, as they always skipped a heart at full hearts. Drops are not seeded.
 # Format and rules for the data files: data/README.md.
 
-const KEYS = ["clip_min", "hurt", "shop_ahead", "boss_ahead"]
+const KEYS = ["clip_min", "hurt", "shop_ahead", "boss_ahead", "melee"]
 
 
 # true when every need of the entry holds (an empty `needs` holds)
@@ -40,6 +42,9 @@ static func ok(needs: Dictionary, g) -> bool:
 				return false
 		elif key == "boss_ahead":
 			if not g.node_type_ahead("boss"):
+				return false
+		elif key == "melee":
+			if not g.has_melee():
 				return false
 	return true
 

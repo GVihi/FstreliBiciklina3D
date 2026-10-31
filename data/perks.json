@@ -75,7 +75,8 @@
 			"cost": 115,
 			"min": 2,
 			"needs": {
-				"clip_min": 3
+				"clip_min": 3,
+				"melee": true
 			}
 		},
 		{
@@ -107,7 +108,10 @@
 			"name": "BOOMERANG",
 			"desc": "A deflected phone chains on to 2 more targets",
 			"cost": 155,
-			"min": 3
+			"min": 3,
+			"needs": {
+				"melee": true
+			}
 		},
 		{
 			"id": "secondwind",
@@ -133,7 +137,8 @@
 			"name": "BOUNTY HUNTER",
 			"desc": "Deflect kills pay x3 cash",
 			"needs": {
-				"shop_ahead": true
+				"shop_ahead": true,
+				"melee": true
 			}
 		},
 		{
@@ -189,7 +194,10 @@
 			"a": "counter",
 			"b": "boomerang",
 			"name": "RICOCHET",
-			"desc": "Deflected phones chain on to 4 targets"
+			"desc": "Deflected phones chain on to 4 targets",
+			"needs": {
+				"melee": true
+			}
 		},
 		{
 			"a": "sprinter",

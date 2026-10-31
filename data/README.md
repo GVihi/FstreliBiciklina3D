@@ -56,6 +56,7 @@ Nothing should be dropped, offered or sold that cannot change the next round for
 | `"hurt": true` | hearts are below the maximum | PATCH UP, the heart drop |
 | `"shop_ahead": true` | a shop node is still ahead on the run map: cash only pays there | HAGGLER, BOUNTY, the CASH drop |
 | `"boss_ahead": true` | a boss node is still ahead on the run map: weak spots exist only on bosses | DEADEYE |
+| `"melee": true` | a melee weapon is in the melee slot (`has_melee`): a deflect needs one, and a new player's slot is empty until the gummy worm is bought | COUNTER, BOOMERANG, BOUNTY HUNTER, RICOCHET |
 
 "Ahead" is read from the run map (`node_type_ahead` in `scripts/main.gd`): nodes on later floors that the current node leads to. Shops are guaranteed on floors 4 and 9 and bosses on floors 5 and 10, so these only fail late in a run. A run without a map has both, every round.
 
@@ -63,7 +64,7 @@ Where `needs` goes: on an entry of `items.json` or a perk of `perks.json`; on a 
 
 What the game does with an entry that fails: an upgrade card or shop item is left out of the pool before the offers are drawn, so the three cards and the four shelves are still filled from what is left; a duo is not advertised; a drop is not spawned (`drop_ok` and `matter_drop` in `scripts/pickups.gd`): a single draw from the drop table (a boss's drop, a cache's reward) turns it into cash when cash matters and into nothing otherwise, and a kill's separate chances simply skip it, as they always skipped a heart at full hearts. The test never draws a random number: the offers still come from the seeded `offer_shuffle`, so the same seed and the same loadout give everybody the same offers, the Daily Run included.
 
-**A new item, perk, duo or drop has to say what it needs.** Ask of it, for the pistol (a 1-dart clip) and for the dart gun: does it change the next round? If it does for both, leave `needs` out. If it only does while something holds, write that as `needs`. If the condition is not one of the four keys, add it in `needs.gd` (the list `KEYS`, `ok` and `clean`) and say what it reads here. A new weapon is covered without edits: `tools/offer_sense_check.gd` runs every weapon in `PRIMARY_WEAPONS` and fails when anything it offers or drops cannot matter; run it with `python tools/run_checks.py offer_sense`.
+**A new item, perk, duo or drop has to say what it needs.** Ask of it, for the pistol (a 1-dart clip) and for the dart gun: does it change the next round? If it does for both, leave `needs` out. If it only does while something holds, write that as `needs`. If the condition is not one of the five keys, add it in `needs.gd` (the list `KEYS`, `ok` and `clean`) and say what it reads here. A new weapon is covered without edits: `tools/offer_sense_check.gd` runs every weapon in `PRIMARY_WEAPONS` and fails when anything it offers or drops cannot matter; run it with `python tools/run_checks.py offer_sense`.
 
 ## Does it matter for what you hold? (the B9.1 audit, 2026-10-28)
 
@@ -71,7 +72,7 @@ Roadmap alpha B9: nothing should be dropped, offered or sold that cannot change 
 
 Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 dart (`start_clip` 1, `max_clip` 4, `clip_step` 1, one dart per pull), the **dart gun** holds 6 (`max_clip` 12, `clip_step` 2). Refilling the pistol's one dart takes 0.55 s (0.25 s with three SPEEDLOADER levels); refilling the dart gun from empty takes 2.4 s (0.9 s with three levels). The clip is refilled to full at the start of every round (`start_round`), so ammo only matters inside a round. `add_shells` (`combat.gd`) never goes past the clip, which is what makes ammo weak with a small clip. Style rank S also gives back one dart every 3 s, whatever you hold.
 
-**What an entry can need** (the inputs a test would read): a clip that is not full, hearts below the maximum, cash to spend (a shop node still ahead on the map: since B1 the shop is only a node), a boss still ahead (the mid boss on floor 5 and the final boss on floor 10), an armoured rider (type `tough`), or nothing (it always matters).
+**What an entry can need** (the inputs a test would read): a clip that is not full, hearts below the maximum, cash to spend (a shop node still ahead on the map: since B1 the shop is only a node), a boss still ahead (the mid boss on floor 5 and the final boss on floor 10), an armoured rider (type `tough`), a melee weapon in the slot (the deflect entries; added with the melee lock, 2026-10-31), or nothing (it always matters).
 
 **Verdicts:** `OK` matters for both weapons; `COND` matters only while its need holds, and the game can tell whether it does; `WEAK` does little with the pistol's one-dart clip (a little more with a bigger clip); `TEXT` works but its card says something else; `ODD` works, but not the way the card or the balance assumes.
 
@@ -125,24 +126,24 @@ Numbers used below (from `weapons.json`, `combat.gd`): the **pistol** holds 1 da
 | BOUNTY | cash to spend | cash x1.35, only useful at a shop node | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |
 | ADRENALINE | nothing | dash cooldown -40 % | same | OK | |
 | SCAVENGER | an ammo drop that matters | +15 % ammo drops and +4 darts, capped at the clip | +4 of 6 | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
-| COUNTER | a clip that is not full | refunds 1 dart on a deflect: with the pistol only after you fired its one dart | +1 of 6 | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
+| COUNTER | a clip that is not full, a melee weapon in the slot | refunds 1 dart on a deflect: with the pistol only after you fired its one dart | +1 of 6 | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. **And hidden while the melee slot is empty** (melee lock). |
 | CLOSE SHAVE | hearts below the maximum | heals on every 2nd perfect dodge, but only when hurt | same | COND | |
 | LAST SHELL | nothing | every magazine dart is the last one, so every dart does double damage: not what the card or the balance assumes | one dart in six | ODD on the pistol | **Keep it as a pistol perk** (B9.2): no change to the effect or the offer. |
 | DEADEYE | a boss ahead | weak spots exist only on bosses (`hit_boss`; riders have none), so it does nothing against riders | same | COND | **Filter by what is ahead** (B9.2): not offered once no boss is ahead (bosses are on floors 5 and 10). |
-| BOOMERANG | nothing | a deflected phone chains on | same | OK | |
+| BOOMERANG | a melee weapon in the slot | a deflected phone chains on | same | COND | **Hidden while the melee slot is empty** (melee lock): nothing deflects without a melee weapon. |
 | SECOND WIND | nothing | once a round a deadly hit leaves 1 life | same | OK | |
 | MATADOR (SLIDE SHOT + CLOSE SHAVE) | a clip that is not full | perfect dodges refill 3 darts, capped at 1 | 3 of 6 | WEAK on the pistol | **Hide until the clip is 3+** (B9.2), as the AMMO drop. |
-| BOUNTY HUNTER (BOOMERANG + BOUNTY) | cash to spend | deflect kills pay x3 cash | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |
+| BOUNTY HUNTER (BOOMERANG + BOUNTY) | cash to spend, a melee weapon in the slot | deflect kills pay x3 cash | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. **And hidden while the melee slot is empty** (melee lock). |
 | QUICK DRAW (SLIDE SHOT + BOUNTY) | nothing | 5 free darts on a dash or slide, at most once every 15 s (same limit as SLIDE SHOT) | 5 of 6 | OK | **Keep as it is** (B9.2); the 15 s limit was added later. |
 | GHOST (ADRENALINE + CLOSE SHAVE) | nothing | dash invulnerability 0.15 s longer | same | OK | |
 | HEADHUNTER (DEADEYE + SCAVENGER) | a boss ahead, and a clip that is not full | refunds 2 darts on a boss weak spot hit, capped at 1 | 2 of 6 | COND and WEAK | **Both rules** (B9.2): hide until the clip is 3+, and not offered once no boss is ahead. |
 | LIFE INSURANCE (SECOND WIND + BOUNTY) | cash to spend | second wind pays $80 | same | COND | **Filter by what is ahead** (B9.2): not offered once no shop node is ahead. |
 | SNIPER (LAST SHELL + DEADEYE) | a boss ahead | +2 damage on a weak spot hit with the last dart: with the pistol that is every boss weak spot hit after the first dart | only the last of 6 | COND and ODD on the pistol | **Keep it as a pistol perk** (B9.2) for the effect, and **filter by what is ahead**: not offered once no boss is ahead. |
 | SCRAPYARD (SALVAGE + SCAVENGER) | an armoured rider, and an ammo drop that matters | two ammo and cash from armoured riders; the ammo is WEAK, the cash is COND | same | WEAK and COND | **Both rules** (B9.2): hide until the clip is 3+ (the ammo), and filter the cash by what is ahead (not offered once no shop node is ahead). |
-| RICOCHET (COUNTER + BOOMERANG) | nothing | a deflected phone chains on to 4 targets | same | OK | |
+| RICOCHET (COUNTER + BOOMERANG) | a melee weapon in the slot | a deflected phone chains on to 4 targets | same | COND | **Hidden while the melee slot is empty** (melee lock). |
 | SPEEDSTER (SPRINTER + ADRENALINE) | nothing | dash cooldown a further -20 % | same | OK | |
 
-**Reading the result.** Of the 47 rows, 30 are `OK`. The ones that fail the test with the pistol are the ammo family (the AMMO drop and the cache ammo reward, SCAVENGER, SALVAGE, COUNTER, MATADOR, the ammo half of HEADHUNTER and SCRAPYARD): they all go through `add_shells`, which stops at the clip. EXTENDED CLIP says the wrong step on the pistol. LAST SHELL and SNIPER do something the card does not say. The cash entries (CASH, HAGGLER, BOUNTY, BOUNTY HUNTER, LIFE INSURANCE) and the boss-only ones (DEADEYE, HEADHUNTER, SNIPER) pass the test only while a shop node or a boss is still ahead, which the run map can answer (`g.run_map`). A weapon with a bigger clip lifts most of the `WEAK` rows to `OK`, which is why the test has to read the player's clip and not only the weapon id.
+**Reading the result.** Of the 47 rows, 30 were `OK` (28 since the melee lock made BOOMERANG and RICOCHET `COND`). The ones that fail the test with the pistol are the ammo family (the AMMO drop and the cache ammo reward, SCAVENGER, SALVAGE, COUNTER, MATADOR, the ammo half of HEADHUNTER and SCRAPYARD): they all go through `add_shells`, which stops at the clip. EXTENDED CLIP says the wrong step on the pistol. LAST SHELL and SNIPER do something the card does not say. The cash entries (CASH, HAGGLER, BOUNTY, BOUNTY HUNTER, LIFE INSURANCE) and the boss-only ones (DEADEYE, HEADHUNTER, SNIPER) pass the test only while a shop node or a boss is still ahead, which the run map can answer (`g.run_map`). A weapon with a bigger clip lifts most of the `WEAK` rows to `OK`, which is why the test has to read the player's clip and not only the weapon id.
 
 **The owner's decisions (B9.2, 2026-10-28).** Five, and B9.3 to B9.5 build on them:
 

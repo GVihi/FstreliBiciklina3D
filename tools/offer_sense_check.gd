@@ -18,6 +18,8 @@ extends SceneTree
 #   - EXTENDED CLIP says the real step of the weapon (+1 dart with the pistol, +2 with the dart gun)
 #   - LAST SHELL stays a perk of every weapon, SNIPER only with a boss ahead
 #   - the cash entries need a shop ahead and DEADEYE, HEADHUNTER and SNIPER a boss ahead, read from the run map
+#   - the deflect entries (COUNTER, BOOMERANG, the duos BOUNTY HUNTER and RICOCHET) and MELEE REACH need a melee weapon
+#     in the slot, which a new player does not have until the gummy worm is bought (`has_melee`)
 # Exits with status 1 and prints the first problems.
 
 const Needs = preload("res://scripts/needs.gd")
@@ -36,6 +38,9 @@ const CASH_PERKS = ["haggler", "bounty"]
 const CASH_DUOS = ["BOUNTY HUNTER", "LIFE INSURANCE"]
 const BOSS_PERKS = ["deadeye"]
 const BOSS_DUOS = ["HEADHUNTER", "SNIPER"]
+# Deflect entries need a melee weapon in the slot (the melee lock: the slot starts empty).
+const MELEE_PERKS = ["counter", "boomerang"]
+const MELEE_DUOS = ["BOUNTY HUNTER", "RICOCHET"]
 
 var problems = []
 var main
@@ -86,6 +91,10 @@ func _check_data() -> void:
 		_expect_needs(duos, "name", nm, "shop_ahead", true)
 	for nm in BOSS_DUOS:
 		_expect_needs(duos, "name", nm, "boss_ahead", true)
+	for id in MELEE_PERKS:
+		_expect_needs(perks, "id", id, "melee", true)
+	for nm in MELEE_DUOS:
+		_expect_needs(duos, "name", nm, "melee", true)
 	_expect_needs(items, "id", "heal", "hurt", true)
 	_expect_needs(perks, "id", "lastshell", "", null)  # a pistol perk, no needs of its own
 	var drop_needs = main.DROP_NEEDS
@@ -134,6 +143,7 @@ func _start(weapon: String, seed_value: int) -> void:
 	main.start_game(false, seed_value)
 	if not main.equip_primary(weapon) and main.primary != weapon:
 		_fail("cannot put %s in the primary slot" % weapon)
+	main.equip_melee("melee")  # the older rules are tested with the melee weapon in the slot, as before the lock
 	main.MAXSHELLS = int(main.primary_stats()["start_clip"])
 	main.hearts = main.MAXHEARTS
 	main.perks = []
@@ -269,6 +279,26 @@ func _check_known_cases(weapon: String) -> void:
 		_fail("%s: no heart or PATCH UP when hurt" % weapon)
 	main.hearts = main.MAXHEARTS
 
+	# 6. the deflect entries and MELEE REACH follow the melee slot: hidden while it is empty, offered with a weapon
+	cases += 1
+	_at_floor(2)  # a shop and a boss ahead, so only the melee rule can hide anything
+	main.MAXSHELLS = max_clip  # the ammo rule (COUNTER) must not hide behind the clip here
+	main.perks = []
+	for held in [false, true]:
+		main.equip_melee("melee" if held else "")
+		var word = "offered" if held else "hidden"
+		for id in MELEE_PERKS:
+			if S.shop_ok(id) != held:
+				_fail("%s: perk %s should be %s with melee %s" % [weapon, id, word, str(held)])
+		if S.upgrade_ok("rubber") != held:
+			_fail("%s: MELEE REACH should be %s with melee %s" % [weapon, word, str(held)])
+		for d in main.DUOS:
+			if MELEE_DUOS.has(d["name"]) and Needs.ok(d.get("needs", {}), main) != held:
+				_fail(
+					"%s: duo %s should be %s with melee %s" % [weapon, d["name"], word, str(held)]
+				)
+	main.equip_melee("melee")
+
 
 # ---------------------------------------------------------------- the sweep
 func _sweep(weapon: String, count: int) -> void:
@@ -295,6 +325,7 @@ func _random_loadout(rng: RandomNumberGenerator) -> void:
 	main.MAXSHELLS = mini(clip, int(stats["max_clip"]))
 	main.hearts = main.MAXHEARTS if rng.randf() < 0.5 else maxi(1, main.MAXHEARTS - 1)
 	main.perks = []
+	main.equip_melee("melee" if rng.randf() < 0.5 else "")  # both a bought worm and the empty slot of a new player
 	for it in main.SHOP_POOL:
 		if it["kind"] == "perk" and rng.randf() < 0.3:
 			main.perks.append(it["id"])
