@@ -33,20 +33,22 @@
 			"cost": 30
 		},
 		{
-			"id": "weapon_dart_gun",
-			"kind": "weapon",
-			"target": "dart_gun",
-			"name": "DART GUN",
-			"desc": "A six-dart pump gun: a bigger clip and longer reach than the pistol",
-			"tier": 3
-		},
-		{
 			"id": "weapon_pool_noodle",
 			"kind": "weapon",
 			"target": "pool_noodle",
 			"name": "POOL NOODLE",
 			"desc": "A long foam noodle for the melee slot: a wide sweep hits every rider in the arc, for 1 damage each",
-			"tier": 1
+			"tier": 1,
+			"cost": 75
+		},
+		{
+			"id": "weapon_dart_gun",
+			"kind": "weapon",
+			"target": "dart_gun",
+			"name": "DART GUN",
+			"desc": "A six-dart pump gun: a bigger clip and longer reach than the pistol",
+			"tier": 3,
+			"cost": 125
 		},
 		{
 			"id": "weapon_marshmallow_blaster",
@@ -54,7 +56,8 @@
 			"target": "marshmallow_blaster",
 			"name": "MARSHMALLOW BLASTER",
 			"desc": "A scatter gun: eight marshmallows a shot, brutal up close and useless far away",
-			"tier": 3
+			"tier": 3,
+			"cost": 125
 		},
 		{
 			"id": "weapon_crossbow",
