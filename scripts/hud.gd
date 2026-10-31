@@ -15,6 +15,7 @@ const RED = Color(0.9, 0.33, 0.24)
 const GRAY = Color(0.49, 0.48, 0.44)
 const TEXT = Color(0.96, 0.95, 0.92)
 const ACCENT = Color(1.0, 0.42, 0.17)
+const FPS_GREEN = Color(0.35, 0.78, 0.42)
 const XP_COL = Color(0.45, 0.78, 1.0)  # XP and level (title screen and run summary)
 const PINK = Color(1.0, 0.48, 0.72)
 const RELOAD_CYAN = Color(0.22, 0.91, 1.0)  # the RELOAD label while the gun loads, same cyan as the ammo number on the gun
@@ -28,7 +29,8 @@ func _ready() -> void:
 	font = get_theme_default_font()
 
 
-func _process(_d: float) -> void:
+func _process(d: float) -> void:
+	_record_frame(d)
 	queue_redraw()
 
 
@@ -36,6 +38,16 @@ func _process(_d: float) -> void:
 # draw_string() re-shapes the text every call, and we draw every string twice (outline + fill) every frame.
 # A TextLine keeps the shaped text, so each distinct string is shaped once and just re-drawn afterwards.
 var _lines := {}
+# FPS and frametime counter above the radar: the last FRAME_SAMPLES frame times (seconds) in a ring, and the FPS and
+# frametime shown, refreshed a few times a second so the digits stay readable
+const FRAME_SAMPLES = 60
+const FPS_REFRESH = 0.25  # seconds between updates of the numbers
+var _frame_ring = PackedFloat32Array()
+var _frame_i = 0
+var _fps_t = 0.0
+var _fps_n = 0
+var _fps_shown = 0
+var _ms_shown = 0.0
 
 
 func _line(s: String, fs: int, w: float, ha: int) -> TextLine:
@@ -2320,6 +2332,7 @@ func _draw() -> void:
 		_draw_crosshair(k)
 		_draw_threats(k)
 		_draw_radar(k)
+		_draw_fps(k)
 		_draw_objective(k)
 		_draw_bottom(k)
 		_draw_boss_ui(k)
@@ -2850,6 +2863,68 @@ func _chevron(pos: Vector2, out: Vector2, side: Vector2, sz: float, col: Color) 
 	var notch = pos - out * sz * 0.15
 	draw_colored_polygon(PackedVector2Array([tip, left, notch]), col)
 	draw_colored_polygon(PackedVector2Array([tip, notch, right]), col)
+
+
+# Remembers one frame time and, every FPS_REFRESH seconds, turns the frames counted since into the numbers shown.
+func _record_frame(d: float) -> void:
+	if _frame_ring.size() != FRAME_SAMPLES:
+		_frame_ring.resize(FRAME_SAMPLES)
+		_frame_ring.fill(0.0)
+	_frame_ring[_frame_i] = d
+	_frame_i = (_frame_i + 1) % FRAME_SAMPLES
+	_fps_t += d
+	_fps_n += 1
+	if _fps_t >= FPS_REFRESH:
+		_fps_shown = int(round(_fps_n / _fps_t))
+		_ms_shown = 1000.0 * _fps_t / _fps_n
+		_fps_t = 0.0
+		_fps_n = 0
+
+
+# colour of an FPS value: 0 to 30 red, 30 to 60 yellow, 60 and above green
+func fps_color(fps: float) -> Color:
+	if fps < 30.0:
+		return RED
+	return GOLD if fps < 60.0 else FPS_GREEN
+
+
+# colour of a frame time in milliseconds, the same thresholds (30 FPS is 33.3 ms, 60 FPS is 16.7 ms)
+func frame_color(ms: float) -> Color:
+	if ms > 1000.0 / 30.0:
+		return RED
+	return GOLD if ms > 1000.0 / 60.0 else FPS_GREEN
+
+
+# "62 FPS" in the colour of its range, the average frametime in grey beside it, and a strip of the last second of
+# frames (one bar each, taller is slower, coloured like the FPS) with a line at 60 FPS, in the free band between the
+# top bar and the radar. A spike that the average hides shows up in the strip.
+func _draw_fps(k: float) -> void:
+	if _fps_shown <= 0:
+		return
+	var base = 72.0 * k  # the baseline of the texts and the foot of the strip
+	_txt("%d FPS" % _fps_shown, 14.0 * k, base, int(12 * k), fps_color(_fps_shown))
+	_txt("%.1f MS" % _ms_shown, 64.0 * k, base, int(10 * k), GRAY)
+	var h = 12.0 * k
+	var bw = 1.4 * k
+	var x0 = 112.0 * k
+	var full_ms = 50.0  # a bar this slow or slower fills the strip
+	draw_rect(
+		Rect2(x0 - 2.0 * k, base - h - 1.0 * k, bw * FRAME_SAMPLES + 4.0 * k, h + 2.0 * k),
+		Color(0.03, 0.05, 0.08, 0.45)
+	)
+	for i in range(FRAME_SAMPLES):
+		var ms = 1000.0 * _frame_ring[(_frame_i + i) % FRAME_SAMPLES]  # oldest first
+		if ms <= 0.0:
+			continue
+		var bh = clampf(ms / full_ms, 0.05, 1.0) * h
+		draw_rect(Rect2(x0 + bw * i, base - bh, bw * 0.8, bh), frame_color(ms))
+	var ly = base - h * (1000.0 / 60.0) / full_ms
+	draw_line(
+		Vector2(x0 - 2.0 * k, ly),
+		Vector2(x0 + bw * FRAME_SAMPLES + 2.0 * k, ly),
+		Color(1, 1, 1, 0.3),
+		1.0
+	)
 
 
 func _draw_radar(k: float) -> void:
