@@ -112,6 +112,249 @@ func _dim(a: float) -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.04, 0.04, 0.05, a))
 
 
+# ---------------------------------------------------------------- menu backdrop and intro screen
+# One picture behind every menu (README V5.0), so the 3D game never shows through a menu or the intro screen: a dusk sky
+# with stars and a low sun, two rows of skyline with a few lit windows, a road running into the distance with a moving
+# centre line, and three riders crossing it. It is only drawn (rects, circles, lines and polygons from fixed formulas,
+# no textures and no random numbers), so it needs no assets and looks the same on every start. `scrim` darkens it (0 =
+# the picture as it is, 1 = black), so a page with a lot of text stays easy to read. Every menu and page uses it (title
+# menu and pages, run summary, round clear, upgrade, shop, rest stop, run map, pause menu and its pages); only the map
+# held down in a round is still drawn over the game with `_dim`. tools/menu_backdrop_check.gd counts the `_dim` calls
+# left in this file, so a new menu that forgets the backdrop is found.
+const BACKDROP_SKY_TOP = Color(0.04, 0.05, 0.14)
+const BACKDROP_SKY_MID = Color(0.2, 0.1, 0.3)
+const BACKDROP_SKY_LOW = Color(0.62, 0.26, 0.28)
+const BACKDROP_SUN = Color(1.0, 0.62, 0.22)
+const BACKDROP_FAR = Color(0.14, 0.09, 0.24)
+const BACKDROP_NEAR = Color(0.07, 0.06, 0.12)
+const BACKDROP_GROUND = Color(0.05, 0.045, 0.07)
+const BACKDROP_ROAD_FAR = Color(0.3, 0.15, 0.2)
+const BACKDROP_ROAD_NEAR = Color(0.07, 0.065, 0.09)
+const BACKDROP_RIDER = Color(0.02, 0.02, 0.04)
+const BACKDROP_HORIZON = 0.64  # the horizon, as a share of the window height
+# the riders: how far down the road each one is (0 = at the horizon, 1 = at the bottom edge), how fast it crosses the
+# window (windows per second), where in its crossing it starts, and which way it goes
+const BACKDROP_RIDERS = [
+	{"u": 0.16, "speed": 0.045, "phase": 0.15, "dir": 1.0},
+	{"u": 0.34, "speed": 0.075, "phase": 0.62, "dir": -1.0},
+	{"u": 0.62, "speed": 0.11, "phase": 0.35, "dir": 1.0}
+]
+const INTRO_TAGLINE = "A FIRST PERSON NERF DART ROGUELITE"
+const INTRO_PROMPT = "PRESS ANY KEY OR CLICK TO START"
+
+
+# a number between 0 and 1 that is the same for the same input (a fixed formula, so the picture never changes by itself)
+func _hash01(n: float) -> float:
+	return fposmod(sin(n * 12.9898) * 43758.5453, 1.0)
+
+
+func _menu_backdrop(k: float, scrim: float = 0.0) -> void:
+	var w = size.x
+	var h = size.y
+	var cx = w * 0.5
+	var hy = h * BACKDROP_HORIZON
+	var t = g.time
+	# the sky: dark blue at the top into purple, then into the warm glow at the horizon
+	var mid_y = hy * 0.55
+	draw_polygon(
+		PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, mid_y), Vector2(0, mid_y)]),
+		PackedColorArray([BACKDROP_SKY_TOP, BACKDROP_SKY_TOP, BACKDROP_SKY_MID, BACKDROP_SKY_MID])
+	)
+	draw_polygon(
+		PackedVector2Array([Vector2(0, mid_y), Vector2(w, mid_y), Vector2(w, hy), Vector2(0, hy)]),
+		PackedColorArray([BACKDROP_SKY_MID, BACKDROP_SKY_MID, BACKDROP_SKY_LOW, BACKDROP_SKY_LOW])
+	)
+	for i in range(48):
+		var star = Vector2(_hash01(i * 3.1 + 0.5) * w, _hash01(i * 7.7 + 1.5) * hy * 0.55)
+		var twinkle = 0.5 + 0.5 * sin(t * (0.8 + _hash01(i + 9.0)) + i)
+		var star_col = Color(1, 1, 1, 0.2 + 0.4 * twinkle)
+		draw_circle(star, (0.9 + _hash01(i * 1.7) * 1.1) * k, star_col)
+	# the sun, low on the horizon, with a soft glow of three larger discs behind it
+	var sun = Vector2(w * 0.68, hy - h * 0.03)
+	var sun_r = h * 0.15
+	for glow in range(3, 0, -1):
+		draw_circle(sun, sun_r * (1.0 + 0.3 * glow), Color(1.0, 0.5, 0.25, 0.06))
+	draw_circle(sun, sun_r, Color(BACKDROP_SUN, 0.92))
+	# two rows of skyline: a far one, taller and dark purple, and a near one, lower and darker, with lit windows
+	_backdrop_skyline(k, hy, 0.0, BACKDROP_FAR, h * 0.21, false)
+	_backdrop_skyline(k, hy, 50.0, BACKDROP_NEAR, h * 0.14, true)
+	# the ground and the road, lit warm at the far end and dark near the bottom
+	draw_rect(Rect2(0, hy, w, h - hy), BACKDROP_GROUND)
+	var far_half = w * 0.03
+	var near_half = w * 0.62
+	draw_polygon(
+		PackedVector2Array(
+			[
+				Vector2(cx - far_half, hy),
+				Vector2(cx + far_half, hy),
+				Vector2(cx + near_half, h),
+				Vector2(cx - near_half, h)
+			]
+		),
+		PackedColorArray(
+			[BACKDROP_ROAD_FAR, BACKDROP_ROAD_FAR, BACKDROP_ROAD_NEAR, BACKDROP_ROAD_NEAR]
+		)
+	)
+	var edge_col = Color(ACCENT, 0.55)
+	draw_line(Vector2(cx - far_half, hy), Vector2(cx - near_half, h), edge_col, 3.0 * k)
+	draw_line(Vector2(cx + far_half, hy), Vector2(cx + near_half, h), edge_col, 3.0 * k)
+	# the centre line: dashes that run towards the player (the closer to the bottom, the longer and wider they are)
+	for j in range(12):
+		var u0 = fposmod(float(j) / 12.0 + t * 0.12, 1.0)
+		var u1 = minf(u0 + 0.04, 1.0)
+		var y0 = hy + (h - hy) * u0 * u0
+		var y1 = hy + (h - hy) * u1 * u1
+		var hw0 = (1.0 + 11.0 * u0 * u0) * k
+		var hw1 = (1.0 + 11.0 * u1 * u1) * k
+		draw_colored_polygon(
+			PackedVector2Array(
+				[
+					Vector2(cx - hw0, y0),
+					Vector2(cx + hw0, y0),
+					Vector2(cx + hw1, y1),
+					Vector2(cx - hw1, y1)
+				]
+			),
+			Color(1.0, 0.82, 0.45, 0.35 + 0.4 * u0)
+		)
+	# the riders, farthest first so a near one is drawn over a far one
+	for rider in BACKDROP_RIDERS:
+		var along = fposmod(t * rider["speed"] + rider["phase"], 1.0)
+		var margin = 80.0 * k
+		var rx = along * (w + 2.0 * margin) - margin
+		if rider["dir"] < 0.0:
+			rx = w - rx
+		var u = rider["u"]
+		var scale_k = (0.35 + 1.5 * u) * k
+		_backdrop_rider(
+			Vector2(rx, hy + (h - hy) * u), scale_k, rider["dir"], t * 6.0 + along * 40.0
+		)
+	# the dark corners and edges, then the scrim
+	var edge = Color(0, 0, 0, 0.55)
+	var clear = Color(0, 0, 0, 0)
+	var vw = w * 0.14
+	var vh = h * 0.16
+	draw_polygon(
+		PackedVector2Array([Vector2(0, 0), Vector2(vw, 0), Vector2(vw, h), Vector2(0, h)]),
+		PackedColorArray([edge, clear, clear, edge])
+	)
+	draw_polygon(
+		PackedVector2Array([Vector2(w - vw, 0), Vector2(w, 0), Vector2(w, h), Vector2(w - vw, h)]),
+		PackedColorArray([clear, edge, edge, clear])
+	)
+	draw_polygon(
+		PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, vh), Vector2(0, vh)]),
+		PackedColorArray([edge, edge, clear, clear])
+	)
+	draw_polygon(
+		PackedVector2Array([Vector2(0, h - vh), Vector2(w, h - vh), Vector2(w, h), Vector2(0, h)]),
+		PackedColorArray([clear, clear, edge, edge])
+	)
+	if scrim > 0.0:
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.03, 0.03, 0.05, scrim))
+
+
+# one row of buildings along `base_y`: widths, gaps and heights come from `_hash01` of the building number plus `seed_at`
+# (so the two rows differ); `tall` is the height of the tallest one
+func _backdrop_skyline(
+	k: float, base_y: float, seed_at: float, col: Color, tall: float, lit: bool
+) -> void:
+	var x = -10.0 * k
+	var i = 0
+	while x < size.x:
+		var n = seed_at + i
+		var bw = (34.0 + _hash01(n * 1.3) * 56.0) * k
+		var bh = (0.35 + _hash01(n * 2.9) * 0.65) * tall
+		draw_rect(Rect2(x, base_y - bh, bw, bh + 2.0), col)
+		if lit:
+			_backdrop_windows(Rect2(x, base_y - bh, bw, bh), k, n)
+		x += bw + (2.0 + _hash01(n * 4.1) * 10.0) * k
+		i += 1
+
+
+# the lit windows of one building: a fixed third of them, glowing a little differently from each other over time
+func _backdrop_windows(r: Rect2, k: float, n: float) -> void:
+	var columns = int(r.size.x / (13.0 * k))
+	var rows = mini(int(r.size.y / (17.0 * k)), 6)
+	for row_i in range(rows):
+		for col_i in range(columns):
+			var hv = _hash01(n * 13.0 + row_i * 5.0 + col_i * 1.7)
+			if hv < 0.3:
+				var glow = 0.55 + 0.45 * sin(g.time * 0.6 + hv * 40.0)
+				var win = Rect2(
+					r.position.x + (4.0 + col_i * 13.0) * k,
+					r.position.y + (6.0 + row_i * 17.0) * k,
+					6.0 * k,
+					8.0 * k
+				)
+				draw_rect(win, Color(1.0, 0.78, 0.4, 0.5 * glow))
+
+
+# a rider on a bike as a dark outline, standing on `pos` (the ground under the wheels), `s` big, going left (-1) or right
+# (1); `pedal` is the angle of the pedals in radians
+func _backdrop_rider(pos: Vector2, s: float, dir: float, pedal: float) -> void:
+	var col = BACKDROP_RIDER
+	var line_w = maxf(1.5, 2.6 * s)
+	var wheel_r = 11.0 * s
+	var hub_y = pos.y - wheel_r
+	var back = Vector2(pos.x - dir * 17.0 * s, hub_y)
+	var front = Vector2(pos.x + dir * 17.0 * s, hub_y)
+	var crank = Vector2(pos.x, hub_y)
+	var seat = Vector2(pos.x - dir * 8.0 * s, hub_y - 14.0 * s)
+	var bars = Vector2(pos.x + dir * 11.0 * s, hub_y - 15.0 * s)
+	var shoulder = Vector2(pos.x + dir * 4.0 * s, hub_y - 30.0 * s)
+	var foot = crank + Vector2(cos(pedal), sin(pedal)) * 5.0 * s
+	draw_arc(back, wheel_r, 0.0, TAU, 18, col, line_w)
+	draw_arc(front, wheel_r, 0.0, TAU, 18, col, line_w)
+	draw_polyline(PackedVector2Array([back, seat, bars, front]), col, line_w)
+	draw_line(seat, crank, col, line_w)
+	draw_line(crank, bars, col, line_w)
+	draw_line(seat, shoulder, col, line_w * 1.8)
+	draw_line(shoulder, bars, col, line_w)
+	draw_line(seat, foot, col, line_w)
+	draw_circle(shoulder + Vector2(dir * 3.0 * s, -7.0 * s), 5.0 * s, col)
+
+
+# Where the launcher panel sits on the intro screen. For now it holds the start prompt; the login form, the update line
+# and PLAY WITHOUT AN ACCOUNT of V5.2 go inside it (it will grow taller), so they have a place that is already drawn.
+func intro_panel_rect() -> Rect2:
+	var k = size.y / 720.0
+	var w = 520.0 * k
+	var h = 64.0 * k
+	return Rect2((size.x - w) * 0.5, size.y * 0.72, w, h)
+
+
+func _draw_intro(k: float, cx: float) -> void:
+	_menu_backdrop(k, 0.0)
+	var logo_y = size.y * 0.34 + sin(g.time * 1.6) * 5.0 * k
+	_txt(g.GAME_TITLE, cx + 6.0 * k, logo_y + 7.0 * k, int(190 * k), Color(0, 0, 0, 0.5), 1)
+	_txt(g.GAME_TITLE, cx, logo_y, int(190 * k), ACCENT, 1)
+	_txt("FSTRELI BICIKLINA 3D", cx, size.y * 0.44, int(34 * k), TEXT, 1)
+	_txt(INTRO_TAGLINE, cx, size.y * 0.5, int(18 * k), GOLD, 1)
+	var panel = intro_panel_rect()
+	draw_rect(panel, Color(0.05, 0.05, 0.08, 0.8))
+	draw_rect(panel, ACCENT, false, 3.0 * k)
+	var pulse = 0.6 + 0.4 * sin(g.time * 3.0)
+	_txt(
+		INTRO_PROMPT, cx, panel.position.y + panel.size.y * 0.64, int(24 * k), Color(TEXT, pulse), 1
+	)
+	if g.pad_on():
+		_txt(
+			"OR ANY GAMEPAD BUTTON",
+			cx,
+			panel.position.y + panel.size.y + 26.0 * k,
+			int(14 * k),
+			GRAY,
+			1
+		)
+	if g.version_label() != "":
+		_txt(g.version_label(), size.x - 18.0 * k, size.y * 0.975, int(14 * k), GRAY, 2)
+	# the first moments: out of black, so the window opening does not flash
+	var fade = 1.0 - clampf(g.time / 0.7, 0.0, 1.0)
+	if fade > 0.0:
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.02, 0.03, fade))
+
+
 func _wrap(s: String, max_w: float, fs: int) -> Array:
 	var words = s.split(" ")
 	var lines = []
@@ -153,7 +396,7 @@ func card_at(pos: Vector2) -> int:
 
 
 func _draw_upgrade(k: float) -> void:
-	_dim(0.78)
+	_menu_backdrop(k, 0.55)
 	var cx = size.x * 0.5
 	_txt("CHOOSE AN UPGRADE", cx, size.y * 0.13, int(40 * k), GOLD, 1)
 	if g.rest_upgrade:
@@ -195,7 +438,7 @@ func _draw_upgrade(k: float) -> void:
 
 # ---------------------------------------------------------------- rest stop (state "rest", README alpha B3)
 func _draw_rest(k: float) -> void:
-	_dim(0.84)
+	_menu_backdrop(k, 0.55)
 	var cx = size.x * 0.5
 	_txt("REST STOP", cx, size.y * 0.13, int(40 * k), Color("#6C9BD2"), 1)
 	_txt("HEARTS  %d / %d" % [g.hearts, g.MAXHEARTS], cx, size.y * 0.19, int(24 * k), TEXT, 1)
@@ -241,7 +484,7 @@ func reroll_rect() -> Rect2:
 
 
 func _draw_shop(k: float) -> void:
-	_dim(0.84)
+	_menu_backdrop(k, 0.55)
 	var cx = size.x * 0.5
 	_txt("SHOP", cx, size.y * 0.11, int(40 * k), GOLD, 1)
 	_txt("CASH  $%d" % g.cash, cx, size.y * 0.17, int(24 * k), TEXT, 1)
@@ -554,7 +797,7 @@ func title_rect(i: int) -> Rect2:
 
 
 func title_at(pos: Vector2) -> int:
-	if g == null or g.state != "title" or g.title_page != "":
+	if g == null or g.state != "title" or g.title_page != "" or g.intro_active:
 		return -1
 	for i in range(TITLE_ITEMS.size()):
 		if title_rect(i).has_point(pos):
@@ -1439,7 +1682,7 @@ func map_choice_at(pos: Vector2) -> int:
 
 
 func _draw_map_screen(k: float, cx: float) -> void:
-	_dim(0.84)
+	_menu_backdrop(k, 0.55)
 	var floors = g.run_map["floors"]
 	_txt("CHOOSE YOUR NEXT STOP", cx, size.y * 0.09, int(46 * k), GOLD, 1)
 	# the arena the whole run is played in (one style per run); the roundabout has none
@@ -2113,19 +2356,21 @@ func _draw() -> void:
 
 	var blink = int(g.time * 2.0) % 2 == 0
 	if state == "title":
-		if g.title_page == "":
-			_dim(0.45)
+		if g.intro_active:
+			_draw_intro(k, cx)
+		elif g.title_page == "":
+			_menu_backdrop(k, 0.28)
 			_draw_title_menu(k, cx)
 		else:
-			_dim(0.86)
+			_menu_backdrop(k, 0.6)
 			if g.title_page != "settings":
 				_draw_title_page(k, cx)
 
 	elif state == "over":
-		_dim(0.6)
+		_menu_backdrop(k, 0.5)
 		_draw_run_summary(k, cx, blink)
 	elif state == "clear":
-		_dim(0.52)
+		_menu_backdrop(k, 0.4)
 		var n_hit = g.count_hits()
 		_txt("ROUND CLEAR", cx, size.y * 0.2, int(70 * k), GOLD, 1)
 		var hit_line = "%d OF %d HIT" % [n_hit, g.PER_ROUND]
@@ -2166,17 +2411,17 @@ func _draw() -> void:
 
 	if g.paused:
 		if g.pause_page == "settings":
-			_dim(0.86)
+			_menu_backdrop(k, 0.6)
 			_draw_settings(k)
 			_draw_settings_hints(k, cx)
 		elif g.pause_page == "confirm":
-			_dim(0.6)
+			_menu_backdrop(k, 0.45)
 			_draw_confirm(k, cx)
 		elif g.pause_page == "controls":
-			_dim(0.86)
+			_menu_backdrop(k, 0.6)
 			_draw_controls(k, cx)
 		else:
-			_dim(0.6)
+			_menu_backdrop(k, 0.45)
 			_draw_pause_menu(k, cx)
 	elif g.map_held():
 		_dim(0.78)
