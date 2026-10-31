@@ -27,6 +27,15 @@ is in [`docs/WEBSITE.md`](WEBSITE.md); where each secret lives is in [`docs/SECR
 - **Unknown fields** in a response must be ignored by the game, so a field can be added inside `/v1/`. Unknown fields
   in a request are rejected (`bad_request`), so a typo does not pass silently.
 - **No redirects.** The API never answers a call with a 3xx; the game does not follow one.
+- **How the game calls (V4.1, `scripts/web_api.gd`).** One timeout of 5 seconds for the whole call, answered with
+  TIMEOUT. A response over 1 MiB is refused (SERVER_ERROR) and a request body over 256 KiB is never sent. Nothing is
+  retried. The call is not threaded: Godot 4.7's threaded `HTTPRequest` cannot be cancelled while the server is silent
+  (it blocks for as long as the server stays silent), so the game would freeze on a server that accepts the connection
+  and says nothing. A status that is not 2xx and has no usable `code` is SERVER_ERROR, except 426 (UPDATE_REQUIRED) and
+  503 (OFFLINE), which say enough by themselves. A `200` whose body is not a JSON object is SERVER_ERROR. In an editor
+  run only, a call may go to `http://127.0.0.1:PORT/` or `http://localhost:PORT/` (the fake server of V4.2); every
+  other address must be https. `tools/web_api_check.gd` reads the error table below and fails when the game maps a
+  code differently from the last column.
 
 ### Headers the game sends
 

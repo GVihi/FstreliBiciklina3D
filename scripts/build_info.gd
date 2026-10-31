@@ -103,6 +103,11 @@ static func console_line(info: Dictionary) -> String:
 	return "FB3D " + version + " (" + _hash_text(info) + ")"
 
 
+# The value of the X-FB3D-Build header (docs/WEBSITE_API.md): "a1b2c3d", "a1b2c3d+" for a dirty build, "dev" without a file.
+static func header_text(info: Dictionary) -> String:
+	return _hash_text(info)
+
+
 static func _hash_text(info: Dictionary) -> String:
 	var text = str(info.get("short", DEV_COMMIT))
 	if text.is_empty():
