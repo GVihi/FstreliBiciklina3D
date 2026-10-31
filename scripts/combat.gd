@@ -373,6 +373,16 @@ func swing() -> void:
 
 
 # --- deflect: a thrown phone that is close when the rubber swings goes straight back at whoever threw it
+# The last part of a swing is follow-through and sends nothing back: 0.08 s of the gummy worm's 0.26 s. It is a share
+# of the swing and not a number of seconds, so a faster or slower melee weapon keeps the same shape.
+const DEFLECT_FOLLOW_THROUGH = 0.08 / 0.26
+
+
+# true while the swing in progress still sends phones back (the swing runs from `swing_time` down to 0)
+func deflecting() -> bool:
+	return g.swing_t > float(g.melee_stats()["swing_time"]) * DEFLECT_FOLLOW_THROUGH
+
+
 func deflect_range() -> float:
 	return (
 		float(g.melee_stats()["deflect_range"])

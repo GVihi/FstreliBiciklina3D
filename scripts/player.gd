@@ -512,7 +512,7 @@ func update_gun(dt: float) -> void:
 	# rubber swing
 	var sw = 0.0
 	if g.swing_t > 0.0:
-		var k = 1.0 - g.swing_t / 0.26
+		var k = 1.0 - g.swing_t / maxf(float(g.melee_stats()["swing_time"]), 0.01)  # the weapon's own swing length
 		sw = (-1.0 + 2.0 * k) * g.swing_dir
 	rb.position = Vector3(0.3, -0.34, -0.5 + (0.0 if g.swing_t <= 0.0 else -0.12))
 	rb.rotation = Vector3(0.0, sw * 0.9, -0.15 + sw * 0.25)
