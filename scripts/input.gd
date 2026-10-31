@@ -64,7 +64,9 @@ func handle_input(event: InputEvent) -> void:
 				toggle_weapon()
 		elif kc == KEY_SPACE:
 			if g.state == "shop":
-				g.shop_sys.leave_shop()  # in a round Space is free for jumping (Milestone L)
+				g.shop_sys.leave_shop()
+			elif g.state == "play":
+				g.player_sys.request_jump()  # Space jumps in a round, or side dashes with A / D held (Milestone L)
 		elif kc == KEY_V:
 			if g.state == "play":
 				g.player_sys.try_dash()  # dash moved here from Space (Milestone L); voices are toggled in the settings only
@@ -182,7 +184,9 @@ func on_pad_button(btn: int) -> void:
 			elif btn == JOY_BUTTON_B:
 				pause_back()
 			return
-		if btn == JOY_BUTTON_LEFT_SHOULDER:
+		if btn == JOY_BUTTON_A:
+			g.player_sys.request_jump()  # A jumps in a round (Milestone L)
+		elif btn == JOY_BUTTON_LEFT_SHOULDER:
 			g.player_sys.try_dash()  # dash moved here from A (Milestone L: A is for jumping)
 		elif btn == JOY_BUTTON_X:
 			manual_reload()

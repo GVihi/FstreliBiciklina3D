@@ -122,7 +122,8 @@ func update_phones(dt: float) -> void:
 			g.phones.remove_at(i)
 			var near = (
 				Vector2(tg.x - g.player.position.x, tg.z - g.player.position.z).length() < 1.5
-			)
+				and not g.player_sys.is_hurdling()
+			)  # jumped over it: it smashes on the ground below
 			g.fx_sys.plastic_burst(Vector3(tg.x, 0.4, tg.z))
 			if near:
 				g.free_phone(ph)

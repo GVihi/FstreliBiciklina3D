@@ -10,7 +10,7 @@ This is an early alpha. It is meant to test one thing: does a run, the coins you
 
 ## Controls
 
-The full list, for keyboard and mouse and for a gamepad, is on the **CONTROLS** page of the title menu (and of the pause menu). The short version: WASD to move, mouse to aim, left click to shoot, V to dash, R to reload, Esc to pause, Tab for the settings, M to hold the map.
+The full list, for keyboard and mouse and for a gamepad, is on the **CONTROLS** page of the title menu (and of the pause menu). The short version: WASD to move, mouse to aim, left click to shoot, Space to jump, V to dash (A or D with Space is a side dash), R to reload, Esc to pause, Tab for the settings, M to hold the map.
 
 ## What is in
 

@@ -56,6 +56,41 @@ func _check_lists() -> void:
 			pad_map = true
 	if not pad_map:
 		_fail("the gamepad list does not say that Back shows the map")
+	# jumping (Milestone L): Space on the keyboard, A on a gamepad, and V / LB still dash
+	var keyboard_jump = false
+	var keyboard_dash = false
+	for row in hud.CONTROLS_KEYBOARD:
+		if row[0] == "SPACE" and str(row[1]).begins_with("JUMP"):
+			keyboard_jump = true
+		if row[0] == "V" and str(row[1]).begins_with("DASH"):
+			keyboard_dash = true
+	if not keyboard_jump:
+		_fail("the keyboard list does not say that Space jumps")
+	if not keyboard_dash:
+		_fail("the keyboard list does not say that V dashes")
+	var pad_jump = false
+	var pad_dash = false
+	for row in hud.CONTROLS_GAMEPAD:
+		if row[0] == "A" and str(row[1]).begins_with("JUMP"):
+			pad_jump = true
+		if row[0] == "LB" and str(row[1]).begins_with("DASH"):
+			pad_dash = true
+	if not pad_jump:
+		_fail("the gamepad list does not say that A jumps")
+	if not pad_dash:
+		_fail("the gamepad list does not say that LB dashes")
+	var keyboard_side = false
+	for row in hud.CONTROLS_KEYBOARD:
+		if str(row[0]).begins_with("A / D") and str(row[1]).begins_with("SIDE DASH"):
+			keyboard_side = true
+	if not keyboard_side:
+		_fail("the keyboard list does not say that A or D and Space side dash")
+	var pad_side = false
+	for row in hud.CONTROLS_GAMEPAD:
+		if str(row[0]).begins_with("STICK SIDEWAYS") and str(row[1]).begins_with("SIDE DASH"):
+			pad_side = true
+	if not pad_side:
+		_fail("the gamepad list does not say that the stick sideways and A side dash")
 
 
 func _check_title() -> void:

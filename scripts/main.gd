@@ -265,6 +265,20 @@ var dash_inv = 0.0  # > 0 while the dash makes you untouchable
 var dash_dir = Vector3.ZERO
 var slide_t = 0.0
 var slide_cd = 0.0
+# Milestone L: jumping. The whole player moves: `player.position.y` is the jump height (the camera and gun ride on the
+# player node, and riders, phones and boss slams look at the height). clamp_walk and obstacle_at only look at x and z,
+# so the arena bounds hold in the air.
+var jump_h = 0.0  # metres above the ground, 0 = standing on it (the same number as player.position.y)
+var jump_v = 0.0  # vertical speed (m/s, up is positive)
+var jump_buf = 0.0  # > 0 for a moment after Space / A was pressed, so a press just before landing still jumps
+var coyote_t = 0.0  # > 0 while a jump is still allowed (grace after leaving the ground; the ground is flat for now)
+var air_speed = 0.0  # the speed air steering aims for: what the player had when taking off
+var carry_speed = 0.0  # speed kept through a landing: the ground steers at least this fast while it lasts (fades quickly)
+var since_land = 99.0  # seconds on the ground since the last landing; a jump soon after it is a chained hop
+var chain = 0  # chained hops in a row (each adds a little speed, up to a cap); back to 0 after a pause on the ground
+var side_t = 0.0  # > 0 while a side dash runs
+var side_dir = Vector3.ZERO
+var side_carry = Vector3.ZERO  # the velocity the player had when the side dash began; it is given back when it ends
 var slide_dir = Vector3.ZERO
 var was_sprint = false
 var crouch_prev = false
@@ -1041,6 +1055,7 @@ func reset_run() -> void:
 	dash_t = 0.0
 	dash_inv = 0.0
 	slide_t = 0.0
+	player_sys.reset_air()
 	perfect_dodges = 0
 	hype = 0.0
 	hype_t = 0.0
@@ -1163,6 +1178,7 @@ func continue_run() -> void:
 	pitch = 0.0
 	player.position = arena.start_position()
 	pvel = Vector3.ZERO
+	player_sys.reset_air()
 	enter_map()
 
 
@@ -1227,6 +1243,7 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	pitch = 0.0
 	player.position = arena.start_position()
 	pvel = Vector3.ZERO
+	player_sys.reset_air()
 	var start_perk_name = start_perk_id()
 	if start_perk_name != "":  # the Daily Run and a typed seed start with the chosen perk and weapons too
 		perks[start_perk_name] = true
