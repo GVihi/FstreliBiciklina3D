@@ -75,6 +75,7 @@ func _set_run_state() -> void:
 	main.free_shots = 3
 	main.hype = 40.0
 	main.hype_gain = 1.5
+	main.equip_melee("melee")  # a new player's slot is empty; the run being saved holds the worm
 	main.melee = true
 	main.score = 12345
 	main.combo = 4

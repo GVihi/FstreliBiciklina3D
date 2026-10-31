@@ -24,6 +24,15 @@
 		{"id": "item_heart", "kind": "shop_item", "target": "heart", "tier": 3},
 
 		{
+			"id": "weapon_gummy_worm",
+			"kind": "weapon",
+			"target": "melee",
+			"name": "GUMMY WORM",
+			"desc": "The giant gummy worm for the melee slot: swing it at close riders and incoming phones",
+			"tier": 1,
+			"cost": 30
+		},
+		{
 			"id": "weapon_dart_gun",
 			"kind": "weapon",
 			"target": "dart_gun",

@@ -142,6 +142,7 @@ func _check_model() -> void:
 			)
 		)
 	main.equip_primary(PISTOL)
+	main.equip_melee("melee")  # a new player's melee slot is empty (the worm is bought), the check needs a weapon in hand
 	main.melee = true
 	main.player_sys.update_gun(0.016)
 	if main.guns[PISTOL]["root"].visible:

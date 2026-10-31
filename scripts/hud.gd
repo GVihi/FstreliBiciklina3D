@@ -2579,7 +2579,7 @@ func _draw_bottom(k: float) -> void:
 	_txt(
 		(
 			(WeaponSlots.melee_label(g.melee_weapon) if g.melee else WeaponSlots.label(g.primary))
-			+ "  [Q] SWITCH"
+			+ ("  [Q] SWITCH" if g.has_melee() else "")
 		),
 		size.x - 12.0 * k,
 		size.y - 14.0 * k,
@@ -2745,7 +2745,11 @@ func _draw_boss_ui(k: float) -> void:
 	for ph in g.phones:
 		if not ph["ret"] and ph["p"] < 0.85 and int(g.time * 8.0) % 2 == 0:
 			_txt(
-				"INCOMING CALL!  DASH, OR SWING YOUR MELEE AT THE LAST MOMENT",
+				(
+					"INCOMING CALL!  DASH, OR SWING YOUR MELEE AT THE LAST MOMENT"
+					if g.has_melee()
+					else "INCOMING CALL!  DASH OUT OF THE WAY"
+				),
 				cx,
 				size.y * 0.2,
 				int(20 * k),

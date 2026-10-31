@@ -373,7 +373,7 @@ func flat_dist(a: Vector3, bx: float, bz: float) -> float:
 
 
 func swing() -> void:
-	if g.swing_cd > 0.0:
+	if not g.has_melee() or g.swing_cd > 0.0:
 		return
 	g.swing_cd = float(g.melee_stats()["cooldown"])
 	g.swing_t = float(g.melee_stats()["swing_time"])
@@ -419,6 +419,8 @@ const DEFLECT_FOLLOW_THROUGH = 0.08 / 0.26
 
 # true while the swing in progress still sends phones back (the swing runs from `swing_time` down to 0)
 func deflecting() -> bool:
+	if not g.has_melee():
+		return false
 	return g.swing_t > float(g.melee_stats()["swing_time"]) * DEFLECT_FOLLOW_THROUGH
 
 

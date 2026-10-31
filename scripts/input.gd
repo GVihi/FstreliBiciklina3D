@@ -894,6 +894,9 @@ func manual_reload() -> void:
 
 
 func toggle_weapon(to = null) -> void:
+	if not g.has_melee():  # the melee slot is empty (the gummy worm is bought first): the dart gun stays in hand
+		g.melee = false
+		return
 	if to == null:
 		g.melee = not g.melee
 	else:
