@@ -354,8 +354,10 @@ func _check_weapons() -> void:
 				% str(_ids(main.loadout_weapon_options("primary")))
 			)
 		)
-	if _ids(main.loadout_weapon_options("melee")) != ["melee"]:
+	if _ids(main.loadout_weapon_options("melee")) != [""]:  # the gummy worm is bought (tools/melee_lock_check.gd)
 		_fail("melee lists %s" % str(_ids(main.loadout_weapon_options("melee"))))
+	if main.loadout_weapon_options("melee")[0]["name"] != "NO MELEE":
+		_fail("the empty melee row is called %s" % main.loadout_weapon_options("melee")[0]["name"])
 	if _ids(main.loadout_weapon_options("gadget")) != [""]:
 		_fail("gadget lists %s" % str(_ids(main.loadout_weapon_options("gadget"))))
 	if main.loadout_weapon_options("gadget")[0]["name"] != "NO GADGET":
@@ -459,7 +461,7 @@ func _check_weapons() -> void:
 	main.meta.owned = {}
 	if main.loadout_weapon_id("primary") != "dart_pistol":
 		_fail("a weapon that is not owned is still the primary choice")
-	if main.loadout_weapon_id("melee") != "melee" or main.loadout_weapon_id("gadget") != "":
+	if main.loadout_weapon_id("melee") != "" or main.loadout_weapon_id("gadget") != "":
 		_fail("an unknown weapon is still chosen for melee or gadget")
 	inp.title_back()
 	_remove_fake_weapons()
@@ -468,6 +470,7 @@ func _check_weapons() -> void:
 func _check_weapon_runs() -> void:
 	_add_fake_weapons()
 	_own(0)
+	main.meta.owned["weapon_gummy_worm"] = true  # the worm has to be bought before a run can start with it
 	main.meta.weapon_choice = {"primary": FAKE_PRIMARY, "melee": "melee", "gadget": FAKE_GADGET}
 	for mode in ["normal", "daily", "seed"]:
 		if mode == "normal":

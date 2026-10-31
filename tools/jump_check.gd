@@ -317,6 +317,7 @@ func _check_shoot_and_swing() -> void:
 		_fail("the gun did not start its pump after a shot in the air")
 	if main.cam.global_position.y < main.EYE_STAND + 0.3:
 		_fail("the camera is not raised in the air, so darts would still leave from eye height")
+	main.equip_melee("melee")  # a new player's melee slot is empty (the gummy worm is bought)
 	main.melee = true
 	main.swing_cd = 0.0
 	main.swing_t = 0.0

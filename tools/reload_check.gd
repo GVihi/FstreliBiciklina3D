@@ -160,6 +160,7 @@ func _check_dash_interrupts() -> void:
 
 # switching to the melee weapon stops a reload; switching back to the gun does not start one
 func _check_melee_switch_interrupts() -> void:
+	main.equip_melee("melee")  # a new player's melee slot is empty (the gummy worm is bought), Q needs a weapon
 	_reset_gun(2)
 	main.combat_sys.start_load()
 	main.input_sys.toggle_weapon(true)

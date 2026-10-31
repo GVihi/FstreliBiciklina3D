@@ -26,8 +26,8 @@ func upgrade_ok(id: String) -> bool:
 		return g.up["wide"] < 4
 	if id == "heart":
 		return g.MAXHEARTS < 4
-	if id == "rubber":
-		return g.up["rubber"] < 4
+	if id == "rubber":  # reads the weapon like the clip does: with the melee slot empty there is no reach to add
+		return g.has_melee() and g.up["rubber"] < 4
 	if id == "hype":
 		return g.hype_gain < 2.6
 	if id == "luck":

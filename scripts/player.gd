@@ -740,7 +740,7 @@ func update_gun(dt: float) -> void:
 	update_noodle(dt, sw, rb.visible)
 
 	# melee reach ring on the floor
-	var show_ring = g.melee and g.state == "play" and not g.paused
+	var show_ring = g.melee and g.has_melee() and g.state == "play" and not g.paused
 	g.melee_ring.visible = show_ring
 	if show_ring:
 		var z = g.combat_sys.swing_zone()

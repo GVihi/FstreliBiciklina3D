@@ -215,7 +215,7 @@ var invuln = 0.0
 
 # v4: hype, buffs, melee, upgrades
 var primary = WeaponSlots.PRIMARY_DEFAULT  # the weapon in the primary slot (an id of data/weapons.json), see weapon_slots.gd
-var melee_weapon = WeaponSlots.MELEE_DEFAULT  # the weapon in the melee slot (an id of data/weapons.json)
+var melee_weapon = WeaponSlots.NO_MELEE  # the weapon in the melee slot (an id of data/weapons.json, "" = empty)
 var gadget = WeaponSlots.NO_GADGET  # the gadget in the gadget slot (an id of data/weapons.json, "" = empty)
 var melee = false  # true while the melee weapon is the one in the player's hands
 var swing_t = 0.0
@@ -751,7 +751,8 @@ func loadout_options() -> Array:
 
 
 # true when the player may use a weapon: every weapon is available from the first run unless data/unlocks.json
-# holds it back as a "weapon" unlock, and then it has to be bought
+# holds it back as a "weapon" unlock, and then it has to be bought (the gummy worm is one of those: a new player
+# starts with the dart pistol only)
 func weapon_owned(id: String) -> bool:
 	for u in UNLOCKS:
 		if u["kind"] == "weapon" and u["target"] == id:
@@ -1012,9 +1013,14 @@ func primary_stats() -> Dictionary:
 	return WEAPONS[primary]
 
 
-# The tuning numbers (data/weapons.json) of the weapon in the melee slot.
+# The tuning numbers (data/weapons.json) of the weapon in the melee slot; empty when the slot is empty.
 func melee_stats() -> Dictionary:
-	return WEAPONS[melee_weapon]
+	return WEAPONS[melee_weapon] if has_melee() else {}
+
+
+# true when the melee slot holds a weapon (a new player's runs start with it empty, see `weapon_owned`)
+func has_melee() -> bool:
+	return WeaponSlots.is_melee_weapon(melee_weapon) and WEAPONS.has(melee_weapon)
 
 
 # The tuning numbers (data/weapons.json) of the gadget in the gadget slot; empty when the slot is empty.
@@ -1035,9 +1041,14 @@ func equip_gadget(id) -> bool:
 	return true
 
 
-# Puts a weapon in the melee slot. Refuses (returns false and changes nothing) an id that cannot be in the melee
-# slot. A swing in progress finishes with the numbers it started with. Nothing calls this yet but the checks.
+# Puts a weapon in the melee slot, or empties it (an empty id: the player's hands go back to the primary weapon).
+# Refuses (returns false and changes nothing) an id that cannot be in the melee slot. A swing in progress finishes
+# with the numbers it started with. `apply_loadout` calls this at the start of every run.
 func equip_melee(id) -> bool:
+	if typeof(id) == TYPE_STRING and id == WeaponSlots.NO_MELEE:
+		melee_weapon = WeaponSlots.NO_MELEE
+		melee = false
+		return true
 	if not WeaponSlots.is_melee_weapon(id) or not WEAPONS.has(id):
 		return false
 	melee_weapon = id
@@ -1064,7 +1075,7 @@ func equip_primary(id) -> bool:
 # ================================================================== game flow
 func reset_run() -> void:
 	primary = WeaponSlots.PRIMARY_DEFAULT
-	melee_weapon = WeaponSlots.MELEE_DEFAULT
+	melee_weapon = WeaponSlots.NO_MELEE
 	gadget = WeaponSlots.NO_GADGET
 	MAXSHELLS = int(primary_stats()["start_clip"])
 	pump_base = float(primary_stats()["pump_start"])

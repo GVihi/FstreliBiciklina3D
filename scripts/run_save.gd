@@ -190,9 +190,13 @@ static func clean(raw: Dictionary) -> Dictionary:
 	out["primary"] = WeaponSlots.primary_or_default(
 		raw.get("primary", WeaponSlots.PRIMARY_BEFORE_SLOTS)
 	)
-	out["melee_weapon"] = WeaponSlots.melee_or_default(
-		raw.get("melee_weapon", WeaponSlots.MELEE_DEFAULT)
-	)
+	# a run saved before the melee lock has no field and was played with the gummy worm; a saved "" is an empty slot
+	if raw.has("melee_weapon"):
+		out["melee_weapon"] = WeaponSlots.melee_or_none(raw["melee_weapon"])
+	else:
+		out["melee_weapon"] = WeaponSlots.MELEE_DEFAULT
+	if out["melee_weapon"] == WeaponSlots.NO_MELEE:
+		out["melee"] = false  # nothing to hold
 	out["gadget"] = WeaponSlots.gadget_or_none(raw.get("gadget", WeaponSlots.NO_GADGET))
 	out["run_seed"] = clampi(out["run_seed"], 0, 0xFFFFFFFF)
 	out["round_n"] = clampi(out["round_n"], 1, MAX_ROUNDS_SAVED)

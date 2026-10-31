@@ -201,17 +201,24 @@ func _check_melee_slot() -> void:
 		if WeaponSlots.is_melee_weapon(bad):
 			_fail("%s is accepted as a melee weapon" % str(bad))
 		if WeaponSlots.melee_or_default(bad) != WeaponSlots.MELEE_DEFAULT:
-			_fail("%s does not fall back to the default melee weapon" % str(bad))
+			_fail("%s does not fall back to the gummy worm" % str(bad))
+		if WeaponSlots.melee_or_none(bad) != WeaponSlots.NO_MELEE:
+			_fail("%s does not fall back to an empty melee slot" % str(bad))
+	# the gummy worm is bought, so a new player's melee slot is empty (tools/melee_lock_check.gd covers the purchase)
 	main.start_game(false, SEED_A)
-	if main.melee_weapon != WeaponSlots.MELEE_DEFAULT:
+	if main.melee_weapon != WeaponSlots.NO_MELEE or main.has_melee():
 		_fail("a new run has %s in the melee slot" % str(main.melee_weapon))
-	if main.melee_stats() != main.WEAPONS[WeaponSlots.MELEE_DEFAULT]:
-		_fail("melee_stats() is not the table entry of the weapon in the slot")
-	for bad in ["", "nope", "dart_gun", 3, null]:
+	if not main.melee_stats().is_empty():
+		_fail("melee_stats() of an empty slot is not empty")
+	for bad in ["nope", "dart_gun", 3, null]:
 		if main.equip_melee(bad):
 			_fail("equip_melee accepted %s" % str(bad))
-	if main.melee_weapon != WeaponSlots.MELEE_DEFAULT:
+	if main.melee_weapon != WeaponSlots.NO_MELEE:
 		_fail("a refused equip changed the melee slot")
+	if not main.equip_melee(WeaponSlots.MELEE_DEFAULT):
+		_fail("the gummy worm cannot be put in the melee slot")
+	if main.melee_stats() != main.WEAPONS[WeaponSlots.MELEE_DEFAULT]:
+		_fail("melee_stats() is not the table entry of the weapon in the slot")
 	if not main.equip_melee(WeaponSlots.MELEE_DEFAULT):
 		_fail("equipping the weapon already in the melee slot was refused")
 	# the swing takes its cooldown and time from the slot
@@ -233,13 +240,14 @@ func _check_melee_slot() -> void:
 			)
 		)
 	main.melee = false
-	# saved with the run; old file and bad values give the default
+	# saved with the run; a file from before the melee lock has no field and loads with the worm, bad values give an
+	# empty slot, and a saved empty slot stays empty
 	var saved = RunSave.capture(main)
 	if saved.get("melee_weapon", "") != WeaponSlots.MELEE_DEFAULT:
 		_fail("the saved run holds melee_weapon %s" % str(saved.get("melee_weapon", "<missing>")))
 	main.melee_weapon = "something_else"
 	main.reset_run()
-	if main.melee_weapon != WeaponSlots.MELEE_DEFAULT:
+	if main.melee_weapon != WeaponSlots.NO_MELEE:
 		_fail("reset_run left %s in the melee slot" % str(main.melee_weapon))
 	main.melee_weapon = "something_else"
 	RunSave.apply(main, RunSave.clean(saved))
@@ -248,12 +256,12 @@ func _check_melee_slot() -> void:
 	var old = saved.duplicate()
 	old.erase("melee_weapon")
 	if RunSave.clean(old).get("melee_weapon", "") != WeaponSlots.MELEE_DEFAULT:
-		_fail("an old saved run without a melee weapon does not load as the default")
+		_fail("an old saved run without a melee weapon does not load with the gummy worm")
 	for bad in ["nope", "dart_gun", "", 7, 1.5, null, [], {}, true]:
 		var edited = saved.duplicate()
 		edited["melee_weapon"] = bad
-		if RunSave.clean(edited).get("melee_weapon", "") != WeaponSlots.MELEE_DEFAULT:
-			_fail("a saved melee_weapon of %s does not load as the default" % str(bad))
+		if RunSave.clean(edited).get("melee_weapon", "<missing>") != WeaponSlots.NO_MELEE:
+			_fail("a saved melee_weapon of %s does not load as an empty slot" % str(bad))
 
 
 # the gadget slot: empty at the start of a run (no gadget exists yet), only emptying works, the save

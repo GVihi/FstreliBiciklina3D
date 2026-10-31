@@ -58,19 +58,26 @@ static func model_of(id) -> String:
 # ---- melee slot
 
 const MELEE = "melee"
-const MELEE_DEFAULT = "melee"  # the gummy worm, what every run starts with
+const NO_MELEE = ""  # an empty slot: what a new player's runs start with, until a melee weapon is bought
+const MELEE_DEFAULT = "melee"  # the id of the gummy worm: bought for 30 coins (`weapon_gummy_worm` in data/unlocks.json)
 # every weapon that can be in the melee slot, with the name the HUD shows (`slot` "melee" in data/weapons.json)
 static var MELEE_WEAPONS = Weapons.hud_names(WEAPON_INFO, "melee")
 
 
-# true when `id` is a weapon that can be in the melee slot
+# true when `id` is a weapon that can be in the melee slot (the empty slot is not a weapon)
 static func is_melee_weapon(id) -> bool:
 	return typeof(id) == TYPE_STRING and MELEE_WEAPONS.has(id)
 
 
-# `id` itself when it can be in the melee slot, otherwise the default
+# `id` itself when it can be in the melee slot, otherwise the gummy worm (what a run saved before the melee lock
+# held when it has no `melee_weapon` field)
 static func melee_or_default(id) -> String:
 	return str(id) if is_melee_weapon(id) else MELEE_DEFAULT
+
+
+# `id` itself when it can be in the melee slot, otherwise an empty slot
+static func melee_or_none(id) -> String:
+	return str(id) if is_melee_weapon(id) else NO_MELEE
 
 
 # the name the HUD shows for a melee weapon (the default's name for an unknown id)
@@ -120,19 +127,21 @@ static func table_of(slot: String) -> Dictionary:
 	return {}
 
 
-# the weapon a slot holds when the player has chosen nothing (an empty string for the gadget slot)
+# the weapon a slot holds when the player has chosen nothing (an empty string for the melee and gadget slots)
 static func default_of(slot: String) -> String:
 	match slot:
 		PRIMARY:
 			return PRIMARY_DEFAULT
 		MELEE:
-			return MELEE_DEFAULT
+			return NO_MELEE
 	return NO_GADGET
 
 
-# the name the Loadout page shows for a weapon id ("" = an empty gadget slot)
+# the name the Loadout page shows for a weapon id ("" = an empty melee or gadget slot)
 static func display_name(slot: String, id: String) -> String:
 	if id == "":
+		if slot == MELEE:
+			return "NO MELEE"
 		return "NO GADGET" if slot == GADGET else ""
 	if WEAPON_INFO.has(id):
 		return str(WEAPON_INFO[id]["name"])
@@ -142,5 +151,7 @@ static func display_name(slot: String, id: String) -> String:
 # the text the Loadout page shows under a weapon id
 static func display_desc(slot: String, id: String) -> String:
 	if id == "":
+		if slot == MELEE:
+			return "NO MELEE: THE SLOT STAYS EMPTY"
 		return "NO GADGET: THE SLOT STAYS EMPTY" if slot == GADGET else ""
 	return str(WEAPON_INFO[id]["desc"]) if WEAPON_INFO.has(id) else ""

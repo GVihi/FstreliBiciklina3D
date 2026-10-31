@@ -170,7 +170,7 @@ func _check_unlock() -> void:
 	ids = []
 	for o in main.loadout_weapon_options("melee"):
 		ids.append(o["id"] if typeof(o) == TYPE_DICTIONARY else o)
-	if not ids.has(NOODLE) or ids[0] != WORM:
+	if not ids.has(NOODLE) or ids[0] != "" or ids.has(WORM):  # NO MELEE first; the worm is a purchase of its own
 		_fail("the melee list of the Loadout page after buying is %s" % str(ids))
 	main.meta.owned.erase(UNLOCK_ID)
 

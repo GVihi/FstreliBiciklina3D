@@ -226,8 +226,19 @@ func buy(u: Dictionary) -> String:
 		return state
 	balance -= int(u["cost"])
 	owned[str(u["id"])] = true
+	# a melee weapon bought while nothing is chosen for the melee slot goes straight into it (the slot starts empty)
+	if u["kind"] == "weapon" and _slot_of_weapon(str(u["target"])) == WeaponSlots.MELEE:
+		if str(weapon_choice.get(WeaponSlots.MELEE, "")) == WeaponSlots.NO_MELEE:
+			weapon_choice[WeaponSlots.MELEE] = str(u["target"])
 	save_meta()
 	return "bought"
+
+
+# the slot a weapon id sits in ("" for an id that is not in data/weapons.json)
+func _slot_of_weapon(id: String) -> String:
+	if WeaponSlots.WEAPON_INFO.has(id):
+		return str(WeaponSlots.WEAPON_INFO[id]["slot"])
+	return ""
 
 
 # the unlock id of the starting perk chosen on the Loadout page ("" = none); main.gd start_perk_id checks it is still owned
