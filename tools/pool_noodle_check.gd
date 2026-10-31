@@ -11,9 +11,11 @@ extends SceneTree
 #   - the deflect range is the noodle's own and a phone just outside it is not sent back,
 #   - the swing animation follows the noodle's swing time and the first-person model of the noodle is shown with the
 #     noodle in the slot and the worm's club with the worm (and only one of them at a time),
+#   - the noodle is not stiff (Milestone C, "Animate the pool noodle"): its model has joints that bend against a swing,
+#     ring after a hit and flop while running, and hang almost straight at rest; the worm's club has no such joints,
 #   - it survives a saved run.
 # It uses its own run file (user://pool_noodle_check.json) and never touches the real user://run.json.
-# Not checked: how the noodle looks and feels in the hand, whether the swing is fun, the numbers (first guesses), and
+# Not checked: how the noodle looks and feels in the hand (the size of the wobble is a first guess), whether the swing is fun, the numbers (first guesses), and
 # a boss inside the arc (bosses go through the same `melee_hits` test as riders, but no boss is spawned here).
 # Run from the project folder:
 #   godot --headless --path . --script res://tools/pool_noodle_check.gd
@@ -49,6 +51,7 @@ func _initialize() -> void:
 	_check_worm_unchanged()
 	_check_deflect()
 	_check_animation_and_model()
+	_check_wobble()
 	_check_run_save()
 	_remove_test_file()
 	RunSave.test_path = ""
@@ -340,7 +343,7 @@ func _check_animation_and_model() -> void:
 	main.player_sys.update_gun(0.0)
 	if absf(rb.rotation.y) > 0.001:
 		_fail("the noodle is turned %.2f when its swing is over" % rb.rotation.y)
-	# a stiff foam tube: no jelly
+	# foam, not jelly: the club's shader wobble stays off (the joints bend it, see _check_wobble)
 	if not main.rubber.get("wobble", []).is_empty():
 		_fail("the noodle wobbles like jelly")
 	# the worm brings the club back and hides the noodle
@@ -359,6 +362,97 @@ func _check_animation_and_model() -> void:
 		_fail("a melee model shows while the gun is in hand: %s" % str(_visible_melee_models()))
 	main.melee = true
 	main.equip_melee(NOODLE)
+
+
+# how far the tip joint of the noodle is turned sideways (radians)
+func _tip_yaw() -> float:
+	var joints = main.rubber.get("bend", [])
+	if joints.is_empty():
+		return 0.0
+	return absf(joints[joints.size() - 1].rotation.y)
+
+
+# frames of the gun update at 60 per second, with nothing else changed
+func _frames(count: int) -> void:
+	for i in range(count):
+		main.time += 1.0 / 60.0
+		main.player_sys.update_gun(1.0 / 60.0)
+
+
+func _check_wobble() -> void:
+	main.equip_melee(NOODLE)
+	main.melee = true
+	main.swing_t = 0.0
+	main.swing_cd = 0.0
+	main.pvel = Vector3.ZERO
+	main.sprinting = false
+	main.slide_t = 0.0
+	main.dash_t = 0.0
+	main.player_sys.update_gun(0.0)
+	var joints = main.rubber.get("bend", [])
+	if joints.size() < 3:
+		_fail("the noodle has %d bending joints, it needs at least 3 to bend" % joints.size())
+		return
+	if not main.rubbers[""].get("bend", []).is_empty():
+		_fail("the worm's club has noodle joints")
+
+	# at rest it hangs almost straight and settles (a small sag, no sideways turn to speak of)
+	_frames(240)
+	if _tip_yaw() > 0.012:
+		_fail("the noodle is bent sideways by %.3f rad when it rests" % _tip_yaw())
+	for j in joints:
+		if absf(j.rotation.x) > 0.06:
+			_fail("a joint of the resting noodle is tipped %.3f rad up or down" % j.rotation.x)
+
+	# a swing bends it: the tip trails behind the swing
+	var most = 0.0
+	_swing()
+	for i in range(12):
+		main.time += 1.0 / 60.0
+		main.swing_t = maxf(0.0, main.swing_t - 1.0 / 60.0)
+		main.player_sys.update_gun(1.0 / 60.0)
+		most = maxf(most, _tip_yaw())
+	if most < 0.05:
+		_fail("the noodle only bends %.3f rad at its tip during a swing, it is still stiff" % most)
+	main.swing_t = 0.0
+	_frames(600)
+	if _tip_yaw() > 0.012:
+		_fail("the noodle is still bent %.3f rad ten seconds after a swing" % _tip_yaw())
+
+	# a hit shudders it, and the shudder dies away again
+	main.player_sys.jelly_kick(16.0, 0.6)
+	most = 0.0
+	for i in range(15):
+		_frames(1)
+		most = maxf(most, _tip_yaw())
+	if most < 0.05:
+		_fail("a hit bends the noodle's tip only %.3f rad" % most)
+	_frames(600)
+	if _tip_yaw() > 0.012:
+		_fail("the noodle is still bent %.3f rad ten seconds after a hit" % _tip_yaw())
+
+	# running makes it flop, more than standing still, and a sprint more than a walk
+	most = 0.0
+	for i in range(120):
+		main.pvel = Vector3(0.0, 0.0, -main.RUN)
+		main.bob_t += main.RUN / 60.0 * 2.2
+		_frames(1)
+		most = maxf(most, _tip_yaw())
+	if most < 0.02:
+		_fail("the noodle only flops %.3f rad at its tip while running" % most)
+	main.pvel = Vector3.ZERO
+	_frames(240)
+	if _tip_yaw() > 0.012:
+		_fail("the noodle keeps flopping (%.3f rad) after the player stops" % _tip_yaw())
+
+	# it comes back from rest after the weapon was away, not from wherever it was
+	main.melee = false
+	main.player_sys.update_gun(1.0 / 60.0)
+	main.melee = true
+	main.player_sys.update_gun(0.0)
+	if _tip_yaw() > 0.012:
+		_fail("the noodle is bent %.3f rad when it is taken out again" % _tip_yaw())
+	main.swing_t = 0.0
 
 
 func _check_run_save() -> void:

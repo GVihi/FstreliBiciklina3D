@@ -319,6 +319,7 @@ Mostly vibe coded Godot game
 - [x] Audit the melee code for what is tied to the gummy worm (the swing, the HUD name, the deflect, Melee Reach, the `round_no_gun` rule) and make it read `melee_stats()` everywhere, so the first variant does not need special cases (note in `docs/ROADMAP_HISTORY.md`)
 - [x] **Pool Noodle** (tier 1, 60 coins), quirk **reach and sweep**: the longest reach and a wide arc, so one swing can hit several riders; damage 1, so it needs a few hits, and the longest deflect range of all
   - [x] Implement weapon, and the sweep (every rider inside the arc is hit once per swing) (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner, and the floor ring does not show the arc yet)
+  - [x] Animate the noodle so it is not stiff: a slight wobble when running and when hitting with it (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner, the size of the wobble is a first guess)
 - [ ] **Squeaky Hammer** (tier 2, 120 coins), quirk **slow slam and stun**: a slow wind-up and a heavy overhead hit, big damage and a short stun on every rider in a small ring around the impact; nothing is deflected during the wind-up, which is the price
   - [ ] Implement weapon, the wind-up and the stun ring
 - [ ] **Fly Swatter** (tier 2, 120 coins), quirk **speed and combo**: a very fast swat (first guess 0.15 s cooldown) with damage 1; swats in a row inside a short window build a combo and the third is a big finisher, a miss resets it; the widest deflect cone, good at swatting phones out of the air
@@ -659,13 +660,13 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 # Milestone L: Jumping
 
-Jumping on Space, so the movement feels like a modern FPS. Space is the dash key today (and the gamepad A button), so the first step is to give dash a new key.
+Jumping on Space, so the movement feels like a modern FPS. Space was the dash key (and the gamepad A button), so the first step was to give dash a new key: it is V now (left bumper on a gamepad), and Space and A are free for jumping.
 
 > Feel goal: fast-paced, like a Quake game. Sprints, jumps and dashes chain into each other, and the player can aim and shoot while airborne. Every decision below should be judged against that.
 >
 > Movement inspiration: the game S4 League (fast, acrobatic third-person shooter movement with wall-jumps, dashes and dodges that chain into each other). Take the feel of the movement, not the exact rules or numbers.
 
-- [ ] Decide the new dash key and gamepad button (Space and A are taken by jumping), and move dash there in the input map, the key rebinding list, the Controls page and the HUD hint under the dash bar
+- [x] Decide the new dash key and gamepad button (Space and A are taken by jumping), and move dash there in the input map, the key rebinding list, the Controls page and the HUD hint under the dash bar (decided with the owner: V, and LB on a gamepad; V no longer toggles voices, that is in the settings only; note in `docs/ROADMAP_HISTORY.md`; key rebinding does not exist yet, so that list is left to the "Key rebinding" item; waits for an in-game check by the owner)
 - [ ] Jump on Space: a short hop with gravity, a fixed jump height and some air control (decide the numbers while building it; coyote time and jump buffering make it feel right)
 - [ ] Jump on the gamepad (A) and add it to the key rebinding list and the Controls page
 - [ ] Decide how jumping mixes with sprint, crouch, slide and dash (can you jump out of a slide, dash in the air, shoot and aim while airborne)
@@ -833,6 +834,6 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 - [ ] Milestone I: Roguelite progression (builds on the meta currency and unlocks in Milestone B)
 - [ ] Milestone J: Manual reload (small and independent, can be done at any time)
 - [ ] Milestone K: Procedural arenas (big: replaces how riders and bosses move; start with the "Foundation" steps, which keep the roundabout playing as today)
-- [ ] Milestone L: Jumping (small and independent; Space is the dash key today, so dash moves to another key first); now also holds the fast S4 League style movement: wall-jumps and the side dash / dodge
+- [ ] Milestone L: Jumping (small and independent; dash has moved from Space to V, so Space is free); now also holds the fast S4 League style movement: wall-jumps and the side dash / dodge
 - [ ] Milestone M: First and third person view (needs a player body model; best after Milestone L, so the new movement can be seen on the character)
 - [ ] Milestone N: Website, launcher and online services (Django app and API, login, cloud saves, save protection, leaderboards, bug reports, installer and auto updates; mostly independent of the gameplay milestones, but XP and levels live in Milestone I, and the online leaderboard builds on Milestone A)

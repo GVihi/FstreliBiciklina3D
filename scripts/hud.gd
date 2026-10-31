@@ -604,7 +604,7 @@ func _draw_title_menu(k: float, cx: float) -> void:
 	if g.hi > 0:
 		_txt("HIGH SCORE " + str(g.hi).pad_zeros(6), cx, size.y * 0.885, int(20 * k), GOLD, 1)
 	_txt(
-		"WASD MOVE   SHIFT RUN   SPACE DASH   MOUSE AIM   CLICK SHOOT   R RELOAD   Q MELEE",
+		"WASD MOVE   SHIFT RUN   V DASH   MOUSE AIM   CLICK SHOOT   R RELOAD   Q MELEE",
 		cx,
 		size.y * 0.93,
 		int(14 * k),
@@ -975,7 +975,7 @@ const CONTROLS_KEYBOARD = [
 	["WASD", "MOVE"],
 	["SHIFT", "SPRINT (WHILE MOVING FORWARD)"],
 	["CTRL / C", "CROUCH (WHILE SPRINTING: SLIDE)"],
-	["SPACE", "DASH (A NEAR MISS IS A PERFECT DODGE)"],
+	["V", "DASH (A NEAR MISS IS A PERFECT DODGE)"],
 	["MOUSE", "AIM"],
 	["LEFT CLICK", "SHOOT / SWING THE MELEE WEAPON"],
 	["RIGHT CLICK", "AIM DOWN SIGHTS (HOLD, OR TOGGLE IN SETTINGS)"],
@@ -984,7 +984,6 @@ const CONTROLS_KEYBOARD = [
 	["ESC", "PAUSE"],
 	["TAB", "SETTINGS"],
 	["M", "HOLD TO SHOW THE MAP"],
-	["V", "VOICES ON OFF"],
 	["F9", "GRAPHICS QUALITY"],
 	["F11", "FULLSCREEN"]
 ]
@@ -994,10 +993,10 @@ const CONTROLS_GAMEPAD = [
 	["RIGHT STICK", "AIM (WITH AIM ASSIST)"],
 	["RT", "SHOOT / SWING THE MELEE WEAPON"],
 	["LT", "AIM DOWN SIGHTS (HOLD)"],
-	["A", "DASH"],
+	["LB", "DASH"],
 	["B", "CROUCH / SLIDE"],
 	["X", "RELOAD (IN THE SHOP: REROLL)"],
-	["Y / BUMPERS", "SWITCH DART GUN AND MELEE"],
+	["Y / RB", "SWITCH DART GUN AND MELEE"],
 	["START", "PAUSE"],
 	["BACK / VIEW", "HOLD TO SHOW THE MAP"],
 	["D-PAD + A / B", "MENUS: PICK / BACK"]
@@ -2340,7 +2339,7 @@ func _draw_bottom(k: float) -> void:
 		2
 	)
 	var snd = (
-		"[M] MAP   SOUND %s   [V] VOICES %s"
+		"[M] MAP   SOUND %s   VOICES %s"
 		% ["OFF" if g.sfx.muted else "ON", "OFF" if not g.sfx.voices_on else "ON"]
 	)
 	_txt(snd, size.x - 12.0 * k, size.y - 34.0 * k, int(11 * k), GRAY, 2)
@@ -2350,7 +2349,7 @@ func _draw_bottom(k: float) -> void:
 	var dw = 130.0 * k
 	var ready = g.dash_cd <= 0.0
 	_txt(
-		"DASH [SPACE]" if ready else "DASH",
+		"DASH [V]" if ready else "DASH",
 		mx,
 		size.y - 62.0 * k,
 		int(12 * k),
@@ -2449,13 +2448,13 @@ func _draw_boss_ui(k: float) -> void:
 					Rect2(size.x - 16.0 * k, 0, 16.0 * k, size.y), Color(1.0, 0.16, 0.12, pulse)
 				)
 				if int(g.time * 8.0) % 2 == 0:
-					var warn = "GET OFF THE RED LANE!  DASH [SPACE]"
+					var warn = "GET OFF THE RED LANE!  DASH [V]"
 					if mode == "tele" and b["pat"] == "slam":
-						warn = "GET OUT OF THE CIRCLE!  OR DASH THROUGH [SPACE]"
+						warn = "GET OUT OF THE CIRCLE!  OR DASH THROUGH [V]"
 					elif mode == "tele" and b["pat"] == "volley":
 						warn = "PHONES INCOMING!  DODGE OR DEFLECT"
 					elif b["combo"] > 0:
-						warn = "COMBO!  KEEP MOVING  [SPACE]"
+						warn = "COMBO!  KEEP MOVING  [V]"
 					_txt(warn, cx, size.y * 0.45, int(22 * k), ACCENT, 1)
 			elif mode == "stagger":
 				var gp = 0.10 + 0.08 * absf(sin(g.time * 8.0))

@@ -54,6 +54,20 @@ const JELLY_SQUASH_MAX = 0.16
 const JELLY_FLASH_FADE = 5.0  # how fast the hit flash fades (per second)
 const JELLY_HIT_SQUASH = 0.12  # extra stretch at the moment of a hit, fading with the flash
 
+# Pool noodle wobble (Milestone C). The noodle's joints (models.gd build_noodle, `bend`) hang off the same swing spring as
+# the club, so it bends against the swing, rings after a hit, and flops with the walk bob. Angles are radians per joint, and
+# each joint takes a share of them that grows towards the tip (the tip bends most).
+const NOODLE_STIFFNESS = 150.0  # spring strength: lower than the club's 230, so the tip lags more and rings slower
+const NOODLE_DAMPING = 4.0  # spring damping: lower = more wobble after a swing or a hit
+const NOODLE_BEND = 0.10  # sideways bend per joint per unit of lag (the tip joint takes all of it, the first less)
+const NOODLE_SAG = 0.025  # the foam sags a little under its own weight, always
+const NOODLE_WHIP_SAG = 0.02  # and more while it whips (per unit of lag)
+const NOODLE_RUN_SWAY = 0.035  # sideways flop per joint while running (a sprint flops harder)
+const NOODLE_RUN_BOUNCE = 0.03  # up and down flop per joint with every step
+const NOODLE_WAVE = 0.55  # how much later each joint follows the one before it in the bob (rad), so the flop runs down the tube
+const NOODLE_IDLE = 0.008  # a very slow sway while standing still
+const NOODLE_MAX = 0.16  # the most one joint can turn on either axis
+
 # Gun motion tuning (Milestone F2). Everything is in metres / radians and fades out while aiming down sights.
 const IDLE_SWAY = 0.0035  # breathing: how far the gun drifts up/down while standing still
 const BOB_SIDE = 0.010  # walk bob: side-to-side travel
@@ -518,6 +532,7 @@ func update_gun(dt: float) -> void:
 	rb.position = Vector3(0.3, -0.34, -0.5 + (0.0 if g.swing_t <= 0.0 else -0.12))
 	rb.rotation = Vector3(0.0, sw * 0.9, -0.15 + sw * 0.25)
 	update_jelly(dt, sw, rb.visible)
+	update_noodle(dt, sw, rb.visible)
 
 	# melee reach ring on the floor
 	var show_ring = g.melee and g.state == "play" and not g.paused
@@ -538,6 +553,40 @@ func update_gun(dt: float) -> void:
 func jelly_kick(speed: float, flash: float) -> void:
 	jelly_tip_v += speed * g.swing_dir
 	jelly_flash = maxf(jelly_flash, flash)
+
+
+# Pool noodle wobble: the same spring as the club's, but it turns the noodle's joints instead of feeding a shader. While
+# running the bob turns them too, each one a little later than the one before, so the flop runs down the tube to the tip.
+func update_noodle(dt: float, sw: float, shown: bool) -> void:
+	var joints = g.rubber.get("bend", [])
+	if joints.is_empty():
+		return
+	if not shown:
+		jelly_tip = 0.0  # start from rest when the noodle comes back
+		jelly_tip_v = 0.0
+		return
+	var step = minf(dt, 1.0 / 30.0)  # a long frame must not blow the spring up
+	jelly_tip_v += (NOODLE_STIFFNESS * (sw - jelly_tip) - NOODLE_DAMPING * jelly_tip_v) * step
+	jelly_tip += jelly_tip_v * step
+	jelly_flash = maxf(0.0, jelly_flash - step * JELLY_FLASH_FADE)  # a hit sets it for the club; it must not wait for it
+	var lag = sw - jelly_tip  # > 0 while the swing runs ahead of the tip
+	var moving = clampf(g.pvel.length() / g.RUN, 0.0, 1.0)
+	if g.slide_t > 0.0 or g.dash_t > 0.0:
+		moving = 0.0
+	var bob_mul = BOB_SPRINT_MUL if g.sprinting else 1.0
+	var calm = 1.0 - g.ads_t * ADS_CALM
+	var n = joints.size()
+	for i in range(n):
+		var share = float(i + 1) / float(n)  # the joint next to the grip bends least, the one at the tip most
+		var wave = float(i) * NOODLE_WAVE
+		var yaw = -lag * NOODLE_BEND * share
+		yaw += sin(g.bob_t * 0.5 - wave) * NOODLE_RUN_SWAY * bob_mul * moving * share * calm
+		yaw += sin(g.time * 0.9 - float(i) * 0.5) * NOODLE_IDLE * (1.0 - moving) * share
+		var pitch = -(NOODLE_SAG + absf(lag) * NOODLE_WHIP_SAG)
+		pitch += sin(g.bob_t - BOB_LAG - wave) * NOODLE_RUN_BOUNCE * bob_mul * moving * share * calm
+		joints[i].rotation = Vector3(
+			clampf(pitch, -NOODLE_MAX, NOODLE_MAX), clampf(yaw, -NOODLE_MAX, NOODLE_MAX), 0.0
+		)
 
 
 # Jelly club wobble: a spring chases the swing, and the lag between the swing and the spring bends the club.
