@@ -34,6 +34,7 @@ const AWAY_REACH = 2.0  # metres from the exit point at which a rider that gave 
 const NEVER_GIVES_UP = 1.0e9  # seconds: the time limit of a rider that cannot get away (g.riders_can_escape())
 const AGE_SPEED_CAP = 6.0  # seconds: the longest a rider speeds up for, where it has no time limit
 const AWAY_MIN_SPEED = 8.0  # metres per second: the slowest a rider that gave up goes to make its turn
+const STUN_BRAKE = 40.0  # metres per second squared: how hard a rider that crashed on a banana peel stops (scripts/gadgets.gd)
 const AMBUSH_MIN_DIST = 35.0  # metres: an ambush rider comes out of a gate at least this far from the player (ambush_gate)
 
 var g = null
@@ -489,17 +490,25 @@ func update_rider(r: Dictionary, dt: float) -> void:
 		var mul = (
 			1.0 + minf(r["age"], AGE_SPEED_CAP if r["limit"] >= NEVER_GIVES_UP else INF) * 0.08
 		)
-		r["spd"] += (r["tgt"] * mul - r["spd"]) * minf(1.0, dt * 3.0)
+		var stunned = r.get("stun_t", 0.0) > 0.0  # a banana peel crash (scripts/gadgets.gd): stopped, no throwing
+		if stunned:
+			r["stun_t"] = maxf(0.0, r["stun_t"] - dt)
+			r["spd"] = move_toward(r["spd"], 0.0, STUN_BRAKE * dt)
+		else:
+			r["spd"] += (r["tgt"] * mul - r["spd"]) * minf(1.0, dt * 3.0)
 		move_rider(r, dt)  # riders keep circling: through the tunnel and round again
 		if not r["entered"] and not r["hidden"]:
 			r["entered"] = true
 		r["wph"] += r["spd"] * dt / 0.34
-		r["cph"] += dt * (6.0 + 0.444 * r["spd"])
+		if not stunned:
+			r["cph"] += dt * (6.0 + 0.444 * r["spd"])  # a stunned rider stops pedalling
 		place_rider(r, sin(r["age"] * 10.0) * 0.015)
 		Models.pose_rider(m, r["cph"], r["wph"])
 		update_rider_sound(r)
 		rider_collide(r)
-		if r["wind_t"] > 0.0:
+		if stunned:
+			r["wind_t"] = 0.0  # no phone from a rider that is down
+		elif r["wind_t"] > 0.0:
 			r["wind_t"] -= dt
 			if r["wind_t"] <= 0.0:
 				g.phone_sys.launch_phone(r)

@@ -42,6 +42,15 @@
 			"cost": 75
 		},
 		{
+			"id": "weapon_banana_peel",
+			"kind": "weapon",
+			"target": "banana_peel",
+			"name": "BANANA PEEL TRAP",
+			"desc": "A gadget: drop a peel ahead of you, the first rider to ride over it crashes and is stunned",
+			"tier": 1,
+			"cost": 75
+		},
+		{
 			"id": "weapon_dart_gun",
 			"kind": "weapon",
 			"target": "dart_gun",
