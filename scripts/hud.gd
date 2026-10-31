@@ -139,7 +139,7 @@ const BACKDROP_RIDERS = [
 	{"u": 0.34, "speed": 0.075, "phase": 0.62, "dir": -1.0},
 	{"u": 0.62, "speed": 0.11, "phase": 0.35, "dir": 1.0}
 ]
-const INTRO_TAGLINE = "A FIRST PERSON NERF DART ROGUELITE"
+const INTRO_TAGLINE = "A BIKE SHOOTING ROGUELITE"
 const INTRO_PROMPT = "PRESS ANY KEY OR CLICK TO START"
 
 
