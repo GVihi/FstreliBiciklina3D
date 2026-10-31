@@ -763,9 +763,15 @@ static func build_melee_viewmodel(key: String) -> Dictionary:
 	return {}
 
 
+const NOODLE_BANDS = 6  # bands (and so joints) of the Pool Noodle
+
+
 # The Pool Noodle: a long foam tube held by one end, the knob at z = +0.2 (in your hand) like the club, reaching out along
 # -Z to 1.5 m, so it is clearly the longest thing the player swings. Bands of two blues like foam, a grip in yellow at the
-# hand and a dark hole in the free end. No jelly wobble: it is stiff foam, `wobble` is empty.
+# hand and a dark hole in the free end. It is not jelly (`wobble`, the club's vertex shader, is empty) but it is not a
+# stick either: every band hangs on its own joint, each joint a child of the one before it, so a turn of a joint carries
+# all the bands beyond it. player.gd (update_noodle) turns the joints with a spring and the walk bob, which bends the tube
+# like a floppy pool noodle. The first band is under the grip and stays stiff; `bend` lists the joints after it, hand to tip.
 static func build_noodle() -> Dictionary:
 	var root = Node3D.new()
 	var blue = Util.mat(Color.html("#22c7e8"), 0.7)
@@ -774,26 +780,44 @@ static func build_noodle() -> Dictionary:
 	var hole = Util.mat(Color.html("#0b2e45"), 0.9)
 	var z_hand = 0.2
 	var z_tip = -1.3
-	var bands = 6
-	var band_len = (z_hand - z_tip) / float(bands)
+	var band_len = (z_hand - z_tip) / float(NOODLE_BANDS)
 	var first = null
-	for i in range(bands):
-		var zc = z_hand - band_len * (float(i) + 0.5)
+	var bend = []
+	var parent: Node3D = root
+	for i in range(NOODLE_BANDS):
+		var joint = Node3D.new()  # sits where this band starts: at the hand, then at the end of the band before
+		joint.position = Vector3(0, 0, z_hand if i == 0 else -band_len)
+		parent.add_child(joint)
 		var tube = Util.cyl(
-			root, 0.05, 0.05, band_len, Vector3(0, 0, zc), blue if i % 2 == 0 else deep
+			joint,
+			0.05,
+			0.05,
+			band_len,
+			Vector3(0, 0, -band_len * 0.5),
+			blue if i % 2 == 0 else deep
 		)
 		tube.rotation_degrees.x = 90.0
 		if first == null:
 			first = tube
+		else:
+			bend.append(joint)
+		if i == NOODLE_BANDS - 1:
+			var cap = Util.cyl(joint, 0.03, 0.03, 0.01, Vector3(0, 0, -band_len - 0.002), hole)
+			cap.rotation_degrees.x = 90.0
+		parent = joint
 	var g_len = 0.26
 	var handle = Util.cyl(root, 0.054, 0.054, g_len, Vector3(0, 0, z_hand - g_len * 0.5), grip)
 	handle.rotation_degrees.x = 90.0
-	var cap = Util.cyl(root, 0.03, 0.03, 0.01, Vector3(0, 0, z_tip - 0.002), hole)
-	cap.rotation_degrees.x = 90.0
-	for ch in root.get_children():
-		if ch is MeshInstance3D:
-			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return {"root": root, "paddle": first, "wobble": []}
+	_no_shadows(root)
+	return {"root": root, "paddle": first, "wobble": [], "bend": bend}
+
+
+# the first-person models cast no shadows (the whole tree, since the noodle's bands sit in joints)
+static func _no_shadows(n: Node) -> void:
+	if n is MeshInstance3D:
+		n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for ch in n.get_children():
+		_no_shadows(ch)
 
 
 static func build_rubber() -> Dictionary:
