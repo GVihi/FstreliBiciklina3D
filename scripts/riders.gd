@@ -455,6 +455,11 @@ func rider_collide(r: Dictionary) -> void:
 		return
 	var rp = r["pos"]
 	if Vector2(rp.x - g.player.position.x, rp.z - g.player.position.z).length() < 0.95:
+		if g.player_sys.is_hurdling():  # jumped over it: no collision, but no PERFECT DODGE either (that is for the dashes)
+			if not r.get("hurdled", false):
+				r["hurdled"] = true
+				g.add_note("HURDLED A CYCLIST", g.WHITE)
+			return
 		g.damage_player("RUN OVER BY A CYCLIST", "run")
 
 

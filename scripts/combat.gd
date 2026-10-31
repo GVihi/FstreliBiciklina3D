@@ -323,7 +323,9 @@ func swing_zone() -> Dictionary:
 	var f = facing_flat()
 	var m = g.melee_stats()
 	var fwd = float(m["zone_forward"])
-	var c = Vector3(g.player.position.x + f.x * fwd, 1.0, g.player.position.z + f.z * fwd)
+	var c = Vector3(
+		g.player.position.x + f.x * fwd, g.player.position.y + 1.0, g.player.position.z + f.z * fwd
+	)
 	return {"c": c, "r": float(m["zone_radius"]) + g.up["rubber"] * float(m["reach_per_level"])}
 
 

@@ -604,7 +604,7 @@ func _draw_title_menu(k: float, cx: float) -> void:
 	if g.hi > 0:
 		_txt("HIGH SCORE " + str(g.hi).pad_zeros(6), cx, size.y * 0.885, int(20 * k), GOLD, 1)
 	_txt(
-		"WASD MOVE   SHIFT RUN   V DASH   MOUSE AIM   CLICK SHOOT   R RELOAD   Q MELEE",
+		"WASD MOVE   SHIFT RUN   SPACE JUMP   V DASH   MOUSE AIM   CLICK SHOOT   R RELOAD   Q MELEE",
 		cx,
 		size.y * 0.93,
 		int(14 * k),
@@ -612,7 +612,7 @@ func _draw_title_menu(k: float, cx: float) -> void:
 		1
 	)
 	_txt(
-		"GAMEPAD: STICKS MOVE + AIM   RT SHOOT   LT AIM   A DASH   X RELOAD   Y SWITCH   START PAUSE",
+		"GAMEPAD: STICKS MOVE + AIM   RT SHOOT   LT AIM   A JUMP   LB DASH   X RELOAD   Y SWITCH   START PAUSE",
 		cx,
 		size.y * 0.965,
 		int(14 * k),
@@ -975,7 +975,9 @@ const CONTROLS_KEYBOARD = [
 	["WASD", "MOVE"],
 	["SHIFT", "SPRINT (WHILE MOVING FORWARD)"],
 	["CTRL / C", "CROUCH (WHILE SPRINTING: SLIDE)"],
+	["SPACE", "JUMP (OUT OF A SLIDE, AND DASH IN THE AIR)"],
 	["V", "DASH (A NEAR MISS IS A PERFECT DODGE)"],
+	["A / D + SPACE", "SIDE DASH (USES THE DASH BAR)"],
 	["MOUSE", "AIM"],
 	["LEFT CLICK", "SHOOT / SWING THE MELEE WEAPON"],
 	["RIGHT CLICK", "AIM DOWN SIGHTS (HOLD, OR TOGGLE IN SETTINGS)"],
@@ -993,7 +995,9 @@ const CONTROLS_GAMEPAD = [
 	["RIGHT STICK", "AIM (WITH AIM ASSIST)"],
 	["RT", "SHOOT / SWING THE MELEE WEAPON"],
 	["LT", "AIM DOWN SIGHTS (HOLD)"],
+	["A", "JUMP"],
 	["LB", "DASH"],
+	["STICK SIDEWAYS + A", "SIDE DASH (USES THE DASH BAR)"],
 	["B", "CROUCH / SLIDE"],
 	["X", "RELOAD (IN THE SHOP: REROLL)"],
 	["Y / RB", "SWITCH DART GUN AND MELEE"],
@@ -1012,7 +1016,7 @@ func _draw_controls_rows(rows: Array, x_key: float, x_text: float, y: float, k: 
 	for row in rows:
 		_txt(row[0], x_key, y, int(17 * k), ACCENT)
 		_txt(row[1], x_text, y, int(17 * k), TEXT)
-		y += 26.0 * k
+		y += 24.0 * k
 	return y
 
 

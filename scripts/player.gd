@@ -15,6 +15,10 @@ var look_seen = false
 # held trigger does not fire again until it has been let go (the mouse already fires once per click)
 var trig_was = false
 
+# camera spring for take-off and landing (Milestone L): the eye dips on a landing and settles with a small overshoot
+var land_dip = 0.0  # metres, negative = lower
+var land_dip_v = 0.0
+
 # recoil spring: the gun kicks back (metres), the muzzle rises (radians) and it rolls a little, then settles with a small overshoot
 var kick_back = 0.0
 var kick_back_v = 0.0
@@ -97,6 +101,31 @@ const KICK_BACK_MAX = 0.09  # limits, so rapid fire stacks up but never runs awa
 const KICK_RISE_MAX = 0.26
 const KICK_ADS_MUL = 0.5  # recoil is this much smaller while aiming down sights (the view carries it instead)
 
+# Jumping tuning (Milestone L). Metres and seconds. First guesses, to be tuned in the playtest item.
+const JUMP_SPEED = 5.8  # take-off speed: with JUMP_GRAVITY a hop of about 0.84 m that lasts about 0.58 s
+const JUMP_GRAVITY = 20.0  # a little stronger than the world's, so the hop is snappy and the fall is quick
+const JUMP_BUFFER = 0.12  # a press this long before landing still jumps on landing (so a chain of hops never misses)
+const COYOTE_TIME = 0.1  # a jump is still allowed this long after leaving the ground (nothing to fall off yet)
+const AIR_CONTROL = 3.0  # per second: how fast the air velocity turns towards the stick (the ground uses 10)
+const AIR_SPEED_MAX = 9.0  # the most speed take-off hands on to the air (the slide's top speed)
+const AIR_DASH_GRAVITY = 0.25  # gravity is this strong while a dash runs in the air, so the dash stays flat
+const SLIDE_HOP_SPEED = 0.9  # landing with crouch held at this share of the run speed or more starts a slide
+const CHAIN_WINDOW = 0.2  # a jump this soon after landing is a chained hop
+const CHAIN_BONUS = 0.4  # m/s a chained hop adds to a sprint-speed take-off
+const CHAIN_MAX_SPEED = 7.8  # the most chained hops reach (the run speed x 1.35); riders and bosses are never faster than a sprint
+const CARRY_DECAY = 8.0  # m/s lost per second by the speed kept through a landing
+const HURDLE_HEIGHT = 0.55  # feet above this height: a rider passes underneath, a phone and a boss slam land below (no PERFECT DODGE)
+const SIDE_TIME = 0.18  # side dash: how long it lasts
+const SIDE_SPEED = 14.0  # its sideways speed at the start (it eases to 4), about 1.6 m in all
+const SIDE_INV = 0.22  # untouchable for this long, shorter than the dash, so a near miss is a PERFECT DODGE
+const SIDE_STICK = 0.5  # how far A / D or the stick must lean sideways (and less than SIDE_STRAIGHT forwards) for Space to side dash
+const SIDE_STRAIGHT = 0.3
+const LAND_STIFFNESS = 260.0  # camera dip spring
+const LAND_DAMPING = 20.0
+const LAND_KICK = 0.25  # dip speed (m/s) per m/s of landing speed: a full hop dips the eye about 9 cm
+const LAND_PITCH = 0.3  # radians of nod per metre of dip
+const TAKEOFF_GUN_LIFT = 0.25  # the gun lifts a little at take-off (m/s)
+
 
 func _init(game) -> void:
 	g = game
@@ -146,27 +175,41 @@ func update_player(dt: float, captured: bool) -> void:
 		g.free_shots_cd -= dt
 	if g.dodge_cd > 0.0:
 		g.dodge_cd -= dt
+	if g.side_t > 0.0:
+		g.side_t -= dt
+		if g.side_t <= 0.0:
+			g.pvel = g.side_carry  # the burst is over: the player keeps the speed it had before it
+	if not is_airborne():
+		g.since_land += dt
+		if g.since_land > CHAIN_WINDOW:
+			g.chain = 0
+	g.carry_speed = maxf(0.0, g.carry_speed - CARRY_DECAY * dt)
 
-	# slide: press crouch while sprinting
+	# jump: Space / A press (request_jump) -> take-off. Allowed from standing, running, a slide and a dash.
+	if not active:
+		g.jump_buf = 0.0
+	elif g.jump_buf > 0.0:
+		g.jump_buf -= dt
+	if not is_airborne():
+		g.coyote_t = COYOTE_TIME
+	elif g.coyote_t > 0.0:
+		g.coyote_t -= dt
+	if active and g.jump_buf > 0.0 and g.coyote_t > 0.0:
+		take_off()
+
+	# slide: press crouch while sprinting (on the ground)
 	var crouch_edge = want_crouch and not g.crouch_prev
 	g.crouch_prev = want_crouch
 	if (
 		active
 		and crouch_edge
 		and g.was_sprint
+		and not is_airborne()
 		and g.slide_cd <= 0.0
 		and g.slide_t <= 0.0
 		and g.dash_t <= 0.0
 	):
-		g.slide_t = g.SLIDE_TIME
-		g.slide_cd = 1.2
-		if g.pvel.length() > 0.5:
-			g.slide_dir = g.pvel.normalized()
-		else:
-			g.slide_dir = g.move_world(Vector2(0.0, 1.0))
-		g.slide_dir.y = 0.0
-		grant_free_shots()
-		g.sfx.play("whoosh", -8.0)
+		start_slide()
 	if g.slide_t > 0.0:
 		g.slide_t -= dt
 		want_crouch = true
@@ -192,21 +235,53 @@ func update_player(dt: float, captured: bool) -> void:
 		target = g.move_world(mv) * speed
 	if g.dash_t > 0.0:
 		g.pvel = g.dash_dir * lerpf(5.0, g.DASH_SPEED, clampf(g.dash_t / g.DASH_TIME, 0.0, 1.0))
+	elif g.side_t > 0.0:
+		g.pvel = (
+			g.side_carry
+			+ g.side_dir * lerpf(4.0, SIDE_SPEED, clampf(g.side_t / SIDE_TIME, 0.0, 1.0))
+		)
 	elif g.slide_t > 0.0:
 		g.pvel = g.slide_dir * lerpf(2.0, g.SLIDE_SPEED, clampf(g.slide_t / g.SLIDE_TIME, 0.0, 1.0))
+	elif is_airborne():
+		# in the air the speed is kept (no drag, no braking when the stick is let go); the stick only turns it towards
+		# where it points, at the take-off speed, so a sprint jump stays a sprint and a standing one steers at walk pace
+		if mv.length() > 0.0:
+			var want_air = g.move_world(mv.limit_length(1.0)) * g.air_speed
+			g.pvel = g.pvel.lerp(want_air, minf(1.0, dt * AIR_CONTROL))
 	else:
+		if g.carry_speed > speed and mv.length() > 0.0:  # the landing keeps its speed for a moment
+			target = g.move_world(mv) * g.carry_speed
 		g.pvel = g.pvel.lerp(target, minf(1.0, dt * 10.0))
 
 	g.player.position = g.clamp_walk(g.player.position + g.pvel * dt)
 	g.player.rotation.y = g.yaw
 
+	# the jump itself: gravity pulls the height back to the ground (frozen while the game is paused)
+	var landed = false
+	var impact = 0.0
+	if is_airborne() and not g.paused:
+		var gravity = JUMP_GRAVITY * (AIR_DASH_GRAVITY if g.dash_t > 0.0 else 1.0)
+		g.jump_v -= gravity * dt
+		g.jump_h += g.jump_v * dt
+		if g.jump_h <= 0.0 and g.jump_v <= 0.0:
+			impact = -g.jump_v
+			g.jump_h = 0.0
+			g.jump_v = 0.0
+			landed = true
+	g.player.position.y = g.jump_h
+	if landed:
+		land(active and want_crouch, impact)
+	update_land_dip(dt)
+	var in_air = is_airborne()
+
 	var spd = g.pvel.length()
-	g.bob_t += spd * dt * 2.2
+	if not in_air:
+		g.bob_t += spd * dt * 2.2
 	var bob = sin(g.bob_t) * 0.022 * minf(1.0, spd / g.RUN) * (1.0 - g.ads_t)
-	if g.slide_t > 0.0 or g.dash_t > 0.0:
+	if g.slide_t > 0.0 or g.dash_t > 0.0 or in_air:
 		bob = 0.0
-	g.cam.position.y = lerpf(g.EYE_STAND, g.EYE_CROUCH, g.crouch_t) + bob
-	g.cam.rotation.x = g.pitch
+	g.cam.position.y = lerpf(g.EYE_STAND, g.EYE_CROUCH, g.crouch_t) + bob + land_dip
+	g.cam.rotation.x = g.pitch + land_dip * LAND_PITCH
 	g.cam.rotation.z = 0.0
 	if g.slide_t > 0.0:
 		g.cam.rotation.z = 0.04
@@ -257,6 +332,135 @@ func apply_aim_assist(dt: float) -> void:
 	var kk = clampf(dt * 2.5 * g.aim_assist, 0.0, 1.0)
 	g.yaw = lerp_angle(g.yaw, atan2(-to.x, -to.z), kk)
 	g.pitch = lerpf(g.pitch, asin(clampf(to.y, -1.0, 1.0)), kk)
+
+
+# true while the player is off the ground (a jump, or the fall that follows it)
+func is_airborne() -> bool:
+	return g.jump_h > 0.0 or g.jump_v > 0.0
+
+
+# Space and gamepad A call this (a side dash, or the press is remembered for JUMP_BUFFER seconds and update_player takes off when it can)
+func request_jump() -> void:
+	if g.state != "play" or g.paused:
+		return
+	# A or D held (and not forwards or backwards) with Space is a side dash, if the dash bar is full; with the bar empty
+	# the press is an ordinary jump, so strafe jumping still works
+	var side = strafe_side()
+	if side != 0.0 and try_side_dash(side):
+		g.jump_buf = 0.0
+		return
+	g.jump_buf = JUMP_BUFFER
+
+
+# the hop. The speed the player has now is handed on to the air (a sprint stays a sprint, a slide keeps its speed), and a
+# jump out of a slide ends the slide (its cooldown keeps running, so slide-hopping cannot stack speed for ever).
+func take_off() -> void:
+	g.jump_buf = 0.0
+	g.coyote_t = 0.0
+	g.jump_v = JUMP_SPEED
+	# a chained hop (soon after a landing, at sprint speed) adds a little speed, up to a cap
+	var speed_now = g.pvel.length()
+	if g.since_land <= CHAIN_WINDOW and speed_now >= g.RUN * SLIDE_HOP_SPEED:
+		g.chain += 1
+		if speed_now < CHAIN_MAX_SPEED:
+			g.pvel = g.pvel.normalized() * minf(speed_now + CHAIN_BONUS, CHAIN_MAX_SPEED)
+	else:
+		g.chain = 0
+	g.air_speed = clampf(g.pvel.length(), g.WALK, AIR_SPEED_MAX)
+	g.slide_t = 0.0
+	land_dip_v -= 0.5 * g.fx_scale  # a small push down into the legs, then the eye rises with the jump
+	kick_dip_v += TAKEOFF_GUN_LIFT
+	g.sfx.play("step", -12.0)
+
+
+# back on the ground. Landing with crouch held after a fast jump rolls straight into a slide (the slide's cooldown still applies).
+func land(crouch_held: bool, impact: float = 0.0) -> void:
+	g.since_land = 0.0
+	g.carry_speed = g.pvel.length()
+	land_dip_v -= impact * LAND_KICK * g.fx_scale
+	kick_dip_v -= impact * 0.05
+	g.sfx.play(
+		"land_m" if impact >= 7.0 else "land_s", -18.0 + 8.0 * clampf(impact / JUMP_SPEED, 0.0, 1.5)
+	)
+	if (
+		crouch_held
+		and g.pvel.length() >= g.RUN * SLIDE_HOP_SPEED
+		and g.slide_cd <= 0.0
+		and g.slide_t <= 0.0
+		and g.dash_t <= 0.0
+	):
+		start_slide()
+
+
+# the eye dips when the player lands and settles with a small overshoot (a fixed small step keeps the spring stable)
+func update_land_dip(dt: float) -> void:
+	var steps = clampi(ceili(dt / 0.008), 1, 8)
+	var h = minf(dt, 0.064) / float(steps)
+	for _i in range(steps):
+		land_dip_v += (-LAND_STIFFNESS * land_dip - LAND_DAMPING * land_dip_v) * h
+		land_dip += land_dip_v * h
+	land_dip = clampf(land_dip, -0.15, 0.06)
+
+
+# true while the player is high enough in a jump for a rider to pass underneath
+func is_hurdling() -> bool:
+	return g.jump_h >= HURDLE_HEIGHT
+
+
+# which way A / D (or the left stick) is held, for the side dash: -1 left, 1 right, 0 when the player is not strafing
+# (nothing held, or forwards or backwards is held too: then Space is a plain jump)
+func strafe_side() -> float:
+	var mv = g.read_move()
+	if absf(mv.x) >= SIDE_STICK and absf(mv.y) < SIDE_STRAIGHT:
+		return signf(mv.x)
+	return 0.0
+
+
+# A quick burst to the left (-1) or right (1), from the ground or the air (A / D held and Space, see request_jump). It costs
+# the dash bar, like a dash, so it is ready when the dash is. The speed the player had is kept and comes back when the burst
+# ends, so a sprint or a jump goes on after it. It makes the player untouchable for a moment, so something that would have
+# hit you is a PERFECT DODGE, as with the dash. Returns true when it started.
+func try_side_dash(side: float) -> bool:
+	if g.state != "play" or g.paused or g.dash_cd > 0.0 or g.side_t > 0.0 or g.dash_t > 0.0:
+		return false
+	var right = g.move_world(Vector2(1.0, 0.0))
+	right.y = 0.0
+	g.side_dir = right.normalized() * side
+	g.side_carry = g.pvel
+	g.side_t = SIDE_TIME
+	g.dash_cd = dash_cooldown()
+	g.dash_inv = maxf(g.dash_inv, SIDE_INV)
+	g.slide_t = 0.0
+	g.sfx.play("whoosh", -8.0)
+	return true
+
+
+func start_slide() -> void:
+	g.slide_t = g.SLIDE_TIME
+	g.slide_cd = 1.2
+	if g.pvel.length() > 0.5:
+		g.slide_dir = g.pvel.normalized()
+	else:
+		g.slide_dir = g.move_world(Vector2(0.0, 1.0))
+	g.slide_dir.y = 0.0
+	grant_free_shots()
+	g.sfx.play("whoosh", -8.0)
+
+
+# round start and new run: standing on the ground, nothing pressed
+func reset_air() -> void:
+	g.jump_h = 0.0
+	g.jump_v = 0.0
+	g.jump_buf = 0.0
+	g.coyote_t = COYOTE_TIME
+	g.air_speed = 0.0
+	g.carry_speed = 0.0
+	g.since_land = 99.0
+	g.chain = 0
+	g.side_t = 0.0
+	g.player.position.y = 0.0
+	land_dip = 0.0
+	land_dip_v = 0.0
 
 
 func grant_free_shots() -> void:
@@ -328,7 +532,8 @@ func perfect_dodge() -> void:
 func current_spread() -> float:
 	var w = g.primary_stats()
 	var s = lerpf(float(w["spread_hip"]), float(w["spread_aimed"]), g.ads_t)
-	s *= 1.0 + clampf(g.pvel.length() / g.RUN, 0.0, 1.0) * float(w["spread_move_extra"])
+	if not is_airborne():  # no extra spread for being in the air: moving is what costs aim, and a jump is not moving the aim
+		s *= 1.0 + clampf(g.pvel.length() / g.RUN, 0.0, 1.0) * float(w["spread_move_extra"])
 	s *= lerpf(1.0, float(w["spread_crouch_mul"]), g.crouch_t)
 	if g.perks.has("steady"):
 		s *= float(w["spread_steady_mul"])
@@ -441,7 +646,7 @@ func update_gun(dt: float) -> void:
 	var calm = 1.0 - g.ads_t * ADS_CALM
 	var spd = g.pvel.length()
 	var moving = clampf(spd / g.RUN, 0.0, 1.0)
-	if g.slide_t > 0.0 or g.dash_t > 0.0:
+	if g.slide_t > 0.0 or g.dash_t > 0.0 or is_airborne():
 		moving = 0.0
 	var bob_mul = BOB_SPRINT_MUL if g.sprinting else 1.0
 	var still = 1.0 - moving
@@ -571,7 +776,7 @@ func update_noodle(dt: float, sw: float, shown: bool) -> void:
 	jelly_flash = maxf(0.0, jelly_flash - step * JELLY_FLASH_FADE)  # a hit sets it for the club; it must not wait for it
 	var lag = sw - jelly_tip  # > 0 while the swing runs ahead of the tip
 	var moving = clampf(g.pvel.length() / g.RUN, 0.0, 1.0)
-	if g.slide_t > 0.0 or g.dash_t > 0.0:
+	if g.slide_t > 0.0 or g.dash_t > 0.0 or is_airborne():
 		moving = 0.0
 	var bob_mul = BOB_SPRINT_MUL if g.sprinting else 1.0
 	var calm = 1.0 - g.ads_t * ADS_CALM

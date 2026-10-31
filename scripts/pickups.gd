@@ -222,7 +222,7 @@ func update_pickups(dt: float) -> void:
 			node.visible = false
 		if (
 			Vector2(pos.x - g.player.position.x, pos.z - g.player.position.z).length() < 1.0
-			and pos.y < 1.6
+			and pos.y - g.player.position.y < 1.6
 		):
 			collect_pickup(pk)
 			continue

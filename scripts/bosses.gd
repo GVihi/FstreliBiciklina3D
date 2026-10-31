@@ -682,7 +682,7 @@ func do_slam(b: Dictionary) -> void:
 	g.hitstop = maxf(g.hitstop, 0.05)
 	g.fx_sys.burst(pos, 22, ["#c9ced4", "#f2b630", "#8a8f98"], 5.0, 0.4, 0.8, 0.1)
 	# on open ground the shock does not go through a wall
-	var reached = boss_flat_dist(b) < float(b["slam_r"])
+	var reached = boss_flat_dist(b) < float(b["slam_r"]) and not g.player_sys.is_hurdling()  # a jump clears the shock
 	if reached and open_ground():
 		reached = line_clear(wp, g.player.position)
 	if reached:
