@@ -27,6 +27,15 @@ is in [`docs/WEBSITE.md`](WEBSITE.md); where each secret lives is in [`docs/SECR
 - **Unknown fields** in a response must be ignored by the game, so a field can be added inside `/v1/`. Unknown fields
   in a request are rejected (`bad_request`), so a typo does not pass silently.
 - **No redirects.** The API never answers a call with a 3xx; the game does not follow one.
+- **How the game calls (V4.1, `scripts/web_api.gd`).** One timeout of 5 seconds for the whole call, answered with
+  TIMEOUT. A response over 1 MiB is refused (SERVER_ERROR) and a request body over 256 KiB is never sent. Nothing is
+  retried. The call is not threaded: Godot 4.7's threaded `HTTPRequest` cannot be cancelled while the server is silent
+  (it blocks for as long as the server stays silent), so the game would freeze on a server that accepts the connection
+  and says nothing. A status that is not 2xx and has no usable `code` is SERVER_ERROR, except 426 (UPDATE_REQUIRED) and
+  503 (OFFLINE), which say enough by themselves. A `200` whose body is not a JSON object is SERVER_ERROR. In an editor
+  run only, a call may go to `http://127.0.0.1:PORT/` or `http://localhost:PORT/` (the fake server of V4.2); every
+  other address must be https. `tools/web_api_check.gd` reads the error table below and fails when the game maps a
+  code differently from the last column.
 
 ### Headers the game sends
 
@@ -372,3 +381,13 @@ Not part of the contract, written so V3.3 starts from one place. The code is `fb
   chosen first (`docs/WEBSITE.md`, fact 1).
 - Tests (`python manage.py test fb3d`) cover every `code` in the table above, the headers, the body limits, a session
   cookie being ignored, and that no response or log line contains a key, token or password.
+
+## The pretend site (V4.2)
+
+`tools/fake_api_server.py` plays this contract for the game's checks, on `127.0.0.1` and over plain http (the one
+address the game accepts without https, see "How the game calls"). It answers `ping` and `releases/current` the way
+this file says (the order of the key, the version headers and the method, the one error shape, `update` worked out
+with `tools/version_compare.py`), and has switches for the failures the game must survive: a wrong key, a slow answer,
+a server error, a damaged body and a dead connection. It is **not** the site: no throttling, no tokens, no database.
+A change to a call or an error code in this file changes the fake server in the same commit, because the game's
+checks trust it. The calls of V5 and V8 are added to it when those items are built.

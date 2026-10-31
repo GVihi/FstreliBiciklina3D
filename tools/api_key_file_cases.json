@@ -1,0 +1,26 @@
+{
+  "about": "Test cases of tools/api_key_file.py and scripts/api_key_file.gd (roadmap V4.1). Every value is FAKE; the file bytes are made with the fixed nonce.",
+  "cases": [
+    {
+      "name": "short values",
+      "base_url": "https://example.org/v1/",
+      "key": "fake-test-value-1",
+      "nonce_hex": "000102030405060708090a0b0c0d0e0f",
+      "file_hex": "4642334b01000102030405060708090a0b0c0d0e0f3622be4142760198ce931c6b2110adae4c9e23e0339fd9394e3d1bd3cf4b0ce8cb7a8ee84a5458601ab70a7f84c5c4559f977885b503dbb3db44079d80086c78ca84f0c73b29830a"
+    },
+    {
+      "name": "a key of the real length",
+      "base_url": "https://example.org/fb3d/api/v1/",
+      "key": "fake-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "nonce_hex": "ffeeddccbbaa99887766554433221100",
+      "file_hex": "4642334b01ffeeddccbbaa99887766554433221100130eda91b4b7e134fd0cc4a8d40cdb1d8470e8461b2780e7861cad2fea72fa2e77239590dd8dd29fa8025a2a9dccf4afc0bbc7ea37f2e6eaaab92fcaa5c04b7a7cbc78b4b7ee0546dd67d0e23d62855bef465faac1e347a5bbd2bebb499cffd44ea1421388d23a66b788ba8e17122d64ca"
+    },
+    {
+      "name": "non-ASCII text and a quote",
+      "base_url": "https://example.org/\u010d\"/",
+      "key": "fake-\u017e-\\-test",
+      "nonce_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+      "file_hex": "4642334b01a0a1a2a3a4a5a6a7a8a9aaabacadaeaf263d5b9d459fc8996c55788bfd3a8dfc6a57bdec4b2b799d721acbd10db31465577497d5e99a5f20ba7a74a58fcbb9b948713bdf65ff8c1af7d7afd54c757634ddbe60955b7775f2837af9ffa8809a6e"
+    }
+  ]
+}
