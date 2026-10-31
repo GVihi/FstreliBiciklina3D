@@ -122,5 +122,18 @@
 		"deflect_range": 4.2,
 		"damage": 1,
 		"sweep_arc": 120.0
+	},
+	"banana_peel": {
+		"info": {
+			"slot": "gadget",
+			"hud": "BANANA",
+			"name": "BANANA PEEL TRAP",
+			"desc": "DROP A PEEL AHEAD OF YOU: THE FIRST RIDER TO RIDE OVER IT CRASHES AND IS STUNNED. 3 PER ROUND"
+		},
+		"uses": 3,
+		"cooldown": 1.0,
+		"place_dist": 3.5,
+		"trigger_radius": 1.3,
+		"stun_time": 3.0
 	}
 }

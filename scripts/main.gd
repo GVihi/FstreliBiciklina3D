@@ -29,6 +29,7 @@ const SettingsScript = preload("res://scripts/settings.gd")
 const PedestriansScript = preload("res://scripts/pedestrians.gd")
 const PickupsScript = preload("res://scripts/pickups.gd")
 const PhonesScript = preload("res://scripts/phones.gd")
+const GadgetsScript = preload("res://scripts/gadgets.gd")
 const BossesScript = preload("res://scripts/bosses.gd")
 const RidersScript = preload("res://scripts/riders.gd")
 const ShopScript = preload("res://scripts/shop.gd")
@@ -634,6 +635,7 @@ const ROUNDABOUT_ARG = "--roundabout"
 var generated_arena = false
 var world_root: Node3D = null  # the generated arena's world (the roundabout's is built straight into this node)
 var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics quality, high score file
+var gadget_sys = GadgetsScript.new(self)  # gadgets.gd: Gadgets: the gadget use key, its uses and cooldown, and the banana peel trap.
 var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
 var objective_sys = ObjectiveScript.new(self)  # objective.gd: Objectives: supply caches and the extraction point on generated arenas.
 var ambush_sys = AmbushScript.new(self)  # ambush.gd: the last wave of riders when the extraction point opens on a generated arena.
@@ -1029,8 +1031,7 @@ func gadget_stats() -> Dictionary:
 
 
 # Puts a gadget in the gadget slot, or empties it (an empty id). Refuses (returns false and changes nothing) an id
-# that cannot be in the gadget slot. There are no gadgets yet, so today only emptying the slot works. Nothing
-# calls this yet but the checks.
+# that cannot be in the gadget slot. The use key (G, D-pad up) is read by `gadget_sys` (scripts/gadgets.gd).
 func equip_gadget(id) -> bool:
 	if typeof(id) == TYPE_STRING and id == WeaponSlots.NO_GADGET:
 		gadget = WeaponSlots.NO_GADGET
@@ -1492,6 +1493,7 @@ func free_boss(b: Dictionary) -> void:
 
 
 func clear_phones() -> void:
+	gadget_sys.clear()  # the traps on the ground belong to the round like the phones in flight
 	for ph in phones:
 		free_phone(ph)
 	phones.clear()
@@ -1522,6 +1524,7 @@ func start_round() -> void:
 	plan_riders()
 	objective_sys.setup_round()
 	explore_sys.setup_round()  # after the objectives: it keeps one "found" flag per cache
+	gadget_sys.begin_round()
 	round_t = 0.0
 	hits.clear()
 	for i in range(PER_ROUND):
@@ -2129,6 +2132,7 @@ func update_game(dt: float) -> void:
 	ambush_sys.update(gdt)
 	explore_sys.update(dt)
 	phone_sys.update_phones(gdt)
+	gadget_sys.update(gdt)
 	boss_sys.update_bosses(gdt)
 	if riders.size() == 0 and bosses.size() == 0 and wait > 0.0:
 		wait -= dt

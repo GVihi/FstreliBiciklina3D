@@ -72,6 +72,9 @@ func handle_input(event: InputEvent) -> void:
 				g.shop_sys.leave_shop()
 			elif g.state == "play":
 				g.player_sys.request_jump()  # Space jumps in a round, or side dashes with A / D held (Milestone L)
+		elif kc == KEY_G:
+			if g.state == "play":
+				g.gadget_sys.use()  # the gadget slot's use key (Milestone C); nothing happens with an empty slot
 		elif kc == KEY_V:
 			if g.state == "play":
 				g.player_sys.try_dash()  # dash moved here from Space (Milestone L); voices are toggled in the settings only
@@ -161,6 +164,20 @@ func handle_input(event: InputEvent) -> void:
 			g.settings.toggle_fullscreen()
 
 
+# The gamepad buttons of a round with the mouse captured (the pause menu has its own handling in on_pad_button).
+func play_pad_button(btn: int) -> void:
+	if btn == JOY_BUTTON_A:
+		g.player_sys.request_jump()  # A jumps in a round (Milestone L)
+	elif btn == JOY_BUTTON_LEFT_SHOULDER:
+		g.player_sys.try_dash()  # dash moved here from A (Milestone L: A is for jumping)
+	elif btn == JOY_BUTTON_X:
+		manual_reload()
+	elif btn == JOY_BUTTON_Y or btn == JOY_BUTTON_RIGHT_SHOULDER:
+		toggle_weapon()
+	elif btn == JOY_BUTTON_DPAD_UP:
+		g.gadget_sys.use()  # B is crouch on a gamepad, so the gadget is on the D-pad
+
+
 # gamepad buttons (sticks and triggers are polled in update_player)
 func on_pad_button(btn: int) -> void:
 	if btn == JOY_BUTTON_START:
@@ -189,14 +206,7 @@ func on_pad_button(btn: int) -> void:
 			elif btn == JOY_BUTTON_B:
 				pause_back()
 			return
-		if btn == JOY_BUTTON_A:
-			g.player_sys.request_jump()  # A jumps in a round (Milestone L)
-		elif btn == JOY_BUTTON_LEFT_SHOULDER:
-			g.player_sys.try_dash()  # dash moved here from A (Milestone L: A is for jumping)
-		elif btn == JOY_BUTTON_X:
-			manual_reload()
-		elif btn == JOY_BUTTON_Y or btn == JOY_BUTTON_RIGHT_SHOULDER:
-			toggle_weapon()
+		play_pad_button(btn)
 		return
 	if btn == JOY_BUTTON_DPAD_UP:
 		title_move(-1)

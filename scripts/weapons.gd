@@ -18,7 +18,7 @@ const WHOLE = ["start_clip", "max_clip", "clip_step", "damage", "semi_auto", "pe
 # numbers a weapon may have on top of its slot's required ones: the ones only some weapons use. A new tuning number
 # that a weapon's code reads is added here (and to WHOLE when it is a whole number) and described in data/README.md;
 # a key that is in neither place is logged as a typo and ignored.
-const OPTIONAL = ["pellets", "sweep_arc"]
+const OPTIONAL = ["pellets", "sweep_arc", "place_dist", "trigger_radius", "stun_time"]
 # what a gadget must have (there is no gadget to copy from): uses per round (0 = no limit) and seconds between uses
 # (0 = none); a gadget that has neither limit is refused by tools/weapon_registry_check.gd
 const GADGET_REQUIRED = {"uses": 0, "cooldown": 0.0}

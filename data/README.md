@@ -196,7 +196,7 @@ The numbers are still guesses, retuned once after the owner's first run went fro
 
 ## `weapons.json`
 
-Every player weapon, one entry each, in the order of the Loadout page: `dart_pistol` (the Dart Nerf Pistol, the starting weapon, owned from the first run), `dart_gun` (bought on the Unlocks page, tier 3), `marshmallow_blaster` (the scatter gun, bought the same way) and `melee` (the gummy worm, bought for 30 coins, `weapon_gummy_worm`: a new player's melee slot starts empty). Loaded by `scripts/weapons.gd`, which also builds the slot tables of `scripts/weapon_slots.gd` from it, so **the file is the one place a weapon is listed**. The player carries one weapon per slot: **primary**, **melee** and **gadget**. The scripts that fire, reload, swing and upgrade read the numbers of the weapon in the slot (`primary_stats()`, `melee_stats()`, `gadget_stats()`), never a weapon by name.
+Every player weapon, one entry each, in the order of the Loadout page (the gadget `banana_peel`, bought on the Unlocks page for 75 coins, comes after the melee weapons): `dart_pistol` (the Dart Nerf Pistol, the starting weapon, owned from the first run), `dart_gun` (bought on the Unlocks page, tier 3), `marshmallow_blaster` (the scatter gun, bought the same way) and `melee` (the gummy worm, bought for 30 coins, `weapon_gummy_worm`: a new player's melee slot starts empty). Loaded by `scripts/weapons.gd`, which also builds the slot tables of `scripts/weapon_slots.gd` from it, so **the file is the one place a weapon is listed**. The player carries one weapon per slot: **primary**, **melee** and **gadget**. The scripts that fire, reload, swing and upgrade read the numbers of the weapon in the slot (`primary_stats()`, `melee_stats()`, `gadget_stats()`), never a weapon by name.
 
 A missing or non-numeric value is logged with `push_error` and replaced (by the value of the slot's base weapon, the dart pistol or the gummy worm), unknown keys are logged and ignored, and a weapon with a broken `info` or an unknown slot is left out, so check the Godot output panel after editing. Only the dart pistol and the gummy worm are also built into `weapons.gd`, as the safety net for a missing file.
 
@@ -218,7 +218,16 @@ A missing or non-numeric value is logged with `push_error` and replaced (by the 
 | `sound` | optional, primary weapons only: the sound of a shot, a name from `scripts/sfx.gd` (default `shot`) |
 | `model` | optional: the first-person model, a key of `Models.build_viewmodel` for a primary weapon (`dart_gun`, `dart_pistol`, `blaster`) or of `Models.build_melee_viewmodel` for a melee weapon (`pool_noodle`); leave it out and the slot's default model is used (the dart pistol's gun, the gummy worm's club) |
 
-The numbers a **primary** weapon has are the table below (`dart_pistol` is the base), a **melee** weapon has the `melee` table (the gummy worm is the base), and a **gadget** has two: `uses` (how many times a round, whole number, 0 = no limit) and `cooldown` (seconds between uses, 0 = none), at least one of them above 0. Gadgets add their own numbers (radius, duration) through `OPTIONAL` when the first one is built. A weapon is put in a slot by `WeaponSlots` through `equip_primary()`, `equip_melee()` and `equip_gadget()`, and the old save files stay readable because a saved run only holds ids.
+The numbers a **primary** weapon has are the table below (`dart_pistol` is the base), a **melee** weapon has the `melee` table (the gummy worm is the base), and a **gadget** has two: `uses` (how many times a round, whole number, 0 = no limit) and `cooldown` (seconds between uses, 0 = none), at least one of them above 0. Gadgets add their own numbers through `OPTIONAL`. The gadget in the slot is used with **G** (D-pad up on a gamepad) by `scripts/gadgets.gd`, which counts the uses (`uses` a round, refilled at the start of every round) and the cooldown; the HUD shows its name, the uses left and the key or the cooldown in the bottom right corner. A gadget never affects a pedestrian or a cheerleader and uses no random number (the same seed plays the same).
+
+**Gadget numbers** (`banana_peel`, the first gadget: a peel dropped on the ground in front of the player; the first rider to ride over it crashes and is stunned, and the peel is used up)
+
+| key | meaning |
+|---|---|
+| `uses`, `cooldown` | uses per round (0 = no limit) and seconds between uses, as above |
+| `place_dist` | metres in front of the player where the peel lands (at the player's feet when that spot is inside a building) |
+| `trigger_radius` | metres: a rider closer than this to the peel sets it off |
+| `stun_time` | seconds a rider that crashed stands still: it stops at once, does not throw a phone, then rides on | A weapon is put in a slot by `WeaponSlots` through `equip_primary()`, `equip_melee()` and `equip_gadget()`, and the old save files stay readable because a saved run only holds ids.
 
 **Primary weapons** (`dart_gun`, `dart_pistol` and `marshmallow_blaster`, same keys; the pistol is a one-dart-per-pull weapon with a smaller clip, a slower first pump and wider spread, so its upgrades matter)
 

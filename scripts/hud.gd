@@ -1226,6 +1226,7 @@ const CONTROLS_KEYBOARD = [
 	["RIGHT CLICK", "AIM DOWN SIGHTS (HOLD, OR TOGGLE IN SETTINGS)"],
 	["R", "RELOAD (IN THE SHOP: REROLL)"],
 	["Q / WHEEL / 1 / 2", "SWITCH DART GUN AND MELEE (1 GUN, 2 MELEE)"],
+	["G", "USE THE GADGET (CHOOSE ONE ON THE LOADOUT PAGE)"],
 	["ESC", "PAUSE"],
 	["TAB", "SETTINGS"],
 	["M", "HOLD TO SHOW THE MAP"],
@@ -1244,6 +1245,7 @@ const CONTROLS_GAMEPAD = [
 	["B", "CROUCH / SLIDE"],
 	["X", "RELOAD (IN THE SHOP: REROLL)"],
 	["Y / RB", "SWITCH DART GUN AND MELEE"],
+	["D-PAD UP", "USE THE GADGET"],
 	["START", "PAUSE"],
 	["BACK / VIEW", "HOLD TO SHOW THE MAP"],
 	["D-PAD + A / B", "MENUS: PICK / BACK"]
@@ -2592,6 +2594,17 @@ func _draw_bottom(k: float) -> void:
 		% ["OFF" if g.sfx.muted else "ON", "OFF" if not g.sfx.voices_on else "ON"]
 	)
 	_txt(snd, size.x - 12.0 * k, size.y - 34.0 * k, int(11 * k), GRAY, 2)
+	# the gadget slot (empty slot: nothing is drawn): its name, the uses left and the key, or the cooldown
+	var gtxt = g.gadget_sys.hud_text()
+	if gtxt != "":
+		_txt(
+			gtxt,
+			size.x - 12.0 * k,
+			size.y - 54.0 * k,
+			int(13 * k),
+			TEXT if g.gadget_sys.ready() else GRAY,
+			2
+		)
 
 	# dash cooldown + style rank, bottom centre
 	var mx = size.x * 0.5
