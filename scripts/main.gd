@@ -404,7 +404,11 @@ func _ready() -> void:
 	if Toon.ENABLED:
 		outline_quad = Toon.make_outline_quad()
 		cam.add_child(outline_quad)
-	guns = {"dart_gun": Models.build_gun(), "dart_pistol": Models.build_pistol()}
+	guns = {
+		"dart_gun": Models.build_gun(),
+		"dart_pistol": Models.build_pistol(),
+		"marshmallow_blaster": Models.build_blaster()
+	}
 	var gun_roots = []
 	for gun_key in guns:
 		cam.add_child(guns[gun_key]["root"])

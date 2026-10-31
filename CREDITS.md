@@ -48,11 +48,24 @@ None yet. This section is where new entries go, grouped under these headings as 
 
 ### Models and textures
 
-_(none)_
+### shotgun x3 low poly
+- Used for: the first-person model of the Marshmallow Blaster, `assets/models/shotgun_x3_low_poly/` (loaded by `Models.build_blaster` in `scripts/models.gd`)
+- Author: kawuru (https://sketchfab.com/kawuru)
+- Source: https://sketchfab.com/3d-models/shotgun-x3-low-poly-d6533c4db7494b54bfadcd20b57c312c
+- Licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+- Retrieved: 2026-10-30 (the files were already in the repository)
+- Changes: none to the files; the game hides the one shell that floats beside the gun, turns the model so the barrel points forward and scales it
+- Credit text: This work is based on "shotgun x3 low poly" (https://sketchfab.com/3d-models/shotgun-x3-low-poly-d6533c4db7494b54bfadcd20b57c312c) by kawuru (https://sketchfab.com/kawuru) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
 
 ### Sound effects and ambience
 
-_(none)_
+### gun-shot (u_f09vejvoga-gun-shot-350315.mp3)
+- Used for: the Marshmallow Blaster's shot, the first shot of `audio/fx/u_f09vejvoga-gun-shot-350315.mp3` (`CLIPS` in `scripts/sfx.gd`)
+- Author: not recorded (the file name says u_f09vejvoga)
+- Source: not recorded; **the licence has not been checked yet**, confirm it on the page the file came from (CREDITS rule 2)
+- Retrieved: before 2026-10-30 (the file was already in the repository)
+- Changes: none to the file; the game plays only 0.12 s to 0.82 s of it
+- Credit text: unknown until the licence is confirmed
 
 ### Music
 

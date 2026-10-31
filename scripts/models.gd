@@ -453,6 +453,80 @@ static func build_pistol() -> Dictionary:
 
 
 # ------------------------------------------------------------------
+#  Marshmallow Blaster (first-person viewmodel). Barrel points to -Z. Same dictionary as build_gun().
+#  The model is "shotgun x3 low poly" by kawuru (CC-BY 4.0, credit in CREDITS.md), assets/models/shotgun_x3_low_poly/.
+#  In the file the gun lies along +X (barrel towards +X, up is +Y, about 3065 units long, a red stock and a drum of six
+#  hexagonal chambers), five shells sit in the drum and a sixth ("Cercle.006") floats beside the gun. build_blaster
+#  hides that sixth shell, turns the gun so the barrel points to -Z, scales it to about 0.92 m and moves it so the
+#  point BLASTER_ORIGIN (the hand, just behind the drum) is the root's origin. Not animated: the "pump" is an empty
+#  node that update_gun moves, so the model stays still when a shot is fired (the gun's own jolt and kick still play).
+# ------------------------------------------------------------------
+const BLASTER_MODEL_PATH = "res://assets/models/shotgun_x3_low_poly/scene.gltf"
+const BLASTER_SPARE_SHELL = "Cercle_006"  # the shell that lies beside the gun in the file (Godot turns the "." into "_")
+const BLASTER_SCALE = 0.0003  # one unit of the model is 0.3 mm
+const BLASTER_ORIGIN = Vector3(-1000.0, 123.0, 194.0)  # the model's point that becomes the root: along, up, across
+const BLASTER_ADS_Y = -0.075  # the tops of the sights are 0.075 m above the root
+const BLASTER_PUMP_Z = -0.30
+const BLASTER_MUZZLE_POS = Vector3(0.0, 0.053, -0.72)
+const BLASTER_AMMO_POS = Vector3(-0.092, -0.03, -0.34)  # on the left face of the drum, facing the player
+
+
+static func build_blaster() -> Dictionary:
+	var d = _build_blaster_from_gltf()
+	if not d.is_empty():
+		return d
+	push_warning("the shotgun model could not be loaded, using the plain blaster")
+	return _build_blaster_plain()
+
+
+static func _build_blaster_from_gltf() -> Dictionary:
+	if not ResourceLoader.exists(BLASTER_MODEL_PATH):
+		return {}
+	var scene = load(BLASTER_MODEL_PATH)
+	if not (scene is PackedScene):
+		return {}
+	var inst: Node = scene.instantiate()
+	if not (inst is Node3D):
+		inst.free()
+		return {}
+	for n in inst.find_children("Cercle*", "Node3D", true, false):
+		if is_instance_valid(n) and str(n.name) == BLASTER_SPARE_SHELL:
+			n.get_parent().remove_child(n)
+			n.free()
+	for mi in inst.find_children("*", "GeometryInstance3D", true, false):
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var root = Node3D.new()
+	var pivot = Node3D.new()  # turns the model so the barrel points to -Z and shrinks it to the size of a gun
+	pivot.basis = Basis(Vector3.UP, PI * 0.5).scaled(Vector3.ONE * BLASTER_SCALE)
+	pivot.position = -(pivot.basis * BLASTER_ORIGIN)
+	root.add_child(pivot)
+	pivot.add_child(inst)
+	return _finish_blaster(root)
+
+
+# the same gun from boxes and a cylinder, for when the model is not there (not imported, or removed)
+static func _build_blaster_plain() -> Dictionary:
+	var root = Node3D.new()
+	var red = Util.mat(Color.html("#c8202a"), 0.5)
+	var grey = Util.mat(Color.html("#b9bcc2"), 0.4, 0.3)
+	Util.box(root, Vector3(0.05, 0.1, 0.34), Vector3(0, -0.06, 0.2), red)  # stock
+	Util.box(root, Vector3(0.1, 0.12, 0.16), Vector3(0, 0.0, -0.06), grey)  # drum
+	var barrel = Util.cyl(root, 0.024, 0.024, 0.6, Vector3(0, 0.053, -0.42), grey)
+	barrel.rotation.x = PI * 0.5
+	return _finish_blaster(root)
+
+
+# the empty pump node and the muzzle, light, flash and ammo label every viewmodel has
+static func _finish_blaster(root: Node3D) -> Dictionary:
+	var pump = Node3D.new()
+	pump.position = Vector3(0.0, 0.0, BLASTER_PUMP_Z)
+	root.add_child(pump)
+	return _finish_gun(
+		root, pump, BLASTER_ADS_Y, BLASTER_AMMO_POS, BLASTER_MUZZLE_POS, BLASTER_PUMP_Z
+	)
+
+
+# ------------------------------------------------------------------
 #  v4 additions: bosses, angry cyclist, phone, rubber, cheerleaders, pickups
 # ------------------------------------------------------------------
 static func _scaled(mi: MeshInstance3D, s: Vector3) -> MeshInstance3D:

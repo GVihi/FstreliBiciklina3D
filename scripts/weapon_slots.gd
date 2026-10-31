@@ -13,7 +13,9 @@ const PRIMARY_DEFAULT = "dart_pistol"  # what every run starts with (the Dart Ne
 const PRIMARY_BEFORE_SLOTS = "dart_gun"
 # every weapon that can be in the primary slot, with the name the HUD shows. The Milestone C weapons join here.
 # (static vars, not consts, so a check can add a made-up weapon to a slot and take it out again)
-static var PRIMARY_WEAPONS = {"dart_pistol": "PISTOL", "dart_gun": "DARTS"}
+static var PRIMARY_WEAPONS = {
+	"dart_pistol": "PISTOL", "dart_gun": "DARTS", "marshmallow_blaster": "BLASTER"
+}
 
 
 # true when `id` is a weapon that can be in the primary slot
@@ -30,6 +32,17 @@ static func primary_or_default(id) -> String:
 # the name the HUD shows for a primary weapon (the default's name for an unknown id)
 static func label(id) -> String:
 	return PRIMARY_WEAPONS[primary_or_default(id)]
+
+
+# the sound a primary weapon makes when it fires (a name known to scripts/sfx.gd); a weapon that is not listed here
+# makes the baked "shot"
+static var SHOT_SOUNDS = {"marshmallow_blaster": "shotgun"}
+
+
+static func shot_sound(id) -> String:
+	if typeof(id) == TYPE_STRING and SHOT_SOUNDS.has(id):
+		return str(SHOT_SOUNDS[id])
+	return "shot"
 
 
 # ---- melee slot
@@ -91,6 +104,11 @@ static var WEAPON_INFO = {
 	{
 		"name": "DART NERF PISTOL",
 		"desc": "THE STARTING WEAPON: ONE DART PER PULL, SMALL CLIP, QUICK HANDS"
+	},
+	"marshmallow_blaster":
+	{
+		"name": "MARSHMALLOW BLASTER",
+		"desc": "EIGHT MARSHMALLOWS A SHOT: BRUTAL UP CLOSE, USELESS AT 30 M"
 	},
 	"melee":
 	{"name": "GUMMY WORM", "desc": "THE GIANT GUMMY WORM: SWING IT AT RIDERS AND INCOMING PHONES"}

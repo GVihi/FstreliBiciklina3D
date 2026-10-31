@@ -282,7 +282,7 @@ Mostly vibe coded Godot game
 
 > A short-range scatter gun: a cone of soft marshmallows that is brutal up close and useless at 30 m. A primary weapon, tier 3 (250 coins).
 
-- [ ] Implement weapon: a cone of pellets per shot (first guess 8), a clip of 2, reload shell by shell (so a reload can be interrupted), range about 20 m
+- [x] Implement weapon (note in `docs/ROADMAP_HISTORY.md`)
 - [ ] Add falloff: full damage inside a few metres, close to nothing at the end of the range, so the weapon rewards getting close
 - [ ] Add knockback: a close hit shoves the rider back and sideways, breaking its approach line (a rider that is pushed does not throw its phone that moment)
 - [ ] Create upgrade path (five tiers: clip, reload, spread, knockback, damage)
