@@ -381,3 +381,13 @@ Not part of the contract, written so V3.3 starts from one place. The code is `fb
   chosen first (`docs/WEBSITE.md`, fact 1).
 - Tests (`python manage.py test fb3d`) cover every `code` in the table above, the headers, the body limits, a session
   cookie being ignored, and that no response or log line contains a key, token or password.
+
+## The pretend site (V4.2)
+
+`tools/fake_api_server.py` plays this contract for the game's checks, on `127.0.0.1` and over plain http (the one
+address the game accepts without https, see "How the game calls"). It answers `ping` and `releases/current` the way
+this file says (the order of the key, the version headers and the method, the one error shape, `update` worked out
+with `tools/version_compare.py`), and has switches for the failures the game must survive: a wrong key, a slow answer,
+a server error, a damaged body and a dead connection. It is **not** the site: no throttling, no tokens, no database.
+A change to a call or an error code in this file changes the fake server in the same commit, because the game's
+checks trust it. The calls of V5 and V8 are added to it when those items are built.

@@ -4,7 +4,7 @@ name: CI
 #   lint    - gdlint on the GDScript
 #   format  - gdformat --check (run `gdformat scripts/ tools/` to fix a failure)
 #   load    - imports the project and runs it headless in Godot, fails on any script error
-#   build_info - tools/make_build_info.py and tools/version_compare.py --self-test and tools/windows_version_info.py and tools/build_release.py and tools/api_key_file.py (roadmap V2.1, V2.3, V2.4, V2.5, V4.1)
+#   build_info - tools/make_build_info.py and tools/version_compare.py --self-test and tools/windows_version_info.py and tools/build_release.py and tools/api_key_file.py and tools/fake_api_server.py (roadmap V2.1, V2.3, V2.4, V2.5, V4.1, V4.2)
 #   secrets - tools/secrets_check.py over every commit of the pull request (or push), fails on a key-like string
 #   checks  - runs every tools/*_check.gd headless with `python tools/run_checks.py` (about 10 minutes)
 
@@ -95,6 +95,8 @@ jobs:
         run: python tools/build_release.py --self-test
       - name: API key file format against the shared cases
         run: python tools/api_key_file.py --self-test
+      - name: Pretend website for the web checks
+        run: python tools/fake_api_server.py --self-test
 
   load:
     name: Godot headless project load
