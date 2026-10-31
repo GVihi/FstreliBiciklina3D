@@ -751,6 +751,51 @@ const RUBBER_MODEL_GLB = true
 const RUBBER_MODEL_PATH = "res://assets/models/jelly_club.glb"
 
 
+# The first-person model of a melee weapon by its `model` key in data/weapons.json: the same dictionary as
+# build_rubber(). "" is the gummy worm's club; {} for a key that has no builder here (the weapon is then shown with the
+# club). A new melee model is a builder and a line in this match, like build_viewmodel() for the primary weapons.
+static func build_melee_viewmodel(key: String) -> Dictionary:
+	match key:
+		"":
+			return build_rubber()
+		"pool_noodle":
+			return build_noodle()
+	return {}
+
+
+# The Pool Noodle: a long foam tube held by one end, the knob at z = +0.2 (in your hand) like the club, reaching out along
+# -Z to 1.5 m, so it is clearly the longest thing the player swings. Bands of two blues like foam, a grip in yellow at the
+# hand and a dark hole in the free end. No jelly wobble: it is stiff foam, `wobble` is empty.
+static func build_noodle() -> Dictionary:
+	var root = Node3D.new()
+	var blue = Util.mat(Color.html("#22c7e8"), 0.7)
+	var deep = Util.mat(Color.html("#1397d6"), 0.7)
+	var grip = Util.mat(Color.html("#ffd84a"), 0.6)
+	var hole = Util.mat(Color.html("#0b2e45"), 0.9)
+	var z_hand = 0.2
+	var z_tip = -1.3
+	var bands = 6
+	var band_len = (z_hand - z_tip) / float(bands)
+	var first = null
+	for i in range(bands):
+		var zc = z_hand - band_len * (float(i) + 0.5)
+		var tube = Util.cyl(
+			root, 0.05, 0.05, band_len, Vector3(0, 0, zc), blue if i % 2 == 0 else deep
+		)
+		tube.rotation_degrees.x = 90.0
+		if first == null:
+			first = tube
+	var g_len = 0.26
+	var handle = Util.cyl(root, 0.054, 0.054, g_len, Vector3(0, 0, z_hand - g_len * 0.5), grip)
+	handle.rotation_degrees.x = 90.0
+	var cap = Util.cyl(root, 0.03, 0.03, 0.01, Vector3(0, 0, z_tip - 0.002), hole)
+	cap.rotation_degrees.x = 90.0
+	for ch in root.get_children():
+		if ch is MeshInstance3D:
+			ch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return {"root": root, "paddle": first, "wobble": []}
+
+
 static func build_rubber() -> Dictionary:
 	if RUBBER_MODEL_GLB:
 		var d = _build_rubber_from_glb()

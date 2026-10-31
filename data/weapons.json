@@ -105,5 +105,22 @@
 		"reach_per_level": 0.3,
 		"deflect_range": 2.7,
 		"damage": 2
+	},
+	"pool_noodle": {
+		"info": {
+			"slot": "melee",
+			"hud": "NOODLE",
+			"name": "POOL NOODLE",
+			"desc": "A LONG FOAM NOODLE: A WIDE SWEEP HITS EVERY RIDER IN THE ARC, BUT ONLY FOR 1 DAMAGE",
+			"model": "pool_noodle"
+		},
+		"cooldown": 0.4,
+		"swing_time": 0.34,
+		"zone_forward": 3.0,
+		"zone_radius": 2.0,
+		"reach_per_level": 0.3,
+		"deflect_range": 4.2,
+		"damage": 1,
+		"sweep_arc": 120.0
 	}
 }

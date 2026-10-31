@@ -215,7 +215,7 @@ A missing or non-numeric value is logged with `push_error` and replaced (by the 
 | `name` | the name on the Loadout page |
 | `desc` | optional, the text under the name on the Loadout page |
 | `sound` | optional, primary weapons only: the sound of a shot, a name from `scripts/sfx.gd` (default `shot`) |
-| `model` | optional, primary weapons only: the first-person model, a key of `Models.build_viewmodel` (`dart_gun`, `dart_pistol`, `blaster`); leave it out and the default weapon's model is used |
+| `model` | optional: the first-person model, a key of `Models.build_viewmodel` for a primary weapon (`dart_gun`, `dart_pistol`, `blaster`) or of `Models.build_melee_viewmodel` for a melee weapon (`pool_noodle`); leave it out and the slot's default model is used (the dart pistol's gun, the gummy worm's club) |
 
 The numbers a **primary** weapon has are the table below (`dart_pistol` is the base), a **melee** weapon has the `melee` table (the gummy worm is the base), and a **gadget** has two: `uses` (how many times a round, whole number, 0 = no limit) and `cooldown` (seconds between uses, 0 = none), at least one of them above 0. Gadgets add their own numbers (radius, duration) through `OPTIONAL` when the first one is built. A weapon is put in a slot by `WeaponSlots` through `equip_primary()`, `equip_melee()` and `equip_gadget()`, and the old save files stay readable because a saved run only holds ids.
 
@@ -246,6 +246,7 @@ The numbers a **primary** weapon has are the table below (`dart_pistol` is the b
 | `reach_per_level` | metres added to the hit zone and the deflect range by each Melee Reach level |
 | `deflect_range` | metres within which a swing sends a thrown phone back |
 | `damage` | damage per swing to riders and bosses (whole number) |
+| `sweep_arc` | optional, degrees: with it the hit zone is a slice in front of the player instead of a circle, `sweep_arc` wide and as long as `zone_forward` plus 0.8 of the (Melee Reach lengthened) `zone_radius`, and every rider or boss in it is hit once per swing (`melee_hits` in `scripts/combat.gd`); leave it out for the ordinary circular zone (only `pool_noodle` has it, 120) |
 
 Still in code, because they are not weapon tuning or are shared with other systems: dart hit-box sizes, boss and rider hit reactions, the upgrade level caps in `shop.gd`, and everything about thrown phones.
 

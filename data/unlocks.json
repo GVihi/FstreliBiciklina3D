@@ -32,6 +32,14 @@
 			"tier": 3
 		},
 		{
+			"id": "weapon_pool_noodle",
+			"kind": "weapon",
+			"target": "pool_noodle",
+			"name": "POOL NOODLE",
+			"desc": "A long foam noodle for the melee slot: a wide sweep hits every rider in the arc, for 1 damage each",
+			"tier": 1
+		},
+		{
 			"id": "weapon_marshmallow_blaster",
 			"kind": "weapon",
 			"target": "marshmallow_blaster",

@@ -245,7 +245,8 @@ var cam: Camera3D
 var gun = {}  # the model of the weapon in the primary slot (a value of `guns`), see sync_gun_model
 var guns = {}  # primary weapon id -> its first-person model (models.gd); only the one in the slot is shown
 var gun_id = ""  # the id of the weapon `gun` is the model of
-var rubber = {}
+var rubber = {}  # the first-person model of the weapon in the melee slot (a value of `rubbers`), see sync_melee_model
+var rubbers = {}  # melee model key ("" = the gummy worm's club) -> its first-person model (models.gd)
 var hud
 var sfx
 var world = {}
@@ -415,12 +416,25 @@ func _ready() -> void:
 		guns[gun_key]["root"].visible = false
 		gun_roots.append(guns[gun_key]["root"])
 	sync_gun_model()
-	rubber = Models.build_rubber()
-	cam.add_child(rubber["root"])
-	rubber["root"].visible = false
+	rubbers = {}
+	var rubber_keys = [""]  # a melee weapon without a model of its own is shown with the club
+	for melee_id in WeaponSlots.MELEE_WEAPONS:
+		if not rubber_keys.has(WeaponSlots.model_of(melee_id)):
+			rubber_keys.append(WeaponSlots.model_of(melee_id))
+	var rubber_roots = []
+	for key in rubber_keys:
+		var built_rubber = Models.build_melee_viewmodel(key)
+		if built_rubber.is_empty():
+			push_error("melee model '%s' has no builder in Models.build_melee_viewmodel" % key)
+			continue
+		rubbers[key] = built_rubber
+		cam.add_child(built_rubber["root"])
+		built_rubber["root"].visible = false
+		rubber_roots.append(built_rubber["root"])
+	rubber = rubbers[""]
 	if VIEWMODEL_PASS:
 		viewmodel = ViewmodelScript.new(self)
-		viewmodel.setup(cam, gun_roots + [rubber["root"]], world["env"])
+		viewmodel.setup(cam, gun_roots + rubber_roots, world["env"])
 
 	# floor ring that shows where the rubber can reach
 	melee_ring = MeshInstance3D.new()
@@ -938,6 +952,18 @@ func sync_gun_model() -> void:
 		guns[key]["light"].light_energy = 0.0
 	player_sys.ammo_text = ""  # the number on the new model has to be set again
 	player_sys.pump_slide = 0.0
+
+
+# Same for the melee slot: `rubber` is the model of the weapon in the slot (`model` in data/weapons.json, "" = the
+# club), the others are hidden. Called every frame by `update_gun`, like sync_gun_model.
+func sync_melee_model() -> void:
+	var key = WeaponSlots.model_of(melee_weapon)
+	var next = rubbers.get(key, rubbers.get(""))
+	if next == null or next == rubber:
+		return
+	for k in rubbers:
+		rubbers[k]["root"].visible = false
+	rubber = next
 
 
 # The tuning numbers (data/weapons.json) of the weapon in the primary slot.

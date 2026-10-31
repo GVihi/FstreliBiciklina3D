@@ -388,6 +388,7 @@ func pump_curve(k: float) -> float:
 
 func update_gun(dt: float) -> void:
 	g.sync_gun_model()  # the model of the weapon in the primary slot
+	g.sync_melee_model()  # and of the weapon in the melee slot
 	var gun_node: Node3D = g.gun["root"]
 	var rb: Node3D = g.rubber["root"]
 	var menu = g.state == "upgrade" or g.state == "shop" or g.state == "rest" or g.state == "map"
@@ -525,6 +526,11 @@ func update_gun(dt: float) -> void:
 		var z = g.combat_sys.swing_zone()
 		var rr = z["r"] * 0.8
 		g.melee_ring.position = Vector3(z["c"].x, 0.04, z["c"].z)
+		if g.combat_sys.sweep_arc() > 0.0:
+			# a sweeping weapon hits a slice, not a circle: the ring is the farthest it reaches, round the player
+			# (the slice itself is not drawn yet)
+			rr = g.combat_sys.sweep_reach()
+			g.melee_ring.position = Vector3(g.player.position.x, 0.04, g.player.position.z)
 		g.melee_ring.scale = Vector3(rr, 1.0, rr)
 
 

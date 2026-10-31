@@ -320,13 +320,50 @@ func shoot_dart(dmg: int, scatter: bool) -> Dictionary:
 
 # --- melee: a giant gummy worm swung at whatever is close to the player
 func swing_zone() -> Dictionary:
-	var f = -g.player.global_transform.basis.z
-	f.y = 0.0
-	f = f.normalized()
+	var f = facing_flat()
 	var m = g.melee_stats()
 	var fwd = float(m["zone_forward"])
 	var c = Vector3(g.player.position.x + f.x * fwd, 1.0, g.player.position.z + f.z * fwd)
 	return {"c": c, "r": float(m["zone_radius"]) + g.up["rubber"] * float(m["reach_per_level"])}
+
+
+# the way the player faces, flat on the ground (length 1)
+func facing_flat() -> Vector3:
+	var f = -g.player.global_transform.basis.z
+	f.y = 0.0
+	return f.normalized()
+
+
+# A sweeping weapon (`sweep_arc` in data/weapons.json, degrees; 0 or no key = an ordinary circular zone) hits inside a
+# slice in front of the player instead: out to `sweep_reach()` and `sweep_arc` degrees wide, centred on where the
+# player looks. The reach is where the edge of the circular zone would be (the zone's forward distance plus 0.8 of its
+# radius, with Melee Reach in the radius), so the two kinds of weapon read the same numbers.
+func sweep_arc() -> float:
+	return float(g.melee_stats().get("sweep_arc", 0.0))
+
+
+func sweep_reach() -> float:
+	var z = swing_zone()
+	return float(g.melee_stats()["zone_forward"]) + float(z["r"]) * 0.8
+
+
+# true when something at `pos` with a body of `pad` metres is inside the swing of the weapon in the melee slot: the
+# circular zone for an ordinary weapon, the slice for a sweeping one. The one test that riders and bosses go through.
+func melee_hits(pos: Vector3, pad: float) -> bool:
+	var arc = sweep_arc()
+	if arc <= 0.0:
+		var z = swing_zone()
+		return flat_dist_v(z["c"], pos) < float(z["r"]) * 0.8 + pad
+	var d = Vector2(pos.x - g.player.position.x, pos.z - g.player.position.z)
+	var dist = d.length()
+	if dist > sweep_reach() + pad:
+		return false
+	if dist <= pad:
+		return true  # on top of the player: no side to be on
+	var f = facing_flat()
+	var off = rad_to_deg(Vector2(f.x, f.z).angle_to(d))
+	# the body has a width, so a target whose centre is just outside the slice but whose edge is inside is hit
+	return absf(off) <= arc * 0.5 + rad_to_deg(asin(clampf(pad / dist, 0.0, 1.0)))
 
 
 func flat_dist(a: Vector3, bx: float, bz: float) -> float:
@@ -354,14 +391,14 @@ func swing() -> void:
 			continue
 		var inf = g.BOSS_INFO[b["kind"]]
 		var br: Vector3 = inf["r"]
-		if flat_dist_v(zc, g.boss_world(b, 0.0)) < zr * 0.8 + br.x:
+		if melee_hits(g.boss_world(b, 0.0), br.x):
 			g.boss_sys.hit_boss(b, int(g.melee_stats()["damage"]), false, 45.0)
 			hit_any = true
 	for i in range(g.riders.size() - 1, -1, -1):
 		var r = g.riders[i]
 		if r["mode"] != "fly" and r["mode"] != "away":
 			continue
-		if not r["hidden"] and flat_dist_v(zc, r["pos"]) < zr * 0.8 + 0.9:
+		if not r["hidden"] and melee_hits(r["pos"], 0.9):
 			g.rider_sys.hit_rider(r, int(g.melee_stats()["damage"]))
 			hit_any = true
 	if hit_any:

@@ -12,7 +12,8 @@ extends SceneTree
 #   - a thrown phone inside the deflect range goes back and one outside it does not,
 #   - the HUD name, and that the "no dart fired" challenge is not broken by swinging.
 # The made-up weapons are put in the tables of the running game and taken out again; no file is written.
-# Not checked: how a swing looks (the viewmodel is still one worm for every melee weapon) or feels.
+# Not checked: how a swing looks or feels (the made-up weapons here have no model of their own, so they show the club;
+# the Pool Noodle's own model and sweep are in tools/pool_noodle_check.gd).
 # Run from the project folder:
 #   godot --headless --path . --script res://tools/melee_stats_check.gd
 # or with: python tools/run_checks.py melee_stats

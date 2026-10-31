@@ -1196,6 +1196,23 @@ func unlocks_layout() -> Dictionary:
 	var heads = []
 	var y = {"left": size.y * 0.25, "right": size.y * 0.25}
 	var last_kind = {"left": "", "right": ""}
+	# A row is 24 px high, but it gets shorter (down to 16 px) when a column would otherwise run into the detail text
+	# under the list: every new weapon adds a row to the right column. tools/unlocks_page_check.gd checks the fit.
+	var room = size.y * 0.8 - 26.0 * k - size.y * 0.25 - 2.0 * k
+	var fixed = {"left": 0.0, "right": 0.0}  # headings and gaps of a column
+	var count = {"left": 0, "right": 0}
+	var seen = {"left": "", "right": ""}
+	for u in g.UNLOCKS:
+		var col = "left" if u["kind"] == "starting_perk" else "right"
+		if seen[col] != u["kind"]:
+			fixed[col] += (10.0 * k if seen[col] != "" else 0.0) + 30.0 * k
+			seen[col] = u["kind"]
+		count[col] += 1
+	var row_h = 24.0 * k
+	for col in count:
+		if count[col] > 0:
+			row_h = minf(row_h, (room - fixed[col]) / float(count[col]))
+	row_h = floorf(maxf(row_h, 16.0 * k))  # whole pixels, so one row ends exactly where the next begins
 	for u in g.UNLOCKS:
 		var side = "left" if u["kind"] == "starting_perk" else "right"
 		var x = size.x * 0.5 - 440.0 * k if side == "left" else size.x * 0.5 + 20.0 * k
@@ -1206,8 +1223,8 @@ func unlocks_layout() -> Dictionary:
 			heads.append({"text": text, "pos": Vector2(x, y[side] + 18.0 * k)})
 			y[side] += 30.0 * k
 			last_kind[side] = u["kind"]
-		rows.append(Rect2(x, y[side], 420.0 * k, 24.0 * k))
-		y[side] += 24.0 * k
+		rows.append(Rect2(x, y[side], 420.0 * k, row_h))
+		y[side] += row_h
 	return {"rows": rows, "heads": heads}
 
 
