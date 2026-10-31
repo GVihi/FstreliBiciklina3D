@@ -258,7 +258,7 @@ Mostly vibe coded Godot game
 
 - [ ] Implement weapon
 - [ ] Create upgrade path
-> **Added 2026-10-28 (owner): a bunch of new weapons, melee variants and gadgets** (the rest of this section, up to "Synergies"). They follow the same rules as the weapons above: a new weapon is **bought first** on the Unlocks page (an entry in `data/unlocks.json` with `kind: "weapon"`, a name, a description and a tier of the price curve, `planned: true` until it is built), then **chosen on the Loadout page**, and never found in the shop pool. The tiers named below are first guesses (the price curve is 60, 120, 250, 450 and 750 coins), and so is every number. **A new weapon is done when:** (1) its numbers are in `data/weapons.json` and described in `data/README.md`; (2) it is listed in the constant of its slot in `scripts/weapon_slots.gd` (`PRIMARY_WEAPONS`, `MELEE_WEAPONS` or `GADGET_WEAPONS`); (3) a `tools/<name>_check.gd` covers what is special about it (the runner finds it by its name, no `.bat`); (4) `python tools/run_checks.py offer_sense` passes, because that check goes through every weapon in `PRIMARY_WEAPONS`: decide for each new primary weapon what the ammo drops, FREE DARTS, the cache ammo reward and the clip upgrades mean for it (the same question as B9.2), and give the entries that do nothing for it a `needs` (`data/README.md`, "What an entry needs to matter"); (5) the owner plays a run with it. Run only the checks of the code touched, not the whole suite (testing rule).
+> **Added 2026-10-28 (owner): a bunch of new weapons, melee variants and gadgets** (the rest of this section, up to "Synergies"). They follow the same rules as the weapons above: a new weapon is **bought first** on the Unlocks page (an entry in `data/unlocks.json` with `kind: "weapon"`, a name, a description and a tier of the price curve, `planned: true` until it is built), then **chosen on the Loadout page**, and never found in the shop pool. The tiers named below are first guesses (the price curve is 60, 120, 250, 450 and 750 coins), and so is every number. **A new weapon is done when:** (1) it is an entry of `data/weapons.json` with its numbers, described in `data/README.md` ("Adding a weapon" there lists every step); (2) the `info` of that entry says which slot it sits in, so it joins `PRIMARY_WEAPONS`, `MELEE_WEAPONS` or `GADGET_WEAPONS` of `scripts/weapon_slots.gd` by itself and needs no entry there, and `python tools/run_checks.py weapon_registry` passes; (3) a `tools/<name>_check.gd` covers what is special about it (the runner finds it by its name, no `.bat`); (4) `python tools/run_checks.py offer_sense` passes, because that check goes through every weapon in `PRIMARY_WEAPONS`: decide for each new primary weapon what the ammo drops, FREE DARTS, the cache ammo reward and the clip upgrades mean for it (the same question as B9.2), and give the entries that do nothing for it a `needs` (`data/README.md`, "What an entry needs to matter"); (5) the owner plays a run with it. Run only the checks of the code touched, not the whole suite (testing rule).
 
 ### Scoped Sniper Rifle
 
@@ -814,8 +814,8 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 
 ## Future-Proofing
 
-- [ ] Make weapon additions easier
-- [ ] Make relic additions easier
+- [x] Make weapon additions easier
+- [ ] Make relic additions easier (there is no relic system to make easier yet: build it data-driven like `data/perks.json` when "Implement relic system" in Milestone D is done, and tick this with it)
 - [ ] Prepare architecture for potential co-op support
 
 ---

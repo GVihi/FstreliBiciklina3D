@@ -1,28 +1,12 @@
 {
-	"dart_gun": {
-		"start_clip": 6,
-		"max_clip": 12,
-		"clip_step": 2,
-		"pump_start": 0.2,
-		"pump_min": 0.1,
-		"pump_step": 0.035,
-		"rapid_pump": 0.08,
-		"hype_pump_mul": 0.65,
-		"reload_step": 0.38,
-		"reload_cut_per_level": 0.22,
-		"reload_extra": 0.12,
-		"spread_hip": 2.2,
-		"spread_aimed": 0.25,
-		"spread_move_extra": 0.9,
-		"spread_crouch_mul": 0.7,
-		"spread_steady_mul": 0.7,
-		"bloom_per_shot": 0.5,
-		"bloom_max": 1.6,
-		"range": 80.0,
-		"damage": 1,
-		"semi_auto": 0
-	},
 	"dart_pistol": {
+		"info": {
+			"slot": "primary",
+			"hud": "PISTOL",
+			"name": "DART NERF PISTOL",
+			"desc": "THE STARTING WEAPON: ONE DART PER PULL, SMALL CLIP, QUICK HANDS",
+			"model": "dart_pistol"
+		},
 		"start_clip": 1,
 		"max_clip": 4,
 		"clip_step": 1,
@@ -45,7 +29,45 @@
 		"damage": 1,
 		"semi_auto": 1
 	},
+	"dart_gun": {
+		"info": {
+			"slot": "primary",
+			"hud": "DARTS",
+			"name": "DART GUN",
+			"desc": "THE PUMP-ACTION DART GUN: A BIG CLIP, PUMPED BETWEEN SHOTS",
+			"model": "dart_gun"
+		},
+		"start_clip": 6,
+		"max_clip": 12,
+		"clip_step": 2,
+		"pump_start": 0.2,
+		"pump_min": 0.1,
+		"pump_step": 0.035,
+		"rapid_pump": 0.08,
+		"hype_pump_mul": 0.65,
+		"reload_step": 0.38,
+		"reload_cut_per_level": 0.22,
+		"reload_extra": 0.12,
+		"spread_hip": 2.2,
+		"spread_aimed": 0.25,
+		"spread_move_extra": 0.9,
+		"spread_crouch_mul": 0.7,
+		"spread_steady_mul": 0.7,
+		"bloom_per_shot": 0.5,
+		"bloom_max": 1.6,
+		"range": 80.0,
+		"damage": 1,
+		"semi_auto": 0
+	},
 	"marshmallow_blaster": {
+		"info": {
+			"slot": "primary",
+			"hud": "BLASTER",
+			"name": "MARSHMALLOW BLASTER",
+			"desc": "EIGHT MARSHMALLOWS A SHOT: BRUTAL UP CLOSE, USELESS AT 30 M",
+			"sound": "shotgun",
+			"model": "blaster"
+		},
 		"start_clip": 2,
 		"max_clip": 6,
 		"clip_step": 1,
@@ -70,6 +92,12 @@
 		"pellets": 8
 	},
 	"melee": {
+		"info": {
+			"slot": "melee",
+			"hud": "MELEE",
+			"name": "GUMMY WORM",
+			"desc": "THE GIANT GUMMY WORM: SWING IT AT RIDERS AND INCOMING PHONES"
+		},
 		"cooldown": 0.3,
 		"swing_time": 0.26,
 		"zone_forward": 2.3,

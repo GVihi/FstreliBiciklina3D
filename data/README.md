@@ -195,9 +195,31 @@ The numbers are still guesses, retuned once after the owner's first run went fro
 
 ## `weapons.json`
 
-Tuning numbers for the player weapons: `dart_gun`, `dart_pistol` (the Dart Nerf Pistol), `marshmallow_blaster` (the scatter gun) and `melee` (the gummy worm). Loaded by `scripts/weapons.gd`. A missing or non-numeric value is logged with `push_error` and replaced by a built-in fallback (listed in `weapons.gd`, same values as shipped), and unknown keys are logged and ignored, so check the Godot output panel after editing. There is no new weapon type here yet: adding one still needs code. The player carries one weapon in the **primary slot** (`scripts/weapon_slots.gd`): a weapon id from this file: `dart_pistol` (the starting weapon, owned from the first run) or `dart_gun` (bought on the Unlocks page for 250 coins, then chosen on the Loadout page, see `unlocks.json`) or `marshmallow_blaster` (bought the same way, tier 3 = 250 coins, `weapon_marshmallow_blaster`). A weapon can only be put in the slot if it is listed in `PRIMARY_WEAPONS` there, and the scripts that fire, reload and upgrade the gun read the numbers of the weapon in the slot, so a new primary weapon needs an entry here and an entry there. `melee` is not a primary weapon: the gummy worm sits in the **melee slot**, which works the same way (`MELEE_WEAPONS` in `weapon_slots.gd`, read through `melee_stats()`). The third slot, the **gadget slot** (`GADGET_WEAPONS`, read through `gadget_stats()`), is empty because no gadget exists yet.
+Every player weapon, one entry each, in the order of the Loadout page: `dart_pistol` (the Dart Nerf Pistol, the starting weapon, owned from the first run), `dart_gun` (bought on the Unlocks page, tier 3), `marshmallow_blaster` (the scatter gun, bought the same way) and `melee` (the gummy worm). Loaded by `scripts/weapons.gd`, which also builds the slot tables of `scripts/weapon_slots.gd` from it, so **the file is the one place a weapon is listed**. The player carries one weapon per slot: **primary**, **melee** and **gadget**. The scripts that fire, reload, swing and upgrade read the numbers of the weapon in the slot (`primary_stats()`, `melee_stats()`, `gadget_stats()`), never a weapon by name.
 
-**`dart_gun`, `dart_pistol` and `marshmallow_blaster`** (same keys; the pistol is a one-dart-per-pull weapon with a smaller clip, a slower first pump and wider spread, so its upgrades matter)
+A missing or non-numeric value is logged with `push_error` and replaced (by the value of the slot's base weapon, the dart pistol or the gummy worm), unknown keys are logged and ignored, and a weapon with a broken `info` or an unknown slot is left out, so check the Godot output panel after editing. Only the dart pistol and the gummy worm are also built into `weapons.gd`, as the safety net for a missing file.
+
+### Adding a weapon
+
+1. **An entry in `weapons.json`** with an `info` object and the numbers of its slot (below). A number left out takes the base weapon's value, so a new primary weapon only lists what is different. Copy the closest weapon and change it.
+2. **An entry in `unlocks.json`** (`kind` `weapon`, `target` the new id, a name, a text and a `tier`) if it has to be bought; without one the weapon is owned from the first run. A `planned` entry may name a weapon that is not in this file yet.
+3. **Only when it needs them:** a first-person model (a builder in `scripts/models.gd` and a line in `Models.build_viewmodel`, then `"model"` here; a weapon without one is shown with the default weapon's model), a new sound (`NAMES` or `CLIPS` in `scripts/sfx.gd`, then `"sound"` here; the default is the baked shot), a new number the weapon's code reads (add its name to `OPTIONAL` in `weapons.gd`, and to `WHOLE` when it is a whole number, and describe it in the table below), and the code of what is special about the weapon (a `tools/<name>_check.gd` covers it).
+4. `python tools/run_checks.py weapon_registry weapon_slots offer_sense` (see the README, "A new weapon is done when"). `weapon_registry` fails on a sound, model or unlock that points at nothing, a gadget with no limit, or a slot table that is not what this file says.
+
+**`info`** (every weapon):
+
+| key | meaning |
+|---|---|
+| `slot` | `primary`, `melee` or `gadget`; the weapon can only be put in that slot |
+| `hud` | the short name the HUD shows (`PISTOL`, `BLASTER`) |
+| `name` | the name on the Loadout page |
+| `desc` | optional, the text under the name on the Loadout page |
+| `sound` | optional, primary weapons only: the sound of a shot, a name from `scripts/sfx.gd` (default `shot`) |
+| `model` | optional, primary weapons only: the first-person model, a key of `Models.build_viewmodel` (`dart_gun`, `dart_pistol`, `blaster`); leave it out and the default weapon's model is used |
+
+The numbers a **primary** weapon has are the table below (`dart_pistol` is the base), a **melee** weapon has the `melee` table (the gummy worm is the base), and a **gadget** has two: `uses` (how many times a round, whole number, 0 = no limit) and `cooldown` (seconds between uses, 0 = none), at least one of them above 0. Gadgets add their own numbers (radius, duration) through `OPTIONAL` when the first one is built. A weapon is put in a slot by `WeaponSlots` through `equip_primary()`, `equip_melee()` and `equip_gadget()`, and the old save files stay readable because a saved run only holds ids.
+
+**Primary weapons** (`dart_gun`, `dart_pistol` and `marshmallow_blaster`, same keys; the pistol is a one-dart-per-pull weapon with a smaller clip, a slower first pump and wider spread, so its upgrades matter)
 
 | key | meaning |
 |---|---|

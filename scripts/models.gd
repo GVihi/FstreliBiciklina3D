@@ -471,6 +471,20 @@ const BLASTER_MUZZLE_POS = Vector3(0.0, 0.053, -0.72)
 const BLASTER_AMMO_POS = Vector3(-0.092, -0.03, -0.34)  # on the left face of the drum, facing the player
 
 
+# The first-person model of a weapon by its `model` key in data/weapons.json: the same dictionary as build_gun().
+# {} for a key that has no builder here (the weapon is then shown with the default weapon's model, see
+# sync_gun_model in main.gd). A new model is a builder above and a line in this match.
+static func build_viewmodel(key: String) -> Dictionary:
+	match key:
+		"dart_gun":
+			return build_gun()
+		"dart_pistol":
+			return build_pistol()
+		"blaster":
+			return build_blaster()
+	return {}
+
+
 static func build_blaster() -> Dictionary:
 	var d = _build_blaster_from_gltf()
 	if not d.is_empty():
