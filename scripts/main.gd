@@ -404,11 +404,11 @@ func _ready() -> void:
 	if Toon.ENABLED:
 		outline_quad = Toon.make_outline_quad()
 		cam.add_child(outline_quad)
-	guns = {
-		"dart_gun": Models.build_gun(),
-		"dart_pistol": Models.build_pistol(),
-		"marshmallow_blaster": Models.build_blaster()
-	}
+	guns = {}
+	for weapon_id in WeaponSlots.PRIMARY_WEAPONS:  # a weapon without a model of its own is shown with the default's
+		var built = Models.build_viewmodel(WeaponSlots.model_of(weapon_id))
+		if not built.is_empty():
+			guns[weapon_id] = built
 	var gun_roots = []
 	for gun_key in guns:
 		cam.add_child(guns[gun_key]["root"])
@@ -925,7 +925,7 @@ func pause_on_focus_loss() -> bool:
 
 # ================================================================== weapon slots
 # Shows the first-person model of the weapon in the primary slot and hides the others (a weapon without a model of its
-# own uses the dart gun's). Called every frame by `update_gun`, so every way a weapon gets into the slot (equipping,
+# own, `model` in data/weapons.json, uses the default weapon's). Called every frame by `update_gun`, so every way a weapon gets into the slot (equipping,
 # a new run, a saved run) is covered; it only does something when the weapon has changed.
 func sync_gun_model() -> void:
 	var id = primary if guns.has(primary) else WeaponSlots.PRIMARY_DEFAULT

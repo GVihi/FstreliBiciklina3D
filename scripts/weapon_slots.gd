@@ -2,20 +2,25 @@ extends RefCounted
 # Weapon slots (README Milestone C). The player carries one weapon per slot. This file holds the slots: which
 # weapons may sit in each, which one a run starts with, and what the HUD calls them.
 # main.gd keeps the weapon that is in a slot in `primary`, `melee_weapon` and `gadget` (ids of data/weapons.json) and every
-# script that needs its numbers asks `g.primary_stats()` or `g.melee_stats()`, so a new weapon is a new entry here
-# and in the tuning table, not a change in every script that fires, reloads, swings or upgrades. (`melee` in
-# main.gd is not the slot: it is true while the melee weapon is the one in the player's hands.)
+# script that needs its numbers asks `g.primary_stats()`, `g.melee_stats()` or `g.gadget_stats()`, so a new weapon is
+# not a change in every script that fires, reloads, swings or upgrades. The weapons themselves are not listed here:
+# every weapon is an entry of data/weapons.json, whose `info` says which slot it sits in (scripts/weapons.gd reads it),
+# and the tables below are built from that file. (`melee` in main.gd is not the slot: it is true while the melee
+# weapon is the one in the player's hands.)
+
+const Weapons = preload("res://scripts/weapons.gd")
+
+# what data/weapons.json says about every weapon: {id: {slot, hud, name, desc, sound, model}}, in the order of the file
+static var WEAPON_INFO = Weapons.load_info()
 
 const PRIMARY = "primary"
 const PRIMARY_DEFAULT = "dart_pistol"  # what every run starts with (the Dart Nerf Pistol, README alpha C1)
 # what a saved run without a `primary` field was playing: such a file is older than the weapon slots, and until then
 # every run played with the dart gun, so CONTINUE gives that run its dart gun back (docs/SAVE_FILES.md)
 const PRIMARY_BEFORE_SLOTS = "dart_gun"
-# every weapon that can be in the primary slot, with the name the HUD shows. The Milestone C weapons join here.
+# every weapon that can be in the primary slot, with the name the HUD shows (`slot` "primary" in data/weapons.json)
 # (static vars, not consts, so a check can add a made-up weapon to a slot and take it out again)
-static var PRIMARY_WEAPONS = {
-	"dart_pistol": "PISTOL", "dart_gun": "DARTS", "marshmallow_blaster": "BLASTER"
-}
+static var PRIMARY_WEAPONS = Weapons.hud_names(WEAPON_INFO, "primary")
 
 
 # true when `id` is a weapon that can be in the primary slot
@@ -34,23 +39,28 @@ static func label(id) -> String:
 	return PRIMARY_WEAPONS[primary_or_default(id)]
 
 
-# the sound a primary weapon makes when it fires (a name known to scripts/sfx.gd); a weapon that is not listed here
-# makes the baked "shot"
-static var SHOT_SOUNDS = {"marshmallow_blaster": "shotgun"}
-
-
+# the sound a primary weapon makes when it fires (`sound` in data/weapons.json, a name known to scripts/sfx.gd); a
+# weapon that names none, or that is not known, makes the baked "shot"
 static func shot_sound(id) -> String:
-	if typeof(id) == TYPE_STRING and SHOT_SOUNDS.has(id):
-		return str(SHOT_SOUNDS[id])
+	if typeof(id) == TYPE_STRING and WEAPON_INFO.has(id) and str(WEAPON_INFO[id]["sound"]) != "":
+		return str(WEAPON_INFO[id]["sound"])
 	return "shot"
+
+
+# the key of the first-person model of a weapon (`model` in data/weapons.json, see Models.build_viewmodel); "" for a
+# weapon that has none of its own, which is shown with the model of the slot's default weapon
+static func model_of(id) -> String:
+	if typeof(id) == TYPE_STRING and WEAPON_INFO.has(id):
+		return str(WEAPON_INFO[id]["model"])
+	return ""
 
 
 # ---- melee slot
 
 const MELEE = "melee"
 const MELEE_DEFAULT = "melee"  # the gummy worm, what every run starts with
-# every weapon that can be in the melee slot, with the name the HUD shows
-static var MELEE_WEAPONS = {"melee": "MELEE"}
+# every weapon that can be in the melee slot, with the name the HUD shows (`slot` "melee" in data/weapons.json)
+static var MELEE_WEAPONS = Weapons.hud_names(WEAPON_INFO, "melee")
 
 
 # true when `id` is a weapon that can be in the melee slot
@@ -71,10 +81,10 @@ static func melee_label(id) -> String:
 # ---- gadget slot
 
 const GADGET = "gadget"
-const NO_GADGET = ""  # an empty slot: what every run starts with, because no gadget exists yet
-# every gadget that can be in the gadget slot, with the name the HUD shows. Empty until the Milestone C weapons
-# that are gadgets (for example the stink bomb) are built; they join here and in data/weapons.json.
-static var GADGET_WEAPONS = {}
+const NO_GADGET = ""  # an empty slot: what every run starts with
+# every gadget that can be in the gadget slot, with the name the HUD shows (`slot` "gadget" in data/weapons.json).
+# Empty until the first gadget (the stink bomb of Milestone C) is built.
+static var GADGET_WEAPONS = Weapons.hud_names(WEAPON_INFO, "gadget")
 
 
 # true when `id` is a gadget that can be in the gadget slot (the empty slot is not a gadget)
@@ -96,23 +106,6 @@ static func gadget_label(id) -> String:
 
 const SLOTS = ["primary", "melee", "gadget"]
 const SLOT_NAMES = {"primary": "PRIMARY", "melee": "MELEE", "gadget": "GADGET"}
-# the name and text the Loadout page shows for a weapon; a weapon without an entry uses its HUD name and no text
-static var WEAPON_INFO = {
-	"dart_gun":
-	{"name": "DART GUN", "desc": "THE PUMP-ACTION DART GUN: A BIG CLIP, PUMPED BETWEEN SHOTS"},
-	"dart_pistol":
-	{
-		"name": "DART NERF PISTOL",
-		"desc": "THE STARTING WEAPON: ONE DART PER PULL, SMALL CLIP, QUICK HANDS"
-	},
-	"marshmallow_blaster":
-	{
-		"name": "MARSHMALLOW BLASTER",
-		"desc": "EIGHT MARSHMALLOWS A SHOT: BRUTAL UP CLOSE, USELESS AT 30 M"
-	},
-	"melee":
-	{"name": "GUMMY WORM", "desc": "THE GIANT GUMMY WORM: SWING IT AT RIDERS AND INCOMING PHONES"}
-}
 
 
 # the table of the weapons that can be in a slot (id -> HUD name); {} for an unknown slot
