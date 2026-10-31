@@ -80,6 +80,15 @@ func _check_shipped_file() -> void:
 						% [id, model]
 					)
 				)
+		if slot == "melee":
+			var melee_model = str(info[id]["model"])
+			if not main.rubbers.has(melee_model):
+				_fail(
+					(
+						"%s names the melee model '%s', which Models.build_melee_viewmodel does not build"
+						% [id, melee_model]
+					)
+				)
 		if (
 			slot == "gadget"
 			and float(stats[id]["uses"]) <= 0.0
