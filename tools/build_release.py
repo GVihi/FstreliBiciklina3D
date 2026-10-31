@@ -4,15 +4,20 @@
     python tools/build_release.py --channel alpha     build, then write the manifest (channel is dev, alpha or release)
     python tools/build_release.py --godot PATH        use this Godot (remembered, the same file as run_checks.py)
     python tools/build_release.py --allow-dirty       build even though there are uncommitted changes
+    python tools/build_release.py --no-api-key        build without the API key (a build that plays offline only)
     python tools/build_release.py --self-test         check this script with a fake Godot in a throw-away folder
 
 What it does, in this order:
   1. refuses a dirty tree for the channels alpha and release (the manifest says which commit the file was made from,
      so the commit must be the whole truth); --allow-dirty overrides it and the file name gets "-dirty",
   2. writes build_info.json (tools/make_build_info.py, V2.1),
-  3. imports the project and exports the preset "Windows Desktop" with `--export-release`, while the Windows file
+  3. writes the game's API key from the environment (FB3D_API_KEY and FB3D_API_BASE_URL) into api_key.bin, an
+     untracked, obfuscated file that the export includes (tools/api_key_file.py, V4.1), and deletes it again when the
+     export is over, even if the export failed. The alpha and release channels refuse to build without the key unless
+     --no-api-key is given; a dev build only says so. The key is never printed and never written into the manifest,
+  4. imports the project and exports the preset "Windows Desktop" with `--export-release`, while the Windows file
      information of the preset is filled (tools/windows_version_info.py, V2.4; the preset is put back afterwards),
-  4. copies the exe into releases/<name>/ as FB3D-<version>-<hash>.exe and writes release_manifest.json beside it:
+  5. copies the exe into releases/<name>/ as FB3D-<version>-<hash>.exe and writes release_manifest.json beside it:
      manifest_version, product, version, commit, short, dirty, channel, built_utc, file, size and sha256.
 V4.3 (the website's Release model), V6.2 (the installer) and V6.4 (the signed manifest) build on that file.
 
@@ -31,6 +36,7 @@ import sys
 import tempfile
 import time
 
+import api_key_file
 import make_build_info
 import run_checks
 import windows_version_info
@@ -41,6 +47,9 @@ RELEASES_FOLDER = "releases"
 MANIFEST_NAME = "release_manifest.json"
 MANIFEST_VERSION = 1
 CHANNELS_THAT_NEED_A_CLEAN_TREE = ["alpha", "release"]
+CHANNELS_THAT_NEED_THE_KEY = ["alpha", "release"]
+ENV_KEY = "FB3D_API_KEY"
+ENV_BASE_URL = "FB3D_API_BASE_URL"
 IMPORT_TIMEOUT_SECONDS = 20 * 60
 EXPORT_TIMEOUT_SECONDS = 30 * 60
 HASH_CHUNK = 1024 * 1024
@@ -136,10 +145,37 @@ def godot_export(godot: str, root: str, export_path: str) -> None:
             raise BuildError("Godot reported an export error:\n" + tail(output))
 
 
-def build(root: str, channel: str, allow_dirty: bool, exporter, godot: str = "") -> str:
+def read_key_values(environ: dict, channel: str, no_api_key: bool):
+    """(base_url, key) from the environment, or None for a build without the key.
+
+    Nothing from the values is ever put into an error message.
+    """
+    key = environ.get(ENV_KEY, "").strip()
+    base_url = environ.get(ENV_BASE_URL, "").strip()
+    if no_api_key:
+        return None
+    if key == "" and base_url == "":
+        if channel in CHANNELS_THAT_NEED_THE_KEY:
+            raise BuildError(
+                "no API key: set " + ENV_KEY + " and " + ENV_BASE_URL + " in the environment of this "
+                "machine (docs/SECRETS.md), or build with --no-api-key for a build that plays offline only."
+            )
+        print("Note: " + ENV_KEY + " is not set, so this build has no API key and its online features are off.")
+        return None
+    try:
+        api_key_file.check_values(base_url, key)
+    except api_key_file.ApiKeyFileError as error:
+        raise BuildError(str(error))
+    return (base_url, key)
+
+
+def build(
+    root: str, channel: str, allow_dirty: bool, exporter, godot: str = "", key_values=None
+) -> str:
     """Builds and returns the folder with the exe and the manifest.
 
     `exporter(godot, root, export_path)` makes the exe (godot_export, or a fake one in the self-test).
+    `key_values` is (base_url, key) for the file api_key.bin that the export includes, or None for no file.
     """
     try:
         info = make_build_info.make_info(root, channel)
@@ -157,11 +193,21 @@ def build(root: str, channel: str, allow_dirty: bool, exporter, godot: str = "")
     started = time.time()
     preset_path = os.path.join(root, windows_version_info.PRESET_NAME)
 
+    # a key file left over from an earlier build must not end up in this one
+    api_key_file.remove_key_file(root)
     try:
+        if key_values is not None:
+            try:
+                api_key_file.write_key_file(root, key_values[0], key_values[1])
+            except api_key_file.ApiKeyFileError as error:
+                raise BuildError(str(error))
         with windows_version_info.temporary_version_info(preset_path, info):
             exporter(godot, root, export_path)
     except windows_version_info.VersionInfoError as error:
         raise BuildError(str(error))
+    finally:
+        # the key does not stay in the project folder, whatever happened
+        api_key_file.remove_key_file(root)
 
     if not os.path.isfile(export_path):
         raise BuildError("the export did not make " + export_path)
@@ -244,6 +290,15 @@ def self_test() -> int:
         with open(export_path, "wb") as exe_file:
             exe_file.write(FAKE_EXE_BYTES)
 
+    def key_exporter(godot: str, root: str, export_path: str) -> None:
+        # what the key file looked like while "Godot" ran
+        key_path = os.path.join(root, api_key_file.OUTPUT_NAME)
+        seen_inside["key_file"] = None
+        if os.path.isfile(key_path):
+            with open(key_path, "rb") as key_file:
+                seen_inside["key_file"] = key_file.read()
+        good_exporter(godot, root, export_path)
+
     def nothing_exporter(godot: str, root: str, export_path: str) -> None:
         pass
 
@@ -303,6 +358,48 @@ def self_test() -> int:
         os.remove(os.path.join(repo, "build", "windows", "FB3D.exe"))
         expect_error("an empty exe is refused", lambda: build(repo, "dev", False, empty_exporter))
 
+        # the API key file (V4.1): there while "Godot" runs, never after, never in a log or in the manifest
+        test_key = "fb3dk_" + "Q" * 43
+        test_url = "https://example.org/fb3d/api/v1/"
+        key_path = os.path.join(repo, api_key_file.OUTPUT_NAME)
+        folder = build(repo, "alpha", False, key_exporter, "", (test_url, test_key))
+        expect("key file: it existed while Godot ran", seen_inside["key_file"] is not None)
+        decoded = api_key_file.decode(seen_inside["key_file"] or b"")
+        expect("key file: it held the key and the address", decoded == {"base_url": test_url, "key": test_key})
+        expect("key file: the key is not readable in it", test_key.encode() not in (seen_inside["key_file"] or b""))
+        expect("key file: it is gone after the build", not os.path.exists(key_path))
+        with open(os.path.join(folder, MANIFEST_NAME), encoding="utf-8") as manifest_file:
+            expect("key file: the manifest does not hold the key", test_key not in manifest_file.read())
+        with open(os.path.join(repo, make_build_info.OUTPUT_NAME), encoding="utf-8") as info_file:
+            expect("key file: build_info.json does not hold the key", test_key not in info_file.read())
+        expect("key file: the tree is still clean", make_build_info.make_info(repo, "dev")["dirty"] is False)
+
+        expect_error("key file: a failing export", lambda: build(repo, "dev", False, failing_exporter, "", (test_url, test_key)))
+        expect("key file: it is gone after a failed export too", not os.path.exists(key_path))
+
+        with open(key_path, "wb") as stale_file:
+            stale_file.write(b"left over from an earlier build")
+        build(repo, "dev", False, key_exporter)
+        expect("key file: a build without a key does not carry an old one", seen_inside["key_file"] is None)
+        expect("key file: the old one is removed", not os.path.exists(key_path))
+
+        expect_error("key file: a bad key is refused", lambda: build(repo, "dev", False, good_exporter, "", (test_url, "nope")))
+        expect("key file: a bad key leaves no file", not os.path.exists(key_path))
+
+        good_env = {ENV_KEY: test_key, ENV_BASE_URL: test_url}
+        expect("env: both values give the pair", read_key_values(good_env, "alpha", False) == (test_url, test_key))
+        expect("env: --no-api-key gives none", read_key_values({}, "alpha", True) is None)
+        expect("env: a dev build without the key goes on", read_key_values({}, "dev", False) is None)
+        expect_error("env: alpha without the key is refused", lambda: read_key_values({}, "alpha", False))
+        expect_error("env: release without the key is refused", lambda: read_key_values({}, "release", False))
+        expect_error("env: a key without an address is refused", lambda: read_key_values({ENV_KEY: test_key}, "dev", False))
+        expect_error("env: an address without a key is refused", lambda: read_key_values({ENV_BASE_URL: test_url}, "dev", False))
+        expect_error("env: a template key is refused", lambda: read_key_values({ENV_KEY: "fake-key-replace-me-0000", ENV_BASE_URL: test_url}, "dev", False))
+        try:
+            read_key_values({ENV_KEY: "fb3dk_nope" + "Z" * 5, ENV_BASE_URL: test_url}, "dev", False)
+        except BuildError as error:
+            expect("env: an error never holds the key", "fb3dk_nope" not in str(error))
+
         with open(os.path.join(repo, "notes.txt"), "w", encoding="utf-8") as notes_file:
             notes_file.write("uncommitted")
         expect_error("a dirty tree is refused for alpha", lambda: build(repo, "alpha", False, good_exporter))
@@ -331,6 +428,7 @@ def main() -> int:
     parser.add_argument("--channel", default=make_build_info.DEFAULT_CHANNEL, choices=make_build_info.CHANNELS)
     parser.add_argument("--godot", default=None, help="path to Godot (remembered for the next time)")
     parser.add_argument("--allow-dirty", action="store_true", help="build alpha or release with uncommitted changes")
+    parser.add_argument("--no-api-key", action="store_true", help="build without the API key (online features off)")
     parser.add_argument("--self-test", action="store_true", help="check this script with a fake Godot")
     args = parser.parse_args()
 
@@ -349,7 +447,10 @@ def main() -> int:
 
     root = make_build_info.project_root()
     try:
-        folder = build(root, args.channel, args.allow_dirty, godot_export, str(godot_path))
+        key_values = read_key_values(os.environ, args.channel, args.no_api_key)
+        if key_values is not None:
+            print("The API key and address from the environment go into the build (" + api_key_file.OUTPUT_NAME + ", removed afterwards).")
+        folder = build(root, args.channel, args.allow_dirty, godot_export, str(godot_path), key_values)
     except BuildError as error:
         print("build_release: " + str(error), file=sys.stderr)
         return 2
