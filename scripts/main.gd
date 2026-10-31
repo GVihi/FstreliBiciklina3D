@@ -116,6 +116,13 @@ var WEAPONS = Content.WEAPONS
 
 # ------------------------------------------------------------------ state
 var state = "title"  # title / play / clear / upgrade / over
+# The intro screen (hud.gd `_draw_intro`, README V5.0) is the first thing a real launch shows, before the title menu, and
+# the place the launcher login of V5.2 will go on. It sits on top of the title state (state stays "title" and
+# title_page stays ""), so every check that loads main.tscn with `--script` starts on the title menu as before: the
+# flag is only turned on when the game runs as the main scene (see `wants_intro`). A key, a click or a gamepad button
+# ends it (input.gd `intro_input`) and nothing turns it on again until the game is started anew.
+var intro_active = false
+const INTRO_MIN_TIME = 0.35  # seconds from the start before a key or a click is taken, so a key still held down while the window opens does not skip it
 var paused = false
 var force_captured = false  # test hook: headless Godot cannot capture the mouse, so a check sets this to play a round
 var map_key_forced = false  # test hook: a check sets this to act as if the map button is held down (see `map_held`)
@@ -368,8 +375,12 @@ func _ready() -> void:
 	run_save_enabled = get_tree().current_scene == self
 	refresh_saved_run()
 	settings.load_settings()
+	var dev_opts = {}
 	if get_tree().current_scene == self:
-		start_dev_options(OS.get_cmdline_user_args())
+		dev_opts = start_dev_options(OS.get_cmdline_user_args())
+	intro_active = wants_intro(
+		get_tree().current_scene == self, bool(dev_opts.get("applied", false))
+	)
 	hearts = MAXHEARTS
 	shells = MAXSHELLS
 
@@ -639,6 +650,22 @@ var meta = MetaScript.new(self)  # meta.gd: Meta currency: earned from finished 
 var challenges = ChallengesScript.new(self)  # challenges.gd: Meta challenges from data/challenges.json: tracked in a run, paid out by meta.award_run().
 var input_sys = InputScript.new(self)  # input.gd: Input: mouse, keyboard and gamepad handling, menu clicks and weapon switching.
 var player_sys = PlayerScript.new(self)  # player.gd: Player: movement, dash and slide, perfect dodges, aim assist, spread and gun handling.
+
+
+# True when the intro screen is shown at the start: the game runs as the main scene (a check that loads main.tscn with
+# `--script` is not the game), and no developer start option is in use (`--dev-coins` and the like are for getting into
+# a run quickly, so they go straight to the title menu).
+static func wants_intro(is_game: bool, dev_start_applied: bool) -> bool:
+	return is_game and not dev_start_applied
+
+
+# leave the intro screen for the title menu; false when it was not up or it is too early to take a key (INTRO_MIN_TIME)
+func dismiss_intro() -> bool:
+	if not intro_active or time < INTRO_MIN_TIME:
+		return false
+	intro_active = false
+	sfx.play("click")
+	return true
 
 
 # Which arena the game starts on. `args` are the user arguments (after `--`), `is_game` is true when this `main` is

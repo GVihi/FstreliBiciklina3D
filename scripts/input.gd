@@ -5,6 +5,8 @@ extends RefCounted
 const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 const Toon = preload("res://scripts/toon.gd")
 
+const INTRO_IGNORED_KEYS = [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META, KEY_CAPSLOCK]
+
 var g = null
 
 
@@ -14,6 +16,9 @@ func _init(game) -> void:
 
 # ================================================================== input
 func handle_input(event: InputEvent) -> void:
+	if g.intro_active:
+		intro_input(event)  # nothing else reacts while the intro screen is up
+		return
 	if event is InputEventMouseMotion:
 		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 			var k = g.SENS * g.sens_mul * (g.cam.fov / g.fov_hip)
@@ -231,6 +236,20 @@ func on_pad_button(btn: int) -> void:
 		g.shop_sys.leave_shop()
 	elif btn == JOY_BUTTON_X and g.state == "shop":
 		g.shop_sys.reroll()
+
+
+# The intro screen (hud.gd `_draw_intro`) goes on to the title menu on any key, mouse button or gamepad button. A key
+# that is only a modifier (Shift, Ctrl, Alt, Meta, Caps Lock) does not count, so Alt+Tab does not skip it, and a held key
+# that repeats does not either. main.gd `dismiss_intro` ignores the first moments. Returns true when the screen ended.
+func intro_input(event: InputEvent) -> bool:
+	var pressed = false
+	if event is InputEventKey:
+		pressed = event.pressed and not event.echo and not INTRO_IGNORED_KEYS.has(event.keycode)
+	elif event is InputEventMouseButton or event is InputEventJoypadButton:
+		pressed = event.pressed
+	if not pressed:
+		return false
+	return g.dismiss_intro()
 
 
 func menu_move(d: int) -> void:
