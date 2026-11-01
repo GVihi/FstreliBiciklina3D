@@ -1324,6 +1324,25 @@ func loadout_slot_at(pos: Vector2) -> int:
 	return -1
 
 
+# The small counter in the corner of a weapon slot on the Loadout page, for the row `cur_at` of `wopts` (the rows
+# of Main.loadout_weapon_options). The empty row ("NO MELEE", "NO GADGET", an id of "") is not a weapon, so it is
+# not counted as owned: with nothing owned it says so, and while it is shown it only says how many are owned.
+func loadout_owned_text(wopts: Array, cur_at: int) -> String:
+	var owned = 0
+	var position_of_current = 0
+	for m in range(wopts.size()):
+		if str(wopts[m]["id"]) == "":
+			continue
+		owned += 1
+		if m <= cur_at:
+			position_of_current = owned
+	if owned == 0:
+		return "NONE OWNED"
+	if str(wopts[cur_at]["id"]) == "":
+		return "%d OWNED" % owned
+	return "%d OF %d OWNED" % [position_of_current, owned]
+
+
 func _draw_loadout(k: float, cx: float) -> void:
 	_txt("LOADOUT", cx, size.y * 0.12, int(56 * k), GOLD, 1)
 	_txt(
@@ -1392,7 +1411,7 @@ func _draw_loadout(k: float, cx: float) -> void:
 			TEXT if active else GRAY
 		)
 		_txt(
-			"%d OF %d OWNED" % [cur_at + 1, wopts.size()],
+			loadout_owned_text(wopts, cur_at),
 			wr.end.x - 10.0 * k,
 			wr.position.y + 18.0 * k,
 			int(12 * k),
