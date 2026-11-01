@@ -253,7 +253,8 @@ func update_player(dt: float, captured: bool) -> void:
 			target = g.move_world(mv) * g.carry_speed
 		g.pvel = g.pvel.lerp(target, minf(1.0, dt * 10.0))
 
-	g.player.position = g.clamp_walk(g.player.position + g.pvel * dt)
+	var walk_from = g.player.position
+	g.player.position = g.slide_walk(walk_from, walk_from + g.pvel * dt)
 	g.player.rotation.y = g.yaw
 
 	# the jump itself: gravity pulls the height back to the ground (frozen while the game is paused)
