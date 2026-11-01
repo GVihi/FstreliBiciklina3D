@@ -22,8 +22,10 @@ extends RefCounted
 #   trees       on a grass cell whose eight neighbours are all grass or sidewalk (so none stands against a
 #               building, a road, a plaza or a tunnel), one cell in TREE_EVERY (or the layout's "dress" tree_every) by
 #               a hash of the cell: a trunk and two blocks of leaves, centred in the cell
-#   Props are decoration: they have no collision and the layout does not know about them, so riders and the
-#   player pass through trunks and poles. Making them solid is for the rider pursuit item.
+#   Props are decoration and the layout does not know about them. The trunks are solid all the same: the generated
+#   arena (arena_generated.gd) reads props_of() and keeps everyone on foot and every rider TRUNK_SOLID metres
+#   (plus its own margin) off a trunk; the leaves are above head height and do not stop anyone. The lamp poles
+#   have no collision yet.
 # Meshes are merged per material, so the whole dressing is a handful of draw calls.
 
 const Util = preload("res://scripts/util.gd")
@@ -69,6 +71,7 @@ const METAL_COLOR = Color(0.25, 0.27, 0.3)
 
 const TREE_EVERY = 14
 const TRUNK_HALF = 0.15
+const TRUNK_SOLID = 0.25  # metres from the trunk's middle that nobody can stand in (the trunk's corner is 0.21 away)
 const TRUNK_H = 2.4
 const CANOPY_HALF = 1.05
 const CANOPY_Y0 = 2.2
