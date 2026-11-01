@@ -435,7 +435,13 @@ func wall_jump() -> void:
 	g.sfx.play("wall_jump", -10.0)
 	g.wall_marks.burst(g.wall_pt, n)
 	g.fx_sys.burst(
-		g.wall_pt + n * 0.1 + Vector3(0.0, 1.0, 0.0), 10, ["#7fe3ff", "#ffffff", "#ffe27a"], 2.5, 0.25, 0.5, 0.045
+		g.wall_pt + n * 0.1 + Vector3(0.0, 1.0, 0.0),
+		10,
+		["#7fe3ff", "#ffffff", "#ffe27a"],
+		2.5,
+		0.25,
+		0.5,
+		0.045
 	)
 
 

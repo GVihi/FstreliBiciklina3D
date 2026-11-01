@@ -98,7 +98,9 @@ func _find_arena() -> bool:
 
 
 func _centre(cx: int, cz: int, n: int, cell: float) -> Vector3:
-	return Vector3((float(cx) + 0.5 - float(n) / 2.0) * cell, 0.0, (float(cz) + 0.5 - float(n) / 2.0) * cell)
+	return Vector3(
+		(float(cx) + 0.5 - float(n) / 2.0) * cell, 0.0, (float(cz) + 0.5 - float(n) / 2.0) * cell
+	)
 
 
 func _open(a, p: Vector3) -> bool:
@@ -143,9 +145,19 @@ func _check_push() -> void:
 	if main.wall_jumps != 1:
 		_fail("Space against a wall in the air was not a wall-jump (count %d)" % main.wall_jumps)
 	if main.jump_v < main.player_sys.WALL_JUMP_SPEED - 0.5:
-		_fail("a wall-jump goes up at %.2f m/s, expected %.1f" % [main.jump_v, main.player_sys.WALL_JUMP_SPEED])
+		_fail(
+			(
+				"a wall-jump goes up at %.2f m/s, expected %.1f"
+				% [main.jump_v, main.player_sys.WALL_JUMP_SPEED]
+			)
+		)
 	if main.pvel.x > -main.player_sys.WALL_PUSH + 0.5:
-		_fail("a wall-jump pushes away at %.2f m/s, expected %.1f" % [-main.pvel.x, main.player_sys.WALL_PUSH])
+		_fail(
+			(
+				"a wall-jump pushes away at %.2f m/s, expected %.1f"
+				% [-main.pvel.x, main.player_sys.WALL_PUSH]
+			)
+		)
 	if main.wall_cd <= 0.0:
 		_fail("a wall-jump started no cooldown")
 	# the press was used up: no second wall-jump from the same press
@@ -231,7 +243,12 @@ func _check_limit_and_landing() -> void:
 		main._process(DT)
 		var want = mini(i + 1, max_jumps)
 		if main.wall_jumps != want:
-			_fail("wall-jump %d of an airtime: the count is %d, expected %d" % [i + 1, main.wall_jumps, want])
+			_fail(
+				(
+					"wall-jump %d of an airtime: the count is %d, expected %d"
+					% [i + 1, main.wall_jumps, want]
+				)
+			)
 		if i >= max_jumps and main.jump_v > 0.0:
 			_fail("a wall-jump beyond the limit of %d went up" % max_jumps)
 		# wait for the cooldown away from the wall
@@ -283,11 +300,24 @@ func _check_marks() -> void:
 		_fail("no glow on a wall the player could jump off")
 		return
 	if absf(marks.pad.position.x - (face_x - 0.05)) > 0.02:
-		_fail("the glow is at x %.3f, not on the wall face (%.3f)" % [marks.pad.position.x, face_x - 0.05])
+		_fail(
+			(
+				"the glow is at x %.3f, not on the wall face (%.3f)"
+				% [marks.pad.position.x, face_x - 0.05]
+			)
+		)
 	if absf(marks.pad.position.y - (main.player.position.y + 1.0)) > 0.15:
-		_fail("the glow is at y %.2f, not at chest height (%.2f)" % [marks.pad.position.y, main.player.position.y + 1.0])
+		_fail(
+			(
+				"the glow is at y %.2f, not at chest height (%.2f)"
+				% [marks.pad.position.y, main.player.position.y + 1.0]
+			)
+		)
 	var mat: ShaderMaterial = marks.pad.material_override
-	if float(mat.get_shader_parameter("u_ready")) < 0.5 or float(mat.get_shader_parameter("u_spent")) > 0.5:
+	if (
+		float(mat.get_shader_parameter("u_ready")) < 0.5
+		or float(mat.get_shader_parameter("u_spent")) > 0.5
+	):
 		_fail("the glow of a wall in reach is not the ready one")
 	# a wall further off glows, but is not the ready one
 	_hang(spot + Vector3(-1.5, 0.0, 0.0), Vector3.ZERO)
@@ -373,7 +403,12 @@ func _check_bounds() -> void:
 	if total == 0:
 		_fail("no wall-jump happened in any arena style: the walls are never found in a real arena")
 	if bad > 0:
-		_fail("%d frames of wall-jumping ended inside a building, at the wrong height or above the lowest roof" % bad)
+		_fail(
+			(
+				"%d frames of wall-jumping ended inside a building, at the wrong height or above the lowest roof"
+				% bad
+			)
+		)
 	notes.append("%d wall-jumps in %d arenas, highest point %.2f m" % [total, tested, highest])
 	main.arena = arena
 	_ground()
