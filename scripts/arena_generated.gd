@@ -343,6 +343,30 @@ func obstacle_at(p: Vector3) -> bool:
 	return not _walkable(p)
 
 
+# The nearest wall within `reach` metres of p (see Arena.wall_near): a building or tunnel block, or the edge of the grid.
+# The walls lie on the grid, so looking along the four axes is enough; each hit is found to a few centimetres by halving.
+func wall_near(p: Vector3, reach: float) -> Dictionary:
+	if not _walkable(p):
+		return {}  # inside a wall (a knock-back that has not been pushed out yet): nothing to push off
+	var best = {}
+	var best_t = INF
+	for d in [Vector3.RIGHT, Vector3.LEFT, Vector3.BACK, Vector3.FORWARD]:
+		if _walkable(p + d * reach):
+			continue
+		var free = 0.0
+		var blocked = reach
+		for _i in range(WALL_HALVINGS):
+			var mid = (free + blocked) * 0.5
+			if _walkable(p + d * mid):
+				free = mid
+			else:
+				blocked = mid
+		if blocked < best_t:
+			best_t = blocked
+			best = {"normal": -d, "point": p + d * blocked, "dist": blocked}
+	return best
+
+
 # true if a dart at p is inside something solid: a building or a tunnel block, below the lowest roof
 func ray_blocked(p: Vector3) -> bool:
 	return p.y < SOLID_HEIGHT and not _walkable(p)

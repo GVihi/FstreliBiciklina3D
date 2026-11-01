@@ -49,6 +49,7 @@ const MapGenScript = preload("res://scripts/map_gen.gd")
 const ArenaGenScript = preload("res://scripts/arena_gen.gd")
 const GeneratedArenaScript = preload("res://scripts/arena_generated.gd")
 const WorldGeneratedScript = preload("res://scripts/world_generated.gd")
+const WallMarksScript = preload("res://scripts/wall_marks.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -284,6 +285,13 @@ var air_speed = 0.0  # the speed air steering aims for: what the player had when
 var carry_speed = 0.0  # speed kept through a landing: the ground steers at least this fast while it lasts (fades quickly)
 var since_land = 99.0  # seconds on the ground since the last landing; a jump soon after it is a chained hop
 var chain = 0  # chained hops in a row (each adds a little speed, up to a cap); back to 0 after a pause on the ground
+# Milestone L: wall-jumps (player.gd). Touching a wall in the air starts a short window in which Space / A pushes off it.
+var wall_jumps = 0  # wall-jumps taken since the last landing (limited, Player.WALL_JUMP_MAX)
+var wall_t = 0.0  # > 0 for a moment after the player touched a wall in the air, so a press just after still wall-jumps
+var wall_cd = 0.0  # > 0 right after a wall-jump: no second one yet
+var wall_n = Vector3.ZERO  # the horizontal normal of the wall last touched (points away from it)
+var wall_pt = Vector3.ZERO  # the spot on that wall
+var wall_info = {}  # the wall the arena found near the player this frame ({} when none or on the ground), see Arena.wall_near
 var side_t = 0.0  # > 0 while a side dash runs
 var side_dir = Vector3.ZERO
 var side_carry = Vector3.ZERO  # the velocity the player had when the side dash began; it is given back when it ends
@@ -647,6 +655,7 @@ var rider_sys = RidersScript.new(self)  # riders.gd: Riders: spawning waves, mov
 var shop_sys = ShopScript.new(self)  # shop.gd: Shop: between-round upgrades, the shop and its prices, perks and duos, plus style meter and cash.
 var combat_sys = CombatScript.new(self)  # combat.gd: Combat: shotgun and reload, melee swing, deflecting phones and the dart projectiles.
 var fx_sys = EffectsScript.new(self)  # effects.gd: Effects: pooled particles, bursts, plastic debris and confetti.
+var wall_marks = WallMarksScript.new(self)  # wall_marks.gd: the glow on a wall the player can jump off, and the ripple of a wall-jump.
 var scores = ScoresScript.new(self)  # scores.gd: Scores: the local Top 10 leaderboard saved to user://scores.json.
 var meta = MetaScript.new(self)  # meta.gd: Meta currency: earned from finished runs, saved to user://meta.json, separate from run cash.
 var challenges = ChallengesScript.new(self)  # challenges.gd: Meta challenges from data/challenges.json: tracked in a run, paid out by meta.award_run().
