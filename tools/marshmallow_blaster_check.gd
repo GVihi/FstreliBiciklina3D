@@ -1,7 +1,8 @@
 extends SceneTree
 # Checks the Marshmallow Blaster (README Milestone C, New Weapons, "Marshmallow Blaster: Implement weapon"):
 #   - it has numbers in data/weapons.json (a clip of 2, several pellets, a short range), a place in the primary
-#     slot, its own HUD and Loadout names and the shotgun sound, and it has to be bought (weapon_marshmallow_blaster),
+#     slot, its own HUD and Loadout names and the shotgun sound, and it has to be bought (weapon_marshmallow_blaster,
+#     tier 3, 250 coins unless the entry sets its own `cost`),
 #   - the first-person model is the shotgun of assets/models/shotgun_x3_low_poly turned so the barrel points to -Z,
 #     about 0.9 m long, centred, with the shell that floats beside the gun left out (when the model is imported),
 #   - one pull uses one shell and sends every pellet on its own ray inside the spread cone, none of them further than
@@ -22,6 +23,7 @@ const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 const Weapons = preload("res://scripts/weapons.gd")
 const RunSave = preload("res://scripts/run_save.gd")
 const Models = preload("res://scripts/models.gd")
+const UnlocksTable = preload("res://scripts/unlocks.gd")
 const BLASTER = "marshmallow_blaster"
 const UNLOCK_ID = "weapon_marshmallow_blaster"
 const TEST_PATH = "user://marshmallow_blaster_check.json"
@@ -98,6 +100,16 @@ func _check_table() -> void:
 			_fail("%s does not make the baked shot" % str(other))
 
 
+# true when the entry `id` in data/unlocks.json has a `cost` of its own instead of the price of its tier
+func _sets_own_cost(id: String) -> bool:
+	var raw = JSON.parse_string(FileAccess.get_file_as_string(UnlocksTable.PATH))
+	if typeof(raw) == TYPE_DICTIONARY and typeof(raw.get("unlocks")) == TYPE_ARRAY:
+		for r in raw["unlocks"]:
+			if typeof(r) == TYPE_DICTIONARY and str(r.get("id", "")) == id:
+				return r.has("cost")
+	return false
+
+
 func _check_unlock() -> void:
 	var found = {}
 	for u in main.UNLOCKS:
@@ -108,13 +120,11 @@ func _check_unlock() -> void:
 		return
 	if found["kind"] != "weapon" or found["target"] != BLASTER or found["planned"]:
 		_fail("the unlock entry is %s" % str(found))
-	if int(found["tier"]) != 3 or int(found["cost"]) != 250:
-		_fail(
-			(
-				"the blaster is tier %d at %d coins, the roadmap says tier 3 (250)"
-				% [int(found["tier"]), int(found["cost"])]
-			)
-		)
+	if int(found["tier"]) != 3:
+		_fail("the blaster is tier %d, the roadmap says tier 3" % int(found["tier"]))
+	# a `cost` set in the entry is its own price, so only a tiered price (tier 3 = 250) is held to the roadmap
+	if not _sets_own_cost(UNLOCK_ID) and int(found["cost"]) != 250:
+		_fail("the blaster costs %d coins, the roadmap says 250 (tier 3)" % int(found["cost"]))
 	main.meta.owned.erase(UNLOCK_ID)
 	if main.weapon_owned(BLASTER):
 		_fail("the blaster is owned before it was bought")

@@ -2,7 +2,7 @@ extends SceneTree
 # Checks the Pool Noodle (README Milestone C, New Melee Weapons, "Pool Noodle: Implement weapon, and the sweep"):
 #   - it is in data/weapons.json as a melee weapon with damage 1, the longest reach and the longest deflect range of
 #     the melee weapons so far and a `sweep_arc`, it has its own HUD and Loadout names and has to be bought
-#     (weapon_pool_noodle, tier 1, 60 coins),
+#     (weapon_pool_noodle, tier 1, 60 coins unless the entry sets its own `cost`),
 #   - a swing hits a slice in front of the player: riders inside the arc are hit, riders beside or behind the player
 #     are not, a rider just past the reach is not, and Melee Reach moves the edge out,
 #   - the sweep hits EVERY rider inside the arc, each exactly once per swing, for the weapon's damage (1), and a second
@@ -25,6 +25,7 @@ extends SceneTree
 const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 const Weapons = preload("res://scripts/weapons.gd")
 const RunSave = preload("res://scripts/run_save.gd")
+const UnlocksTable = preload("res://scripts/unlocks.gd")
 const NOODLE = "pool_noodle"
 const WORM = "melee"
 const UNLOCK_ID = "weapon_pool_noodle"
@@ -138,6 +139,16 @@ func _check_table() -> void:
 				_fail("the noodle's deflect range is not the longest: %s has more" % id)
 
 
+# true when the entry `id` in data/unlocks.json has a `cost` of its own instead of the price of its tier
+func _sets_own_cost(id: String) -> bool:
+	var raw = JSON.parse_string(FileAccess.get_file_as_string(UnlocksTable.PATH))
+	if typeof(raw) == TYPE_DICTIONARY and typeof(raw.get("unlocks")) == TYPE_ARRAY:
+		for r in raw["unlocks"]:
+			if typeof(r) == TYPE_DICTIONARY and str(r.get("id", "")) == id:
+				return r.has("cost")
+	return false
+
+
 func _check_unlock() -> void:
 	var found = {}
 	for u in main.UNLOCKS:
@@ -148,13 +159,11 @@ func _check_unlock() -> void:
 		return
 	if found["kind"] != "weapon" or found["target"] != NOODLE or found["planned"]:
 		_fail("the unlock entry is %s" % str(found))
-	if int(found["tier"]) != 1 or int(found["cost"]) != 60:
-		_fail(
-			(
-				"the noodle is tier %d at %d coins, the roadmap says tier 1 (60)"
-				% [int(found["tier"]), int(found["cost"])]
-			)
-		)
+	if int(found["tier"]) != 1:
+		_fail("the noodle is tier %d, the roadmap says tier 1" % int(found["tier"]))
+	# a `cost` set in the entry is its own price, so only a tiered price (tier 1 = 60) is held to the roadmap
+	if not _sets_own_cost(UNLOCK_ID) and int(found["cost"]) != 60:
+		_fail("the noodle costs %d coins, the roadmap says 60 (tier 1)" % int(found["cost"]))
 	main.meta.owned.erase(UNLOCK_ID)
 	if main.weapon_owned(NOODLE):
 		_fail("the noodle is owned before it was bought")
