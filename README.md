@@ -486,7 +486,7 @@ Mostly vibe coded Godot game
 
 - [ ] UI theme: condensed bold font, dark translucent panels with amber accents, icons, key-hint chips (see section 4 of the art direction)
 - [x] Modern FPS HUD (owner request 2026-11-01): the arcade full-width top bar and the retro bottom texts are replaced by a corner layout like a current shooter: radar top left, round and progress segments top centre, score, high score, cash and combo top right, health segments and the hype meter bottom left, a big ammo counter with the weapon name and a [Q] key chip bottom right, dash and style rank bottom centre; dark translucent panels, no strips (note in `docs/ROADMAP_HISTORY.md`; check: `python tools/run_checks.py hud_modern`; waits for an in-game check by the owner)
-- [ ] Crosshair and hit marker in the same modern style (the HUD item above left both as they were)
+- [x] Crosshair and hit marker in the same modern style: the hit marker pops out and settles in four kinds (plain hit white, boss weak spot gold, kill orange, pedestrian hit red; the bigger news is drawn bigger and thicker) and now shows on every rider and boss hit, not only on a pedestrian hit as before; the melee crosshair is a thin ring with a dot (note in `docs/ROADMAP_HISTORY.md`; check: `python tools/run_checks.py hit_marker`; waits for an in-game check by the owner)
 - [ ] Threat arrows, radar and floating popups
 - [ ] Upgrade and shop cards (header, icon, reroll button, key hints; rarity tags are optional and can come later)
 - [ ] Title screen with a live 3D background and a text-only logo
