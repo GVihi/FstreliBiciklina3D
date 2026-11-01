@@ -237,6 +237,7 @@ const SOLID_HEIGHT = 6.5  # metres: the lowest building or tunnel block; a dart 
 const SLIDE_STEP = 0.25  # metres between the rings searched for the nearest free point
 const SLIDE_MAX = 8.0  # metres: out to here the search rings are fine (SLIDE_STEP apart)
 const SLIDE_COARSE_STEP = 1.0  # metres between rings, and along them, beyond SLIDE_MAX
+const WALL_HALVINGS = 6  # a step into a wall is cut back to the wall in this many halvings (1/64 of a step)
 
 
 # true if the cell under p is ground someone on foot can stand on (not a building or a tunnel block)
@@ -294,6 +295,47 @@ func clamp_walk(p: Vector3, who: String = "player") -> Vector3:
 		r += step
 	# nothing free anywhere in reach (not possible on a layout that passed validation): go to the start
 	return home
+
+
+# The player's step each frame. A step that stays on free ground is taken as it is. A step into a wall is
+# split in x and z, the longer part first, and each part is cut back to the wall, so the player ends flush
+# against the wall and keeps sliding along it at full speed. clamp_walk is not used for this: its search
+# for the nearest free point pushes out in steps of a quarter of a metre and picks the point nearest the start
+# of the arena, so a player hugging a wall was thrown out and pulled sideways and back every frame. The
+# walls lie on the grid, so one of the two parts is always along the wall. clamp_walk stays for a body that
+# starts inside a wall (a knock-back, a spawn), for bosses and for pickups.
+func slide_walk(from: Vector3, to: Vector3, who: String = "player") -> Vector3:
+	var margin: float = MARGINS.get(who, MARGINS["player"])
+	if _clear(to, margin):
+		return to
+	if not _clear(from, margin):
+		return clamp_walk(to, who)
+	var dx = to.x - from.x
+	var dz = to.z - from.z
+	var p = from
+	if absf(dx) >= absf(dz):
+		p = _step_to_wall(p, Vector3(dx, 0.0, 0.0), margin)
+		p = _step_to_wall(p, Vector3(0.0, 0.0, dz), margin)
+	else:
+		p = _step_to_wall(p, Vector3(0.0, 0.0, dz), margin)
+		p = _step_to_wall(p, Vector3(dx, 0.0, 0.0), margin)
+	p.y = to.y
+	return p
+
+
+# move p by `step` and stop at the wall: the whole step when it is free, otherwise the longest free part of it
+func _step_to_wall(p: Vector3, step: Vector3, margin: float) -> Vector3:
+	if step == Vector3.ZERO or _clear(p + step, margin):
+		return p + step
+	var free = 0.0
+	var blocked = 1.0
+	for i in range(WALL_HALVINGS):
+		var mid = (free + blocked) * 0.5
+		if _clear(p + step * mid, margin):
+			free = mid
+		else:
+			blocked = mid
+	return p + step * free
 
 
 # true if a boss on foot at p is blocked: inside a building or a tunnel block, or outside the arena

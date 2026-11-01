@@ -100,6 +100,13 @@ func clamp_walk(p: Vector3, _who: String = "player") -> Vector3:
 	return p
 
 
+# move a walking body from `from` to `to` and keep it on the walkable ground, like clamp_walk, but made for a
+# body that keeps pushing against a wall: it slides along the wall instead of being pushed out and pulled back
+# every frame (the rubber banding). An arena whose clamp_walk already slides smoothly leaves this as it is.
+func slide_walk(_from: Vector3, to: Vector3, who: String = "player") -> Vector3:
+	return clamp_walk(to, who)
+
+
 # true if riders and pedestrians have to steer round obstacle_at() on their own. The roundabout keeps its
 # lanes clear of everything except the tunnel they pass through, so it says no; generated arenas will say yes.
 func rider_avoidance() -> bool:

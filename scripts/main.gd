@@ -1942,6 +1942,11 @@ func clamp_walk(p: Vector3, who: String = "player") -> Vector3:
 	return arena.clamp_walk(p, who)
 
 
+# move a walking body from one point to another, sliding along a wall in the way (the player's step each frame)
+func slide_walk(from: Vector3, to: Vector3, who: String = "player") -> Vector3:
+	return arena.slide_walk(from, to, who)
+
+
 # solid for darts
 func ray_blocked(p: Vector3) -> bool:
 	return arena.ray_blocked(p)
