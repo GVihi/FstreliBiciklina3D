@@ -24,6 +24,7 @@ const ArenaGen = preload("res://scripts/arena_gen.gd")
 const DailyScript = preload("res://scripts/daily.gd")
 const WorldGen = preload("res://scripts/world_gen.gd")
 const WorldDress = preload("res://scripts/world_dress.gd")
+const WorldModels = preload("res://scripts/world_models.gd")
 const Lighting = preload("res://scripts/lighting.gd")
 const Content = preload("res://scripts/content.gd")
 
@@ -130,9 +131,14 @@ func _rebuild() -> void:
 		var built = WorldGen.build_ground(layout)
 		root.add_child(built["root"])
 		ground_stats = {"tris": built["tris"], "draw_calls": built["draw_calls"]}
-		var dressed = WorldDress.build(layout)
+		var planned = WorldModels.plan(layout)  # the game's modelled buildings, benches and crates
+		var dressed = WorldDress.build(layout, WorldModels.skipped_lots(planned))
 		root.add_child(dressed["root"])
-		dress_stats = {"tris": dressed["tris"], "draw_calls": dressed["draw_calls"]}
+		var models = WorldModels.build(root, planned)
+		dress_stats = {
+			"tris": int(dressed["tris"]) + int(models["tris"]),
+			"draw_calls": int(dressed["draw_calls"]) + int(models["draw_calls"])
+		}
 		var made = Lighting.make_environment()
 		env_node.environment = made["env"]
 		var sun = DirectionalLight3D.new()

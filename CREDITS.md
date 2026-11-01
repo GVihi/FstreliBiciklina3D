@@ -44,7 +44,7 @@ These are the project's own work and need no third-party credit:
 
 ## Third-party assets
 
-None yet. This section is where new entries go, grouped under these headings as they appear:
+These are the third-party assets in use. New entries go, grouped under these headings as they appear:
 
 ### Models and textures
 
@@ -56,6 +56,24 @@ None yet. This section is where new entries go, grouped under these headings as 
 - Retrieved: 2026-10-30 (the files were already in the repository)
 - Changes: none to the files; the game hides the one shell that floats beside the gun, turns the model so the barrel points forward and scales it
 - Credit text: This work is based on "shotgun x3 low poly" (https://sketchfab.com/3d-models/shotgun-x3-low-poly-d6533c4db7494b54bfadcd20b57c312c) by kawuru (https://sketchfab.com/kawuru) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+### Classic Park Bench (Low Poly)
+- Used for: the benches along the roads of the generated arenas, `assets/models/classic_park_bench_low_poly/` (loaded by `WorldModels` in `scripts/world_models.gd`)
+- Author: Berk Gedik (https://sketchfab.com/berkgedik)
+- Source: https://sketchfab.com/3d-models/classic-park-bench-low-poly-01a5b64427984632bb44242da3813bb1
+- Licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+- Retrieved: 2026-11-01 (the files were already in the repository)
+- Changes: none to the files; the game stands the model on the ground and turns it to face the road
+- Credit text: This work is based on "Classic Park Bench (Low Poly)" (https://sketchfab.com/3d-models/classic-park-bench-low-poly-01a5b64427984632bb44242da3813bb1) by Berk Gedik (https://sketchfab.com/berkgedik) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+### Low Poly Building
+- Used for: some of the buildings of the generated arenas, `assets/models/low_poly_building/` (loaded by `WorldModels` in `scripts/world_models.gd`)
+- Author: A.S.D. (https://sketchfab.com/arvindsudarshan53)
+- Source: https://sketchfab.com/3d-models/low-poly-building-f0722265cf8d4a41ba78ab1587d18ac8
+- Licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+- Retrieved: 2026-11-01 (the files were already in the repository)
+- Changes: none to the files; the game stretches the model to the lot, makes it taller or shorter with the lot's height, turns it, and multiplies its colours by a grey-blue tint so they sit with the brick boxes
+- Credit text: This work is based on "Low Poly Building" (https://sketchfab.com/3d-models/low-poly-building-f0722265cf8d4a41ba78ab1587d18ac8) by A.S.D. (https://sketchfab.com/arvindsudarshan53) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
 
 ### Sound effects and ambience
 
