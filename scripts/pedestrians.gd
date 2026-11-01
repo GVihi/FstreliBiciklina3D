@@ -34,6 +34,8 @@ func _init(game) -> void:
 
 
 func spawn_civ(init_x: float = 9999.0) -> void:
+	if g.training_room:
+		return  # the training room has no pedestrians: it is a place to aim, and nobody walks through it
 	var open = g.arena.rider_pursuit()
 	if open and g.arena.gates().is_empty():
 		return  # nowhere to come out of

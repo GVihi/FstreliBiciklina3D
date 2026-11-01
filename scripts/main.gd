@@ -649,16 +649,19 @@ const GENERATED_ARENA_ARG = "--generated-arena"
 const ROUNDABOUT_ARG = "--roundabout"
 var generated_arena = false
 # The training room (arena_training.gd, world_training.gd): a small dark gridded box for the tutorial and for trying
-# a weapon or a gadget before buying it. Nothing in the menus opens it yet; the user argument --training-room
+# a weapon or a gadget before buying it. The title menu's TRAINING ROOM entry opens it with the player's own
+# loadout, and the TRY IT button of the Unlocks page opens it with one weapon; the user argument --training-room
 # (godot --path . -- --training-room) makes it the arena of the whole session, and a check sets `training_room`
 # before adding its `main` to the tree. Runs on it keep it (they do not switch to a generated arena).
 const TRAINING_ARG = "--training-room"
 var training_room = false
 # Practice (try before buying): the TRY button of the Unlocks page takes the player and one weapon into the training
-# room. It is a round that never ends and counts for nothing: no life is lost, nothing is scored, paid or saved, and
-# the pause menu has BACK TO UNLOCKS instead of RESTART RUN and QUIT TO TITLE. start_practice / end_practice below.
+# room, and the TRAINING ROOM entry of the title menu takes the player in with the chosen loadout. It is a round that
+# never ends and counts for nothing: no life is lost, nothing is scored, paid or saved, and the pause menu has BACK TO
+# UNLOCKS (BACK TO MENU from the title entry) instead of RESTART RUN and QUIT TO TITLE. start_practice,
+# start_training and end_practice below.
 var practice = false
-var practice_unlock = {}  # the entry of data/unlocks.json being tried
+var practice_unlock = {}  # the entry of data/unlocks.json being tried; empty when the player came in with the loadout
 var practice_was_training = false  # the session already was in the room (--training-room): it stays there afterwards
 var world_root: Node3D = null  # the generated arena's world (the roundabout's is built straight into this node)
 var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics quality, high score file
@@ -938,6 +941,22 @@ func can_try(u: Dictionary) -> bool:
 func start_practice(u: Dictionary) -> bool:
 	if state != "title" or not can_try(u):
 		return false
+	return _begin_practice(u)
+
+
+# Takes the player into the training room with the loadout chosen on the Loadout page (TRAINING ROOM on the title
+# menu): the starting perk and the three weapon slots a normal run would start with, but no run, no map and nothing
+# scored, paid or saved. Returns false and changes nothing when the session has no world that can be swapped for the
+# room (the roundabout of the checks).
+func start_training() -> bool:
+	if state != "title":
+		return false
+	return _begin_practice({})
+
+
+# the part of start_practice and start_training that is the same: `u` is the unlock being tried, or empty for the
+# player's own loadout
+func _begin_practice(u: Dictionary) -> bool:
 	if not training_room and not generated_arena:
 		return false
 	practice_was_training = training_room
@@ -967,15 +986,21 @@ func start_practice(u: Dictionary) -> bool:
 	pitch = 0.0
 	player.position = arena.start_position()
 	pvel = Vector3.ZERO
-	var id = str(u["target"])
-	var slot = str(WeaponSlots.WEAPON_INFO[id]["slot"])
-	if slot == WeaponSlots.MELEE:
-		equip_melee(id)
-		melee = true  # the weapon is in the player's hands, Q or the wheel goes back to the pistol
-	elif slot == WeaponSlots.PRIMARY:
-		equip_primary(id)
+	if u.is_empty():
+		var start_perk_name = start_perk_id()
+		if start_perk_name != "":
+			perks[start_perk_name] = true
+		apply_loadout()
 	else:
-		equip_gadget(id)
+		var id = str(u["target"])
+		var slot = str(WeaponSlots.WEAPON_INFO[id]["slot"])
+		if slot == WeaponSlots.MELEE:
+			equip_melee(id)
+			melee = true  # the weapon is in the player's hands, Q or the wheel goes back to the pistol
+		elif slot == WeaponSlots.PRIMARY:
+			equip_primary(id)
+		else:
+			equip_gadget(id)
 	update_arena_dressing()
 	settings.apply_quality()
 	paused = false
@@ -985,12 +1010,13 @@ func start_practice(u: Dictionary) -> bool:
 	objective_sys.clear()  # no way out to look for and no supply caches: the room is only for trying the weapon
 	explore_sys.clear()
 	wait = 2.0
-	wait_msg = "TRYING THE " + str(u["name"])
+	wait_msg = "TRYING THE " + str(u["name"]) if not u.is_empty() else "TRAINING ROOM"
 	return true
 
 
-# Back to the Unlocks page from the room: the world the session had before is made again (the room stays when the
-# session started in it), the run state is cleared and the page is on the weapon that was tried.
+# Back to the Unlocks page from the room (or to the title menu, on TRAINING ROOM, when the player came in with the
+# loadout): the world the session had before is made again (the room stays when the session started in it), the run
+# state is cleared and the page is on the weapon that was tried.
 func end_practice() -> void:
 	if not practice:
 		return
@@ -1012,14 +1038,15 @@ func end_practice() -> void:
 			apply_theme(theme_idx)
 		else:
 			training_room = true  # no generated arena could be made: keep the room rather than a broken world
+	var from_loadout = practice_unlock.is_empty()
 	for n in range(hud.TITLE_ITEMS.size()):
-		if hud.TITLE_ITEMS[n]["id"] == "unlocks":
+		if hud.TITLE_ITEMS[n]["id"] == ("training" if from_loadout else "unlocks"):
 			title_sel = n
 	for i in range(UNLOCKS.size()):
 		if UNLOCKS[i]["id"] == practice_unlock.get("id", ""):
 			unlock_sel = i
 	unlock_msg = ""
-	title_page = "unlocks"
+	title_page = "" if from_loadout else "unlocks"
 	sfx.play("click")
 	practice_unlock = {}
 

@@ -761,6 +761,7 @@ const TITLE_ITEMS = [
 	{"id": "play", "label": "PLAY"},
 	{"id": "loadout", "label": "LOADOUT"},
 	{"id": "unlocks", "label": "UNLOCKS"},
+	{"id": "training", "label": "TRAINING ROOM"},
 	{"id": "daily", "label": "DAILY RUN"},
 	{"id": "seed", "label": "CUSTOM SEED"},
 	{"id": "challenges", "label": "CHALLENGES"},
@@ -772,7 +773,7 @@ const TITLE_ITEMS = [
 const TITLE_PAGES = {}
 # The CONTINUE button is drawn above PLAY and only while a saved run exists (main.gd `saved_run`). Its index is one past
 # the last entry of TITLE_ITEMS, so the indexes of the other entries never change.
-const TITLE_CONTINUE = 10
+const TITLE_CONTINUE = 11
 
 
 # true when a run is saved and the title menu shows CONTINUE
@@ -804,8 +805,8 @@ func title_continue_detail() -> String:
 func title_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var w = 320.0 * k
-	var h = 31.0 * k  # ten buttons: 31 high with a gap of 4 end where nine of 34 and 5 did
-	return Rect2((size.x - w) * 0.5, size.y * 0.345 + i * (h + 4.0 * k), w, h)
+	var h = 29.0 * k  # eleven buttons: 29 high with a gap of 3 end where ten of 31 and 4 did (and nine of 34 and 5)
+	return Rect2((size.x - w) * 0.5, size.y * 0.345 + i * (h + 3.0 * k), w, h)
 
 
 func title_at(pos: Vector2) -> int:
@@ -1836,15 +1837,19 @@ const PAUSE_ITEMS = [
 ]
 
 
-# the pause menu's entries: in the training room (try before buying) BACK TO UNLOCKS takes the place of RESTART RUN
-# and QUIT TO TITLE, because nothing there is a run that could be lost
+# the pause menu's entries: in the training room BACK TO UNLOCKS (BACK TO MENU when the player came in from the title
+# menu with the loadout) takes the place of RESTART RUN and QUIT TO TITLE, because nothing there is a run that could
+# be lost
 func pause_items() -> Array:
 	if g != null and g.practice:
 		return [
 			{"id": "resume", "label": "RESUME"},
 			{"id": "settings", "label": "SETTINGS"},
 			{"id": "controls", "label": "CONTROLS"},
-			{"id": "leave_practice", "label": "BACK TO UNLOCKS"}
+			{
+				"id": "leave_practice",
+				"label": "BACK TO MENU" if g.practice_unlock.is_empty() else "BACK TO UNLOCKS"
+			}
 		]
 	return PAUSE_ITEMS
 
@@ -2547,7 +2552,10 @@ func _draw_hint(k: float, cx: float) -> void:
 
 # the line under the top bar in the training room: where the player is, what is being tried and how to leave
 func _draw_practice_banner(k: float, cx: float) -> void:
-	_txt("TRYING THE " + str(g.practice_unlock.get("name", "")), cx, 82.0 * k, int(18 * k), GOLD, 1)
+	var tried = "YOUR LOADOUT"
+	if not g.practice_unlock.is_empty():
+		tried = "TRYING THE " + str(g.practice_unlock.get("name", ""))
+	_txt(tried, cx, 82.0 * k, int(18 * k), GOLD, 1)
 	_txt("NOTHING COUNTS HERE   ESC FOR THE MENU", cx, 104.0 * k, int(14 * k), GRAY, 1)
 
 

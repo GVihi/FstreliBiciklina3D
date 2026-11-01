@@ -16,6 +16,10 @@ extends SceneTree
 #   - BACK TO UNLOCKS puts the world the session had back (the room stays when the session started in it), opens the
 #     Unlocks page on the weapon that was tried, and the next run is played on a generated arena, not in the room
 #   - a session that cannot swap its world (the roundabout) refuses and stays on the page
+#   - the TRAINING ROOM entry of the title menu takes the player in with the Loadout page's weapons and starting perk
+#     (not one weapon), the pause menu says BACK TO MENU, leaving lands on the title menu on that entry, and the
+#     roundabout refuses
+#   - no pedestrian is ever in the training room, whether the session started in it or came in from the menu
 # Exits with status 1 and lists the first problems when a check fails.
 
 const MAIN_SCENE = "res://main.tscn"
@@ -32,6 +36,7 @@ func _initialize() -> void:
 	await _check_generated_session()
 	await _check_room_session()
 	await _check_roundabout_session()
+	await _check_menu_training()
 	if problems.is_empty():
 		print("practice_check: trying a weapon in the training room works as the roadmap describes")
 		quit(0)
@@ -329,4 +334,98 @@ func _check_roundabout_session() -> void:
 		_fail("the roundabout session started a practice round or left the Unlocks page")
 	if main.unlock_msg == "":
 		_fail("the roundabout session said nothing when the room could not open")
+	await _free_main()
+
+
+# ---------------------------------------------------------------- the TRAINING ROOM entry of the title menu
+func _training_entry() -> int:
+	for i in range(main.hud.TITLE_ITEMS.size()):
+		if main.hud.TITLE_ITEMS[i]["id"] == "training":
+			return i
+	return -1
+
+
+func _check_menu_training() -> void:
+	await _make_main(true, false)
+	var entry = _training_entry()
+	if entry < 0:
+		_fail("the title menu has no TRAINING ROOM entry")
+		await _free_main()
+		return
+	var coins = main.meta.balance
+	var scores_n = main.scores.entries.size()
+	main.go_to_title()
+	main.input_sys.title_activate(entry)
+	if not main.practice or main.state != "play" or _arena_path() != TRAINING:
+		_fail("TRAINING ROOM on the title menu did not start the room")
+		await _free_main()
+		return
+	if not main.practice_unlock.is_empty():
+		_fail("TRAINING ROOM on the title menu says a weapon is being tried")
+	# the loadout of the Loadout page: the three slots and the starting perk of a normal run
+	if main.primary != main.loadout_weapon_id(main.WeaponSlots.PRIMARY):
+		_fail("the primary weapon in the room is %s, not the loadout's" % main.primary)
+	if main.melee_weapon != main.loadout_weapon_id(main.WeaponSlots.MELEE):
+		_fail("the melee weapon in the room is %s, not the loadout's" % main.melee_weapon)
+	if main.gadget != main.loadout_weapon_id(main.WeaponSlots.GADGET):
+		_fail("the gadget in the room is %s, not the loadout's" % main.gadget)
+	var perk = main.start_perk_id()
+	if perk != "" and not main.perks.has(perk):
+		_fail("the starting perk %s is not active in the room" % perk)
+	# the pause menu leaves for the menu, not for the Unlocks page
+	var items = main.hud.pause_items()
+	var leave = _pause_index("leave_practice")
+	if leave < 0 or items[leave]["label"] != "BACK TO MENU":
+		_fail("the pause menu in the room from the title menu does not say BACK TO MENU")
+	if _pause_index("restart") >= 0 or _pause_index("title") >= 0:
+		_fail("the pause menu in the room has RESTART RUN or QUIT TO TITLE")
+	# nobody walks through the room
+	main.civ_sys.spawn_civ()
+	for i in range(600):
+		main.civ_sys.update_civs(DT)
+	if main.civs.size() > 0:
+		_fail("%d pedestrian(s) in the training room" % main.civs.size())
+	# nothing was paid, scored or saved
+	if main.meta.balance != coins or main.scores.entries.size() != scores_n:
+		_fail("the coins or the leaderboard changed in the room")
+	if FileAccess.file_exists("user://run.json"):
+		_fail("a saved run was written from the room")
+	main.input_sys.pause_activate(leave)
+	if (
+		main.practice
+		or main.state != "title"
+		or main.title_page != ""
+		or main.title_sel != entry
+		or _arena_path() != GENERATED
+		or main.training_room
+	):
+		_fail(
+			(
+				"BACK TO MENU did not land on the title menu on TRAINING ROOM (practice %s, state %s, page '%s', entry %d)"
+				% [main.practice, main.state, main.title_page, main.title_sel]
+			)
+		)
+	# the next run is a normal one on a generated arena, and it has pedestrians again
+	main.start_game(false, 4242)
+	if _arena_path() != GENERATED or main.training_room:
+		_fail("a run after the room is played on %s" % _arena_path())
+	await _free_main()
+	# a session that started in the room has no pedestrian from the first frame
+	await _make_main(true, true)
+	if main.civs.size() > 0:
+		_fail("a session that started in the room has %d pedestrian(s)" % main.civs.size())
+	main.go_to_title()
+	main.input_sys.title_activate(_training_entry())
+	if not main.practice:
+		_fail("the room session could not use TRAINING ROOM on the title menu")
+	main.input_sys.pause_activate(_pause_index("leave_practice"))
+	if _arena_path() != TRAINING or not main.training_room or main.title_page != "":
+		_fail("a session that started in the room is not in the room after BACK TO MENU")
+	await _free_main()
+	# the roundabout cannot be swapped: the entry only clicks
+	await _make_main(false, false)
+	main.go_to_title()
+	main.input_sys.title_activate(_training_entry())
+	if main.practice or main.state != "title" or main.title_page != "":
+		_fail("the roundabout session started the room or left the title menu")
 	await _free_main()
