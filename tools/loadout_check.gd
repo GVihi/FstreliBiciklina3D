@@ -328,6 +328,32 @@ func _check_weapon_layout() -> void:
 	_remove_fake_weapons()
 
 
+# the counter in the corner of a slot does not count the empty row ("NO MELEE", "NO GADGET") as an owned weapon
+func _check_owned_counter() -> void:
+	var hud = main.hud
+	var cases = [
+		["melee with nothing owned", main.loadout_weapon_options("melee"), 0, "NONE OWNED"],
+		["gadget with nothing owned", main.loadout_weapon_options("gadget"), 0, "NONE OWNED"],
+		["the pistol alone", main.loadout_weapon_options("primary").slice(0, 1), 0, "1 OF 1 OWNED"],
+		["the pistol and the dart gun", main.loadout_weapon_options("primary"), 1, "2 OF 2 OWNED"],
+		["an empty row first, two owned, the empty row", _rows(["", "a", "b"]), 0, "2 OWNED"],
+		["an empty row first, two owned, the first", _rows(["", "a", "b"]), 1, "1 OF 2 OWNED"],
+		["an empty row first, two owned, the second", _rows(["", "a", "b"]), 2, "2 OF 2 OWNED"],
+	]
+	for c in cases:
+		var got = hud.loadout_owned_text(c[1], c[2])
+		if got != c[3]:
+			_fail("the counter for %s says %s, not %s" % [c[0], got, c[3]])
+
+
+# rows like those of loadout_weapon_options, with only the ids filled in
+func _rows(ids: Array) -> Array:
+	var out = []
+	for id in ids:
+		out.append({"id": id, "name": str(id), "desc": ""})
+	return out
+
+
 func _check_weapons() -> void:
 	var inp = main.input_sys
 	_own(0)
@@ -366,6 +392,7 @@ func _check_weapons() -> void:
 		)
 	if main.loadout_weapon_options("primary")[0]["name"] != "DART NERF PISTOL":
 		_fail("the pistol row is called %s" % main.loadout_weapon_options("primary")[0]["name"])
+	_check_owned_counter()
 	_open_page()
 	if main.loadout_col != 0 or main.loadout_slot != 0:
 		_fail("the page did not open on the perk list")
