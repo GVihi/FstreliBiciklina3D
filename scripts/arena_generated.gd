@@ -36,6 +36,12 @@ func rider_avoidance() -> bool:
 	return true
 
 
+# false: a generated arena takes the theme of the round (day, dusk, night, ...); only the training room keeps its
+# own light (Arena.fixed_lighting)
+func fixed_lighting() -> bool:
+	return false
+
+
 # ---------------------------------------------------------------- the start and the gates
 # the style the seed picked and its name on the screen (see Arena.style_name)
 func style_name() -> String:
