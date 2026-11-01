@@ -11,6 +11,7 @@ extends SceneTree
 
 const ArenaGenScript = preload("res://scripts/arena_gen.gd")
 const GeneratedArena = preload("res://scripts/arena_generated.gd")
+const WorldDress = preload("res://scripts/world_dress.gd")
 
 var bad: Array = []
 var seeds = 30
@@ -118,12 +119,17 @@ func _check_start_and_gates(arena, layout: Dictionary, tag: int) -> void:
 			bad.append("arena %d: gate %d points into the arena" % [tag, i])
 
 
-# obstacle_at, ray_blocked, hidden_at and rider_blocked agree with the layout cell by cell and at the gates
+# obstacle_at, ray_blocked, hidden_at and rider_blocked agree with the layout cell by cell and at the gates. A trunk
+# stands in the middle of its grass cell: a body on foot, a rider and a dart are blocked there (a dart over the trees
+# and the roofs is not), and tools/tree_collision_check.gd looks at the trees themselves.
 func _check_blocking(arena, layout: Dictionary, tag: int) -> void:
 	var n = int(layout["cells"])
 	var cell = float(layout["cell"])
 	var half = float(n) * cell / 2.0
 	var open_cells = 0
+	var trunks = {}
+	for tree in WorldDress.props_of(layout)["trees"]:
+		trunks[tree["cell"]] = true
 	for cz in range(n):
 		for cx in range(n):
 			var p = Vector3(
@@ -133,12 +139,13 @@ func _check_blocking(arena, layout: Dictionary, tag: int) -> void:
 			)
 			var c = str(layout["rows"][cz])[cx]
 			var solid = c == "b" or c == "t"
-			if arena.obstacle_at(p) != solid:
+			var trunk = trunks.has(Vector2i(cx, cz))
+			if arena.obstacle_at(p) != (solid or trunk):
 				bad.append(
 					"arena %d: obstacle_at is wrong in cell (%d, %d) which is %s" % [tag, cx, cz, c]
 				)
 				return
-			if arena.ray_blocked(p) != solid:
+			if arena.ray_blocked(p) != (solid or trunk):
 				bad.append(
 					"arena %d: ray_blocked is wrong in cell (%d, %d) which is %s" % [tag, cx, cz, c]
 				)
@@ -153,7 +160,7 @@ func _check_blocking(arena, layout: Dictionary, tag: int) -> void:
 					"arena %d: hidden_at is wrong in cell (%d, %d) which is %s" % [tag, cx, cz, c]
 				)
 				return
-			if arena.rider_blocked(p) != (c == "b"):
+			if arena.rider_blocked(p) != (c == "b" or trunk):
 				bad.append(
 					(
 						"arena %d: rider_blocked is wrong in cell (%d, %d) which is %s"

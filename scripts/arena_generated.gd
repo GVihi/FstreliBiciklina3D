@@ -4,16 +4,49 @@ extends "res://scripts/arena.gd"
 # arena rules, so one seed gives one arena. Not used by the game yet (see docs/PROCEDURAL_ARENAS.md).
 
 const ArenaGenScript = preload("res://scripts/arena_gen.gd")
+const WorldDressScript = preload("res://scripts/world_dress.gd")
 
 var layout: Dictionary = {}
 var rules: Dictionary = {}
 var _gates: Array = []
+var _trees: Dictionary = {}  # the trees the world stands on the grass, by cell (Vector2i): the trunk's x and z (Vector2)
 
 
 func _init(the_layout: Dictionary = {}, the_rules: Dictionary = {}) -> void:
 	layout = the_layout
 	rules = the_rules if not the_rules.is_empty() else ArenaGenScript.load_rules()
 	_gates = _world_gates()
+	_trees = _tree_table()
+
+
+# The trunks of the layout's trees, found the way the world finds them to stand them (WorldDress.props_of, from the
+# cells alone), so what is drawn is what is solid. At most one per cell, in the middle of it.
+func _tree_table() -> Dictionary:
+	var out = {}
+	if not (layout.has("cells") and layout.has("cell") and layout.has("rows")):
+		return out
+	for tree in WorldDressScript.props_of(layout)["trees"]:
+		out[tree["cell"]] = tree["pos"]
+	return out
+
+
+# true if p is closer than `reach` metres (along the ground) to the middle of a tree's trunk
+func _near_tree(p: Vector3, reach: float) -> bool:
+	if _trees.is_empty():
+		return false
+	var n = int(layout["cells"])
+	var cell = float(layout["cell"])
+	var cx = int(floor(p.x / cell + float(n) / 2.0))
+	var cz = int(floor(p.z / cell + float(n) / 2.0))
+	var span = int(ceil(reach / cell))  # a tree in a cell further off than this is further away than `reach`
+	for dz in range(-span, span + 1):
+		for dx in range(-span, span + 1):
+			var key = Vector2i(cx + dx, cz + dz)
+			if _trees.has(key):
+				var at: Vector2 = _trees[key]
+				if Vector2(p.x - at.x, p.z - at.y).length_squared() < reach * reach:
+					return true
+	return false
 
 
 # ---------------------------------------------------------------- the ground
@@ -184,6 +217,8 @@ func _spot_cells(clear: int) -> Array:
 			continue
 		if surface_at(cell_world(i)) == "tunnel":
 			continue
+		if _trees.has(Vector2i(i % n, i / n)):
+			continue  # a trunk stands in the middle of this cell
 		out.append(i)
 	return out
 
@@ -243,22 +278,38 @@ const SOLID_HEIGHT = 6.5  # metres: the lowest building or tunnel block; a dart 
 const SLIDE_STEP = 0.25  # metres between the rings searched for the nearest free point
 const SLIDE_MAX = 8.0  # metres: out to here the search rings are fine (SLIDE_STEP apart)
 const SLIDE_COARSE_STEP = 1.0  # metres between rings, and along them, beyond SLIDE_MAX
+const TREE_RIDER_CLEAR = 0.3 + WorldDressScript.TRUNK_SOLID  # a boss's margin and the trunk: 0.55 m from the trunk's middle
+# [half width, from y, to y] of the three boxes a tree is drawn from: the trunk, the leaves and the top of the leaves
+const TREE_BOXES = [
+	[WorldDressScript.TRUNK_HALF, 0.0, WorldDressScript.TRUNK_H],
+	[WorldDressScript.CANOPY_HALF, WorldDressScript.CANOPY_Y0, WorldDressScript.CANOPY_Y1],
+	[WorldDressScript.TOP_HALF, WorldDressScript.CANOPY_Y1, WorldDressScript.TOP_Y1],
+]
 const WALL_HALVINGS = 6  # a step into a wall is cut back to the wall in this many halvings (1/64 of a step)
 
 
-# true if the cell under p is ground someone on foot can stand on (not a building or a tunnel block)
-func _walkable(p: Vector3) -> bool:
+# true if the cell under p is ground (not a building or a tunnel block): what the walls, the wall-jumps and the darts
+# go by. Trees are not in it: a trunk is no wall to jump off (the darts have their own test, _tree_solid_at).
+func _ground_walkable(p: Vector3) -> bool:
 	var s = surface_at(p)
 	return s != "building" and s != "tunnel"
 
 
-# true if p is walkable and so are the eight points `margin` metres round it
+# true if p is ground a boss on foot can stand on (what obstacle_at asks): ground, and not within a boss's reach of
+# a trunk. That is wider than the trunk itself (TREE_RIDER_CLEAR, not TRUNK_SOLID) so the one-metre looks that
+# bosses and riders take along their way cannot slip between two samples past a trunk and walk into it.
+func _walkable(p: Vector3) -> bool:
+	return _ground_walkable(p) and not _near_tree(p, TREE_RIDER_CLEAR)
+
+
+# true if p is walkable, the eight points `margin` metres round it are ground, and no trunk is within `margin` of
+# the middle (a body is a disc of that radius: it stops that far from a wall and that far from a trunk's edge)
 func _clear(p: Vector3, margin: float) -> bool:
-	if not _walkable(p):
+	if not _ground_walkable(p) or _near_tree(p, margin + WorldDressScript.TRUNK_SOLID):
 		return false
 	for k in range(8):
 		var a = TAU * float(k) / 8.0
-		if not _walkable(p + Vector3(cos(a), 0.0, sin(a)) * margin):
+		if not _ground_walkable(p + Vector3(cos(a), 0.0, sin(a)) * margin):
 			return false
 	return true
 
@@ -344,7 +395,8 @@ func _step_to_wall(p: Vector3, step: Vector3, margin: float) -> Vector3:
 	return p + step * free
 
 
-# true if a boss on foot at p is blocked: inside a building or a tunnel block, or outside the arena
+# true if a boss on foot at p is blocked: inside a building or a tunnel block, or outside the arena, or within
+# TREE_RIDER_CLEAR of a trunk
 func obstacle_at(p: Vector3) -> bool:
 	return not _walkable(p)
 
@@ -352,18 +404,18 @@ func obstacle_at(p: Vector3) -> bool:
 # The nearest wall within `reach` metres of p (see Arena.wall_near): a building or tunnel block, or the edge of the grid.
 # The walls lie on the grid, so looking along the four axes is enough; each hit is found to a few centimetres by halving.
 func wall_near(p: Vector3, reach: float) -> Dictionary:
-	if not _walkable(p):
+	if not _ground_walkable(p):
 		return {}  # inside a wall (a knock-back that has not been pushed out yet): nothing to push off
 	var best = {}
 	var best_t = INF
 	for d in [Vector3.RIGHT, Vector3.LEFT, Vector3.BACK, Vector3.FORWARD]:
-		if _walkable(p + d * reach):
+		if _ground_walkable(p + d * reach):
 			continue
 		var free = 0.0
 		var blocked = reach
 		for _i in range(WALL_HALVINGS):
 			var mid = (free + blocked) * 0.5
-			if _walkable(p + d * mid):
+			if _ground_walkable(p + d * mid):
 				free = mid
 			else:
 				blocked = mid
@@ -373,9 +425,88 @@ func wall_near(p: Vector3, reach: float) -> Dictionary:
 	return best
 
 
-# true if a dart at p is inside something solid: a building or a tunnel block, below the lowest roof
+# true if a dart at p is inside something solid: a building or a tunnel block, below the lowest roof, or a tree's
+# trunk or leaves (the boxes the world draws)
 func ray_blocked(p: Vector3) -> bool:
-	return p.y < SOLID_HEIGHT and not _walkable(p)
+	return (p.y < SOLID_HEIGHT and not _ground_walkable(p)) or _tree_solid_at(p)
+
+
+# true if p is inside one of the three boxes a tree is drawn from
+func _tree_solid_at(p: Vector3) -> bool:
+	if _trees.is_empty() or p.y < 0.0 or p.y > WorldDressScript.TOP_Y1:
+		return false
+	var cell = float(layout["cell"])
+	var n = int(layout["cells"])
+	var cx = int(floor(p.x / cell + float(n) / 2.0))
+	var cz = int(floor(p.z / cell + float(n) / 2.0))
+	var span = int(ceil(WorldDressScript.CANOPY_HALF / cell))
+	for dz in range(-span, span + 1):
+		for dx in range(-span, span + 1):
+			var key = Vector2i(cx + dx, cz + dz)
+			if not _trees.has(key):
+				continue
+			var at: Vector2 = _trees[key]
+			var ax = absf(p.x - at.x)
+			var az = absf(p.z - at.y)
+			for box in TREE_BOXES:
+				if p.y >= box[1] and p.y <= box[2] and ax <= box[0] and az <= box[0]:
+					return true
+	return false
+
+
+# where the ray from `from` along the unit vector `dir` first meets a tree within `reach` metres (see Arena.tree_hit),
+# or -1.0: the trees near the ray are found a cell at a time along it, and each is cut with its three boxes exactly
+func tree_hit(from: Vector3, dir: Vector3, reach: float) -> float:
+	if _trees.is_empty():
+		return -1.0
+	var cell = float(layout["cell"])
+	var n = int(layout["cells"])
+	var span = int(ceil(WorldDressScript.CANOPY_HALF / cell))
+	var seen = {}
+	var best = -1.0
+	var t = 0.0
+	while true:
+		var here = minf(t, reach)
+		var p = from + dir * here
+		var cx = int(floor(p.x / cell + float(n) / 2.0))
+		var cz = int(floor(p.z / cell + float(n) / 2.0))
+		for dz in range(-span, span + 1):
+			for dx in range(-span, span + 1):
+				var key = Vector2i(cx + dx, cz + dz)
+				if _trees.has(key) and not seen.has(key):
+					seen[key] = true
+					var h = _ray_tree(from, dir, _trees[key], reach)
+					if h >= 0.0 and (best < 0.0 or h < best):
+						best = h
+		# every tree further along is further than one we have, once the ray is two cells past the nearest hit
+		if here >= reach or (best >= 0.0 and here > best + 2.0 * cell):
+			break
+		t += cell * 0.9
+	return best
+
+
+# the first distance at which the ray enters one of the three boxes of the tree at `at` (x, z), within `reach`, or -1.0
+# (a ray that starts inside a box is not stopped by it)
+func _ray_tree(from: Vector3, dir: Vector3, at: Vector2, reach: float) -> float:
+	var best = -1.0
+	for box in TREE_BOXES:
+		var lo = Vector3(at.x - box[0], box[1], at.y - box[0])
+		var hi = Vector3(at.x + box[0], box[2], at.y + box[0])
+		var near = -INF
+		var far = INF
+		for axis in range(3):
+			if absf(dir[axis]) < 0.000001:
+				if from[axis] < lo[axis] or from[axis] > hi[axis]:
+					near = INF
+					break
+				continue
+			var t1 = (lo[axis] - from[axis]) / dir[axis]
+			var t2 = (hi[axis] - from[axis]) / dir[axis]
+			near = maxf(near, minf(t1, t2))
+			far = minf(far, maxf(t1, t2))
+		if near > 0.0 and near <= far and near <= reach and (best < 0.0 or near < best):
+			best = near
+	return best
 
 
 # true if p is inside a gate's tunnel: on a tunnel cell, or past the outer wall in a gate's opening
@@ -393,12 +524,14 @@ func hidden_at(p: Vector3) -> bool:
 	return false
 
 
-# true if a rider at p cannot ride there: a building, but not through a gate (tunnel cells and the opening)
+# true if a rider at p cannot ride there: a building, but not through a gate (tunnel cells and the opening), or a
+# trunk's neighbourhood (TREE_RIDER_CLEAR: wide enough that the riders' one-metre looks cannot slip past a trunk, and
+# the same distance clamp_walk keeps a boss from it, so a rider pushed out of one is not inside it again)
 func rider_blocked(p: Vector3) -> bool:
 	var s = surface_at(p)
 	if s == "building":
 		return not hidden_at(p)
-	return false
+	return _near_tree(p, TREE_RIDER_CLEAR)
 
 
 # true if p is outside the grid altogether

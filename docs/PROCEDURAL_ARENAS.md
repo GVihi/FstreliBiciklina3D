@@ -80,7 +80,7 @@ Open `tools/viewer/arena_viewer.tscn` in Godot and press F6 (the same way as the
 - **Gates:** each `t` cell is under a black block 6.5 m high with a hazard band on each open face. Alleys are not generated, so there are none.
 - **Lamps:** on sidewalk cells that touch one road and no tunnel, every 16 m, sides staggered; a pole, an arm, a glowing head and a hidden `OmniLight3D`.
 - **Trees:** on grass cells with only grass and sidewalk round them, about one in 14.
-- **No collision:** props are decoration; the layout does not know about them. They become obstacles with rider pursuit.
+- **Collision:** the layout does not know about props, but `GeneratedArena` reads `WorldDress.props_of` and makes every tree trunk solid, a disc of `TRUNK_SOLID` (0.25 m) round the trunk's middle: the player stays 0.70 m from the middle (his 0.45 m margin plus the trunk), a boss 0.55 m, a pickup 1.25 m, and a rider steers clear of it like a wall (`rider_blocked`) and is pushed out if it still gets in. The extraction point and the caches are never on a trunk. The leaves are above head height and nobody on foot is stopped by them. Darts, thrown phones and the riders' sight lines are stopped by the trunk and the leaves (the three boxes the world draws, found along the whole ray by `Arena.tree_hit`, since a trunk is thinner than the steps a dart is sampled at); wall-jumps ignore trees. Lamp poles still have no collision. `tools/tree_collision_check.gd` checks it.
 - **Cost:** 4,500 to 6,100 triangles, 10 draw calls over 100 seeds. Not budgeted: the performance budget is still open.
 
 `tools/world_dress_check.gd` checks the finished meshes against the layout (`godot --headless --path . --script res://tools/world_dress_check.gd`).

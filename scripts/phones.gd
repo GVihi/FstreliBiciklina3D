@@ -136,8 +136,13 @@ func update_phones(dt: float) -> void:
 				g.free_phone(ph)
 
 
-# true if a phone moving from prev to pos meets a building (open ground only: the caller checks the arena)
+# true if a phone moving from prev to pos meets a building or a tree (open ground only: the caller checks the arena)
 func flight_blocked(prev: Vector3, pos: Vector3) -> bool:
+	var d = pos - prev
+	var dist = d.length()
+	# a trunk is thinner than the step of one frame: cut the whole step
+	if dist > 0.0001 and g.arena.tree_hit(prev, d / dist, dist) >= 0.0:
+		return true
 	return g.arena.ray_blocked(pos) or not Threats.sight_clear(g.arena, prev, pos)
 
 

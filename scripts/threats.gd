@@ -74,7 +74,7 @@ static func assist_cone(dist: float, open_ground: bool) -> float:
 
 
 # true if a dart flying from `from` to `to` is not stopped by the arena on the way (the arena's ray_blocked, which
-# looks at the height too, sampled every SIGHT_STEP metres; the end points are not tested, a target stands next to
+# looks at the height too, sampled every SIGHT_STEP metres, and the arena's tree_hit for the trees; the end points are not tested, a target stands next to
 # a wall now and then). The stick aim assist uses it on open ground so the crosshair is not pulled onto a rider
 # behind a building.
 static func sight_clear(arena, from: Vector3, to: Vector3) -> bool:
@@ -89,4 +89,4 @@ static func sight_clear(arena, from: Vector3, to: Vector3) -> bool:
 			break
 		if arena.ray_blocked(from + d * f):
 			return false
-	return true
+	return arena.tree_hit(from, d / dist, dist) < 0.0  # a trunk is thinner than SIGHT_STEP: cut the whole line
