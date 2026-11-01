@@ -102,24 +102,6 @@ func _heart(cx: float, cy: float, sz: float, col: Color) -> void:
 	)
 
 
-func _bike_icon(cx: float, cy: float, k: float, col: Color) -> void:
-	var w = 2.0 * k
-	draw_arc(Vector2(cx - 8.0 * k, cy + 3.0 * k), 5.0 * k, 0.0, TAU, 14, col, w)
-	draw_arc(Vector2(cx + 8.0 * k, cy + 3.0 * k), 5.0 * k, 0.0, TAU, 14, col, w)
-	draw_polyline(
-		PackedVector2Array(
-			[
-				Vector2(cx - 8.0 * k, cy + 3.0 * k),
-				Vector2(cx - 2.0 * k, cy - 5.0 * k),
-				Vector2(cx + 6.0 * k, cy - 5.0 * k),
-				Vector2(cx + 8.0 * k, cy + 3.0 * k)
-			]
-		),
-		col,
-		w
-	)
-
-
 func _dim(a: float) -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.04, 0.04, 0.05, a))
 
@@ -2382,7 +2364,7 @@ func _draw() -> void:
 					)
 
 	if state != "title":  # the title screen has its own corner texts, the run bar would overlap them
-		_draw_top_bar(k)
+		_draw_hud_top(k)
 
 	if state == "play":
 		_draw_crosshair(k)
@@ -2390,7 +2372,7 @@ func _draw() -> void:
 		_draw_radar(k)
 		_draw_fps(k)
 		_draw_objective(k)
-		_draw_bottom(k)
+		_draw_hud_bottom(k)
 		_draw_boss_ui(k)
 		if g.practice:
 			_draw_practice_banner(k, cx)
@@ -2418,14 +2400,7 @@ func _draw() -> void:
 		_txt(n["txt"], cx, ny, int(26 * k), c, 1)
 		ny += 36.0 * k
 
-	if g.hit_marker > 0.0:
-		var m = 10.0 * k
-		var cy = size.y * 0.5
-		var hc = Color(1, 1, 1, clampf(g.hit_marker / 0.18, 0.0, 1.0))
-		draw_line(Vector2(cx - m, cy - m), Vector2(cx - m * 0.4, cy - m * 0.4), hc, 3.0 * k)
-		draw_line(Vector2(cx + m, cy - m), Vector2(cx + m * 0.4, cy - m * 0.4), hc, 3.0 * k)
-		draw_line(Vector2(cx - m, cy + m), Vector2(cx - m * 0.4, cy + m * 0.4), hc, 3.0 * k)
-		draw_line(Vector2(cx + m, cy + m), Vector2(cx + m * 0.4, cy + m * 0.4), hc, 3.0 * k)
+	_draw_hit_marker(k)
 
 	var blink = int(g.time * 2.0) % 2 == 0
 	if state == "title":
@@ -2550,7 +2525,7 @@ func _draw_hint(k: float, cx: float) -> void:
 	_txt(g.hint_txt, cx, hint_y(k), hint_fs(k), col, 1)
 
 
-# the line under the top bar in the training room: where the player is, what is being tried and how to leave
+# the line under the round panel in the training room: where the player is, what is being tried and how to leave
 func _draw_practice_banner(k: float, cx: float) -> void:
 	var tried = "YOUR LOADOUT"
 	if not g.practice_unlock.is_empty():
@@ -2559,44 +2534,45 @@ func _draw_practice_banner(k: float, cx: float) -> void:
 	_txt("NOTHING COUNTS HERE   ESC FOR THE MENU", cx, 104.0 * k, int(14 * k), GRAY, 1)
 
 
-func _draw_top_bar(k: float) -> void:
-	var bar_h = 58.0 * k
-	draw_rect(Rect2(0, 0, size.x, bar_h), Color(0.05, 0.05, 0.055, 0.72))
-	draw_rect(Rect2(0, bar_h - 2.0, size.x, 2.0), Color(0.29, 0.26, 0.22))
-	var fs = int(13 * k)
+# ---------------------------------------------------------------- in-round HUD (modern FPS layout)
+# Corners, like a current shooter: radar top left, round and progress top centre, score and cash top right, health and
+# hype bottom left, the big ammo counter with the weapon name bottom right, dash and style bottom centre. Dark
+# translucent panels with a thin light edge, flat bars, no full-width strips. The centre of the screen only has the
+# crosshair, hit marker and notes. The bottom centre keeps the old positions (DASH label 62 px, FREE DARTS 84 px above
+# the bottom at 720p), because the hint line sits above them (`hint_y`, tools/hint_line_check.gd).
+const HUD_PANEL = Color(0.04, 0.05, 0.07, 0.55)
+const HUD_EDGE = Color(1.0, 1.0, 1.0, 0.14)
+const HUD_EMPTY = Color(1.0, 1.0, 1.0, 0.13)  # the empty part of a bar or a segment
+const HUD_HEALTH = Color(0.95, 0.3, 0.26)
+const HUD_MARGIN = 18.0  # pixels at 720p between the HUD and the side of the window
+const HUD_BOTTOM = 22.0  # ... and the bottom of the window (the baseline of the bottom row)
 
-	# ammo: while the gun is loading the label says RELOAD and the next dart to go in blinks
-	var reloading = g.combat_sys.is_reloading()
-	_txt(
-		"RELOAD" if reloading else "DARTS",
-		14.0 * k,
-		17.0 * k,
-		fs,
-		RELOAD_CYAN if reloading else GOLD
-	)
-	var pulse = g.combat_sys.reload_pulse()
-	for i in range(g.MAXSHELLS):
-		var sx = (14.0 + i * 10.0) * k
-		var on = i < g.shells or g.buffs["rapid"] > 0.0
-		var body_col = Color(1.0, 0.48, 0.1) if on else Color(0.21, 0.19, 0.16)
-		var cap_col = Color(0.11, 0.39, 0.78) if on else Color(0.29, 0.26, 0.22)
-		if reloading and i == g.shells:
-			body_col = Color(0.21, 0.19, 0.16).lerp(Color(1.0, 0.48, 0.1), pulse)
-			cap_col = Color(0.29, 0.26, 0.22).lerp(Color(0.11, 0.39, 0.78), pulse)
-		draw_rect(Rect2(sx, 29.0 * k, 7.0 * k, 15.0 * k), body_col)
-		draw_rect(Rect2(sx, 25.0 * k, 7.0 * k, 5.0 * k), cap_col)
 
-	# lives
-	_txt("LIVES", 160.0 * k, 17.0 * k, fs, GOLD)
-	for i in range(g.MAXHEARTS):
-		_heart(
-			(172.0 + i * 26.0) * k,
-			36.0 * k,
-			16.0 * k,
-			RED if i < g.hearts else Color(0.23, 0.18, 0.17)
-		)
+# the width of a text in pixels
+func _text_w(s: String, fs: int) -> float:
+	return font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 
-	# round + progress
+
+# the one panel look of the HUD: dark and translucent with a thin light edge
+func _hud_panel(r: Rect2) -> void:
+	draw_rect(r, HUD_PANEL)
+	draw_rect(r, HUD_EDGE, false, 1.0)
+
+
+# a key hint in a small box ("Q", "V"), right edge at right_x; returns the left edge
+func _key_chip(key: String, right_x: float, base_y: float, fs: int, k: float) -> float:
+	var w = _text_w(key, fs) + 10.0 * k
+	var r = Rect2(right_x - w, base_y - fs - 2.0 * k, w, fs + 7.0 * k)
+	_hud_panel(r)
+	_txt(key, r.position.x + w * 0.5, base_y, fs, TEXT, 1)
+	return r.position.x
+
+
+func _draw_hud_top(k: float) -> void:
+	var cx = size.x * 0.5
+	var rx = size.x - HUD_MARGIN * k
+
+	# round and progress, top centre: one segment per rider, red hit, grey missed, the next one blinks
 	var round_label = "ROUND %d/%d  %s" % [g.round_n, g.MAX_ROUNDS, g.THEMES[g.theme_idx]["name"]]
 	if g.practice:
 		round_label = "TRAINING ROOM"
@@ -2604,47 +2580,78 @@ func _draw_top_bar(k: float) -> void:
 		round_label += "  DAILY"
 	elif g.custom_seed_run:
 		round_label += "  SEED"
-	_txt(round_label, 300.0 * k, 17.0 * k, fs, GOLD)
+	var fs = int(14 * k)
+	var seg_w = 20.0 * k
+	var seg_gap = 4.0 * k
+	var row_w = g.PER_ROUND * (seg_w + seg_gap) - seg_gap
+	var pw = maxf(_text_w(round_label, fs), row_w) + 28.0 * k
+	_hud_panel(Rect2(cx - pw * 0.5, 6.0 * k, pw, 42.0 * k))
+	_txt(round_label, cx, 26.0 * k, fs, GOLD, 1)
 	for i in range(g.PER_ROUND):
 		var st = g.hits[i] if i < g.hits.size() else null
-		var col = TEXT
+		var col = Color(TEXT, 0.55)
 		if st == true:
 			col = RED
 		elif st == false:
 			col = GRAY
 		elif i < g.next_idx and g.state == "play" and int(g.time * 4.0) % 2 == 0:
 			col = GOLD
-		_bike_icon((312.0 + i * 31.0) * k, 36.0 * k, k, col)
+		draw_rect(Rect2(cx - row_w * 0.5 + i * (seg_w + seg_gap), 33.0 * k, seg_w, 7.0 * k), col)
 
-	# cash
-	_txt("CASH", 650.0 * k, 17.0 * k, fs, GOLD)
-	_txt("$%d" % g.cash, 650.0 * k, 44.0 * k, int(24 * k), TEXT)
-
-	# score
-	_txt("HI " + str(g.hi).pad_zeros(6), size.x - 12.0 * k, 17.0 * k, fs, GRAY, 2)
-	_txt(str(g.score).pad_zeros(6), size.x - 12.0 * k, 44.0 * k, int(26 * k), TEXT, 2)
+	# score, high score, cash and combo, top right
+	_txt(str(g.score).pad_zeros(6), rx, 38.0 * k, int(32 * k), TEXT, 2)
+	_txt("HI " + str(g.hi).pad_zeros(6), rx, 56.0 * k, int(12 * k), GRAY, 2)
+	var cash = "$%d" % g.cash
+	_txt(cash, rx, 82.0 * k, int(22 * k), GOLD, 2)
+	_txt("CASH", rx - _text_w(cash, int(22 * k)) - 8.0 * k, 82.0 * k, int(11 * k), GRAY, 2)
 	if g.combo > 1:
-		_txt("x%d" % g.combo, size.x - 150.0 * k, 44.0 * k, int(20 * k), ACCENT, 2)
+		_txt("COMBO x%d" % g.combo, rx, 106.0 * k, int(20 * k), ACCENT, 2)
 
 
-func _draw_bottom(k: float) -> void:
-	# hype bar + active pickups, bottom left
-	var bx = 14.0 * k
-	var by = size.y - 30.0 * k
-	var bw = 190.0 * k
+func _draw_hud_bottom(k: float) -> void:
+	_draw_hud_vitals(k)
+	_draw_hud_ammo(k)
+	_draw_hud_centre(k)
+
+
+# health (one segment per heart, the last one pulses), the hype meter and the active pickups, bottom left
+func _draw_hud_vitals(k: float) -> void:
+	var x0 = HUD_MARGIN * k
+	var by = size.y - HUD_BOTTOM * k
+	var n = g.MAXHEARTS
+	var seg_w = 44.0 * k
+	var seg_h = 14.0 * k
+	var gap = 4.0 * k
+	var icon_w = 32.0 * k
+	var bars_w = n * (seg_w + gap) - gap
+
+	# hype meter under the health panel
 	var on = g.hype_t > 0.0
 	var label = "HYPE"
 	if on:
 		label = "HYPE MODE x2  %.1fs" % g.hype_t
-	_txt(label, bx, by - 8.0 * k, int(13 * k), ACCENT if on else GOLD)
-	draw_rect(Rect2(bx - 2.0, by - 2.0, bw + 4.0, 14.0 * k), Color(0.05, 0.05, 0.055, 0.8))
-	draw_rect(Rect2(bx, by, bw, 10.0 * k), Color(0.23, 0.16, 0.07))
-	var fcol = Color(1.0, 0.42, 0.17)
+	_txt(label, x0 + icon_w, by - 12.0 * k, int(11 * k), ACCENT if on else GRAY)
+	var fcol = ACCENT
 	if on and int(g.time * 10.0) % 2 == 1:
 		fcol = Color(1.0, 0.82, 0.25)
 	var frac = (g.hype_t / 8.0) if on else (g.hype / 100.0)
-	draw_rect(Rect2(bx, by, bw * clampf(frac, 0.0, 1.0), 10.0 * k), fcol)
-	var y2 = by - 34.0 * k
+	draw_rect(Rect2(x0 + icon_w, by - 6.0 * k, bars_w, 6.0 * k), HUD_EMPTY)
+	draw_rect(Rect2(x0 + icon_w, by - 6.0 * k, bars_w * clampf(frac, 0.0, 1.0), 6.0 * k), fcol)
+
+	# health
+	var panel = Rect2(x0 - 8.0 * k, by - 56.0 * k, icon_w + bars_w + 16.0 * k, 30.0 * k)
+	_hud_panel(panel)
+	var y = panel.position.y + 8.0 * k
+	var hcol = HUD_HEALTH
+	if g.hearts == 1:  # the last heart: the whole meter pulses
+		hcol.a = 0.7 + 0.3 * sin(g.time * 8.0)
+	_heart(x0 + 11.0 * k, y + seg_h * 0.5, 22.0 * k, hcol)
+	for i in range(n):
+		var col = hcol if i < g.hearts else HUD_EMPTY
+		draw_rect(Rect2(x0 + icon_w + i * (seg_w + gap), y, seg_w, seg_h), col)
+
+	# active pickups above the health panel, each with a coloured tick
+	var y2 = panel.position.y - 10.0 * k
 	var items = [
 		["RAPID FIRE", g.buffs["rapid"], Color(1.0, 0.48, 0.1), true],
 		["FAT DARTS", g.buffs["big"], Color(0.35, 0.7, 0.42), true],
@@ -2656,83 +2663,205 @@ func _draw_bottom(k: float) -> void:
 			var t = it[0]
 			if it[3]:
 				t += " %ds" % int(ceil(it[1]))
-			_txt(t, bx, y2, int(13 * k), it[2])
-			y2 -= 18.0 * k
-	# weapon + sound status, bottom right
-	var wcol = PINK if g.melee else TEXT
-	_txt(
-		(
-			(WeaponSlots.melee_label(g.melee_weapon) if g.melee else WeaponSlots.label(g.primary))
-			+ ("  [Q] SWITCH" if g.has_melee() else "")
-		),
-		size.x - 12.0 * k,
-		size.y - 14.0 * k,
-		int(13 * k),
-		wcol,
-		2
-	)
+			draw_rect(Rect2(x0, y2 - 11.0 * k, 3.0 * k, 13.0 * k), it[2])
+			_txt(t, x0 + 9.0 * k, y2, int(13 * k), it[2])
+			y2 -= 20.0 * k
+
+
+# the weapon slot display (README Milestone C): one row per slot, the gun (key 1), the melee weapon (key 2) and the
+# gadget (key G), stacked above the ammo number with the gun nearest to it. The weapon in the hands has a lit row in its
+# colour (gold for the gun, pink for the melee weapon); an empty slot says EMPTY. The gadget row also shows the uses
+# left and the cooldown (`Gadgets.hud_status`).
+const SLOT_ROW_H = 20.0
+const SLOT_ROW_GAP = 3.0
+const SLOT_ROW_W = 230.0
+
+
+# what the rows say, bottom row first: {key, name ("" for an empty slot), status, held, col, ready}
+func slot_rows() -> Array:
+	var melee_name = ""
+	if g.has_melee():
+		melee_name = WeaponSlots.melee_label(g.melee_weapon)
+	return [
+		{
+			"key": "1",
+			"name": WeaponSlots.label(g.primary),
+			"status": "",
+			"held": not g.melee,
+			"col": GOLD,
+			"ready": true
+		},
+		{
+			"key": "2",
+			"name": melee_name,
+			"status": "",
+			"held": g.melee,
+			"col": PINK,
+			"ready": melee_name != ""
+		},
+		{
+			"key": "G",
+			"name": WeaponSlots.gadget_label(g.gadget),
+			"status": g.gadget_sys.hud_status(),
+			"held": false,
+			"col": OBJ_GREEN,
+			"ready": g.gadget_sys.ready()
+		}
+	]
+
+
+# the rectangle of row i (0 = the gun) when the bottom edge of the bottom row is at `bottom`
+func slot_row_rect(i: int, rx: float, bottom: float, k: float) -> Rect2:
+	var h = SLOT_ROW_H * k
+	return Rect2(rx - SLOT_ROW_W * k, bottom - h - i * (h + SLOT_ROW_GAP * k), SLOT_ROW_W * k, h)
+
+
+func _draw_hud_slots(k: float, rx: float, bottom: float) -> void:
+	var rows = slot_rows()
+	for i in range(rows.size()):
+		var row = rows[i]
+		var r = slot_row_rect(i, rx, bottom, k)
+		var base = r.position.y + 15.0 * k
+		var empty = row["name"] == ""
+		_hud_panel(r)
+		if row["held"]:
+			draw_rect(r, Color(row["col"], 0.22))
+			draw_rect(r, row["col"], false, 2.0 * k)
+		var chip_fs = int(11 * k)
+		var chip_w = _text_w(row["key"], chip_fs) + 10.0 * k
+		_key_chip(row["key"], r.position.x + 5.0 * k + chip_w, base, chip_fs, k)
+		var tx = r.position.x + 5.0 * k + chip_w + 8.0 * k
+		var col = GRAY
+		if row["held"]:
+			col = row["col"]
+		elif row["ready"]:
+			col = TEXT
+		var status = str(row["status"])
+		var status_w = 0.0
+		if status != "":
+			status_w = _text_w(status, chip_fs) + 8.0 * k
+			_txt(status, r.end.x - 8.0 * k, base, chip_fs, GRAY, 2)
+		# a long name gets a smaller font so it never runs into the status
+		var fs = int(13 * k)
+		var label = "EMPTY" if empty else str(row["name"])
+		var avail = r.end.x - 8.0 * k - status_w - tx
+		while fs > 8 and _text_w(label, fs) > avail:
+			fs -= 1
+		_txt(label, tx, base, fs, col)
+
+
+# the ammo counter, bottom right: the slot display, a big number with the clip size, and the row of dart pips (the next
+# dart blinks while the gun loads)
+func _draw_hud_ammo(k: float) -> void:
+	var rx = size.x - HUD_MARGIN * k
+	var by = size.y - HUD_BOTTOM * k
+	var nb = by - 24.0 * k  # the baseline of the big number
+	var reloading = g.combat_sys.is_reloading()
+	var unlimited = g.buffs["rapid"] > 0.0
+	var empty = g.shells <= 0 and not unlimited and g.free_shots <= 0
+
+	# the dart pips, right aligned (dim while the melee weapon is in the hands)
+	var pulse = g.combat_sys.reload_pulse()
+	var pip_a = 0.4 if g.melee else 1.0
+	for i in range(g.MAXSHELLS):
+		var sx = rx - 7.0 * k - (g.MAXSHELLS - 1 - i) * 10.0 * k
+		var lit = i < g.shells or unlimited
+		var body_col = Color(1.0, 0.48, 0.1) if lit else Color(1.0, 1.0, 1.0, 0.16)
+		var cap_col = Color(0.11, 0.39, 0.78) if lit else Color(1.0, 1.0, 1.0, 0.1)
+		if reloading and i == g.shells:
+			body_col = Color(1.0, 1.0, 1.0, 0.16).lerp(Color(1.0, 0.48, 0.1), pulse)
+			cap_col = Color(1.0, 1.0, 1.0, 0.1).lerp(Color(0.11, 0.39, 0.78), pulse)
+		body_col.a *= pip_a
+		cap_col.a *= pip_a
+		draw_rect(Rect2(sx, by - 11.0 * k, 7.0 * k, 11.0 * k), body_col)
+		draw_rect(Rect2(sx, by - 15.0 * k, 7.0 * k, 5.0 * k), cap_col)
+
+	if g.melee:
+		# the melee weapon in the hands: its name big (the slot display above it has it lit)
+		_txt(WeaponSlots.melee_label(g.melee_weapon), rx, nb, int(30 * k), PINK, 2)
+	else:
+		var num = "INF" if unlimited else str(g.shells)
+		var ncol = TEXT
+		if reloading:
+			ncol = RELOAD_CYAN
+		elif empty:
+			ncol = RED
+		elif g.shells * 3 <= g.MAXSHELLS:
+			ncol = ACCENT
+		var nfs = int(52 * k)
+		var sub_w = 0.0
+		if not unlimited:
+			var sub = "/ %d" % g.MAXSHELLS
+			_txt(sub, rx, nb, int(20 * k), GRAY, 2)
+			sub_w = _text_w(sub, int(20 * k)) + 8.0 * k
+		_txt(num, rx - sub_w, nb, nfs, ncol, 2)
+		if reloading:
+			_txt(
+				"RELOAD", rx - sub_w - _text_w(num, nfs) - 14.0 * k, nb, int(14 * k), RELOAD_CYAN, 2
+			)
+
+	# the three weapon slots above the number
+	_draw_hud_slots(k, rx, nb - 40.0 * k)
+
+	# the small status line in the corner
 	var snd = (
 		"[M] MAP   SOUND %s   VOICES %s"
 		% ["OFF" if g.sfx.muted else "ON", "OFF" if not g.sfx.voices_on else "ON"]
 	)
-	_txt(snd, size.x - 12.0 * k, size.y - 34.0 * k, int(11 * k), GRAY, 2)
-	# the gadget slot (empty slot: nothing is drawn): its name, the uses left and the key, or the cooldown
-	var gtxt = g.gadget_sys.hud_text()
-	if gtxt != "":
-		_txt(
-			gtxt,
-			size.x - 12.0 * k,
-			size.y - 54.0 * k,
-			int(13 * k),
-			TEXT if g.gadget_sys.ready() else GRAY,
-			2
-		)
+	_txt(snd, rx, size.y - 6.0 * k, int(11 * k), GRAY, 2)
 
-	# dash cooldown + style rank, bottom centre
+
+# dash cooldown and style rank, bottom centre (and the FREE DARTS line above them)
+func _draw_hud_centre(k: float) -> void:
 	var mx = size.x * 0.5
 	var dw = 130.0 * k
 	var ready = g.dash_cd <= 0.0
-	_txt(
-		"DASH [V]" if ready else "DASH",
-		mx,
-		size.y - 62.0 * k,
-		int(12 * k),
-		ACCENT if ready else GRAY,
-		1
-	)
-	draw_rect(
-		Rect2(mx - dw * 0.5 - 2.0, size.y - 56.0 * k, dw + 4.0, 10.0 * k),
-		Color(0.05, 0.05, 0.055, 0.8)
-	)
+	var fs = int(12 * k)
+	var base = size.y - 62.0 * k
+	if ready:
+		var lw = _text_w("DASH", fs)
+		var chip_w = _text_w("V", fs) + 10.0 * k
+		var total = lw + 6.0 * k + chip_w
+		_txt("DASH", mx - total * 0.5, base, fs, ACCENT)
+		_key_chip("V", mx + total * 0.5, base, fs, k)
+	else:
+		_txt("DASH", mx, base, fs, GRAY, 1)
 	var df = 1.0 if ready else clampf(1.0 - g.dash_cd / 0.9, 0.0, 1.0)
+	draw_rect(Rect2(mx - dw * 0.5, size.y - 54.0 * k, dw, 6.0 * k), HUD_EMPTY)
 	draw_rect(
 		Rect2(mx - dw * 0.5, size.y - 54.0 * k, dw * df, 6.0 * k),
-		Color(1.0, 0.82, 0.25) if ready else Color(0.5, 0.42, 0.2)
+		Color(1.0, 0.82, 0.25) if ready else Color(0.78, 0.66, 0.32)
 	)
+
+	# style: the letter in a badge, the bar to the next rank and the score multiplier
 	var rank = g.shop_sys.style_rank()
 	var rcols = [GRAY, TEXT, Color(0.35, 0.7, 0.42), GOLD, ACCENT]
-	_txt("STYLE", mx - 40.0 * k, size.y - 18.0 * k, int(12 * k), GRAY, 2)
-	_txt(g.shop_sys.style_letter(), mx - 28.0 * k, size.y - 12.0 * k, int(34 * k), rcols[rank])
-	draw_rect(
-		Rect2(mx + 6.0 * k, size.y - 24.0 * k, dw * 0.6, 8.0 * k), Color(0.05, 0.05, 0.055, 0.8)
+	var badge = Rect2(mx - 65.0 * k, size.y - 44.0 * k, 30.0 * k, 30.0 * k)
+	_hud_panel(badge)
+	draw_rect(Rect2(badge.position.x, badge.end.y - 3.0 * k, badge.size.x, 3.0 * k), rcols[rank])
+	_txt(
+		g.shop_sys.style_letter(),
+		badge.position.x + badge.size.x * 0.5,
+		badge.position.y + 24.0 * k,
+		int(24 * k),
+		rcols[rank],
+		1
 	)
-	draw_rect(
-		Rect2(
-			mx + 7.0 * k,
-			size.y - 23.0 * k,
-			(dw * 0.6 - 2.0) * clampf(fmod(g.style, 20.0) / 20.0 if rank < 4 else 1.0, 0.0, 1.0),
-			6.0 * k
-		),
-		rcols[rank]
-	)
+	var bx = badge.end.x + 8.0 * k
+	var bw = 92.0 * k
+	_txt("STYLE", bx, size.y - 30.0 * k, int(11 * k), GRAY)
 	if rank > 0:
 		_txt(
-			"x%.2f SCORE" % g.shop_sys.style_mul(),
-			mx + 6.0 * k,
+			"x%.2f" % g.shop_sys.style_mul(),
+			bx + bw,
 			size.y - 30.0 * k,
 			int(11 * k),
-			rcols[rank]
+			rcols[rank],
+			2
 		)
+	var sf = 1.0 if rank >= 4 else clampf(fmod(g.style, 20.0) / 20.0, 0.0, 1.0)
+	draw_rect(Rect2(bx, size.y - 24.0 * k, bw, 5.0 * k), HUD_EMPTY)
+	draw_rect(Rect2(bx, size.y - 24.0 * k, bw * sf, 5.0 * k), rcols[rank])
 	if g.free_shots > 0:
 		_txt("FREE DARTS %d" % g.free_shots, mx, size.y - 84.0 * k, int(13 * k), GOLD, 1)
 
@@ -2970,7 +3099,7 @@ func frame_color(ms: float) -> Color:
 func _draw_fps(k: float) -> void:
 	if _fps_shown <= 0:
 		return
-	var base = 72.0 * k  # the baseline of the texts and the foot of the strip
+	var base = 26.0 * k  # the baseline of the texts and the foot of the strip, above the radar
 	_txt("%d FPS" % _fps_shown, 14.0 * k, base, int(12 * k), fps_color(_fps_shown))
 	_txt("%.1f MS" % _ms_shown, 64.0 * k, base, int(10 * k), GRAY)
 	var h = 12.0 * k
@@ -2997,8 +3126,8 @@ func _draw_fps(k: float) -> void:
 
 
 func _draw_radar(k: float) -> void:
-	var R = 46.0 * k
-	var c = Vector2(66.0 * k, 68.0 * k + R + 6.0 * k)
+	var R = 52.0 * k
+	var c = Vector2(HUD_MARGIN * k + R, 34.0 * k + R)  # top left corner, under the FPS counter
 	draw_circle(c, R, Color(0.03, 0.05, 0.08, 0.45))
 	draw_arc(c, R, 0.0, TAU, 40, Color(1, 1, 1, 0.35), 1.5 * k)
 	draw_arc(c, R * 0.5, 0.0, TAU, 28, Color(1, 1, 1, 0.12), 1.0 * k)
@@ -3124,10 +3253,45 @@ func _draw_objective(k: float) -> void:
 			_world_marker(cache["pos"] + Vector3(0, 2.4, 0), OBJ_GOLD, "", k, false)
 
 
+# The hit marker: four diagonal ticks round the crosshair that pop out big and settle while they fade. What it shows
+# is `g.hit_kind` (main.gd `show_hit_marker`): a plain hit is white, a boss weak spot gold, a kill orange and a pedestrian
+# hit red; the kill and the pedestrian hit are drawn bigger and thicker, so the kinds differ in more than colour.
+const HIT_MARKER_COL = {
+	"hit": Color(1.0, 1.0, 1.0),
+	"weak": Color(0.95, 0.71, 0.19),
+	"kill": Color(1.0, 0.42, 0.17),
+	"bad": Color(0.9, 0.33, 0.24)
+}
+const HIT_MARKER_SCALE = {"hit": 1.0, "weak": 1.15, "kill": 1.4, "bad": 1.6}
+
+
+func _draw_hit_marker(k: float) -> void:
+	if g.hit_marker <= 0.0:
+		return
+	var kind = g.hit_kind if HIT_MARKER_COL.has(g.hit_kind) else "hit"
+	var left = clampf(g.hit_marker / g.HIT_MARKER_TIME[kind], 0.0, 1.0)  # 1 just after the hit, 0 when it is gone
+	var col: Color = HIT_MARKER_COL[kind]
+	col.a = clampf(left * 2.0, 0.0, 1.0)  # full for the first half, then it fades
+	var s = HIT_MARKER_SCALE[kind] * lerpf(1.0, 1.35, left)
+	var inner = 6.0 * k * s
+	var outer = 14.0 * k * s
+	var width = (4.0 if kind == "kill" or kind == "bad" else 3.0) * k
+	var c = size * 0.5
+	var shadow = Color(0, 0, 0, 0.55 * col.a)
+	for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+		var dir = d.normalized()
+		draw_line(c + dir * inner, c + dir * outer, shadow, width + 2.0 * k)
+		draw_line(c + dir * inner, c + dir * outer, col, width)
+
+
 func _draw_crosshair(k: float) -> void:
 	var c = size * 0.5
 	if g.melee:
-		draw_circle(c, 3.0 * k, Color(1.0, 0.48, 0.72, 0.9))
+		# the melee weapon: a thin ring with a dot, in the colour of the melee weapon on the HUD
+		draw_arc(c, 10.0 * k, 0.0, TAU, 32, Color(0, 0, 0, 0.6), 4.0 * k)
+		draw_arc(c, 10.0 * k, 0.0, TAU, 32, Color(PINK, 0.9), 2.0 * k)
+		draw_circle(c, 2.2 * k, Color(0, 0, 0, 0.6))
+		draw_circle(c, 1.4 * k, Color(PINK, 0.9))
 		return
 	var half_fov = deg_to_rad(g.cam.fov * 0.5)
 	var gap = tan(deg_to_rad(g.spread_deg)) / tan(half_fov) * size.y * 0.5

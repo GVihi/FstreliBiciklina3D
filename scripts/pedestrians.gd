@@ -265,7 +265,7 @@ func hit_civ(c: Dictionary) -> void:
 	c["t"] = 0.0
 	c["hop"] = 0.0
 	if g.practice:  # the training room: the pedestrian is startled and nothing else happens
-		g.hit_marker = 0.18
+		g.show_hit_marker("hit")
 		g.add_popup(c["pos"] + Vector3(0.0, 2.2, 0.0), "ALO!", g.WHITE, true)
 		g.sfx.play3d("thud", c["pos"] + Vector3(0.0, 1.2, 0.0))
 		return
@@ -274,7 +274,7 @@ func hit_civ(c: Dictionary) -> void:
 	g.challenges.on_life_lost()
 	g.combo = 0
 	g.civs_hit += 1
-	g.hit_marker = 0.18
+	g.show_hit_marker("bad")
 	g.score = maxi(0, g.score - 1500)
 	var cp = c["pos"] + Vector3(0.0, 1.2, 0.0)
 	g.add_popup(c["pos"] + Vector3(0.0, 2.2, 0.0), "ALO!", g.WHITE, true)

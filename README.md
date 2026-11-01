@@ -220,8 +220,8 @@ Mostly vibe coded Godot game
 
 > Decided with the owner. New weapons are **bought first** with meta coins on the Unlocks page (the four weapons are already in `data/unlocks.json` as `planned`; the dart gun is bought too since alpha C2, `weapon_dart_gun`; **the gummy worm is bought too since 2026-10-31 (`weapon_gummy_worm`, 30 coins), so a new player starts with the dart pistol only: see "Melee weapon is locked at the start" below**). Before a run the player **chooses one weapon per slot** (primary, melee, gadget) on the Loadout screen, and the run starts with those three equipped through `equip_primary`, `equip_melee` and `equip_gadget`. Weapons are not found or bought inside a run, so they leave the shop pool (the "joins the shop pool" note in `data/README.md` changes when the first weapon is built). **A Daily Run still allows choosing a loadout** of weapons (everyone shares the seed, not the weapons). Q / wheel / 1 / 2 keep switching between the primary and the melee weapon; a gadget is used on the spot with its own key and is not switched to. Assumed slots for the new weapons: Suction-Dart Crossbow, Confetti Cannon and Phone Launcher are primary weapons, the Stink Bomb is a gadget (say if the Phone Launcher should be something else). Decided: a custom-seed run uses the chosen weapons too, and the starting perk of the Loadout page now applies in a Daily Run and a custom-seed run as well (it did not before).
 
-- [ ] HUD slot display: show the primary, melee and gadget slots with the weapon in each and the one in the player's hands highlighted (replaces the `DARTS / [Q] SWITCH` text in the bottom right)
-- [x] Gadget use key (keyboard and gamepad button): G and D-pad up; uses and cooldown shown as a line in the HUD corner (the full HUD slot display above is still open) (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner)
+- [x] HUD slot display: show the primary, melee and gadget slots with the weapon in each and the one in the player's hands highlighted (three rows above the ammo counter in the bottom right, keys 1, 2 and G, the gadget row also shows the uses left and the cooldown; replaces the weapon name line and the gadget line) (note in `docs/ROADMAP_HISTORY.md`; check: `python tools/run_checks.py hud_slots`; waits for an in-game check by the owner)
+- [x] Gadget use key (keyboard and gamepad button): G and D-pad up; uses and cooldown shown as a line in the HUD corner (the full HUD slot display above came later) (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner)
 - [x] Melee weapon is locked at the start, and unlocks very fast
 
 ## New Weapons
@@ -486,8 +486,8 @@ Mostly vibe coded Godot game
 ### F11. UI and menus
 
 - [ ] UI theme: condensed bold font, dark translucent panels with amber accents, icons, key-hint chips (see section 4 of the art direction)
-- [ ] HUD top bar (hearts, score, round, round progress)
-- [ ] HUD bottom (ammo, dash, style rank), crosshair and hit marker
+- [x] Modern FPS HUD (owner request 2026-11-01): the arcade full-width top bar and the retro bottom texts are replaced by a corner layout like a current shooter: radar top left, round and progress segments top centre, score, high score, cash and combo top right, health segments and the hype meter bottom left, a big ammo counter with the weapon name and a [Q] key chip bottom right, dash and style rank bottom centre; dark translucent panels, no strips (note in `docs/ROADMAP_HISTORY.md`; check: `python tools/run_checks.py hud_modern`; waits for an in-game check by the owner)
+- [x] Crosshair and hit marker in the same modern style: the hit marker pops out and settles in four kinds (plain hit white, boss weak spot gold, kill orange, pedestrian hit red; the bigger news is drawn bigger and thicker) and now shows on every rider and boss hit, not only on a pedestrian hit as before; the melee crosshair is a thin ring with a dot (note in `docs/ROADMAP_HISTORY.md`; check: `python tools/run_checks.py hit_marker`; waits for an in-game check by the owner)
 - [ ] Threat arrows, radar and floating popups
 - [ ] Upgrade and shop cards (header, icon, reroll button, key hints; rarity tags are optional and can come later)
 - [ ] Title screen with a live 3D background and a text-only logo

@@ -207,7 +207,8 @@ var pending_boss = false
 var throw_cool = 0.0
 var flash = 0.0
 var red_flash = 0.0
-var hit_marker = 0.0
+var hit_marker = 0.0  # seconds left of the hit marker in the middle of the screen
+var hit_kind = "hit"  # what it shows: "hit", "weak" (a boss weak spot), "kill" or "bad" (a pedestrian); see hud.gd
 var shake = 0.0
 var time = 0.0
 var state_t = 0.0
@@ -2001,6 +2002,16 @@ func damage_player(label: String, reason: String) -> void:
 
 func add_popup(pos: Vector3, txt: String, col: Color, sm: bool = false) -> void:
 	popups.append({"pos": pos, "txt": txt, "col": col, "sm": sm, "t": 0.0})
+
+
+# how long the hit marker stays up for each kind of hit (a kill and a pedestrian hit stay a little longer)
+const HIT_MARKER_TIME = {"hit": 0.18, "weak": 0.22, "kill": 0.3, "bad": 0.35}
+
+
+# starts the hit marker in the middle of the screen; an unknown kind is a plain hit
+func show_hit_marker(kind: String) -> void:
+	hit_kind = kind if HIT_MARKER_TIME.has(kind) else "hit"
+	hit_marker = HIT_MARKER_TIME[hit_kind]
 
 
 func add_note(txt: String, col: Color) -> void:

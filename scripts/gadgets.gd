@@ -88,6 +88,21 @@ func hud_text() -> String:
 	return t + "  [G]"
 
 
+# What the HUD slot display shows next to the gadget's name: the uses left, then EMPTY or the cooldown ("" for an empty
+# slot, and for a gadget with no use limit that is ready).
+func hud_status() -> String:
+	if not has_gadget():
+		return ""
+	var t = ""
+	if limit() > 0:
+		t = "%d/%d" % [uses_left, limit()]
+	if limit() > 0 and uses_left <= 0:
+		return t + "  EMPTY"
+	if cool > 0.0:
+		return (t + "  %.1fs" % cool).strip_edges()
+	return t
+
+
 func update(dt: float) -> void:
 	if cool > 0.0:
 		cool = maxf(0.0, cool - dt)
