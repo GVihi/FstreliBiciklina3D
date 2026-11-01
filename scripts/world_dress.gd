@@ -29,6 +29,8 @@ extends RefCounted
 #   darts and phones are stopped by the pole, the arm and the head alike (lamp_boxes, the boxes the world draws).
 #   The arm and the head hang over the road above head height, so they stop nobody on foot.
 # Meshes are merged per material, so the whole dressing is a handful of draw calls.
+# build(layout, skip_lots): the indices (into lots_of) of lots that get no box and no windows because world_models.gd
+# stands a model on them. "buildings" in the result still lists every lot.
 
 const Util = preload("res://scripts/util.gd")
 const WorldGen = preload("res://scripts/world_gen.gd")
@@ -93,7 +95,7 @@ const SIDES = [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]
 # "dark": bool}], "props": props_of(layout), "win_mat": the windows' material and "lamp_mat": the lamp heads'
 # (the theme sets their emission_energy_multiplier), "lamps": [OmniLight3D] (hidden, one per lamp, children of
 # root), "tris", "draw_calls"} or {} for an empty layout.
-static func build(layout: Dictionary) -> Dictionary:
+static func build(layout: Dictionary, skip_lots: Array = []) -> Dictionary:
 	if layout.is_empty():
 		return {}
 	var n = int(layout["cells"])
@@ -111,7 +113,10 @@ static func build(layout: Dictionary) -> Dictionary:
 	var dark = _Mesh.new()
 	var glass = _Mesh.new()
 	var windows_on = windows_wanted(layout)
-	for lot in lots:
+	for lot_index in range(lots.size()):
+		if skip_lots.has(lot_index):  # drawn as a model instead (world_models.gd)
+			continue
+		var lot = lots[lot_index]
 		var c = lot["cells"]
 		var rect = _rect(n, cell, c)
 		(dark if lot["dark"] else brick).box(rect, 0.0, float(lot["h"]), false)

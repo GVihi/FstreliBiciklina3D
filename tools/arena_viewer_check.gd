@@ -22,6 +22,7 @@ const DailyScript = preload("res://scripts/daily.gd")
 const Viewer = preload("res://tools/viewer/arena_viewer.gd")
 const WorldGen = preload("res://scripts/world_gen.gd")
 const WorldDress = preload("res://scripts/world_dress.gd")
+const WorldModels = preload("res://scripts/world_models.gd")
 const Lighting = preload("res://scripts/lighting.gd")
 const Content = preload("res://scripts/content.gd")
 
@@ -495,7 +496,13 @@ func _check_ground_shown(scene: Node, how: String) -> void:
 		)
 	# the buildings and tunnels stand on it: the ones WorldDress builds for this layout, with their counts
 	var dressing = scene.root.get_node_or_null("ArenaDressing")
-	var dressed = WorldDress.build(scene.layout)
+	var planned = WorldModels.plan(scene.layout)
+	var dressed = WorldDress.build(scene.layout, WorldModels.skipped_lots(planned))
+	var model_holder = Node3D.new()
+	var models = WorldModels.build(model_holder, planned)  # the modelled buildings, benches and crates
+	model_holder.free()
+	var want_tris = int(dressed["tris"]) + int(models["tris"])
+	var want_calls = int(dressed["draw_calls"]) + int(models["draw_calls"])
 	if dressing == null:
 		problems.append("%s: no buildings and tunnels under the viewer's root" % how)
 	else:
@@ -512,27 +519,21 @@ func _check_ground_shown(scene: Node, how: String) -> void:
 					"%s: %s is not the one WorldDress builds for this layout" % [how, part_name]
 				)
 	if (
-		int(scene.dress_stats.get("tris", -1)) != int(dressed["tris"])
-		or int(scene.dress_stats.get("draw_calls", -1)) != int(dressed["draw_calls"])
+		int(scene.dress_stats.get("tris", -1)) != want_tris
+		or int(scene.dress_stats.get("draw_calls", -1)) != want_calls
 	):
 		(
 			problems
 			. append(
 				(
-					"%s: the viewer keeps %s for the dressing, WorldDress says %d triangles and %d draw calls"
-					% [
-						how,
-						str(scene.dress_stats),
-						int(dressed["tris"]),
-						int(dressed["draw_calls"])
-					]
+					"%s: the viewer keeps %s for the dressing, WorldDress and WorldModels say %d triangles and %d draw calls"
+					% [how, str(scene.dress_stats), want_tris, want_calls]
 				)
 			)
 		)
 	var counts = "%d triangles, %d draw calls" % [int(want["tris"]), int(want["draw_calls"])]
 	var dress_counts = (
-		"buildings, lamps and trees: %d triangles, %d draw calls"
-		% [int(dressed["tris"]), int(dressed["draw_calls"])]
+		"buildings, lamps and trees: %d triangles, %d draw calls" % [want_tris, want_calls]
 	)
 	dressed["root"].free()
 	if (

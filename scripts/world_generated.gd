@@ -7,14 +7,16 @@ extends RefCounted
 #   "env", "sky_mat", "sun"    the environment, its sky and the sun (Lighting.make_environment, Lighting.setup_sun)
 #   "win_mat", "lamp_mat"      the materials of the windows and the lamp heads (the theme sets their glow)
 #   "lamps"                    the hidden lamp lights, one per lamp (the theme turns some on)
-#   "tris", "draw_calls"       what the whole world costs: triangles and mesh instances
+#   "tris", "draw_calls"       what the ground and the boxes of the world cost: triangles and mesh instances
+#   "model_tris", "model_draw_calls"   what the models of world_models.gd cost (MultiMeshes), counted apart
 #
 # Everything is made from the arena's layout alone (WorldGen for the ground, WorldDress for buildings, tunnels,
-# lamps and trees), so one arena gives one world. The world starts dark: call Lighting.apply_theme with a theme
+# lamps and trees, WorldModels for the modelled buildings, benches and crates), so one arena gives one world. The world starts dark: call Lighting.apply_theme with a theme
 # (and the start as the focus) to light it. Not used by the game yet; main.gd switches to it in the next step.
 
 const WorldGen = preload("res://scripts/world_gen.gd")
 const WorldDress = preload("res://scripts/world_dress.gd")
+const WorldModels = preload("res://scripts/world_models.gd")
 const Lighting = preload("res://scripts/lighting.gd")
 
 
@@ -42,7 +44,8 @@ static func build(root: Node3D, arena) -> Dictionary:
 	root.add_child(ground["root"])
 
 	# ---------- buildings, tunnels, lamps and trees ----------
-	var dressed = WorldDress.build(layout)
+	var planned = WorldModels.plan(layout)  # lots that become modelled buildings, benches and crates
+	var dressed = WorldDress.build(layout, WorldModels.skipped_lots(planned))
 	root.add_child(dressed["root"])
 	out["win_mat"] = dressed["win_mat"]
 	out["lamp_mat"] = dressed["lamp_mat"]
@@ -50,4 +53,10 @@ static func build(root: Node3D, arena) -> Dictionary:
 
 	out["tris"] = int(ground["tris"]) + int(dressed["tris"])
 	out["draw_calls"] = int(ground["draw_calls"]) + int(dressed["draw_calls"])
+
+	# ---------- the modelled buildings, benches and crates (what they cost is counted apart) ----------
+	var models = WorldModels.build(root, planned)
+	out["models"] = models
+	out["model_tris"] = int(models["tris"])
+	out["model_draw_calls"] = int(models["draw_calls"])
 	return out
