@@ -109,6 +109,15 @@ const COYOTE_TIME = 0.1  # a jump is still allowed this long after leaving the g
 const AIR_CONTROL = 3.0  # per second: how fast the air velocity turns towards the stick (the ground uses 10)
 const AIR_SPEED_MAX = 9.0  # the most speed take-off hands on to the air (the slide's top speed)
 const AIR_DASH_GRAVITY = 0.25  # gravity is this strong while a dash runs in the air, so the dash stays flat
+# Wall-jumps (Milestone L). Jump off a wall in the air to be pushed away from it and up. First guesses, to be tuned in the
+# playtest item. The arena says where the walls are (Arena.wall_near); buildings and tunnel blocks count, low props do not.
+const WALL_REACH = 0.85  # metres from the player's centre to the wall face that count as touching it (the body stops 0.45 m from a wall)
+const WALL_SHOW = 2.4  # metres: a wall this close glows (wall_marks.gd), so the player sees where one could be used
+const WALL_WINDOW = 0.12  # a press this long after touching a wall still wall-jumps
+const WALL_JUMP_SPEED = 6.4  # take-off speed of a wall-jump: a little more than a hop from the ground, so a run of them climbs
+const WALL_PUSH = 7.0  # m/s away from the wall (the speed along the wall is kept)
+const WALL_JUMP_MAX = 3  # wall-jumps in one airtime; touching the ground gives them back
+const WALL_COOLDOWN = 0.2  # seconds after a wall-jump before the next one, and the wall must be touched again
 const SLIDE_HOP_SPEED = 0.9  # landing with crouch held at this share of the run speed or more starts a slide
 const CHAIN_WINDOW = 0.2  # a jump this soon after landing is a chained hop
 const CHAIN_BONUS = 0.4  # m/s a chained hop adds to a sprint-speed take-off
@@ -196,6 +205,8 @@ func update_player(dt: float, captured: bool) -> void:
 		g.coyote_t -= dt
 	if active and g.jump_buf > 0.0 and g.coyote_t > 0.0:
 		take_off()
+	elif active and g.jump_buf > 0.0 and can_wall_jump():
+		wall_jump()
 
 	# slide: press crouch while sprinting (on the ground)
 	var crouch_edge = want_crouch and not g.crouch_prev
@@ -273,6 +284,7 @@ func update_player(dt: float, captured: bool) -> void:
 	if landed:
 		land(active and want_crouch, impact)
 	update_land_dip(dt)
+	update_wall(dt, active)
 	var in_air = is_airborne()
 
 	var spd = g.pvel.length()
@@ -346,8 +358,9 @@ func request_jump() -> void:
 		return
 	# A or D held (and not forwards or backwards) with Space is a side dash, if the dash bar is full; with the bar empty
 	# the press is an ordinary jump, so strafe jumping still works
+	# (against a wall in the air the press is a wall-jump instead, while there are wall-jumps left)
 	var side = strafe_side()
-	if side != 0.0 and try_side_dash(side):
+	if side != 0.0 and not can_wall_jump() and try_side_dash(side):
 		g.jump_buf = 0.0
 		return
 	g.jump_buf = JUMP_BUFFER
@@ -374,8 +387,67 @@ func take_off() -> void:
 	g.sfx.play("step", -12.0)
 
 
+# true while the player is in the air, touched a wall a moment ago and may still push off it
+func can_wall_jump() -> bool:
+	return is_airborne() and g.wall_t > 0.0 and g.wall_cd <= 0.0 and g.wall_jumps < WALL_JUMP_MAX
+
+
+# Every frame: ask the arena for a wall near the player (only in the air), remember touching one for WALL_WINDOW seconds,
+# and hand what was found to the marks on the wall (wall_marks.gd).
+func update_wall(dt: float, active: bool) -> void:
+	if g.wall_cd > 0.0:
+		g.wall_cd -= dt
+	if g.wall_t > 0.0:
+		g.wall_t -= dt
+	var wall = {}
+	if active and is_airborne():
+		wall = g.arena.wall_near(g.player.position, WALL_SHOW)
+	g.wall_info = wall
+	var near = 0.0
+	if not wall.is_empty():
+		var dist = float(wall["dist"])
+		near = 1.0 - clampf((dist - WALL_REACH) / (WALL_SHOW - WALL_REACH), 0.0, 1.0)
+		# touching it; not right after a wall-jump, the wall has to be left first
+		if dist <= WALL_REACH and g.wall_cd <= 0.0:
+			g.wall_t = WALL_WINDOW
+			g.wall_n = wall["normal"]
+			g.wall_pt = wall["point"]
+	g.wall_marks.update(dt, wall, near, g.wall_jumps >= WALL_JUMP_MAX)
+
+
+# Push off the wall that was touched: away from it at WALL_PUSH, up at WALL_JUMP_SPEED, and the speed along the wall is kept.
+# It cancels a dash, a side dash or a slide that is running, so it chains out of any move and into the next.
+func wall_jump() -> void:
+	var n: Vector3 = g.wall_n
+	g.jump_buf = 0.0
+	g.wall_t = 0.0
+	g.wall_cd = WALL_COOLDOWN
+	g.wall_jumps += 1
+	g.dash_t = 0.0
+	g.side_t = 0.0
+	g.slide_t = 0.0
+	var along = g.pvel - n * g.pvel.dot(n)
+	g.pvel = (along + n * WALL_PUSH).limit_length(AIR_SPEED_MAX)
+	g.air_speed = clampf(g.pvel.length(), g.WALK, AIR_SPEED_MAX)
+	g.jump_v = WALL_JUMP_SPEED
+	land_dip_v -= 0.35 * g.fx_scale  # the legs take the wall, then the eye rises
+	kick_dip_v += TAKEOFF_GUN_LIFT
+	g.sfx.play("wall_jump", -10.0)
+	g.wall_marks.burst(g.wall_pt, n)
+	g.fx_sys.burst(
+		g.wall_pt + n * 0.1 + Vector3(0.0, 1.0, 0.0),
+		10,
+		["#7fe3ff", "#ffffff", "#ffe27a"],
+		2.5,
+		0.25,
+		0.5,
+		0.045
+	)
+
+
 # back on the ground. Landing with crouch held after a fast jump rolls straight into a slide (the slide's cooldown still applies).
 func land(crouch_held: bool, impact: float = 0.0) -> void:
+	g.wall_jumps = 0
 	g.since_land = 0.0
 	g.carry_speed = g.pvel.length()
 	land_dip_v -= impact * LAND_KICK * g.fx_scale
@@ -458,6 +530,11 @@ func reset_air() -> void:
 	g.carry_speed = 0.0
 	g.since_land = 99.0
 	g.chain = 0
+	g.wall_jumps = 0
+	g.wall_t = 0.0
+	g.wall_cd = 0.0
+	g.wall_info = {}
+	g.wall_marks.reset()
 	g.side_t = 0.0
 	g.player.position.y = 0.0
 	land_dip = 0.0

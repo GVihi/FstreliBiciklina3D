@@ -168,6 +168,16 @@ func obstacle_at(_p: Vector3) -> bool:
 	return false
 
 
+# The wall the player could jump off (README Milestone L, wall-jumps): the nearest solid wall within `reach` metres of the
+# world point p, as {"normal": Vector3 (horizontal, unit, pointing away from the wall onto the walkable ground),
+# "point": Vector3 (the spot on the wall face, at p's height), "dist": float (metres from p to the wall face)}, or an empty
+# Dictionary when there is none. Buildings and tunnel blocks are walls; low things (a fountain, a planter, props) are not.
+# This base class has no walls, so a wall-jump needs an arena that overrides it (the generated arena does, the roundabout
+# does not: its barrier keeps the player 1.5 m from the facades).
+func wall_near(_p: Vector3, _reach: float) -> Dictionary:
+	return {}
+
+
 # what the ground is at world point p: "grass", "plaza", "sidewalk", "road", "tunnel" or "building"
 func surface_at(_p: Vector3) -> String:
 	_missing("surface_at")

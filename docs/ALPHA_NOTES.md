@@ -23,7 +23,7 @@ The full list, for keyboard and mouse and for a gamepad, is on the **CONTROLS** 
 
 ## What is not in
 
-On purpose, so the alpha stays small: the graphics and sound overhaul, the other weapons and the longer pistol path, relics, curses, event nodes and the rain modifier (both switched off), rider variety and arena hazards, jumping, third person, Heat and per-difficulty leaderboards, key rebinding, localization and a tutorial. The full list is "Not in the early alpha" in `README.md`.
+On purpose, so the alpha stays small: the graphics and sound overhaul, the other weapons and the longer pistol path, relics, curses, event nodes and the rain modifier (both switched off), rider variety and arena hazards, jumping, Heat and per-difficulty leaderboards, key rebinding, localization and a tutorial. The full list is "Not in the early alpha" in `README.md`.
 
 ## Known issues
 

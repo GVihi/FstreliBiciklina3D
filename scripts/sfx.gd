@@ -26,6 +26,7 @@ const NAMES = [
 	"boss_down_minister",
 	"crash",
 	"step",
+	"wall_jump",
 	"throw",
 	"ring",
 	"v_yelp",

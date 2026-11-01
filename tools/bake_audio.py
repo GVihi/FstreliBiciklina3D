@@ -451,4 +451,14 @@ wifi = np.sign(np.sin(phase))
 wifi = filt(np.tile(wifi, 3), "lowpass", lambda x: 2200, 1.0)[n1:2 * n1]
 save("loop_wifi", wifi / np.max(np.abs(wifi)) * 0.8 * MASTER)
 
+# wall-jump (Milestone L): a boot slapping the wall, then a quick rising air chirp as the player is thrown off it.
+# Kept at the very end of the script on purpose: every recipe draws from the same random generator, so a new sound placed
+# earlier would change the noise of every sound after it.
+def sfx_wall_jump(M):
+    nz(M, 0, 0.05, "lowpass", 1600, 300, 0.7, 0.4, 0.1)
+    sine(M, 0, 150, 60, 0.09, 0.35, 0.1)
+    sine(M, 0.03, 260, 620, 0.16, 0.22, 0.1, "triangle")
+    nz(M, 0.04, 0.18, "bandpass", 1200, 3400, 1.3, 0.2, 0.1)
+one("wall_jump", sfx_wall_jump)
+
 print("baked %d files into %s" % (len(written), os.path.abspath(OUT)))
