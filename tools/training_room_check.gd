@@ -100,7 +100,12 @@ func _check_arena() -> void:
 			or absf(float(w["dist"]) - float(case[2])) > EPS
 			or absf(float(w["normal"].y)) > EPS
 		):
-			_fail("wall_near at %s found %s, expected normal %s at %.1f m" % [case[0], w, case[1], case[2]])
+			_fail(
+				(
+					"wall_near at %s found %s, expected normal %s at %.1f m"
+					% [case[0], w, case[1], case[2]]
+				)
+			)
 		elif absf(w["point"].x - case[0].x) + absf(w["point"].z - case[0].z) - float(case[2]) > EPS:
 			_fail("wall_near at %s gave the point %s, not on the wall face" % [case[0], w["point"]])
 	if not a.wall_near(Vector3(0.0, 1.0, 0.0), 2.4).is_empty():
