@@ -211,6 +211,10 @@ func shoot_dart(dmg: int, scatter: bool) -> Dictionary:
 	if tfac > 0.0 and tfac < t_world:
 		t_world = tfac
 		world_kind = "wall"
+	var ttree = g.arena.tree_hit(org, dir, t_world)  # a trunk is thinner than the steps above: cut the whole ray
+	if ttree > 0.0 and ttree < t_world:
+		t_world = ttree
+		world_kind = "wall"
 
 	# nearest target of every kind
 	var best_t = 1000.0

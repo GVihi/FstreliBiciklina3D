@@ -120,8 +120,8 @@ func _check_start_and_gates(arena, layout: Dictionary, tag: int) -> void:
 
 
 # obstacle_at, ray_blocked, hidden_at and rider_blocked agree with the layout cell by cell and at the gates. A trunk
-# stands in the middle of its grass cell: a body on foot and a rider are blocked there, a dart is not (only the walls
-# stop darts), and tools/tree_collision_check.gd looks at the trees themselves.
+# stands in the middle of its grass cell: a body on foot, a rider and a dart are blocked there (a dart over the trees
+# and the roofs is not), and tools/tree_collision_check.gd looks at the trees themselves.
 func _check_blocking(arena, layout: Dictionary, tag: int) -> void:
 	var n = int(layout["cells"])
 	var cell = float(layout["cell"])
@@ -145,7 +145,7 @@ func _check_blocking(arena, layout: Dictionary, tag: int) -> void:
 					"arena %d: obstacle_at is wrong in cell (%d, %d) which is %s" % [tag, cx, cz, c]
 				)
 				return
-			if arena.ray_blocked(p) != solid:
+			if arena.ray_blocked(p) != (solid or trunk):
 				bad.append(
 					"arena %d: ray_blocked is wrong in cell (%d, %d) which is %s" % [tag, cx, cz, c]
 				)

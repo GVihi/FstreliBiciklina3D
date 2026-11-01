@@ -24,7 +24,7 @@ extends RefCounted
 #               a hash of the cell: a trunk and two blocks of leaves, centred in the cell
 #   Props are decoration and the layout does not know about them. The trunks are solid all the same: the generated
 #   arena (arena_generated.gd) reads props_of() and keeps everyone on foot and every rider TRUNK_SOLID metres
-#   (plus its own margin) off a trunk; the leaves are above head height and do not stop anyone. The lamp poles
+#   (plus its own margin) off a trunk; the leaves are above head height and do not stop anyone on foot, but darts and thrown phones are stopped by trunk and leaves alike (Arena.tree_hit). The lamp poles
 #   have no collision yet.
 # Meshes are merged per material, so the whole dressing is a handful of draw calls.
 

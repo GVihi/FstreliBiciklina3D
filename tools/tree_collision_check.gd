@@ -1,5 +1,5 @@
 extends SceneTree
-# Checks that the trees of a generated arena are solid (the trunks are: the leaves are above head height). Before,
+# Checks that the trees of a generated arena are solid (the trunks are for everyone; the leaves stop darts and phones, not people). Before,
 # the world stood trees on the grass (world_dress.gd) but the arena did not know about them, so the player, the
 # riders and the bosses walked straight through the trunks. Run from the project folder:
 #   godot --headless --path . --script res://tools/tree_collision_check.gd
@@ -14,6 +14,9 @@ extends SceneTree
 #     the game's own player step, main._process)
 #   - a boss walking at it keeps 0.55 m off it
 #   - the extraction point and the supply caches are never on a trunk
+#   - darts and phones are stopped by the trunk and the leaves (the three boxes the world draws) and fly past anything
+#     beside or above them: point by point (ray_blocked), along whole rays (tree_hit, grazing a trunk 0.14 m off the
+#     middle and missing it at 0.2 m), along sight lines, as a phone's step, and as a real dart through shoot_dart
 #   - a rider riding at a player on the far side of a trunk goes round it: never closer than 0.53 m at any step
 #     (the rescue puts one that gets in back out), and gets to the player
 # Exits with status 1 and prints the first problems.
@@ -21,6 +24,7 @@ extends SceneTree
 const ArenaGenScript = preload("res://scripts/arena_gen.gd")
 const GeneratedArena = preload("res://scripts/arena_generated.gd")
 const WorldDress = preload("res://scripts/world_dress.gd")
+const Threats = preload("res://scripts/threats.gd")
 const MAIN_SCENE = "res://main.tscn"
 const DT = 1.0 / 60.0
 const FIRST_SEED = 5000
@@ -40,7 +44,7 @@ const RIDER_TRIES = 2  # rider set-ups per arena
 
 var problems = []
 var main = null
-var tested = {"trees": 0, "walks": 0, "boss": 0, "game": 0, "riders": 0}
+var tested = {"trees": 0, "walks": 0, "boss": 0, "game": 0, "riders": 0, "shots": 0}
 
 
 func _initialize() -> void:
@@ -83,7 +87,7 @@ func _initialize() -> void:
 	if problems.is_empty():
 		print(
 			(
-				"tree_collision_check: %d arenas, %d trees solid for the player (%d walks, %d through the game's step), the bosses (%d), the pickups, the spots and %d riders"
+				"tree_collision_check: %d arenas, %d trees solid for the player (%d walks, %d through the game's step), the bosses (%d), the pickups, the spots, %d riders and %d trees stop darts and phones"
 				% [
 					arenas,
 					tested["trees"],
@@ -168,6 +172,7 @@ func _check_arena(arena, trees: Array, tag: String) -> void:
 			if not has_tree and arena.clamp_walk(next, "player").distance_to(next) > 0.001:
 				_fail("%s: the cell %s beside the tree is not free" % [label, step])
 		_walk_at_tree(arena, tree, label)
+		_check_shots(arena, tree, trees, label)
 	_check_spots(arena, trees, tag, rng)
 	_check_riders(arena, picked, tag)
 
@@ -262,6 +267,103 @@ func _walk_at_tree(arena, tree: Dictionary, label: String) -> void:
 					% [label, game_closest, PLAYER_KEEP]
 				)
 			)
+
+
+# darts and phones against the three boxes of a tree: the trunk (0.15 m half-width, to 2.4 m), the leaves (1.05 m,
+# 2.2 to 3.8 m) and the top (0.7 m, to 4.8 m)
+func _check_shots(arena, tree: Dictionary, trees: Array, label: String) -> void:
+	var at2: Vector2 = tree["pos"]
+	var at = Vector3(at2.x, 0.0, at2.y)
+	var probes = [
+		[Vector3(0.0, 1.0, 0.0), true, "the trunk"],
+		[Vector3(0.14, 1.0, -0.14), true, "the trunk's corner"],
+		[Vector3(0.2, 1.0, 0.0), false, "beside the trunk"],
+		[Vector3(0.0, 2.1, 0.5), false, "under the leaves"],
+		[Vector3(0.0, 3.0, 1.0), true, "the leaves"],
+		[Vector3(0.0, 3.0, 1.1), false, "beside the leaves"],
+		[Vector3(0.0, 4.4, 0.6), true, "the top"],
+		[Vector3(0.0, 4.4, 0.8), false, "beside the top"],
+		[Vector3(0.0, 5.0, 0.0), false, "above the top"],
+	]
+	for probe in probes:
+		if arena.ray_blocked(at + probe[0]) != probe[1]:
+			_fail("%s: ray_blocked is %s at %s" % [label, not probe[1], probe[2]])
+	# whole rays need a tree with no other within 8 m (the rays are 10 m long)
+	for other in trees:
+		var o: Vector2 = other["pos"]
+		if o != at2 and _flat(Vector3(o.x, 0.0, o.y), at2) < 8.0:
+			return
+	tested["shots"] += 1
+	var along = Vector3(1.0, 0.0, 0.0)
+	var from = at - along * 5.0
+	var rays = [
+		[1.0, 0.0, 4.85],
+		[1.0, 0.14, 4.85],
+		[1.0, 0.2, -1.0],
+		[3.0, 0.0, 3.95],
+		[3.0, 1.0, 3.95],
+		[3.0, 1.1, -1.0],
+		[4.4, 0.0, 4.3],
+		[4.4, 0.8, -1.0],
+		[5.5, 0.0, -1.0],
+	]
+	for ray in rays:
+		var org = Vector3(from.x, float(ray[0]), from.z + float(ray[1]))
+		var hit: float = arena.tree_hit(org, along, 10.0)
+		if (
+			(hit < 0.0) != (float(ray[2]) < 0.0)
+			or (hit >= 0.0 and absf(hit - float(ray[2])) > 0.02)
+		):
+			_fail(
+				(
+					"%s: a ray at %.1f m high, %.2f m off the middle, hit at %.2f m, expected %.2f m"
+					% [label, ray[0], ray[1], hit, ray[2]]
+				)
+			)
+	var slanted = (at + Vector3(0.0, 1.0, 0.0) - (at + Vector3(-3.0, 0.5, -3.0))).normalized()
+	if arena.tree_hit(at + Vector3(-3.0, 0.5, -3.0), slanted, 10.0) < 0.0:
+		_fail("%s: a slanting ray at the trunk's middle missed it" % label)
+	if arena.tree_hit(from + Vector3(0.0, 1.0, 0.0), along, 3.0) >= 0.0:
+		_fail("%s: a ray that stops 2 m short of the trunk hit it" % label)
+	# a line of sight across the trunk is not clear
+	var a = from + Vector3(0.0, 1.0, 0.0)
+	var b = at + along * 5.0 + Vector3(0.0, 1.0, 0.0)
+	if Threats.sight_clear(arena, a, b):
+		_fail("%s: the line of sight across the trunk is clear" % label)
+	var old_arena = main.arena
+	main.arena = arena
+	# a phone's step across the trunk, and across the leaves, is blocked
+	for y in [1.0, 3.0]:
+		var prev = at - along * 0.2 + Vector3(0.0, y, 0.0)
+		var next = at + along * 0.2 + Vector3(0.0, y, 0.0)
+		if not main.phone_sys.flight_blocked(prev, next):
+			_fail("%s: a phone's step across the tree at %.0f m high is not blocked" % [label, y])
+	# and a real dart: aimed at the trunk it stops at it, aimed 0.6 m to the side it flies on
+	var old_spread = main.spread_deg
+	main.spread_deg = 0.0
+	for off in [0.0, 0.6]:
+		var eye = from + Vector3(0.0, 1.0, off)
+		main.cam.global_position = eye
+		main.cam.look_at(eye + along, Vector3.UP)
+		var shots_before = main.darts.size()
+		main.combat_sys.shoot_dart(1, false)
+		if main.darts.is_empty():
+			_fail("%s: shoot_dart sent no dart" % label)
+			continue
+		var end: Vector3 = main.darts.back()["b"]
+		if off == 0.0 and absf(end.x - (at.x - WorldDress.TRUNK_HALF)) > 0.05:
+			_fail(
+				(
+					"%s: a dart at the trunk ended at x %.2f, not at its face %.2f"
+					% [label, end.x, at.x - 0.15]
+				)
+			)
+		if off != 0.0 and end.x < at.x + 0.5:
+			_fail("%s: a dart 0.6 m beside the trunk was stopped at x %.2f" % [label, end.x])
+		if shots_before > 70:
+			main.darts.clear()
+	main.spread_deg = old_spread
+	main.arena = old_arena
 
 
 # the extraction point and the caches never stand on a trunk
