@@ -163,8 +163,9 @@ func ray_blocked(_p: Vector3) -> bool:
 
 
 # How far along the ray from `from` in the unit direction `dir` (up to `reach` metres) it first meets a tree's trunk
-# or leaves, or -1.0 when it meets none. An arena with trees overrides this: ray_blocked looks at points, and a
-# trunk is thinner than the steps a dart is sampled at, so the shots and the sight lines test the whole ray too.
+# or leaves, or a lamp's pole, arm or head, or -1.0 when it meets none. An arena with trees or lamps overrides this:
+# ray_blocked looks at points, and a trunk or a pole is thinner than the steps a dart is sampled at, so the shots and
+# the sight lines test the whole ray too.
 func tree_hit(_from: Vector3, _dir: Vector3, _reach: float) -> float:
 	return -1.0
 
