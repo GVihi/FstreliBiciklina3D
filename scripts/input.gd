@@ -72,6 +72,8 @@ func handle_input(event: InputEvent) -> void:
 				g.shop_sys.leave_shop()
 			elif g.state == "play":
 				g.player_sys.request_jump()  # Space jumps in a round, or side dashes with A / D held (Milestone L)
+		elif kc == KEY_T:
+			unlock_try()  # TRY IT on the Unlocks page
 		elif kc == KEY_G:
 			if g.state == "play":
 				g.gadget_sys.use()  # the gadget slot's use key (Milestone C); nothing happens with an empty slot
@@ -242,6 +244,8 @@ func on_pad_button(btn: int) -> void:
 		title_back()
 	elif btn == JOY_BUTTON_X and g.state == "title":
 		scores_reset_open()
+	elif btn == JOY_BUTTON_Y and g.state == "title":
+		unlock_try()
 	elif btn == JOY_BUTTON_B and g.state == "shop":
 		g.shop_sys.leave_shop()
 	elif btn == JOY_BUTTON_X and g.state == "shop":
@@ -607,6 +611,23 @@ func unlock_buy() -> void:
 	g.sfx.play("pickup" if result == "bought" else "click")
 
 
+# TRY IT on the Unlocks page (T, gamepad Y or a click on the button): the player and the highlighted weapon go into the
+# training room, owned or not, and nothing in there is scored, paid or saved (`start_practice` in main.gd)
+func unlock_try() -> void:
+	if g.state != "title" or g.title_page != "unlocks" or g.UNLOCKS.is_empty():
+		return
+	var u = g.UNLOCKS[clampi(g.unlock_sel, 0, g.UNLOCKS.size() - 1)]
+	if not g.can_try(u):
+		g.unlock_msg = "NOTHING TO TRY HERE"
+		g.unlock_msg_t0 = g.time
+		g.sfx.play("click")
+		return
+	if not g.start_practice(u):
+		g.unlock_msg = "THE TRAINING ROOM CANNOT OPEN"
+		g.unlock_msg_t0 = g.time
+		g.sfx.play("click")
+
+
 # ---- reset leaderboard (High Scores page of the title screen; texts and buttons are in hud.gd)
 # Delete, gamepad X or a click on RESET LEADERBOARD opens a "NO / YES" page. NO is the default, and YES ignores
 # input for a moment after the page opens, like the restart confirmation, so a double click cannot erase the list.
@@ -715,7 +736,7 @@ func settings_activate() -> void:
 # ---- pause menu (entries are listed in hud.gd PAUSE_ITEMS)
 func pause_move(d: int) -> void:
 	if g.state == "play" and g.paused and g.pause_page == "":
-		g.pause_sel = posmod(g.pause_sel + d, g.hud.PAUSE_ITEMS.size())
+		g.pause_sel = posmod(g.pause_sel + d, g.hud.pause_items().size())
 		g.sfx.play("click")
 
 
@@ -743,12 +764,14 @@ func pause_activate(i: int) -> void:
 		pause_back()
 		return
 	g.pause_sel = i
-	var id = g.hud.PAUSE_ITEMS[i]["id"]
+	var id = g.hud.pause_items()[i]["id"]
 	if id == "resume":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif id == "settings" or id == "controls":
 		g.pause_page = id
 		g.sfx.play("click")
+	elif id == "leave_practice":
+		g.end_practice()  # the training room has no run to lose, so no question
 	elif id == "restart" or id == "title":  # both lose the run, so ask first (NO is the default)
 		g.confirm_id = id
 		g.confirm_sel = 0
@@ -826,6 +849,8 @@ func on_click() -> void:
 			var ui = g.hud.unlock_at(mp)
 			if g.hud.unlock_buy_rect().has_point(mp):
 				unlock_buy()
+			elif g.hud.unlock_try_rect().has_point(mp):
+				unlock_try()
 			elif ui >= 0:
 				g.unlock_sel = ui
 				g.sfx.play("click")

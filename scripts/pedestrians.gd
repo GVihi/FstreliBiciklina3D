@@ -262,6 +262,11 @@ func hit_civ(c: Dictionary) -> void:
 	c["state"] = "startled"
 	c["t"] = 0.0
 	c["hop"] = 0.0
+	if g.practice:  # the training room: the pedestrian is startled and nothing else happens
+		g.hit_marker = 0.18
+		g.add_popup(c["pos"] + Vector3(0.0, 2.2, 0.0), "ALO!", g.WHITE, true)
+		g.sfx.play3d("thud", c["pos"] + Vector3(0.0, 1.2, 0.0))
+		return
 	g.hearts -= 1
 	g.round_lives_lost += 1
 	g.challenges.on_life_lost()

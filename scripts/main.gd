@@ -646,6 +646,12 @@ var generated_arena = false
 # before adding its `main` to the tree. Runs on it keep it (they do not switch to a generated arena).
 const TRAINING_ARG = "--training-room"
 var training_room = false
+# Practice (try before buying): the TRY button of the Unlocks page takes the player and one weapon into the training
+# room. It is a round that never ends and counts for nothing: no life is lost, nothing is scored, paid or saved, and
+# the pause menu has BACK TO UNLOCKS instead of RESTART RUN and QUIT TO TITLE. start_practice / end_practice below.
+var practice = false
+var practice_unlock = {}  # the entry of data/unlocks.json being tried
+var practice_was_training = false  # the session already was in the room (--training-room): it stays there afterwards
 var world_root: Node3D = null  # the generated arena's world (the roundabout's is built straight into this node)
 var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics quality, high score file
 var gadget_sys = GadgetsScript.new(self)  # gadgets.gd: Gadgets: the gadget use key, its uses and cooldown, and the banana peel trap.
@@ -905,6 +911,108 @@ func use_training_room() -> void:
 			% [arena.gates().size(), world["tris"], world["draw_calls"]]
 		)
 	)
+
+
+# true when the unlock is a weapon the game has: only those can be tried (a planned weapon has no entry in
+# data/weapons.json yet, and a perk, a shop item or a cosmetic is not something to hold)
+func can_try(u: Dictionary) -> bool:
+	if str(u.get("kind", "")) != "weapon":
+		return false
+	var id = str(u.get("target", ""))
+	return WEAPONS.has(id) and WeaponSlots.WEAPON_INFO.has(id)
+
+
+# Takes the player and the unlock's weapon into the training room (TRY on the Unlocks page, only from the title
+# screen). The weapon is put in its slot whether it is owned or not and the run's other state is reset, so nothing
+# the player has bought changes the test. Returns false and changes nothing when the weapon cannot be tried, or when
+# the session has no world that can be swapped for the room (the roundabout of the checks).
+func start_practice(u: Dictionary) -> bool:
+	if state != "title" or not can_try(u):
+		return false
+	if not training_room and not generated_arena:
+		return false
+	practice_was_training = training_room
+	if not training_room:
+		use_training_room()
+	practice = true
+	practice_unlock = u
+	reset_run()
+	run_map = {}
+	round_n = 1
+	map_floor = -1
+	map_lane = 0
+	daily_mode = false
+	custom_seed_run = false
+	run_seed = 1
+	score = 0
+	hearts = MAXHEARTS
+	combo = 0
+	best_combo = 0
+	run_won = false
+	final_boss_dead = false
+	play_time = 0.0
+	shop_time = 0.0
+	round_times = []
+	kills = 0
+	yaw = 0.0
+	pitch = 0.0
+	player.position = arena.start_position()
+	pvel = Vector3.ZERO
+	var id = str(u["target"])
+	var slot = str(WeaponSlots.WEAPON_INFO[id]["slot"])
+	if slot == WeaponSlots.MELEE:
+		equip_melee(id)
+		melee = true  # the weapon is in the player's hands, Q or the wheel goes back to the pistol
+	elif slot == WeaponSlots.PRIMARY:
+		equip_primary(id)
+	else:
+		equip_gadget(id)
+	update_arena_dressing()
+	settings.apply_quality()
+	paused = false
+	pause_sel = 0
+	pause_page = ""
+	start_round()
+	objective_sys.clear()  # no way out to look for and no supply caches: the room is only for trying the weapon
+	explore_sys.clear()
+	wait = 2.0
+	wait_msg = "TRYING THE " + str(u["name"])
+	return true
+
+
+# Back to the Unlocks page from the room: the world the session had before is made again (the room stays when the
+# session started in it), the run state is cleared and the page is on the weapon that was tried.
+func end_practice() -> void:
+	if not practice:
+		return
+	clear_riders()
+	clear_bosses()
+	clear_phones()
+	clear_pickups()
+	objective_sys.clear()
+	ambush_sys.clear()
+	explore_sys.clear()
+	practice = false
+	reset_run()
+	go_to_title()
+	if not practice_was_training:
+		training_room = false
+		if generated_arena and use_generated_arena(daily_seed):
+			update_arena_dressing()
+			settings.apply_quality()
+			apply_theme(theme_idx)
+		else:
+			training_room = true  # no generated arena could be made: keep the room rather than a broken world
+	for n in range(hud.TITLE_ITEMS.size()):
+		if hud.TITLE_ITEMS[n]["id"] == "unlocks":
+			title_sel = n
+	for i in range(UNLOCKS.size()):
+		if UNLOCKS[i]["id"] == practice_unlock.get("id", ""):
+			unlock_sel = i
+	unlock_msg = ""
+	title_page = "unlocks"
+	sfx.play("click")
+	practice_unlock = {}
 
 
 # what stands on the ground that depends on the arena: the cheerleaders. The roundabout has them on its far sidewalk
@@ -1673,6 +1781,14 @@ func need_boss() -> bool:
 func after_wave() -> void:
 	if state != "play" or riders.size() > 0 or bosses.size() > 0:
 		return
+	if practice:  # the next rider comes out of the door soon, the gadget has its uses back, and it goes on for ever
+		next_idx = 0
+		for i in range(hits.size()):
+			hits[i] = null
+		gadget_sys.begin_round()
+		wait = 1.5
+		wait_msg = ""
+		return
 	if objective_sys.extracting:
 		return  # the way out is open: the ambush riders (ambush.gd) going down does not end the round, reaching the point does
 	if need_boss():
@@ -1710,6 +1826,8 @@ func objective_reached() -> void:
 
 
 func end_round() -> void:
+	if practice:
+		return  # a practice round has no end: nothing is scored, paid or saved
 	objective_sys.clear()
 	ambush_sys.clear()
 	clear_riders()  # ambush riders still on the way in when the player gets out
@@ -1764,6 +1882,8 @@ func summary_default_sel() -> int:
 
 # the last round was cleared: the run is won. It ends on the same summary screen as a loss.
 func win_run() -> void:
+	if practice:
+		return
 	run_won = true
 	state = "over"
 	over_reason = "victory"
@@ -1779,6 +1899,8 @@ func win_run() -> void:
 
 
 func game_over(reason: String) -> void:
+	if practice:
+		return  # a practice round has no end, so nothing is scored, paid or saved
 	objective_sys.clear()
 	ambush_sys.clear()
 	explore_sys.clear()
@@ -1805,6 +1927,8 @@ func game_over(reason: String) -> void:
 func damage_player(label: String, reason: String) -> void:
 	if state != "play":
 		return
+	if practice:
+		return  # the training room: nothing hurts
 	if dash_inv > 0.0:
 		player_sys.perfect_dodge()
 		return

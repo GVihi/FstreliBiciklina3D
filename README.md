@@ -388,6 +388,8 @@ Mostly vibe coded Godot game
 
 ## Onboarding
 
+- [x] Training room map for the tutorial and for trying a weapon before buying it (note in `docs/ROADMAP_HISTORY.md`; the tutorial and the menu entries are separate items)
+- [x] Try before buying: a TRY IT button on the Unlocks page takes the player and the weapon into the training room (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner)
 - [ ] Short tutorial
 - [ ] Key rebinding
 
