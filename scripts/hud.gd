@@ -2395,14 +2395,7 @@ func _draw() -> void:
 		_txt(n["txt"], cx, ny, int(26 * k), c, 1)
 		ny += 36.0 * k
 
-	if g.hit_marker > 0.0:
-		var m = 10.0 * k
-		var cy = size.y * 0.5
-		var hc = Color(1, 1, 1, clampf(g.hit_marker / 0.18, 0.0, 1.0))
-		draw_line(Vector2(cx - m, cy - m), Vector2(cx - m * 0.4, cy - m * 0.4), hc, 3.0 * k)
-		draw_line(Vector2(cx + m, cy - m), Vector2(cx + m * 0.4, cy - m * 0.4), hc, 3.0 * k)
-		draw_line(Vector2(cx - m, cy + m), Vector2(cx - m * 0.4, cy + m * 0.4), hc, 3.0 * k)
-		draw_line(Vector2(cx + m, cy + m), Vector2(cx + m * 0.4, cy + m * 0.4), hc, 3.0 * k)
+	_draw_hit_marker(k)
 
 	var blink = int(g.time * 2.0) % 2 == 0
 	if state == "title":
@@ -3180,10 +3173,45 @@ func _draw_objective(k: float) -> void:
 			_world_marker(cache["pos"] + Vector3(0, 2.4, 0), OBJ_GOLD, "", k, false)
 
 
+# The hit marker: four diagonal ticks round the crosshair that pop out big and settle while they fade. What it shows
+# is `g.hit_kind` (main.gd `show_hit_marker`): a plain hit is white, a boss weak spot gold, a kill orange and a pedestrian
+# hit red; the kill and the pedestrian hit are drawn bigger and thicker, so the kinds differ in more than colour.
+const HIT_MARKER_COL = {
+	"hit": Color(1.0, 1.0, 1.0),
+	"weak": Color(0.95, 0.71, 0.19),
+	"kill": Color(1.0, 0.42, 0.17),
+	"bad": Color(0.9, 0.33, 0.24)
+}
+const HIT_MARKER_SCALE = {"hit": 1.0, "weak": 1.15, "kill": 1.4, "bad": 1.6}
+
+
+func _draw_hit_marker(k: float) -> void:
+	if g.hit_marker <= 0.0:
+		return
+	var kind = g.hit_kind if HIT_MARKER_COL.has(g.hit_kind) else "hit"
+	var left = clampf(g.hit_marker / g.HIT_MARKER_TIME[kind], 0.0, 1.0)  # 1 just after the hit, 0 when it is gone
+	var col: Color = HIT_MARKER_COL[kind]
+	col.a = clampf(left * 2.0, 0.0, 1.0)  # full for the first half, then it fades
+	var s = HIT_MARKER_SCALE[kind] * lerpf(1.0, 1.35, left)
+	var inner = 6.0 * k * s
+	var outer = 14.0 * k * s
+	var width = (4.0 if kind == "kill" or kind == "bad" else 3.0) * k
+	var c = size * 0.5
+	var shadow = Color(0, 0, 0, 0.55 * col.a)
+	for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+		var dir = d.normalized()
+		draw_line(c + dir * inner, c + dir * outer, shadow, width + 2.0 * k)
+		draw_line(c + dir * inner, c + dir * outer, col, width)
+
+
 func _draw_crosshair(k: float) -> void:
 	var c = size * 0.5
 	if g.melee:
-		draw_circle(c, 3.0 * k, Color(1.0, 0.48, 0.72, 0.9))
+		# the melee weapon: a thin ring with a dot, in the colour of the melee weapon on the HUD
+		draw_arc(c, 10.0 * k, 0.0, TAU, 32, Color(0, 0, 0, 0.6), 4.0 * k)
+		draw_arc(c, 10.0 * k, 0.0, TAU, 32, Color(PINK, 0.9), 2.0 * k)
+		draw_circle(c, 2.2 * k, Color(0, 0, 0, 0.6))
+		draw_circle(c, 1.4 * k, Color(PINK, 0.9))
 		return
 	var half_fov = deg_to_rad(g.cam.fov * 0.5)
 	var gap = tan(deg_to_rad(g.spread_deg)) / tan(half_fov) * size.y * 0.5
