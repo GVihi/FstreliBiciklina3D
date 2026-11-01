@@ -60,7 +60,7 @@ func _check_layout() -> void:
 		)
 		var centre_left = s.x * 0.5 - 65.0 * k
 		var centre_right = s.x * 0.5 + 65.0 * k
-		var ammo_left = s.x - hud.HUD_MARGIN * k - (main.MAXSHELLS * 10.0 + 150.0) * k
+		var ammo_left = s.x - hud.HUD_MARGIN * k - hud.SLOT_ROW_W * k
 		var label = "%dx%d" % [int(s.x), int(s.y)]
 		if left_edge >= centre_left - 8.0 * k:
 			_fail(
