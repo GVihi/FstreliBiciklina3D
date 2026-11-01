@@ -68,6 +68,7 @@ func _initialize() -> void:
 				_note_old_walk(arena, wall)
 				old_note_done = true
 		_check_in_game(arena, style, found)
+		_check_boss(arena, style, found)
 	if walls_tested == 0:
 		_fail("no generated arena with a straight wall was found")
 	_check_inside_wall()
@@ -185,7 +186,8 @@ func _judge(
 	along_speed: float,
 	touches: bool,
 	label: String,
-	expect: float
+	expect: float,
+	who: String = "player"
 ) -> void:
 	var inside = 0
 	var backwards = 0
@@ -194,7 +196,7 @@ func _judge(
 	var perp_max = -INF
 	for i in range(points.size()):
 		var p: Vector3 = points[i]
-		if arena.obstacle_at(p) or arena.clamp_walk(p).distance_to(p) > 0.01:
+		if arena.obstacle_at(p) or arena.clamp_walk(p, who).distance_to(p) > 0.01:
 			inside += 1
 		if i == 0:
 			continue
@@ -258,6 +260,45 @@ func _check_in_game(arena, style: String, found: Array) -> void:
 			)
 	main.arena = old_arena
 	_ground()
+
+
+# A boss on foot walking (charge speed) and lunging into a wall through the game's own set_boss_pos, which only reads
+# and writes the boss's "wp" (its place) and "yaw", so a plain dictionary stands in for the boss.
+func _check_boss(arena, style: String, found: Array) -> void:
+	var old_arena = main.arena
+	main.arena = arena
+	for wall in found:
+		for boss_speed in [5.5, 15.0]:
+			for angle in [20.0, 45.0]:
+				var along: Vector3 = wall["along"]
+				var vel = (
+					along * boss_speed * cos(deg_to_rad(angle))
+					+ wall["into"] * boss_speed * sin(deg_to_rad(angle))
+				)
+				var boss = {"wp": wall["start"], "yaw": 0.0}
+				var points = [boss["wp"]]
+				var frames = (
+					int(float(wall["length"]) / (boss_speed * cos(deg_to_rad(angle)) * DT)) - 2
+				)
+				for i in range(frames):
+					main.boss_sys.set_boss_pos(boss, boss["wp"] + vel * DT)
+					points.append(boss["wp"])
+				var label = (
+					"boss, %s wall %s, %.1f m/s at %d deg"
+					% [style, wall["into"], boss_speed, int(angle)]
+				)
+				_judge(
+					arena,
+					points,
+					along,
+					wall["into"],
+					boss_speed * cos(deg_to_rad(angle)),
+					true,
+					label,
+					1.0,
+					"boss"
+				)
+	main.arena = old_arena
 
 
 # put the player in a known place: on the ground, no slide or dash, at the arena's start
