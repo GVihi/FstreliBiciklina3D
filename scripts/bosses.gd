@@ -777,6 +777,7 @@ func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -
 		g.combat_sys.add_shells(2)
 	b["hp"] -= total
 	b["flash"] = 0.12
+	g.show_hit_marker("weak" if weak else "hit")
 	g.set_flash(b["model"]["root"], true)
 	g.shots_hit += 1
 	if k == "mower":

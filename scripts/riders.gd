@@ -616,6 +616,7 @@ func hit_rider(r: Dictionary, dmg: int) -> void:
 	r["hp"] -= dmg
 	var wpos = r["pos"] + Vector3(0.0, 1.0, 0.0)
 	if r["hp"] > 0:
+		g.show_hit_marker("hit")
 		r["flash"] = 0.15
 		g.set_flash(r["model"]["root"], true)
 		g.sfx.play3d("thud", wpos)
@@ -633,6 +634,7 @@ func hit_rider(r: Dictionary, dmg: int) -> void:
 	g.sfx.stop_loop(r["snd"])
 	r["snd"] = null
 	g.sfx.play3d("hit", wpos)
+	g.show_hit_marker("kill")
 	g.shots_hit += 1
 	g.kills += 1
 	g.combo = mini(5, g.combo + 1)
