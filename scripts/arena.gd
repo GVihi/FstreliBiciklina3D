@@ -125,6 +125,12 @@ func style_label() -> String:
 	return ""
 
 
+# true if the arena keeps its own light and look: the theme of a round (day, dusk, night, ...) is not applied to its
+# world. The roundabout and generated arenas say no; the training room (arena_training.gd) says yes.
+func fixed_lighting() -> bool:
+	return false
+
+
 # true if riders chase the player over open ground (README Milestone K, rider pursuit): they ride at the player
 # on any surface, pass, turn round in an arc and come back, and they come out of the gates. False keeps the
 # lane steering the roundabout needs. Generated arenas say yes.

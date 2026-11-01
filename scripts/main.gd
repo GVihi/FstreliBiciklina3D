@@ -49,6 +49,8 @@ const MapGenScript = preload("res://scripts/map_gen.gd")
 const ArenaGenScript = preload("res://scripts/arena_gen.gd")
 const GeneratedArenaScript = preload("res://scripts/arena_generated.gd")
 const WorldGeneratedScript = preload("res://scripts/world_generated.gd")
+const ArenaTrainingScript = preload("res://scripts/arena_training.gd")
+const WorldTrainingScript = preload("res://scripts/world_training.gd")
 
 # ------------------------------------------------------------------ tuning
 # The arena is a roundabout (ring.gd). All rules still work in "street" coordinates: x along the road,
@@ -388,7 +390,12 @@ func _ready() -> void:
 	generated_arena = wants_generated_arena(
 		OS.get_cmdline_user_args(), get_tree().current_scene == self, generated_arena
 	)
-	if not (generated_arena and use_generated_arena(daily_seed)):
+	var wants_training = wants_training_room(
+		OS.get_cmdline_user_args(), get_tree().current_scene == self, training_room
+	)
+	if wants_training:
+		use_training_room()  # the room is the arena of the whole session: runs do not switch to a generated one
+	elif not (generated_arena and use_generated_arena(daily_seed)):
 		world = WorldBuilder.build(self, arena)
 
 	sfx = SfxScript.new()
@@ -633,6 +640,12 @@ var arena = ArenaRoundaboutScript.new()  # arena.gd: the space the run is played
 const GENERATED_ARENA_ARG = "--generated-arena"
 const ROUNDABOUT_ARG = "--roundabout"
 var generated_arena = false
+# The training room (arena_training.gd, world_training.gd): a small dark gridded box for the tutorial and for trying
+# a weapon or a gadget before buying it. Nothing in the menus opens it yet; the user argument --training-room
+# (godot --path . -- --training-room) makes it the arena of the whole session, and a check sets `training_room`
+# before adding its `main` to the tree. Runs on it keep it (they do not switch to a generated arena).
+const TRAINING_ARG = "--training-room"
+var training_room = false
 var world_root: Node3D = null  # the generated arena's world (the roundabout's is built straight into this node)
 var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics quality, high score file
 var gadget_sys = GadgetsScript.new(self)  # gadgets.gd: Gadgets: the gadget use key, its uses and cooldown, and the banana peel trap.
@@ -679,6 +692,13 @@ static func wants_generated_arena(args: PackedStringArray, is_game: bool, alread
 	if args.has(GENERATED_ARENA_ARG):
 		return true
 	return already or is_game
+
+
+# Whether the game starts in the training room: `args` are the user arguments (after `--`), `is_game` is true when this
+# `main` is the scene the engine started and `already` is what the caller set before the scene entered the tree.
+# Only --training-room on the game, or a check that sets the flag, asks for it; it wins over --roundabout.
+static func wants_training_room(args: PackedStringArray, is_game: bool, already: bool) -> bool:
+	return already or (is_game and args.has(TRAINING_ARG))
 
 
 # The developer start options (dev_start.gd, roadmap alpha D2.1): `args` are the user arguments (after `--`). Without
@@ -866,6 +886,27 @@ func use_generated_arena(seed_value: int) -> bool:
 	return true
 
 
+# Makes the training room the arena of the game and builds its world (a generated world is freed). The caller puts the
+# player on arena.start_position(). The room is one fixed place, so this cannot fail.
+func use_training_room() -> void:
+	if world_root != null:
+		remove_child(world_root)
+		world_root.free()
+	training_room = true
+	arena = ArenaTrainingScript.new()
+	civ_sys.clear_civs()  # a pedestrian walks between the gates of the arena it was made for
+	world_root = Node3D.new()
+	world_root.name = "TrainingWorld"
+	add_child(world_root)
+	world = WorldTrainingScript.build(world_root, arena)
+	print(
+		(
+			"training room: %d gates, %d triangles, %d draw calls"
+			% [arena.gates().size(), world["tris"], world["draw_calls"]]
+		)
+	)
+
+
 # what stands on the ground that depends on the arena: the cheerleaders. The roundabout has them on its far sidewalk
 # (where they were built). A generated arena says where they stand (arena.cheer_spots, on its start plaza) and they
 # face the start; one it has no spot for is hidden.
@@ -887,7 +928,8 @@ func update_arena_dressing() -> void:
 
 
 func apply_theme(i: int) -> void:
-	Lighting.apply_theme(THEMES[i], world)
+	if not arena.fixed_lighting():  # the training room keeps its own light
+		Lighting.apply_theme(THEMES[i], world)
 	if viewmodel != null:
 		viewmodel.sync_env(world["env"])
 
@@ -1202,7 +1244,7 @@ func continue_run() -> void:
 	meta.begin_run()
 	challenges.begin_run()
 	RunSave.apply(self, data)
-	if generated_arena and use_generated_arena(run_seed):  # the arena is made from the run seed, as at the start
+	if generated_arena and not training_room and use_generated_arena(run_seed):  # the arena is made from the run seed, as at the start
 		update_arena_dressing()
 		settings.apply_quality()
 	run_map = MapGenScript.generate(run_seed)
@@ -1244,7 +1286,7 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 		run_seed = custom_seed & 0xFFFFFFFF
 	else:
 		run_seed = DailyScript.random_seed()
-	if generated_arena and use_generated_arena(run_seed):  # one arena per run, made from the run seed
+	if generated_arena and not training_room and use_generated_arena(run_seed):  # one arena per run, made from the run seed
 		update_arena_dressing()
 		settings.apply_quality()
 	run_map = MapGenScript.generate(run_seed)
