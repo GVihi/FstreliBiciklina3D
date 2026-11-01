@@ -85,6 +85,36 @@ func _check_arena() -> void:
 	if a.gates().size() != 1:
 		_fail("the room has %d gates, expected the one door" % a.gates().size())
 		return
+	# wall_near (wall-jumps): each of the four walls is found at its distance with the normal pointing into the room,
+	# the middle of the room has none within reach, and outside the room (or in the recess) there is nothing to push off
+	for case in [
+		[Vector3(Room.HALF_X - 0.5, 1.0, 0.0), Vector3.LEFT, 0.5],
+		[Vector3(-Room.HALF_X + 0.7, 1.0, 3.0), Vector3.RIGHT, 0.7],
+		[Vector3(2.0, 1.0, Room.HALF_Z - 0.6), Vector3.FORWARD, 0.6],
+		[Vector3(-2.0, 1.0, -Room.HALF_Z + 0.4), Vector3.BACK, 0.4]
+	]:
+		var w = a.wall_near(case[0], 2.4)
+		if (
+			w.is_empty()
+			or (w["normal"] - case[1]).length() > EPS
+			or absf(float(w["dist"]) - float(case[2])) > EPS
+			or absf(float(w["normal"].y)) > EPS
+		):
+			_fail("wall_near at %s found %s, expected normal %s at %.1f m" % [case[0], w, case[1], case[2]])
+		elif absf(w["point"].x - case[0].x) + absf(w["point"].z - case[0].z) - float(case[2]) > EPS:
+			_fail("wall_near at %s gave the point %s, not on the wall face" % [case[0], w["point"]])
+	if not a.wall_near(Vector3(0.0, 1.0, 0.0), 2.4).is_empty():
+		_fail("wall_near found a wall in the middle of the room")
+	if not a.wall_near(Vector3(Room.HALF_X - 3.0, 1.0, 0.0), 2.4).is_empty():
+		_fail("wall_near found a wall 3 m away with a reach of 2.4 m")
+	if not a.wall_near(Vector3(Room.HALF_X + 1.0, 1.0, 0.0), 2.4).is_empty():
+		_fail("wall_near found a wall from outside the room")
+	if not a.wall_near(Vector3(0.0, 1.0, -Room.HALF_Z - 2.0), 2.4).is_empty():
+		_fail("wall_near found a wall from inside the door's recess")
+	# the corner: the nearer of the two walls wins
+	var corner = a.wall_near(Vector3(Room.HALF_X - 0.3, 1.0, Room.HALF_Z - 0.6), 2.4)
+	if corner.is_empty() or (corner["normal"] - Vector3.LEFT).length() > EPS:
+		_fail("wall_near in a corner did not pick the nearer wall: %s" % corner)
 	if (
 		not a.cheer_spots(5).is_empty()
 		or not a.cache_spots(3, s, RandomNumberGenerator.new()).is_empty()
