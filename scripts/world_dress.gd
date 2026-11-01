@@ -25,7 +25,9 @@ extends RefCounted
 #   Props are decoration and the layout does not know about them. The trunks are solid all the same: the generated
 #   arena (arena_generated.gd) reads props_of() and keeps everyone on foot and every rider TRUNK_SOLID metres
 #   (plus its own margin) off a trunk; the leaves are above head height and do not stop anyone on foot, but darts and thrown phones are stopped by trunk and leaves alike (Arena.tree_hit). The lamp poles
-#   have no collision yet.
+#   are solid the same way: LAMP_SOLID (plus the body's margin) off a pole for everyone on foot and every rider, and
+#   darts and phones are stopped by the pole, the arm and the head alike (lamp_boxes, the boxes the world draws).
+#   The arm and the head hang over the road above head height, so they stop nobody on foot.
 # Meshes are merged per material, so the whole dressing is a handful of draw calls.
 
 const Util = preload("res://scripts/util.gd")
@@ -65,6 +67,7 @@ const LAMP_HEAD_Y1 = 5.17
 const LAMP_LIGHT_Y = 4.9
 const LAMP_RANGE = 16.0  # the same warm pool as world.gd's lamps
 const LAMP_ENERGY = 3.2
+const LAMP_SOLID = 0.15  # metres from the pole's middle that nobody can stand in (the pole's corner is 0.085 away)
 const LAMP_LIGHT_COLOR = Color(1.0, 0.8, 0.5)
 const LAMP_GLOW = Color(1.0, 0.9, 0.65)
 const METAL_COLOR = Color(0.25, 0.27, 0.3)
@@ -167,22 +170,11 @@ static func build(layout: Dictionary) -> Dictionary:
 	lights.name = "LampLights"
 	root.add_child(lights)
 	for lamp in props["lamps"]:
-		var pole: Vector2 = lamp["pole"]
 		var head: Vector2 = lamp["head"]
-		var dir: Vector2i = lamp["dir"]
-		posts.box(_around(pole, LAMP_POLE_HALF, LAMP_POLE_HALF), 0.0, LAMP_POLE_H, false)
-		posts.box(_between(pole, head, LAMP_ARM_HALF), LAMP_ARM_Y0, LAMP_ARM_Y1, true)
-		var ns = dir.y != 0  # the road is north or south: the head is long in x
-		heads.box(
-			_around(
-				head,
-				LAMP_HEAD_ALONG * 0.5 if ns else LAMP_HEAD_ACROSS * 0.5,
-				LAMP_HEAD_ACROSS * 0.5 if ns else LAMP_HEAD_ALONG * 0.5
-			),
-			LAMP_HEAD_Y0,
-			LAMP_HEAD_Y1,
-			true
-		)
+		var boxes = lamp_boxes(lamp)  # the same boxes the arena makes solid
+		posts.box(boxes[0][0], boxes[0][1], boxes[0][2], false)
+		posts.box(boxes[1][0], boxes[1][1], boxes[1][2], true)
+		heads.box(boxes[2][0], boxes[2][1], boxes[2][2], true)
 		var light = OmniLight3D.new()
 		light.position = Vector3(head.x, LAMP_LIGHT_Y, head.y)
 		light.omni_range = LAMP_RANGE
@@ -295,6 +287,29 @@ static func props_of(layout: Dictionary) -> Dictionary:
 			elif here == "g" and _tree_cell(rows, n, cx, cz, every):
 				trees.append({"cell": Vector2i(cx, cz), "pos": centre})
 	return {"lamps": lamps, "trees": trees}
+
+
+# The three boxes a lamp (an entry of props_of()["lamps"]) is drawn from, each as [[x0, z0, x1, z1] (world metres),
+# from y, to y]: the pole, the arm that reaches over the road and the head. build() draws exactly these, and the
+# generated arena stops darts and phones with exactly these, so what is drawn is what is solid.
+static func lamp_boxes(lamp: Dictionary) -> Array:
+	var pole: Vector2 = lamp["pole"]
+	var head: Vector2 = lamp["head"]
+	var dir: Vector2i = lamp["dir"]
+	var ns = dir.y != 0  # the road is north or south: the head is long in x
+	return [
+		[_around(pole, LAMP_POLE_HALF, LAMP_POLE_HALF), 0.0, LAMP_POLE_H],
+		[_between(pole, head, LAMP_ARM_HALF), LAMP_ARM_Y0, LAMP_ARM_Y1],
+		[
+			_around(
+				head,
+				LAMP_HEAD_ALONG * 0.5 if ns else LAMP_HEAD_ACROSS * 0.5,
+				LAMP_HEAD_ACROSS * 0.5 if ns else LAMP_HEAD_ALONG * 0.5
+			),
+			LAMP_HEAD_Y0,
+			LAMP_HEAD_Y1
+		]
+	]
 
 
 # The side (a unit step) a lamp on sidewalk cell (cx, cz) faces, towards its road, or (0, 0) when the cell has

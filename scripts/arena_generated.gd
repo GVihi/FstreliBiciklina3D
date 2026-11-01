@@ -10,24 +10,59 @@ var layout: Dictionary = {}
 var rules: Dictionary = {}
 var _gates: Array = []
 var _trees: Dictionary = {}  # the trees the world stands on the grass, by cell (Vector2i): the trunk's x and z (Vector2)
+var _lamps: Dictionary = {}  # the lamps the world stands on the sidewalks, by cell (Vector2i): see _lamp_table
 
 
 func _init(the_layout: Dictionary = {}, the_rules: Dictionary = {}) -> void:
 	layout = the_layout
 	rules = the_rules if not the_rules.is_empty() else ArenaGenScript.load_rules()
 	_gates = _world_gates()
-	_trees = _tree_table()
+	if layout.has("cells") and layout.has("cell") and layout.has("rows"):
+		var props = WorldDressScript.props_of(layout)
+		_trees = _tree_table(props)
+		_lamps = _lamp_table(props)
 
 
 # The trunks of the layout's trees, found the way the world finds them to stand them (WorldDress.props_of, from the
 # cells alone), so what is drawn is what is solid. At most one per cell, in the middle of it.
-func _tree_table() -> Dictionary:
+func _tree_table(props: Dictionary) -> Dictionary:
 	var out = {}
-	if not (layout.has("cells") and layout.has("cell") and layout.has("rows")):
-		return out
-	for tree in WorldDressScript.props_of(layout)["trees"]:
+	for tree in props["trees"]:
 		out[tree["cell"]] = tree["pos"]
 	return out
+
+
+# The lamps of the layout, by the sidewalk cell they stand on (one per cell): {"pole": Vector2 (x, z), "boxes": the
+# pole, the arm and the head as [x0, z0, x1, z1, from y, to y]}, the boxes the world draws (WorldDress.lamp_boxes).
+func _lamp_table(props: Dictionary) -> Dictionary:
+	var out = {}
+	for lamp in props["lamps"]:
+		var boxes = []
+		for box in WorldDressScript.lamp_boxes(lamp):
+			var r: Array = box[0]
+			boxes.append([r[0], r[1], r[2], r[3], box[1], box[2]])
+		out[lamp["cell"]] = {"pole": lamp["pole"], "boxes": boxes}
+	return out
+
+
+# true if p is closer than `reach` metres (along the ground) to the middle of a lamp pole. The pole stands
+# LAMP_SETBACK off the middle of its cell, so cells that far further out are looked at too.
+func _near_lamp(p: Vector3, reach: float) -> bool:
+	if _lamps.is_empty():
+		return false
+	var n = int(layout["cells"])
+	var cell = float(layout["cell"])
+	var cx = int(floor(p.x / cell + float(n) / 2.0))
+	var cz = int(floor(p.z / cell + float(n) / 2.0))
+	var span = int(ceil((reach + WorldDressScript.LAMP_SETBACK) / cell))  # a pole in a cell further off is further than `reach`
+	for dz in range(-span, span + 1):
+		for dx in range(-span, span + 1):
+			var key = Vector2i(cx + dx, cz + dz)
+			if _lamps.has(key):
+				var at: Vector2 = _lamps[key]["pole"]
+				if Vector2(p.x - at.x, p.z - at.y).length_squared() < reach * reach:
+					return true
+	return false
 
 
 # true if p is closer than `reach` metres (along the ground) to the middle of a tree's trunk
@@ -219,6 +254,8 @@ func _spot_cells(clear: int) -> Array:
 			continue
 		if _trees.has(Vector2i(i % n, i / n)):
 			continue  # a trunk stands in the middle of this cell
+		if _lamps.has(Vector2i(i % n, i / n)):
+			continue  # a lamp pole stands in this cell, 0.7 m from its middle
 		out.append(i)
 	return out
 
@@ -279,6 +316,9 @@ const SLIDE_STEP = 0.25  # metres between the rings searched for the nearest fre
 const SLIDE_MAX = 8.0  # metres: out to here the search rings are fine (SLIDE_STEP apart)
 const SLIDE_COARSE_STEP = 1.0  # metres between rings, and along them, beyond SLIDE_MAX
 const TREE_RIDER_CLEAR = 0.3 + WorldDressScript.TRUNK_SOLID  # a boss's margin and the trunk: 0.55 m from the trunk's middle
+const LAMP_RIDER_CLEAR = 0.3 + WorldDressScript.LAMP_SOLID  # the same for a lamp pole: 0.45 m from the pole's middle
+const LAMP_SPAN = 2  # cells either side looked at for a lamp's boxes: the head reaches 2.1 m from its cell's middle
+const LAMP_TOP_Y = 5.2  # the top of the pole and of the arm (WorldDress.LAMP_POLE_H and LAMP_ARM_Y1)
 # [half width, from y, to y] of the three boxes a tree is drawn from: the trunk, the leaves and the top of the leaves
 const TREE_BOXES = [
 	[WorldDressScript.TRUNK_HALF, 0.0, WorldDressScript.TRUNK_H],
@@ -299,13 +339,22 @@ func _ground_walkable(p: Vector3) -> bool:
 # a trunk. That is wider than the trunk itself (TREE_RIDER_CLEAR, not TRUNK_SOLID) so the one-metre looks that
 # bosses and riders take along their way cannot slip between two samples past a trunk and walk into it.
 func _walkable(p: Vector3) -> bool:
-	return _ground_walkable(p) and not _near_tree(p, TREE_RIDER_CLEAR)
+	return (
+		_ground_walkable(p)
+		and not _near_tree(p, TREE_RIDER_CLEAR)
+		and not _near_lamp(p, LAMP_RIDER_CLEAR)
+	)
 
 
-# true if p is walkable, the eight points `margin` metres round it are ground, and no trunk is within `margin` of
-# the middle (a body is a disc of that radius: it stops that far from a wall and that far from a trunk's edge)
+# true if p is walkable, the eight points `margin` metres round it are ground, and no trunk or lamp pole is within
+# `margin` of the middle (a body is a disc of that radius: it stops that far from a wall and that far from a
+# trunk's or a pole's edge)
 func _clear(p: Vector3, margin: float) -> bool:
-	if not _ground_walkable(p) or _near_tree(p, margin + WorldDressScript.TRUNK_SOLID):
+	if (
+		not _ground_walkable(p)
+		or _near_tree(p, margin + WorldDressScript.TRUNK_SOLID)
+		or _near_lamp(p, margin + WorldDressScript.LAMP_SOLID)
+	):
 		return false
 	for k in range(8):
 		var a = TAU * float(k) / 8.0
@@ -426,9 +475,31 @@ func wall_near(p: Vector3, reach: float) -> Dictionary:
 
 
 # true if a dart at p is inside something solid: a building or a tunnel block, below the lowest roof, or a tree's
-# trunk or leaves (the boxes the world draws)
+# trunk or leaves, or a lamp's pole, arm or head (the boxes the world draws)
 func ray_blocked(p: Vector3) -> bool:
-	return (p.y < SOLID_HEIGHT and not _ground_walkable(p)) or _tree_solid_at(p)
+	return (
+		(p.y < SOLID_HEIGHT and not _ground_walkable(p)) or _tree_solid_at(p) or _lamp_solid_at(p)
+	)
+
+
+# true if p is inside one of the three boxes a lamp is drawn from
+func _lamp_solid_at(p: Vector3) -> bool:
+	if _lamps.is_empty() or p.y < 0.0 or p.y > LAMP_TOP_Y:
+		return false
+	var cell = float(layout["cell"])
+	var n = int(layout["cells"])
+	var cx = int(floor(p.x / cell + float(n) / 2.0))
+	var cz = int(floor(p.z / cell + float(n) / 2.0))
+	for dz in range(-LAMP_SPAN, LAMP_SPAN + 1):
+		for dx in range(-LAMP_SPAN, LAMP_SPAN + 1):
+			var key = Vector2i(cx + dx, cz + dz)
+			if not _lamps.has(key):
+				continue
+			for b in _lamps[key]["boxes"]:
+				if p.x >= b[0] and p.x <= b[2] and p.z >= b[1] and p.z <= b[3]:
+					if p.y >= b[4] and p.y <= b[5]:
+						return true
+	return false
 
 
 # true if p is inside one of the three boxes a tree is drawn from
@@ -454,14 +525,30 @@ func _tree_solid_at(p: Vector3) -> bool:
 	return false
 
 
-# where the ray from `from` along the unit vector `dir` first meets a tree within `reach` metres (see Arena.tree_hit),
-# or -1.0: the trees near the ray are found a cell at a time along it, and each is cut with its three boxes exactly
+# where the ray from `from` along the unit vector `dir` first meets a tree or a lamp within `reach` metres (see
+# Arena.tree_hit), or -1.0: the trees and lamps near the ray are found a cell at a time along it, and each is cut
+# with its three boxes exactly
 func tree_hit(from: Vector3, dir: Vector3, reach: float) -> float:
-	if _trees.is_empty():
+	var cell = float(layout["cell"]) if layout.has("cell") else 1.0
+	var tree_span = int(ceil(WorldDressScript.CANOPY_HALF / cell))
+	var a = _props_hit(_trees, tree_span, false, from, dir, reach)
+	var b = _props_hit(_lamps, LAMP_SPAN, true, from, dir, reach)
+	if a < 0.0:
+		return b
+	if b < 0.0:
+		return a
+	return minf(a, b)
+
+
+# The first hit of the ray with the props of one table (_trees, or _lamps when `lamps` is set), or -1.0; `span` is
+# how many cells either side of the ray's sample point a prop's boxes can reach from.
+func _props_hit(
+	table: Dictionary, span: int, lamps: bool, from: Vector3, dir: Vector3, reach: float
+) -> float:
+	if table.is_empty():
 		return -1.0
 	var cell = float(layout["cell"])
 	var n = int(layout["cells"])
-	var span = int(ceil(WorldDressScript.CANOPY_HALF / cell))
 	var seen = {}
 	var best = -1.0
 	var t = 0.0
@@ -473,12 +560,16 @@ func tree_hit(from: Vector3, dir: Vector3, reach: float) -> float:
 		for dz in range(-span, span + 1):
 			for dx in range(-span, span + 1):
 				var key = Vector2i(cx + dx, cz + dz)
-				if _trees.has(key) and not seen.has(key):
+				if table.has(key) and not seen.has(key):
 					seen[key] = true
-					var h = _ray_tree(from, dir, _trees[key], reach)
+					var h = (
+						_ray_lamp(from, dir, table[key], reach)
+						if lamps
+						else _ray_tree(from, dir, table[key], reach)
+					)
 					if h >= 0.0 and (best < 0.0 or h < best):
 						best = h
-		# every tree further along is further than one we have, once the ray is two cells past the nearest hit
+		# every prop further along is further than one we have, once the ray is two cells past the nearest hit
 		if here >= reach or (best >= 0.0 and here > best + 2.0 * cell):
 			break
 		t += cell * 0.9
@@ -492,21 +583,39 @@ func _ray_tree(from: Vector3, dir: Vector3, at: Vector2, reach: float) -> float:
 	for box in TREE_BOXES:
 		var lo = Vector3(at.x - box[0], box[1], at.y - box[0])
 		var hi = Vector3(at.x + box[0], box[2], at.y + box[0])
-		var near = -INF
-		var far = INF
-		for axis in range(3):
-			if absf(dir[axis]) < 0.000001:
-				if from[axis] < lo[axis] or from[axis] > hi[axis]:
-					near = INF
-					break
-				continue
-			var t1 = (lo[axis] - from[axis]) / dir[axis]
-			var t2 = (hi[axis] - from[axis]) / dir[axis]
-			near = maxf(near, minf(t1, t2))
-			far = minf(far, maxf(t1, t2))
-		if near > 0.0 and near <= far and near <= reach and (best < 0.0 or near < best):
-			best = near
+		var h = _ray_box(from, dir, lo, hi, reach)
+		if h >= 0.0 and (best < 0.0 or h < best):
+			best = h
 	return best
+
+
+# the first distance at which the ray enters one of the three boxes of a lamp (an entry of _lamps), within `reach`, or
+# -1.0 (a ray that starts inside a box is not stopped by it)
+func _ray_lamp(from: Vector3, dir: Vector3, lamp: Dictionary, reach: float) -> float:
+	var best = -1.0
+	for b in lamp["boxes"]:
+		var h = _ray_box(from, dir, Vector3(b[0], b[4], b[1]), Vector3(b[2], b[5], b[3]), reach)
+		if h >= 0.0 and (best < 0.0 or h < best):
+			best = h
+	return best
+
+
+# the distance at which the ray enters the box from `lo` to `hi`, within `reach`, or -1.0
+func _ray_box(from: Vector3, dir: Vector3, lo: Vector3, hi: Vector3, reach: float) -> float:
+	var near = -INF
+	var far = INF
+	for axis in range(3):
+		if absf(dir[axis]) < 0.000001:
+			if from[axis] < lo[axis] or from[axis] > hi[axis]:
+				return -1.0
+			continue
+		var t1 = (lo[axis] - from[axis]) / dir[axis]
+		var t2 = (hi[axis] - from[axis]) / dir[axis]
+		near = maxf(near, minf(t1, t2))
+		far = minf(far, maxf(t1, t2))
+	if near > 0.0 and near <= far and near <= reach:
+		return near
+	return -1.0
 
 
 # true if p is inside a gate's tunnel: on a tunnel cell, or past the outer wall in a gate's opening
@@ -525,13 +634,14 @@ func hidden_at(p: Vector3) -> bool:
 
 
 # true if a rider at p cannot ride there: a building, but not through a gate (tunnel cells and the opening), or a
-# trunk's neighbourhood (TREE_RIDER_CLEAR: wide enough that the riders' one-metre looks cannot slip past a trunk, and
-# the same distance clamp_walk keeps a boss from it, so a rider pushed out of one is not inside it again)
+# trunk's or a lamp pole's neighbourhood (TREE_RIDER_CLEAR and LAMP_RIDER_CLEAR: wide enough that the riders' one-metre
+# looks cannot slip past a trunk, and the same distance clamp_walk keeps a boss from it, so a rider pushed out of one
+# is not inside it again)
 func rider_blocked(p: Vector3) -> bool:
 	var s = surface_at(p)
 	if s == "building":
 		return not hidden_at(p)
-	return _near_tree(p, TREE_RIDER_CLEAR)
+	return _near_tree(p, TREE_RIDER_CLEAR) or _near_lamp(p, LAMP_RIDER_CLEAR)
 
 
 # true if p is outside the grid altogether
