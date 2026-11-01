@@ -1514,6 +1514,13 @@ func unlock_buy_rect() -> Rect2:
 	return Rect2((size.x - w) * 0.5, size.y * 0.885, w, 30.0 * k)
 
 
+# the TRY IT button beside the BUY button: it takes the player and the weapon into the training room
+func unlock_try_rect() -> Rect2:
+	var k = size.y / 720.0
+	var br = unlock_buy_rect()
+	return Rect2(br.end.x + 12.0 * k, br.position.y, 170.0 * k, br.size.y)
+
+
 # the unlock under a point of the Unlocks page, -1 for none
 func unlock_at(pos: Vector2) -> int:
 	if g == null or g.state != "title" or g.title_page != "unlocks":
@@ -1589,6 +1596,18 @@ func _draw_unlocks(k: float, cx: float) -> void:
 	elif cur_st == "locked":
 		label = "NEED %d MORE" % (cur["cost"] - g.meta.balance)
 	_txt(label, cx, br.position.y + 22.0 * k, int(18 * k), TEXT if can_buy else GRAY, 1)
+	if g.can_try(cur):
+		var tr = unlock_try_rect()
+		draw_rect(tr, Color(0.176, 0.196, 0.22))
+		draw_rect(tr, ACCENT, false, 3.0 * k)
+		_txt(
+			"TRY IT  T / Y",
+			tr.position.x + tr.size.x * 0.5,
+			tr.position.y + 22.0 * k,
+			int(16 * k),
+			TEXT,
+			1
+		)
 	if g.unlock_msg != "" and g.time - g.unlock_msg_t0 < 3.0:
 		var bought = g.unlock_msg == "BOUGHT"
 		_txt(g.unlock_msg, cx, size.y * 0.225, int(18 * k), GOLD if bought else ACCENT, 1)
@@ -1817,6 +1836,19 @@ const PAUSE_ITEMS = [
 ]
 
 
+# the pause menu's entries: in the training room (try before buying) BACK TO UNLOCKS takes the place of RESTART RUN
+# and QUIT TO TITLE, because nothing there is a run that could be lost
+func pause_items() -> Array:
+	if g != null and g.practice:
+		return [
+			{"id": "resume", "label": "RESUME"},
+			{"id": "settings", "label": "SETTINGS"},
+			{"id": "controls", "label": "CONTROLS"},
+			{"id": "leave_practice", "label": "BACK TO UNLOCKS"}
+		]
+	return PAUSE_ITEMS
+
+
 func pause_rect(i: int) -> Rect2:
 	var k = size.y / 720.0
 	var w = 320.0 * k
@@ -1827,7 +1859,7 @@ func pause_rect(i: int) -> Rect2:
 func pause_at(pos: Vector2) -> int:
 	if g == null or not g.paused or g.pause_page != "":
 		return -1
-	for i in range(PAUSE_ITEMS.size()):
+	for i in range(pause_items().size()):
 		if pause_rect(i).has_point(pos):
 			return i
 	return -1
@@ -1835,13 +1867,13 @@ func pause_at(pos: Vector2) -> int:
 
 func _draw_pause_menu(k: float, cx: float) -> void:
 	_txt("PAUSED", cx, size.y * 0.26, int(60 * k), TEXT, 1)
-	for i in range(PAUSE_ITEMS.size()):
+	for i in range(pause_items().size()):
 		var r = pause_rect(i)
 		var on = g.pause_sel == i  # the mouse updates pause_sel in input.gd (hover_menu)
 		draw_rect(r, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
 		draw_rect(r, ACCENT if on else Color(0.29, 0.31, 0.33), false, 3.0 * k)
 		_txt(
-			PAUSE_ITEMS[i]["label"],
+			pause_items()[i]["label"],
 			r.position.x + r.size.x * 0.5,
 			r.position.y + 31.0 * k,
 			int(22 * k),
@@ -2355,6 +2387,8 @@ func _draw() -> void:
 		_draw_objective(k)
 		_draw_bottom(k)
 		_draw_boss_ui(k)
+		if g.practice:
+			_draw_practice_banner(k, cx)
 		if g.riders.size() == 0 and g.bosses.size() == 0 and g.wait > 0.0 and g.wait_msg != "":
 			_txt(g.wait_msg, cx, size.y * 0.30, int(46 * k), TEXT, 1)
 			# at the start of a round on a generated arena, the style the seed picked for it
@@ -2511,6 +2545,12 @@ func _draw_hint(k: float, cx: float) -> void:
 	_txt(g.hint_txt, cx, hint_y(k), hint_fs(k), col, 1)
 
 
+# the line under the top bar in the training room: where the player is, what is being tried and how to leave
+func _draw_practice_banner(k: float, cx: float) -> void:
+	_txt("TRYING THE " + str(g.practice_unlock.get("name", "")), cx, 82.0 * k, int(18 * k), GOLD, 1)
+	_txt("NOTHING COUNTS HERE   ESC FOR THE MENU", cx, 104.0 * k, int(14 * k), GRAY, 1)
+
+
 func _draw_top_bar(k: float) -> void:
 	var bar_h = 58.0 * k
 	draw_rect(Rect2(0, 0, size.x, bar_h), Color(0.05, 0.05, 0.055, 0.72))
@@ -2550,6 +2590,8 @@ func _draw_top_bar(k: float) -> void:
 
 	# round + progress
 	var round_label = "ROUND %d/%d  %s" % [g.round_n, g.MAX_ROUNDS, g.THEMES[g.theme_idx]["name"]]
+	if g.practice:
+		round_label = "TRAINING ROOM"
 	if g.daily_mode:
 		round_label += "  DAILY"
 	elif g.custom_seed_run:
