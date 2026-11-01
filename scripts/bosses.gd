@@ -285,7 +285,8 @@ func lunge_speed(b: Dictionary) -> float:
 
 
 func set_boss_pos(b: Dictionary, wp: Vector3) -> void:
-	wp = g.clamp_walk(Vector3(wp.x, 0.0, wp.z), "boss")
+	# slide along a wall the way the player does, instead of being pushed out of it and pulled back every frame
+	wp = g.arena.slide_walk(b["wp"], Vector3(wp.x, 0.0, wp.z), "boss")
 	b["wp"] = wp
 	# "wp" is the boss's position; the hit box yaw is the only thing still taken from the street
 	b["yaw"] = g.arena.yaw(g.arena.to_track(wp).x)
