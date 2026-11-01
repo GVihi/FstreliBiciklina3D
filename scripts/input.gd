@@ -519,6 +519,8 @@ func title_activate(i: int) -> void:
 	elif id == "daily":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		g.start_game(true)
+	elif id == "training":
+		training_start()
 	elif id == "quit":
 		g.get_tree().quit()
 	elif id == "seed":
@@ -625,6 +627,15 @@ func unlock_try() -> void:
 	if not g.start_practice(u):
 		g.unlock_msg = "THE TRAINING ROOM CANNOT OPEN"
 		g.unlock_msg_t0 = g.time
+		g.sfx.play("click")
+
+
+# TRAINING ROOM on the title menu: the player goes into the room with the chosen loadout, nothing in there is scored,
+# paid or saved (`start_training` in main.gd). It does nothing but click when the room cannot open.
+func training_start() -> void:
+	if g.state != "title" or g.title_page != "":
+		return
+	if not g.start_training():
 		g.sfx.play("click")
 
 

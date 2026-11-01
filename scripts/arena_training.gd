@@ -107,6 +107,27 @@ func rider_blocked(p: Vector3) -> bool:
 	return not (_in_room(p) or _in_recess(p))
 
 
+# The nearest wall within `reach` metres of p (see Arena.wall_near), so the player can wall-jump off the four walls of
+# the room. The room is a plain rectangle, so the distance to each wall is a subtraction; the door's wall counts as a
+# wall too, because the player cannot walk into the recess (clamp_walk). The floor and the ceiling are not walls.
+func wall_near(p: Vector3, reach: float) -> Dictionary:
+	if not _in_room(p):
+		return {}  # outside (a knock-back that has not been pushed back yet): nothing to push off
+	var walls = [
+		[Vector3.LEFT, HALF_X - p.x, Vector3(HALF_X, p.y, p.z)],
+		[Vector3.RIGHT, p.x + HALF_X, Vector3(-HALF_X, p.y, p.z)],
+		[Vector3.FORWARD, HALF_Z - p.z, Vector3(p.x, p.y, HALF_Z)],
+		[Vector3.BACK, p.z + HALF_Z, Vector3(p.x, p.y, -HALF_Z)]
+	]
+	var best = {}
+	var best_d = reach
+	for w in walls:
+		if w[1] <= best_d:
+			best_d = w[1]
+			best = {"normal": w[0], "point": w[2], "dist": w[1]}
+	return best
+
+
 # true if p is inside the door's recess: not visible, not hittable
 func hidden_at(p: Vector3) -> bool:
 	return _in_recess(p)
