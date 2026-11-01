@@ -2660,13 +2660,94 @@ func _draw_hud_vitals(k: float) -> void:
 			y2 -= 20.0 * k
 
 
-# the ammo counter, bottom right: the weapon name and its [Q] key chip, the gadget line, a big number with the clip size,
-# and the row of dart pips (the next dart blinks while the gun loads)
+# the weapon slot display (README Milestone C): one row per slot, the gun (key 1), the melee weapon (key 2) and the
+# gadget (key G), stacked above the ammo number with the gun nearest to it. The weapon in the hands has a lit row in its
+# colour (gold for the gun, pink for the melee weapon); an empty slot says EMPTY. The gadget row also shows the uses
+# left and the cooldown (`Gadgets.hud_status`).
+const SLOT_ROW_H = 20.0
+const SLOT_ROW_GAP = 3.0
+const SLOT_ROW_W = 230.0
+
+
+# what the rows say, bottom row first: {key, name ("" for an empty slot), status, held, col, ready}
+func slot_rows() -> Array:
+	var melee_name = ""
+	if g.has_melee():
+		melee_name = WeaponSlots.melee_label(g.melee_weapon)
+	return [
+		{
+			"key": "1",
+			"name": WeaponSlots.label(g.primary),
+			"status": "",
+			"held": not g.melee,
+			"col": GOLD,
+			"ready": true
+		},
+		{
+			"key": "2",
+			"name": melee_name,
+			"status": "",
+			"held": g.melee,
+			"col": PINK,
+			"ready": melee_name != ""
+		},
+		{
+			"key": "G",
+			"name": WeaponSlots.gadget_label(g.gadget),
+			"status": g.gadget_sys.hud_status(),
+			"held": false,
+			"col": OBJ_GREEN,
+			"ready": g.gadget_sys.ready()
+		}
+	]
+
+
+# the rectangle of row i (0 = the gun) when the bottom edge of the bottom row is at `bottom`
+func slot_row_rect(i: int, rx: float, bottom: float, k: float) -> Rect2:
+	var h = SLOT_ROW_H * k
+	return Rect2(rx - SLOT_ROW_W * k, bottom - h - i * (h + SLOT_ROW_GAP * k), SLOT_ROW_W * k, h)
+
+
+func _draw_hud_slots(k: float, rx: float, bottom: float) -> void:
+	var rows = slot_rows()
+	for i in range(rows.size()):
+		var row = rows[i]
+		var r = slot_row_rect(i, rx, bottom, k)
+		var base = r.position.y + 15.0 * k
+		var empty = row["name"] == ""
+		_hud_panel(r)
+		if row["held"]:
+			draw_rect(r, Color(row["col"], 0.22))
+			draw_rect(r, row["col"], false, 2.0 * k)
+		var chip_fs = int(11 * k)
+		var chip_w = _text_w(row["key"], chip_fs) + 10.0 * k
+		_key_chip(row["key"], r.position.x + 5.0 * k + chip_w, base, chip_fs, k)
+		var tx = r.position.x + 5.0 * k + chip_w + 8.0 * k
+		var col = GRAY
+		if row["held"]:
+			col = row["col"]
+		elif row["ready"]:
+			col = TEXT
+		var status = str(row["status"])
+		var status_w = 0.0
+		if status != "":
+			status_w = _text_w(status, chip_fs) + 8.0 * k
+			_txt(status, r.end.x - 8.0 * k, base, chip_fs, GRAY, 2)
+		# a long name gets a smaller font so it never runs into the status
+		var fs = int(13 * k)
+		var label = "EMPTY" if empty else str(row["name"])
+		var avail = r.end.x - 8.0 * k - status_w - tx
+		while fs > 8 and _text_w(label, fs) > avail:
+			fs -= 1
+		_txt(label, tx, base, fs, col)
+
+
+# the ammo counter, bottom right: the slot display, a big number with the clip size, and the row of dart pips (the next
+# dart blinks while the gun loads)
 func _draw_hud_ammo(k: float) -> void:
 	var rx = size.x - HUD_MARGIN * k
 	var by = size.y - HUD_BOTTOM * k
 	var nb = by - 24.0 * k  # the baseline of the big number
-	var small = int(13 * k)
 	var reloading = g.combat_sys.is_reloading()
 	var unlimited = g.buffs["rapid"] > 0.0
 	var empty = g.shells <= 0 and not unlimited and g.free_shots <= 0
@@ -2688,11 +2769,8 @@ func _draw_hud_ammo(k: float) -> void:
 		draw_rect(Rect2(sx, by - 15.0 * k, 7.0 * k, 5.0 * k), cap_col)
 
 	if g.melee:
-		# the melee weapon in the hands: its name big, the gun it switches back to above it
+		# the melee weapon in the hands: its name big (the slot display above it has it lit)
 		_txt(WeaponSlots.melee_label(g.melee_weapon), rx, nb, int(30 * k), PINK, 2)
-		var gun = WeaponSlots.label(g.primary)
-		_key_chip("Q", rx - _text_w(gun, small) - 8.0 * k, nb - 40.0 * k, small, k)
-		_txt(gun, rx, nb - 40.0 * k, small, GRAY, 2)
 	else:
 		var num = "INF" if unlimited else str(g.shells)
 		var ncol = TEXT
@@ -2713,15 +2791,9 @@ func _draw_hud_ammo(k: float) -> void:
 			_txt(
 				"RELOAD", rx - sub_w - _text_w(num, nfs) - 14.0 * k, nb, int(14 * k), RELOAD_CYAN, 2
 			)
-		var wname = WeaponSlots.label(g.primary)
-		_txt(wname, rx, nb - 62.0 * k, small, TEXT, 2)
-		if g.has_melee():
-			_key_chip("Q", rx - _text_w(wname, small) - 8.0 * k, nb - 62.0 * k, small, k)
 
-	# the gadget slot (empty slot: nothing is drawn): its name, the uses left and the key, or the cooldown
-	var gtxt = g.gadget_sys.hud_text()
-	if gtxt != "":
-		_txt(gtxt, rx, nb - 84.0 * k, small, TEXT if g.gadget_sys.ready() else GRAY, 2)
+	# the three weapon slots above the number
+	_draw_hud_slots(k, rx, nb - 40.0 * k)
 
 	# the small status line in the corner
 	var snd = (
