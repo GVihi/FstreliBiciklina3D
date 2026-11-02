@@ -265,6 +265,26 @@ func nearest_gate(pos: Vector3) -> Dictionary:
 	return best
 
 
+# the gate nearest to world point pos among the gates the node leaves open (a cursed cache calls its riders from
+# here, objective.gd); when the node lists no open gate, every gate counts, like in pick_gate
+func nearest_open_gate(pos: Vector3) -> Dictionary:
+	var gates = g.arena.gates()
+	var usable = []
+	for i in g.node_setup().get("gates", []):
+		if int(i) >= 0 and int(i) < gates.size():
+			usable.append(gates[int(i)])
+	if usable.is_empty():
+		usable = gates
+	var best = {}
+	var best_d = INF
+	for gate in usable:
+		var d = Vector2(gate["pos"].x - pos.x, gate["pos"].z - pos.z).length()
+		if d < best_d:
+			best_d = d
+			best = gate
+	return best
+
+
 # where a rider starts at a gate: inside the tunnel, a little beyond its middle (see GATE_SPAWN)
 func gate_spawn_point(gate: Dictionary) -> Vector3:
 	return gate["pos"] + gate["outward"] * GATE_SPAWN

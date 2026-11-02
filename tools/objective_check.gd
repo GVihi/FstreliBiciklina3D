@@ -11,6 +11,9 @@ extends SceneTree
 # caches a variant, and does roll the vanishing one. A vanishing cache starts its countdown only when the player is
 # within VANISH_TRIGGER, keeps counting when the player walks away, is gone at zero (not taken, no pay, no every-cache
 # bonus, off the radar and the map) and can still be taken in time.
+# A cursed cache pays CURSED_MULT times the cash and score, calls `curse_count` riders out of the gate nearest to it
+# one after another (not all at once, and not before CURSE_DELAY), never changes `taken` or the every-cache bonus, and
+# sends nobody when the round is not being played; the roll of variants still repeats and does roll the cursed one.
 # Rim (scripts/rim.gd): riders and bosses get the red rim, pedestrians and cheerleaders the green one, the hit flash
 # gives the rim back when it ends and the setting takes it away and back.
 # Exits with status 1 and prints the problems.
@@ -122,6 +125,7 @@ func _spots() -> void:
 
 func _variants() -> void:
 	var seen_vanishing = 0
+	var seen_cursed = 0
 	var rounds_with_none = 0
 	for s in range(SEEDS):
 		var v1 = Objective.pick_variants(4, _rng(SEED + s))
@@ -138,6 +142,8 @@ func _variants() -> void:
 				_fail("seed %d: unknown cache variant %s" % [s, v])
 			if v == Objective.VARIANT_VANISHING:
 				seen_vanishing += 1
+			if v == Objective.VARIANT_CURSED:
+				seen_cursed += 1
 		if n > Objective.VARIANT_MAX:
 			_fail(
 				(
@@ -149,6 +155,8 @@ func _variants() -> void:
 			rounds_with_none += 1
 	if seen_vanishing == 0:
 		_fail("no vanishing cache was rolled on %d seeds" % SEEDS)
+	if seen_cursed == 0:
+		_fail("no cursed cache was rolled on %d seeds" % SEEDS)
 	if rounds_with_none == 0:
 		_fail(
 			"every one of %d seeds rolled a variant: 'some of the caches' became 'always'" % SEEDS
@@ -232,6 +240,73 @@ func _vanishing(m, o) -> void:
 	o.update(0.05)
 	if not c2["taken"] or m.score <= score1:
 		_fail("vanishing: a cache taken in time did not pay")
+
+
+# Plays the cursed cache on a round that is already set up: `o` is the main's objective_sys.
+func _cursed(m, o) -> void:
+	o.setup_round()
+	var plain = o.caches[0]
+	var cursed = o.caches[1]
+	plain["variant"] = Objective.VARIANT_PLAIN
+	cursed["variant"] = Objective.VARIANT_CURSED
+	m.round_n = 2
+	var cash0 = m.cash
+	var score0 = m.score
+	m.player.position = plain["pos"]
+	o.update(0.05)
+	var plain_cash = m.cash - cash0
+	var plain_score = m.score - score0
+	if o.curse_pending() != 0:
+		_fail("cursed: a plain cache called riders")
+	var riders0 = m.riders.size()
+	cash0 = m.cash
+	score0 = m.score
+	m.player.position = cursed["pos"]
+	o.update(0.05)
+	if not cursed["taken"] or o.taken != 2:
+		_fail("cursed: the cache was not taken (taken %d)" % o.taken)
+	if m.cash - cash0 < Objective.CURSED_MULT * Objective.CACHE_CASH:
+		_fail("cursed: paid %d cash, plain paid %d" % [m.cash - cash0, plain_cash])
+	if (
+		m.score - score0 < Objective.CURSED_MULT * Objective.CACHE_SCORE
+		or m.score - score0 <= plain_score
+	):
+		_fail("cursed: paid %d score, plain paid %d" % [m.score - score0, plain_score])
+	var want = Objective.curse_count(m.round_n)
+	if o.curse_pending() != want:
+		_fail("cursed: %d riders lined up, wanted %d" % [o.curse_pending(), want])
+	if m.riders.size() != riders0:
+		_fail("cursed: a rider came out before CURSE_DELAY")
+	# they come one after another, not all at once
+	m.player.position = o.goal["pos"]
+	o.update(Objective.CURSE_DELAY)
+	var came = m.riders.size() - riders0
+	if came != 1 or o.curse_pending() != want - 1:
+		_fail(
+			"cursed: %d riders after the delay, wanted 1 (%d pending)" % [came, o.curse_pending()]
+		)
+	for i in range(want):
+		o.update(Objective.CURSE_GAP)
+	if o.curse_pending() != 0 or m.riders.size() - riders0 != want:
+		_fail(
+			(
+				"cursed: %d riders came, %d pending, wanted %d and 0"
+				% [m.riders.size() - riders0, o.curse_pending(), want]
+			)
+		)
+	if Objective.curse_count(Objective.CURSE_BIG_ROUND) <= Objective.curse_count(1):
+		_fail("cursed: a late round does not call more riders")
+	# nothing is sent when the round is not being played
+	o.setup_round()
+	o.caches[0]["variant"] = Objective.VARIANT_CURSED
+	m.player.position = o.caches[0]["pos"]
+	o.update(0.05)
+	var n = m.riders.size()
+	m.state = "clear"
+	o.update(Objective.CURSE_DELAY + 1.0)
+	m.state = "play"
+	if m.riders.size() != n or o.curse_pending() != 0:
+		_fail("cursed: riders came out of a round that was over")
 
 
 func _cell_index(a, p: Vector3) -> int:
@@ -328,6 +403,7 @@ func _round() -> void:
 	if o.has_goal() or not o.caches.is_empty():
 		_fail("clear_pickups left objectives behind")
 	_vanishing(m, o)
+	_cursed(m, o)
 	_drop(m)
 
 
