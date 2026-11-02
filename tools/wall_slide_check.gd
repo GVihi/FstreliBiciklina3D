@@ -93,6 +93,15 @@ func _free_cell(layout: Dictionary, cx: int, cz: int) -> bool:
 	return kind != "b" and kind != "t"
 
 
+# true if no bench or crate stands in the cell or in the one behind it (away from the wall): the benches and crates are
+# solid (tools/block_collision_check.gd) and this check is about a bare wall
+func _boxless(arena, cx: int, cz: int, into: Vector2i) -> bool:
+	return (
+		not arena._blocks.has(Vector2i(cx, cz))
+		and not arena._blocks.has(Vector2i(cx - into.x, cz - into.y))
+	)
+
+
 # One straight wall for each of the four directions the wall can be in (if the layout has one): a run of
 # WALL_CELLS free cells whose neighbour on the wall side is solid all along. Each is a dictionary:
 #   "start": the first point of the run, START_GAP from the wall's face and END_GAP from the run's end
@@ -111,6 +120,7 @@ func _find_walls(arena) -> Array:
 				var count = 0
 				while (
 					_free_cell(layout, cx + along.x * count, cz + along.y * count)
+					and _boxless(arena, cx + along.x * count, cz + along.y * count, into)
 					and not _free_cell(
 						layout, cx + along.x * count + into.x, cz + along.y * count + into.y
 					)

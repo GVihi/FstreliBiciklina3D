@@ -16,10 +16,13 @@ extends RefCounted
 #               of the cell from the wall, and no bench within CRATE_BENCH_GAP cells), some of them
 #               with a second crate on top or beside, at most CRATE_MAX places and never closer than CRATE_SPACING.
 #   Nothing is placed near the start or a gate (KEEP_CLEAR metres).
-# Props are decoration: no collision, same as the lamps and trees. Every model is drawn with one MultiMesh per
-# mesh in the model, so the cost is a handful of draw calls however many there are. A model that is not there
-# (not imported, or removed) is left out and the box building stays. "model_tris" and "model_draw_calls" in the
-# result are what the models cost; "tris" and "draw_calls" of the world stay what the ground and boxes cost.
+# The benches and crates are solid, the way the trees and lamp posts are (README, docs/PROCEDURAL_ARENAS.md): the
+# generated arena reads solid_boxes() and keeps everyone on foot and every rider off them, and stops darts and
+# phones with them. The buildings need nothing of the sort, their cells are already walls. Every model is drawn
+# with one MultiMesh per mesh in the model, so the cost is a handful of draw calls however many there are. A model
+# that is not there (not imported, or removed) is left out and the box building stays. "model_tris" and
+# "model_draw_calls" in the result are what the models cost; "tris" and "draw_calls" of the world stay what the
+# ground and boxes cost.
 
 const WorldGen = preload("res://scripts/world_gen.gd")
 const WorldDress = preload("res://scripts/world_dress.gd")
@@ -48,6 +51,13 @@ const CRATE_SCALE_MAX = 1.3
 const CRATE_WALL_GAP = 0.06  # metres between a crate and the wall behind it
 const KEEP_CLEAR = 8.0  # metres round the start and every gate
 
+# The size (x along the bench or crate, y up, z across it) of each model's bounding box in metres, before a crate's
+# own scale, as the files have it. The arena makes exactly this box solid, so tools/block_collision_check.gd compares
+# the two with the real models: change a model and that check says to change these.
+const BENCH_SIZE = Vector3(2.0, 0.8992, 0.723)
+const CRATE_SIZE = Vector3(0.94, 0.76, 0.64)
+const BLOCK_SOLID = 0.03  # metres that nobody can stand in beyond a bench's or crate's own edge (a trunk's is 0.04)
+
 const SIDES = [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]  # north, east, south, west
 
 
@@ -60,8 +70,53 @@ static func plan(layout: Dictionary) -> Dictionary:
 		return out
 	if WorldDress.windows_wanted(layout):  # the bridge's girders and the tunnel's walls stay blank boxes
 		out["buildings"] = _plan_buildings(layout)
+	var props = plan_props(layout)
+	out["benches"] = props["benches"]
+	out["crates"] = props["crates"]
+	return out
+
+
+# Only the benches and the crates of plan(), the same ones: {"benches": [...], "crates": [...]}. The arena asks for
+# these (it has no use for the buildings, whose model has to be loaded to plan them).
+static func plan_props(layout: Dictionary) -> Dictionary:
+	var out = {"benches": [], "crates": []}
+	if layout.is_empty():
+		return out
 	out["benches"] = _plan_benches(layout)
 	out["crates"] = _plan_crates(layout, out["benches"])
+	return out
+
+
+# The boxes the arena makes solid, from a plan (or plan_props()): every bench and crate as {"at": Vector2 (world x and
+# z of its middle), "yaw": the turn the model has, "half": Vector2 (half the box along its own x and z), "y0", "y1":
+# its bottom and top}. This is the model's bounding box (BENCH_SIZE, CRATE_SIZE, a crate's scale) turned the way the
+# model is drawn, so what is drawn is what is solid. A crate on top of another has its own box, higher up. A bench
+# whose model is not there is not drawn (build() leaves it out), so it is not solid either; the crates are only planned
+# when their model is there.
+static func solid_boxes(planned: Dictionary) -> Array:
+	var out = []
+	if ResourceLoader.exists(BENCH_PATH):
+		for b in planned["benches"]:
+			out.append(
+				{
+					"at": Vector2(b["pos"].x, b["pos"].z),
+					"yaw": float(b["yaw"]),
+					"half": Vector2(BENCH_SIZE.x, BENCH_SIZE.z) * 0.5,
+					"y0": float(b["pos"].y),
+					"y1": float(b["pos"].y) + BENCH_SIZE.y
+				}
+			)
+	for c in planned["crates"]:
+		var s = float(c["scale"])
+		out.append(
+			{
+				"at": Vector2(c["pos"].x, c["pos"].z),
+				"yaw": float(c["yaw"]),
+				"half": Vector2(CRATE_SIZE.x, CRATE_SIZE.z) * 0.5 * s,
+				"y0": float(c["pos"].y),
+				"y1": float(c["pos"].y) + CRATE_SIZE.y * s
+			}
+		)
 	return out
 
 

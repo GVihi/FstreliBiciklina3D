@@ -169,7 +169,13 @@ func _check_arena(arena, trees: Array, tag: String) -> void:
 			for other in trees:
 				if other["cell"] == neighbour:
 					has_tree = true
-			if not has_tree and arena.clamp_walk(next, "player").distance_to(next) > 0.001:
+			# a bench or a crate in the cell is solid too (tools/block_collision_check.gd): this check is about the tree
+			var has_block = arena._near_block(next, 1.0)
+			if (
+				not has_tree
+				and not has_block
+				and arena.clamp_walk(next, "player").distance_to(next) > 0.001
+			):
 				_fail("%s: the cell %s beside the tree is not free" % [label, step])
 		_walk_at_tree(arena, tree, label)
 		_check_shots(arena, tree, trees, label)

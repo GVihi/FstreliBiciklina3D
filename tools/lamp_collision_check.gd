@@ -203,8 +203,8 @@ func _check_arena(arena, props: Dictionary, tag: String) -> void:
 	_check_riders(arena, picked, tag)
 
 
-# true if the ground at p is open (not a building or a tunnel), no tree stands next to it and no lamp but the one in
-# cell `own` has its pole within 1.3 m of it
+# true if the ground at p is open (not a building or a tunnel), no tree stands next to it, no bench or crate is within
+# 1 m of it and no lamp but the one in cell `own` has its pole within 1.3 m of it
 func _cell_is_plain_ground(arena, props: Dictionary, p: Vector3, own: Vector2i) -> bool:
 	var s: String = arena.surface_at(p)
 	if s == "building" or s == "tunnel":
@@ -219,7 +219,8 @@ func _cell_is_plain_ground(arena, props: Dictionary, p: Vector3, own: Vector2i) 
 	for other in props["lamps"]:
 		if other["cell"] != own and other["pole"].distance_to(Vector2(p.x, p.z)) < 1.3:
 			return false
-	return true
+	# a bench or a crate is solid too (tools/block_collision_check.gd): this check is about the lamp
+	return not arena._near_block(p, 1.0)
 
 
 # the unit steps the walks come from
