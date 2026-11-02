@@ -172,7 +172,9 @@ Every number the balance pass (D2) can turn, in one place. Most of them are writ
 | Cash earned | `add_cash` in `scripts/shop.gd` | `n * (1 + 0.08 * (round_n - 1))`, times 1.35 with BOUNTY | Every cash source below goes through this, so cash is worth more on later floors, and prices rise faster (0.12 a floor) than pay (0.08 a floor) |
 | Cash sources | in code, see the next rows | rider 5 (armoured 13), CASH drop 15, perfect dodge 2, return to sender 12 (36 with BOUNTY HUNTER), a boss crashing 12 (angry cyclist 5), a boss beaten 55 (angry cyclist 18) | `riders.gd`, `pickups.gd`, `player.gd`, `combat.gd`, `bosses.gd` |
 | Cache | `CACHE_CASH`, `CACHE_SCORE` in `scripts/objective.gd` | 25 cash and 750 score each | The reward of one cache |
-| All caches | `ALL_CACHES_CASH`, `ALL_CACHES_SCORE` in `scripts/objective.gd` | 50 cash and 2500 score | The bonus for taking every cache of a round |
+| All caches | `ALL_CACHES_CASH`, `ALL_CACHES_SCORE` in `scripts/objective.gd` | 50 cash and 2500 score | The bonus for taking every cache of a round; a vanished cache means no bonus |
+| Cache variants | `VARIANT_CHANCE`, `VARIANT_MAX` in `scripts/objective.gd` | 40 % per cache, at most 2 of the 4 | How many caches carry a catch; rolled from the seed, so a Daily Run repeats |
+| Vanishing cache | `VANISH_TRIGGER`, `VANISH_TIME` in `scripts/objective.gd` | countdown starts within 12 m and lasts 8 s | How fast the player has to be: raise the time or lower the range to make it kinder |
 | Hearts | `MAXHEARTS` in `scripts/main.gd` (reset at the start of a run), the `heart` tier in `scripts/shop.gd` | 3 at the start of a run, 4 at most (one extra-heart upgrade) | PATCH UP gives 1 back, a heart drop gives 1, a rest node refills to the maximum |
 
 Not in this table, but part of the feel of a round: the number of caches and the extraction rules (`scripts/objective.gd`), the arena size and style (`data/arena_rules.json`), the coin rates and unlock prices of the meta game (`data/unlocks.json`, tuned in D3) and the XP numbers (`data/xp.json`).

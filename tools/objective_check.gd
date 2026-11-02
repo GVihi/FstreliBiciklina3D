@@ -7,6 +7,10 @@ extends SceneTree
 # is far from the start, the caches far from the start, the extraction point and each other).
 # Round (scripts/objective.gd): a generated round has caches and a locked extraction point, a cache pays once, taking
 # them all pays the bonus, the roundabout has none of it.
+# Cache variants (scripts/objective.gd): `pick_variants` repeats for the same seed, never gives more than VARIANT_MAX
+# caches a variant, and does roll the vanishing one. A vanishing cache starts its countdown only when the player is
+# within VANISH_TRIGGER, keeps counting when the player walks away, is gone at zero (not taken, no pay, no every-cache
+# bonus, off the radar and the map) and can still be taken in time.
 # Rim (scripts/rim.gd): riders and bosses get the red rim, pedestrians and cheerleaders the green one, the hit flash
 # gives the rim back when it ends and the setting takes it away and back.
 # Exits with status 1 and prints the problems.
@@ -15,6 +19,7 @@ const ArenaGenScript = preload("res://scripts/arena_gen.gd")
 const GeneratedArena = preload("res://scripts/arena_generated.gd")
 const Rim = preload("res://scripts/rim.gd")
 const Models = preload("res://scripts/models.gd")
+const Objective = preload("res://scripts/objective.gd")
 
 const SEEDS = 150
 const GOAL_MIN_SHARE = 0.55  # the extraction point is at least this share of the way to the farthest reachable cell
@@ -25,6 +30,7 @@ var problems = []
 
 func _initialize() -> void:
 	_spots()
+	_variants()
 	await _round()
 	_rim_models()
 	await _rim_in_game()
@@ -112,6 +118,120 @@ func _spots() -> void:
 			seen.append(c)
 	if short_caches > SEEDS / 20:
 		_fail("%d of %d arenas have fewer than 4 cache spots" % [short_caches, SEEDS])
+
+
+func _variants() -> void:
+	var seen_vanishing = 0
+	var rounds_with_none = 0
+	for s in range(SEEDS):
+		var v1 = Objective.pick_variants(4, _rng(SEED + s))
+		if v1 != Objective.pick_variants(4, _rng(SEED + s)):
+			_fail("seed %d: the cache variants are not repeatable" % s)
+		if v1.size() != 4:
+			_fail("seed %d: %d variants for 4 caches" % [s, v1.size()])
+		var n = 0
+		for v in v1:
+			if v == Objective.VARIANT_PLAIN:
+				continue
+			n += 1
+			if not Objective.VARIANTS.has(v):
+				_fail("seed %d: unknown cache variant %s" % [s, v])
+			if v == Objective.VARIANT_VANISHING:
+				seen_vanishing += 1
+		if n > Objective.VARIANT_MAX:
+			_fail(
+				(
+					"seed %d: %d caches have a variant, the most allowed is %d"
+					% [s, n, Objective.VARIANT_MAX]
+				)
+			)
+		if n == 0:
+			rounds_with_none += 1
+	if seen_vanishing == 0:
+		_fail("no vanishing cache was rolled on %d seeds" % SEEDS)
+	if rounds_with_none == 0:
+		_fail(
+			"every one of %d seeds rolled a variant: 'some of the caches' became 'always'" % SEEDS
+		)
+
+
+# Plays the vanishing cache on a round that is already set up: `o` is the main's objective_sys.
+func _vanishing(m, o) -> void:
+	o.setup_round()
+	if o.caches.size() < 3:
+		_fail("vanishing: only %d caches after a second setup" % o.caches.size())
+		return
+	var c = o.caches[0]
+	c["variant"] = Objective.VARIANT_VANISHING  # force it: what the seed rolls is not the point here
+	var p: Vector3 = c["pos"]
+	var far = p + Vector3(Objective.VANISH_TRIGGER + 5.0, 0.0, 0.0)
+	var near = p + Vector3(Objective.VANISH_TRIGGER - 2.0, 0.0, 0.0)
+	# too far: no countdown
+	m.player.position = far
+	o.update(1.0)
+	if c["left"] >= 0.0:
+		_fail("vanishing: the countdown started with the player %.0f m away" % o.dist_to(p))
+	if Objective.countdown_label(c) != "":
+		_fail("vanishing: a label before the countdown started")
+	# within range: it starts, and shows the seconds
+	m.player.position = near
+	o.update(0.5)
+	if absf(c["left"] - (Objective.VANISH_TIME - 0.5)) > 0.01:
+		_fail(
+			(
+				"vanishing: after 0.5 s %.2f s were left, wanted %.2f"
+				% [c["left"], Objective.VANISH_TIME - 0.5]
+			)
+		)
+	if Objective.countdown_label(c) == "":
+		_fail("vanishing: no countdown label while it runs")
+	# walking away does not stop it
+	m.player.position = far
+	o.update(1.0)
+	if absf(c["left"] - (Objective.VANISH_TIME - 1.5)) > 0.01:
+		_fail("vanishing: walking away changed the countdown (%.2f s left)" % c["left"])
+	# it runs out: gone, not taken, nothing paid, off the radar, markers and map
+	var cash0 = m.cash
+	var score0 = m.score
+	o.update(Objective.VANISH_TIME)
+	if not c["gone"] or c["taken"] or o.taken != 0:
+		_fail(
+			(
+				"vanishing: at zero gone %s, taken %s, taken count %d"
+				% [c["gone"], c["taken"], o.taken]
+			)
+		)
+	if Objective.is_open(c):
+		_fail("vanishing: a vanished cache still counts as open")
+	if not c["node"].is_queued_for_deletion():
+		_fail("vanishing: the crate and the light column were not removed")
+	m.player.position = p
+	o.update(0.05)
+	if m.score != score0 or m.cash != cash0 or o.taken != 0:
+		_fail("vanishing: a vanished cache paid out")
+	# the others still pay, but taking all that are left does not pay the every-cache bonus
+	var paid0 = m.cash
+	for i in range(1, o.caches.size()):
+		m.player.position = o.caches[i]["pos"]
+		o.update(0.05)
+	if o.taken != o.caches.size() - 1:
+		_fail("vanishing: %d of %d other caches taken" % [o.taken, o.caches.size() - 1])
+	if m.cash - paid0 >= o.taken * o.CACHE_CASH + o.ALL_CACHES_CASH:
+		_fail("vanishing: the every-cache bonus was paid with a cache gone")
+	# a second round: taken in time, it pays like any other cache
+	o.setup_round()
+	var c2 = o.caches[0]
+	c2["variant"] = Objective.VARIANT_VANISHING
+	var p2: Vector3 = c2["pos"]
+	m.player.position = p2 + Vector3(Objective.VANISH_TRIGGER - 2.0, 0.0, 0.0)
+	o.update(Objective.VANISH_TIME - 1.0)
+	if c2["gone"] or c2["left"] <= 0.0:
+		_fail("vanishing: gone before its time (%.2f s left)" % c2["left"])
+	var score1 = m.score
+	m.player.position = p2
+	o.update(0.05)
+	if not c2["taken"] or m.score <= score1:
+		_fail("vanishing: a cache taken in time did not pay")
 
 
 func _cell_index(a, p: Vector3) -> int:
@@ -207,6 +327,7 @@ func _round() -> void:
 	m.clear_pickups()
 	if o.has_goal() or not o.caches.is_empty():
 		_fail("clear_pickups left objectives behind")
+	_vanishing(m, o)
 	_drop(m)
 
 

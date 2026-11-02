@@ -1995,6 +1995,8 @@ func _draw_map_overlay(k: float, cx: float) -> void:
 		if not ex.cache_found[i]:
 			continue
 		var cache: Dictionary = o.caches[i]
+		if cache["gone"]:  # a vanished cache is no longer on the map
+			continue
 		var cp = map_point(cache["pos"], r)
 		if cache["taken"]:
 			_map_symbol("taken", cp, k, MAP_TAKEN)
@@ -3156,7 +3158,7 @@ func _draw_radar_objectives(c: Vector2, R: float, k: float) -> void:
 	if not o.enabled() or not o.has_goal():
 		return
 	for cache in o.caches:
-		if cache["taken"] or o.dist_to(cache["pos"]) > o.SENSE_RANGE:
+		if not o.is_open(cache) or o.dist_to(cache["pos"]) > o.SENSE_RANGE:
 			continue
 		var rel_c = _rel_angle(cache["pos"])
 		var rr_c = Threats.radar_fraction(o.dist_to(cache["pos"]), true) * (R - 4.0 * k)
@@ -3249,8 +3251,11 @@ func _draw_objective(k: float) -> void:
 		o.extracting
 	)
 	for cache in o.caches:
-		if not cache["taken"] and o.dist_to(cache["pos"]) <= o.SENSE_RANGE:
-			_world_marker(cache["pos"] + Vector3(0, 2.4, 0), OBJ_GOLD, "", k, false)
+		if o.is_open(cache) and o.dist_to(cache["pos"]) <= o.SENSE_RANGE:
+			# a vanishing cache whose countdown runs shows the seconds left next to its marker
+			_world_marker(
+				cache["pos"] + Vector3(0, 2.4, 0), OBJ_GOLD, o.countdown_label(cache), k, false
+			)
 
 
 # The hit marker: four diagonal ticks round the crosshair that pop out big and settle while they fade. What it shows
