@@ -623,7 +623,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
   - [x] Cursed cache: pays more but calls riders from the nearest gate when taken (note in `docs/ROADMAP_HISTORY.md`; pays 2x and calls 2 to 3 riders; waits for an in-game check by the owner)
   - [x] Locked cache: needs a key that is found at another cache or dropped by a rider (note in `docs/ROADMAP_HISTORY.md`; the key is found at another cache, a rider drop is not built; waits for an in-game check by the owner)
   - [x] Vanishing cache (note in `docs/ROADMAP_HISTORY.md`; the seeded variant roll is built, the cursed and the locked cache join it; waits for an in-game check by the owner)
-  - [ ] Mark the variants on the HUD and the radar so the player can tell them apart (colour and shape, not colour alone)
+  - [x] Mark the variants on the HUD and the radar so the player can tell them apart (colour and shape, not colour alone) (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game look)
 - [ ] Choose your exit: the arena has several gates and the run map branches, so the extraction point could be one per exit gate, each matching a next node on the map (the player leaves through the gate of the node they want), instead of one fixed point. Needs the node choice (`pick_node`, Milestone D) to be made on the way out instead of on the map screen, and the HUD, radar and world markers to show more than one point
 
 ## Rider variety and arena hazards

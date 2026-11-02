@@ -9,6 +9,7 @@ var arrows: Array = []  # the edge arrows drawn on the last frame, strongest fir
 const Toon = preload("res://scripts/toon.gd")
 const Threats = preload("res://scripts/threats.gd")
 const WeaponSlots = preload("res://scripts/weapon_slots.gd")
+const Objective = preload("res://scripts/objective.gd")
 
 const GOLD = Color(0.95, 0.71, 0.19)
 const RED = Color(0.9, 0.33, 0.24)
@@ -1875,7 +1876,8 @@ func _draw_pause_menu(k: float, cx: float) -> void:
 # part of the arena the player has explored: north (-z) is up, east (+x) is right. Ground the
 # player has not been near is not drawn, and a supply cache or the extraction point only appears once the player has
 # come within sense range of it. Shapes carry the meaning as well as colours: a circle is the start, a bar a gate, a
-# diamond a cache (hollow once taken), a square the way out, a triangle you.
+# diamond a cache (hollow once taken), a square the way out, a triangle you. A cache with a catch has a shape of its
+# own (`CACHE_SHAPES`): an hourglass vanishes, a star is cursed, a diamond with a dark square is locked.
 const MAP_START = Color("#FF2D95")
 const MAP_GATE = Color("#19D3E6")
 const MAP_TAKEN = Color(0.62, 0.62, 0.58)
@@ -1885,9 +1887,21 @@ const MAP_LEGEND = [
 	["start", "START"],
 	["gate", "GATE"],
 	["cache", "CACHE"],
+	["cache_vanishing", "FADING"],
+	["cache_cursed", "CURSED"],
+	["cache_locked", "LOCKED"],
 	["taken", "TAKEN"],
 	["exit", "EXIT"]
 ]
+# the shape of each kind of cache on the radar, the map and the world markers, so the kinds do not rest on colour alone
+const CACHE_SHAPES = {
+	"plain": "diamond", "vanishing": "hourglass", "cursed": "star", "locked": "padlock"
+}
+
+
+# the shape name of a cache variant (a variant with no entry looks like a plain cache)
+static func cache_shape(variant: String) -> String:
+	return CACHE_SHAPES.get(variant, "diamond")
 
 
 # the square the map is drawn in
@@ -1915,6 +1929,8 @@ func _map_symbol(
 		draw_rect(Rect2(at - Vector2(8, 2.5) * k, Vector2(16, 5) * k), col)
 	elif kind == "cache":
 		_diamond(at, 7.5 * k, col)
+	elif kind.begins_with("cache_"):
+		_cache_shape(at, 7.5 * k, kind.trim_prefix("cache_"), col)
 	elif kind == "taken":
 		var r = 7.0 * k
 		var pts = PackedVector2Array(
@@ -2001,7 +2017,7 @@ func _draw_map_overlay(k: float, cx: float) -> void:
 		if cache["taken"]:
 			_map_symbol("taken", cp, k, MAP_TAKEN)
 		else:
-			_map_symbol("cache", cp, k, OBJ_GOLD)
+			_map_symbol("cache_" + cache["variant"], cp, k, o.variant_color(cache["variant"]))
 	if ex.goal_found and o.has_goal():
 		var gp = map_point(o.goal["pos"], r)
 		_map_symbol("exit", gp, k, OBJ_GREEN if o.extracting else Color(OBJ_LOCKED, 0.85))
@@ -2038,6 +2054,9 @@ func _draw_map_overlay(k: float, cx: float) -> void:
 		"start": MAP_START,
 		"gate": MAP_GATE,
 		"cache": OBJ_GOLD,
+		"cache_vanishing": Objective.variant_color("vanishing"),
+		"cache_cursed": Objective.variant_color("cursed"),
+		"cache_locked": Objective.variant_color("locked"),
 		"taken": MAP_TAKEN,
 		"exit": OBJ_GREEN
 	}
@@ -3162,13 +3181,45 @@ func _draw_radar_objectives(c: Vector2, R: float, k: float) -> void:
 			continue
 		var rel_c = _rel_angle(cache["pos"])
 		var rr_c = Threats.radar_fraction(o.dist_to(cache["pos"]), true) * (R - 4.0 * k)
-		_diamond(c + Vector2(sin(rel_c), -cos(rel_c)) * rr_c, 3.6 * k, OBJ_GOLD)
+		_cache_shape(
+			c + Vector2(sin(rel_c), -cos(rel_c)) * rr_c,
+			3.6 * k,
+			cache["variant"],
+			o.variant_color(cache["variant"])
+		)
 	var gp: Vector3 = o.goal["pos"]
 	var rel = _rel_angle(gp)
 	var rr = Threats.radar_fraction(o.dist_to(gp), true) * (R - 4.0 * k)
 	var col = OBJ_GREEN if o.extracting else Color(OBJ_LOCKED, 0.55)
 	var at = c + Vector2(sin(rel), -cos(rel)) * rr
 	draw_rect(Rect2(at - Vector2(3.6, 3.6) * k, Vector2(7.2, 7.2) * k), col)
+
+
+# a cache marker of the shape its variant calls for (CACHE_SHAPES): the plain diamond, an hourglass, an eight-point
+# star or a diamond with a dark square in the middle
+func _cache_shape(at: Vector2, r: float, variant: String, col: Color) -> void:
+	var shape = cache_shape(variant)
+	var edge = Color(0, 0, 0, 0.7)
+	if shape == "hourglass":
+		var top = PackedVector2Array([at + Vector2(-r, -r), at + Vector2(r, -r), at])
+		var bottom = PackedVector2Array([at + Vector2(-r, r), at + Vector2(r, r), at])
+		for tri in [top, bottom]:
+			draw_colored_polygon(tri, col)
+			draw_polyline(PackedVector2Array([tri[0], tri[1], tri[2], tri[0]]), edge, 1.0)
+	elif shape == "star":
+		var pts = PackedVector2Array()
+		for i in range(8):
+			var a = float(i) * TAU / 8.0 - PI / 2.0
+			var rad = r * 1.2 if i % 2 == 0 else r * 0.55
+			pts.append(at + Vector2(cos(a), sin(a)) * rad)
+		draw_colored_polygon(pts, col)
+		pts.append(pts[0])
+		draw_polyline(pts, edge, 1.0)
+	elif shape == "padlock":
+		_diamond(at, r, col)
+		draw_rect(Rect2(at - Vector2(r, r) * 0.32, Vector2(r, r) * 0.64), edge)
+	else:
+		_diamond(at, r, col)
 
 
 func _diamond(at: Vector2, r: float, col: Color) -> void:
@@ -3184,13 +3235,15 @@ func _diamond(at: Vector2, r: float, col: Color) -> void:
 # ---------------------------------------------------------------- objectives (objective.gd)
 # A marker for something in the world: a diamond with a distance over it when it is on screen, a pointing
 # arrow on the edge of the screen when it is off to the side or behind you.
-func _world_marker(p: Vector3, col: Color, label: String, k: float, big: bool) -> void:
+func _world_marker(
+	p: Vector3, col: Color, label: String, k: float, big: bool, variant: String = "plain"
+) -> void:
 	var c = size * 0.5
 	var r = (11.0 if big else 7.0) * k
 	if not g.cam.is_position_behind(p):
 		var sp = g.cam.unproject_position(p)
 		if Rect2(Vector2(40, 90) * k, size - Vector2(80, 170) * k).has_point(sp):
-			_diamond(sp, r, col)
+			_cache_shape(sp, r, variant, col)
 			if label != "":
 				_txt(label, sp.x, sp.y - r - 6.0 * k, int(15 * k), col, 1)
 			return
@@ -3257,7 +3310,14 @@ func _draw_objective(k: float) -> void:
 			var label = o.countdown_label(cache)
 			if label == "":
 				label = o.lock_label(cache)
-			_world_marker(cache["pos"] + Vector3(0, 2.4, 0), OBJ_GOLD, label, k, false)
+			_world_marker(
+				cache["pos"] + Vector3(0, 2.4, 0),
+				o.variant_color(cache["variant"]),
+				label,
+				k,
+				false,
+				cache["variant"]
+			)
 
 
 # The hit marker: four diagonal ticks round the crosshair that pop out big and settle while they fade. What it shows
