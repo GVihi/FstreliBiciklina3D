@@ -101,6 +101,9 @@ const FINAL_HP_MUL = 1.3
 # either side of its path
 const BOSS_LOOK = 4.0
 const BOSS_ROOM = 0.7
+# a boss that is swerving only gives the swerve up when the way to the player is clear this many metres further than it
+# looks to start one: otherwise it turns back and forth at the edge of an obstacle's shadow (steer_boss)
+const BOSS_RELEASE = 6.0
 # the red lane and the red circle sit this high on open ground, so the curbs (0.12 m) do not hide them
 const OPEN_MARK_Y = 0.14
 
@@ -341,10 +344,13 @@ func way_clear(pos: Vector3, heading: Vector3, reach: float) -> bool:
 # its own heading (b["swerve"]) and only turns further, to the side it swung to (b["side"], +1 or -1), when that
 # heading is blocked. So it follows a wall to its end instead of turning back when the player is off to one side,
 # and does not flip between the two ends of the wall. When the way to `want` is clear again the swerve is
-# forgotten. Boxed in, it turns hard away from the obstacle.
+# forgotten, but a swerve needs BOSS_RELEASE metres more of clear way to be given up than it took to start, or the boss
+# would turn back at once, find the obstacle in its way again and swerve again, for ever, at the edge of the
+# obstacle's shadow (a bench or a crate in a corner did this). Boxed in, it turns hard away from the obstacle.
 func steer_boss(b: Dictionary, want: Vector3) -> Vector3:
 	var wp: Vector3 = b["wp"]
-	if way_clear(wp, want, BOSS_LOOK):
+	var look = BOSS_LOOK + (BOSS_RELEASE if float(b["side"]) != 0.0 else 0.0)
+	if way_clear(wp, want, look):
 		b["side"] = 0.0
 		b["swerve"] = Vector3.ZERO
 		return want
