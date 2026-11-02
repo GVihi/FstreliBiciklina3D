@@ -91,6 +91,7 @@ func _set_run_state() -> void:
 	main.perfect_dodges = 4
 	main.meta.boss_coins = 5
 	main.meta.xp_boss = 25
+	main.meta.cache_coins = 4
 	main.challenges.done["check_challenge"] = true
 	main.challenges.streak = 2
 	main.challenges.best_streak = 3
@@ -112,6 +113,7 @@ func _scramble_run_state() -> void:
 	main.shop_time = 0.0
 	main.meta.boss_coins = 0
 	main.meta.xp_boss = 0
+	main.meta.cache_coins = 0
 	main.challenges.done.clear()
 	main.challenges.streak = 0
 	main.challenges.best_streak = 0
@@ -227,6 +229,7 @@ func _check_checkpoint_and_continue() -> void:
 	_same("round_times", main.round_times, [100.5, 120.25])
 	_same("boss_coins", main.meta.boss_coins, 5)
 	_same("xp_boss", main.meta.xp_boss, 25)
+	_same("cache_coins", main.meta.cache_coins, 4)
 	_same("streak", main.challenges.streak, 2)
 	_same("best_streak", main.challenges.best_streak, 3)
 	if (
