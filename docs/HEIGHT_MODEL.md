@@ -1,6 +1,6 @@
 # Height model (roadmap: "Height: hills, walkways and stairs", first step)
 
-Status: **proposed on 2026-11-02, waiting for the owner's yes** on the open questions at the end. Nothing is built.
+Status: **decided with the owner on 2026-11-02** (the four answers are at the end). Nothing is built.
 Every number is a first guess, tuned by playing. The point of this page is that the later steps (layout, navigation,
 ground, the `Arena` interface, riders, combat, tools) all read the same rules.
 
@@ -49,7 +49,7 @@ ground, the `Arena` interface, riders, combat, tools) all read the same rules.
 |---|---|---|
 | park | yes | rolling hills on grass, a few stairs where a path climbs one |
 | plaza | yes | raised walkways over plazas and a side road, with ramps and stairs |
-| market, canyon | not in the first version | the narrow streets have no room for ramps |
+| market, canyon | yes (owner's choice) | their narrow streets and stalls leave little room, so they get lower hills and short ramps, and `ArenaGen.validate` rejects a seed where a ramp or a cache does not fit; tune per style in `data/arena_rules.json` |
 | bridge, tunnel, roundabout, training | no | they are special shapes |
 
 ## What every later step must keep true
@@ -66,9 +66,9 @@ ground, the `Arena` interface, riders, combat, tools) all read the same rules.
 See the roadmap: decide (this page) -> `height_at` everywhere returning 0 -> height in the layout -> navigation and
 validation -> the ground meshes and dress -> combat and sight -> tools and playtest.
 
-## Open questions for the owner
+## Decisions (the owner, 2026-11-02)
 
-1. Is a **single height per point** (no riding under decks) acceptable? It is the biggest simplification.
-2. Should **bikes be able to use stairs** (no in the first version, so a deck needs a ramp for them)?
-3. Is **3 m** the right top, and are the hop and step-up numbers above close to the feel you want?
-4. **Which styles** first: park hills and plaza walkways, the rest flat?
+1. **One height per point**: yes. Nobody rides under a deck.
+2. **Bikes and stairs**: no. Stairs block riders and bosses; every deck has a ramp.
+3. **Numbers**: yes, as in the tables (top 3 m, step-up 0.5 m, hop 0.5 to 0.8 m, bike slopes up to about 14 degrees); tuned later by playing.
+4. **Styles**: all the open ones: park, plaza, market and canyon. The bridge, the tunnel, the roundabout and the training room stay flat.
