@@ -14,6 +14,9 @@ extends SceneTree
 # A cursed cache pays CURSED_MULT times the cash and score, calls `curse_count` riders out of the gate nearest to it
 # one after another (not all at once, and not before CURSE_DELAY), never changes `taken` or the every-cache bonus, and
 # sends nobody when the round is not being played; the roll of variants still repeats and does roll the cursed one.
+# A locked cache (`assign_keys`) always has a plain cache that holds its key and never turns up without one; with
+# no key it does not open (no pay, not taken, a reminder), the cache that holds the key gives it, the locked cache then
+# opens, pays LOCKED_MULT times and uses the key up, and keys do not carry into the next round.
 # Rim (scripts/rim.gd): riders and bosses get the red rim, pedestrians and cheerleaders the green one, the hit flash
 # gives the rim back when it ends and the setting takes it away and back.
 # Exits with status 1 and prints the problems.
@@ -126,6 +129,7 @@ func _spots() -> void:
 func _variants() -> void:
 	var seen_vanishing = 0
 	var seen_cursed = 0
+	var seen_locked = 0
 	var rounds_with_none = 0
 	for s in range(SEEDS):
 		var v1 = Objective.pick_variants(4, _rng(SEED + s))
@@ -144,6 +148,8 @@ func _variants() -> void:
 				seen_vanishing += 1
 			if v == Objective.VARIANT_CURSED:
 				seen_cursed += 1
+			if v == Objective.VARIANT_LOCKED:
+				seen_locked += 1
 		if n > Objective.VARIANT_MAX:
 			_fail(
 				(
@@ -157,6 +163,9 @@ func _variants() -> void:
 		_fail("no vanishing cache was rolled on %d seeds" % SEEDS)
 	if seen_cursed == 0:
 		_fail("no cursed cache was rolled on %d seeds" % SEEDS)
+	if seen_locked == 0:
+		_fail("no locked cache was rolled on %d seeds" % SEEDS)
+	_keys()
 	if rounds_with_none == 0:
 		_fail(
 			"every one of %d seeds rolled a variant: 'some of the caches' became 'always'" % SEEDS
@@ -169,6 +178,9 @@ func _vanishing(m, o) -> void:
 	if o.caches.size() < 3:
 		_fail("vanishing: only %d caches after a second setup" % o.caches.size())
 		return
+	for other in o.caches:  # the other caches are plain: the pay of the rest is counted below
+		other["variant"] = Objective.VARIANT_PLAIN
+		other["key"] = false
 	var c = o.caches[0]
 	c["variant"] = Objective.VARIANT_VANISHING  # force it: what the seed rolls is not the point here
 	var p: Vector3 = c["pos"]
@@ -228,6 +240,9 @@ func _vanishing(m, o) -> void:
 		_fail("vanishing: the every-cache bonus was paid with a cache gone")
 	# a second round: taken in time, it pays like any other cache
 	o.setup_round()
+	for other in o.caches:
+		other["variant"] = Objective.VARIANT_PLAIN
+		other["key"] = false
 	var c2 = o.caches[0]
 	c2["variant"] = Objective.VARIANT_VANISHING
 	var p2: Vector3 = c2["pos"]
@@ -307,6 +322,78 @@ func _cursed(m, o) -> void:
 	m.state = "play"
 	if m.riders.size() != n or o.curse_pending() != 0:
 		_fail("cursed: riders came out of a round that was over")
+
+
+# `assign_keys` on rolled variants and on made-up ones: every locked cache that is left has its own plain key holder.
+func _keys() -> void:
+	for s in range(SEEDS):
+		var v = Objective.pick_variants(4, _rng(SEED + s))
+		var holds = Objective.assign_keys(v)
+		var locked = v.count(Objective.VARIANT_LOCKED)
+		if holds.count(true) != locked:
+			_fail("seed %d: %d locked caches but %d keys" % [s, locked, holds.count(true)])
+		for i in range(v.size()):
+			if holds[i] and v[i] != Objective.VARIANT_PLAIN:
+				_fail("seed %d: cache %d holds a key but is not plain (%s)" % [s, i, v[i]])
+	# nothing plain to hold a key: the first locked cache turns plain and then holds the key of the next one
+	var all_locked = [Objective.VARIANT_LOCKED, Objective.VARIANT_LOCKED, Objective.VARIANT_LOCKED]
+	var h2 = Objective.assign_keys(all_locked)
+	if h2.count(true) != all_locked.count(Objective.VARIANT_LOCKED):
+		_fail("assign_keys: %s with keys %s, every locked cache needs a key" % [all_locked, h2])
+	var mixed = [Objective.VARIANT_LOCKED, Objective.VARIANT_VANISHING, Objective.VARIANT_PLAIN]
+	var h3 = Objective.assign_keys(mixed)
+	if mixed[0] != Objective.VARIANT_LOCKED or h3 != [false, false, true]:
+		_fail("assign_keys: a vanishing cache was chosen to hold a key, or the pair was lost")
+
+
+# Plays the locked cache on a round that is already set up: `o` is the main's objective_sys.
+func _locked(m, o) -> void:
+	o.setup_round()
+	var lock = o.caches[0]
+	var holder = o.caches[1]
+	for c in o.caches:
+		c["variant"] = Objective.VARIANT_PLAIN
+		c["key"] = false
+	lock["variant"] = Objective.VARIANT_LOCKED
+	holder["key"] = true
+	if o.keys != 0:
+		_fail("locked: %d keys at the start of a round" % o.keys)
+	if o.lock_label(lock) != "LOCKED":
+		_fail("locked: label '%s' before a key, wanted LOCKED" % o.lock_label(lock))
+	var cash0 = m.cash
+	var score0 = m.score
+	m.player.position = lock["pos"]
+	o.update(0.05)
+	if lock["taken"] or o.taken != 0 or m.cash != cash0 or m.score != score0:
+		_fail("locked: a cache without a key paid or was taken")
+	if lock["warn"] <= 0.0:
+		_fail("locked: no reminder at a locked cache")
+	# the key
+	m.player.position = holder["pos"]
+	o.update(0.05)
+	if o.keys != 1 or not holder["taken"]:
+		_fail("locked: the key cache gave %d keys" % o.keys)
+	if o.lock_label(lock) != "OPEN":
+		_fail("locked: label '%s' with a key, wanted OPEN" % o.lock_label(lock))
+	# the key opens it
+	cash0 = m.cash
+	score0 = m.score
+	m.player.position = lock["pos"]
+	o.update(0.05)
+	if not lock["taken"] or o.keys != 0:
+		_fail("locked: taken %s, %d keys left after opening" % [lock["taken"], o.keys])
+	if m.cash - cash0 < Objective.LOCKED_MULT * Objective.CACHE_CASH:
+		_fail("locked: paid %d cash" % (m.cash - cash0))
+	if m.score - score0 < Objective.LOCKED_MULT * Objective.CACHE_SCORE:
+		_fail("locked: paid %d score" % (m.score - score0))
+	# a key left over does not carry into the next round
+	o.keys = 1
+	o.setup_round()
+	if o.keys != 0:
+		_fail("locked: a key carried into the next round")
+	for c in o.caches:
+		if c["variant"] == Objective.VARIANT_LOCKED and not o.caches.any(func(k): return k["key"]):
+			_fail("locked: a locked cache in the round has no key holder")
 
 
 func _cell_index(a, p: Vector3) -> int:
@@ -404,6 +491,7 @@ func _round() -> void:
 		_fail("clear_pickups left objectives behind")
 	_vanishing(m, o)
 	_cursed(m, o)
+	_locked(m, o)
 	_drop(m)
 
 
