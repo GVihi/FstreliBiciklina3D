@@ -8,7 +8,9 @@ extends RefCounted
 #                   Some caches carry a catch (README Milestone K, "Caches with a catch"): `pick_variants()` rolls
 #                   them from their own seeded stream, so a Daily Run gives everybody the same ones. Built so far:
 #                   VANISHING (a countdown starts when the player comes within VANISH_TRIGGER, and a cache that is
-#                   not taken in time is gone for the round and does not count towards the every-cache bonus).
+#                   not taken in time is gone for the round and does not count towards the every-cache bonus) and
+#                   LOCKED (pays LOCKED_MULT times, but only opens with a key, which another plain cache of the same
+#                   round holds; `assign_keys()` pairs them, so a locked cache can always be opened).
 #   Extraction      Once every rider (and boss) is down the round does not end by itself any more: a green light
 #                   column opens at the far end of the arena and the round is cleared when the player reaches it.
 #                   Before that it is shown dimmed, so the player knows where the run will end.
@@ -34,24 +36,33 @@ const LOCKED = Color(1.0, 0.45, 0.3)
 const BEAM_HEIGHT = 34.0
 const REWARDS = ["ammo", "ammo", "cash", "cash", "rapid", "big", "slow", "shield", "heart"]
 
-# Cache variants. VARIANTS is what can be rolled; the cursed and the locked cache join it when they are built.
+# Cache variants. VARIANTS is what can be rolled; the cursed cache joins it when it is built.
 const VARIANT_PLAIN = "plain"
 const VARIANT_VANISHING = "vanishing"
-const VARIANTS = [VARIANT_VANISHING]
+const VARIANT_LOCKED = "locked"
+const VARIANTS = [VARIANT_VANISHING, VARIANT_LOCKED]
 const VARIANT_CHANCE = 0.4  # per cache, first guess
 const VARIANT_MAX = 2  # at most this many of a round's caches get a variant, so plain ones are always left
 const VANISH_TRIGGER = 12.0  # metres: the countdown of a vanishing cache starts when the player is this close
 const VANISH_TIME = 8.0  # seconds from the trigger until it is gone (first guess, tuned by playing)
 const VANISH_COL = Color(0.45, 0.85, 1.0)
 const VANISH_GONE = Color(0.7, 0.7, 0.72)
+# The locked cache (first guesses, tuned by playing): pays LOCKED_MULT times the cash and the score of a plain cache,
+# and the key is used up when it opens. The reminder that it is locked shows at most every LOCK_NOTE_GAP seconds.
+const LOCKED_COL = Color(1.0, 0.55, 0.15)
+const LOCKED_MULT = 2
+const LOCK_NOTE_GAP = 2.5
+const KEY_COL = Color(0.95, 0.95, 0.4)
 
 var g = null
 # each {"pos": Vector3, "node": Node3D, "crate": Node3D, "beam_mat": StandardMaterial3D, "taken": bool,
-# "gone": bool, "variant": String, "left": float (seconds left of a vanishing cache, -1 until it starts)}
+# "gone": bool, "variant": String, "left": float (seconds left of a vanishing cache, -1 until it starts),
+# "key": bool (taking it gives the player a key), "warn": float (seconds until a locked cache may remind again)}
 var caches: Array = []
 var goal: Dictionary = {}  # {"pos": Vector3, "node": Node3D, "beam_mat": StandardMaterial3D, "ring_mat": ...}
 var extracting = false  # every rider is down and the way out is open
 var taken = 0  # caches taken this round
+var keys = 0  # keys the player holds this round: a locked cache takes one
 var _t = 0.0
 
 
@@ -87,8 +98,10 @@ func setup_round() -> void:
 	var vrng = RandomNumberGenerator.new()
 	vrng.seed = DailyScript.stream_seed(g.run_seed, g.round_n, "cache_variant")
 	var variants = pick_variants(spots.size(), vrng)
+	var holds = assign_keys(variants)
+	keys = 0
 	for i in range(spots.size()):
-		caches.append(_make_cache(spots[i], variants[i]))
+		caches.append(_make_cache(spots[i], variants[i], holds[i]))
 
 
 # The variant of each of `count` caches. Every cache draws the same two numbers whatever the cap does, so the
@@ -107,6 +120,37 @@ static func pick_variants(count: int, rng: RandomNumberGenerator) -> Array:
 	return out
 
 
+# Pairs every locked cache with a plain one that holds its key (the first plain cache not yet a holder). A locked cache
+# with no plain cache left to hold its key turns plain, so a locked cache can always be opened. Changes `variants` and
+# returns, for each cache, whether it holds a key. No random number is drawn, so the same seed gives the same pairs.
+static func assign_keys(variants: Array) -> Array:
+	var holds: Array = []
+	holds.resize(variants.size())
+	holds.fill(false)
+	for i in range(variants.size()):
+		if variants[i] != VARIANT_LOCKED:
+			continue
+		var holder = -1
+		for j in range(variants.size()):
+			if variants[j] == VARIANT_PLAIN and not holds[j]:
+				holder = j
+				break
+		if holder < 0:
+			variants[i] = VARIANT_PLAIN
+		else:
+			holds[holder] = true
+	return holds
+
+
+# the colour of a cache's light column and glow
+static func variant_color(variant: String) -> Color:
+	if variant == VARIANT_VANISHING:
+		return VANISH_COL
+	if variant == VARIANT_LOCKED:
+		return LOCKED_COL
+	return GOLD
+
+
 # a cache still on the ground: not taken and not vanished (the radar, the markers and the map only show these)
 static func is_open(c: Dictionary) -> bool:
 	return not c["taken"] and not c["gone"]
@@ -116,6 +160,13 @@ static func is_open(c: Dictionary) -> bool:
 static func countdown_label(c: Dictionary) -> String:
 	if c["variant"] == VARIANT_VANISHING and c["left"] >= 0.0 and is_open(c):
 		return "%d" % int(ceil(c["left"]))
+	return ""
+
+
+# "LOCKED" on a locked cache that is still shut ("OPEN" once the player holds a key), "" otherwise (HUD marker label)
+func lock_label(c: Dictionary) -> String:
+	if c["variant"] == VARIANT_LOCKED and is_open(c):
+		return "OPEN" if keys > 0 else "LOCKED"
 	return ""
 
 
@@ -134,6 +185,7 @@ func clear() -> void:
 	goal = {}
 	extracting = false
 	taken = 0
+	keys = 0
 
 
 # The riders (and boss) are down: open the way out.
@@ -168,8 +220,12 @@ func update(dt: float) -> void:
 		var d = dist_to(c["pos"])
 		if d < SENSE_RANGE:
 			g.settings.trigger_hint("cache")  # first-run hint (README alpha E1.3): the first cache in sense range
+		c["warn"] = maxf(0.0, c["warn"] - dt)
 		if d < CACHE_RADIUS:
-			_take(c)  # taking wins over a countdown that runs out in the same frame
+			if c["variant"] == VARIANT_LOCKED and keys <= 0:
+				_remind_locked(c)
+			else:
+				_take(c)  # taking wins over a countdown that runs out in the same frame
 		elif c["variant"] == VARIANT_VANISHING:
 			_tick_vanishing(c, d, dt)
 	if extracting and dist_to(goal["pos"]) < GOAL_RADIUS:
@@ -207,15 +263,33 @@ func _vanish(c: Dictionary) -> void:
 	g.sfx.play("clank2")
 
 
+# The player stands at a locked cache with no key: say so, not more often than every LOCK_NOTE_GAP seconds
+func _remind_locked(c: Dictionary) -> void:
+	if c["warn"] > 0.0:
+		return
+	c["warn"] = LOCK_NOTE_GAP
+	g.add_popup(c["pos"] + Vector3(0, 1.8, 0), "LOCKED - FIND A KEY", LOCKED_COL)
+	g.sfx.play("clank2")
+
+
 func _take(c: Dictionary) -> void:
 	c["taken"] = true
 	taken += 1
 	var n: Node = c["node"]
 	n.queue_free()
 	var at: Vector3 = c["pos"]
-	g.add_popup(at + Vector3(0, 1.4, 0), "CACHE  +%d" % CACHE_SCORE, GOLD)
-	g.score += CACHE_SCORE * (2 if g.hype_t > 0.0 else 1)
-	g.shop_sys.add_cash(CACHE_CASH)
+	var locked = c["variant"] == VARIANT_LOCKED
+	var mult = LOCKED_MULT if locked else 1
+	if locked:
+		keys -= 1
+	g.add_popup(
+		at + Vector3(0, 1.4, 0), "CACHE  +%d" % (CACHE_SCORE * mult), LOCKED_COL if locked else GOLD
+	)
+	g.score += CACHE_SCORE * mult * (2 if g.hype_t > 0.0 else 1)
+	g.shop_sys.add_cash(CACHE_CASH * mult)
+	if c["key"]:
+		keys += 1
+		g.add_popup(at + Vector3(0, 2.2, 0), "KEY FOUND", KEY_COL)
 	var kind = g.pickup_sys.matter_drop(REWARDS[randi() % REWARDS.size()])
 	if kind != "":
 		g.pickup_sys.spawn_pickup(kind, at + Vector3(0, 1.0, 0))
@@ -253,8 +327,8 @@ func _beam(root: Node3D, radius: float, col: Color) -> StandardMaterial3D:
 	return m
 
 
-func _make_cache(pos: Vector3, variant: String = VARIANT_PLAIN) -> Dictionary:
-	var col = VANISH_COL if variant == VARIANT_VANISHING else GOLD
+func _make_cache(pos: Vector3, variant: String = VARIANT_PLAIN, key: bool = false) -> Dictionary:
+	var col = variant_color(variant)
 	var root = Node3D.new()
 	root.position = Vector3(pos.x, 0.0, pos.z)
 	g.add_child(root)
@@ -273,7 +347,9 @@ func _make_cache(pos: Vector3, variant: String = VARIANT_PLAIN) -> Dictionary:
 		"taken": false,
 		"gone": false,
 		"variant": variant,
-		"left": -1.0
+		"left": -1.0,
+		"key": key,
+		"warn": 0.0
 	}
 
 

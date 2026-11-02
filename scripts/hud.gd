@@ -3252,10 +3252,12 @@ func _draw_objective(k: float) -> void:
 	)
 	for cache in o.caches:
 		if o.is_open(cache) and o.dist_to(cache["pos"]) <= o.SENSE_RANGE:
-			# a vanishing cache whose countdown runs shows the seconds left next to its marker
-			_world_marker(
-				cache["pos"] + Vector3(0, 2.4, 0), OBJ_GOLD, o.countdown_label(cache), k, false
-			)
+			# a vanishing cache whose countdown runs shows the seconds left next to its marker, a locked one
+			# says LOCKED (OPEN once the player holds a key)
+			var label = o.countdown_label(cache)
+			if label == "":
+				label = o.lock_label(cache)
+			_world_marker(cache["pos"] + Vector3(0, 2.4, 0), OBJ_GOLD, label, k, false)
 
 
 # The hit marker: four diagonal ticks round the crosshair that pop out big and settle while they fade. What it shows
