@@ -660,15 +660,15 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 	if g.shots_fired > 0:
 		acc = int(round(100.0 * g.shots_hit / g.shots_fired))
 	var coin_label = "META COINS"
-	var challenge_coins = g.challenges.coins
-	if g.meta.boss_coins > 0 and challenge_coins > 0:
-		coin_label = (
-			"META COINS (%d FROM BOSSES, %d FROM CHALLENGES)" % [g.meta.boss_coins, challenge_coins]
-		)
-	elif g.meta.boss_coins > 0:
-		coin_label = "META COINS (%d FROM BOSSES)" % g.meta.boss_coins
-	elif challenge_coins > 0:
-		coin_label = "META COINS (%d FROM CHALLENGES)" % challenge_coins
+	var sources = []
+	if g.meta.boss_coins > 0:
+		sources.append("%d FROM BOSSES" % g.meta.boss_coins)
+	if g.meta.cache_coins > 0:
+		sources.append("%d FROM CACHES" % g.meta.cache_coins)
+	if g.challenges.coins > 0:
+		sources.append("%d FROM CHALLENGES" % g.challenges.coins)
+	if not sources.is_empty():
+		coin_label = "META COINS (%s)" % ", ".join(sources)
 	var rcols = [GRAY, TEXT, Color(0.35, 0.7, 0.42), GOLD, ACCENT]
 	var letters = ["D", "C", "B", "A", "S"]
 	var lx = cx - SUMMARY_HALF_WIDTH * k

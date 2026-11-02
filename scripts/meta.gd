@@ -33,6 +33,7 @@ var total_earned = 0  # coins earned over all runs, for stats
 var challenge_counts = {}  # challenge counter name -> how many runs it was done in
 var awarded = false  # a run pays out once, however many end paths it passes through
 var boss_coins = 0  # coins this run's boss kills are worth; paid out with the run (a quit run pays nothing)
+var cache_coins = 0  # coins the supply caches of this run held; paid out with the run, like boss_coins
 var xp = 0  # total XP over all finished runs (never spent); the level comes from it, see `xp_info`
 var xp_boss = 0  # XP this run's boss kills are worth; paid out with the run, like boss_coins
 var xp_earned = 0  # XP the run that just ended paid out (shown on the run summary)
@@ -122,6 +123,7 @@ func reset_all() -> void:
 	xp = 0
 	awarded = false
 	boss_coins = 0
+	cache_coins = 0
 	xp_boss = 0
 	xp_earned = 0
 	level_before = 1
@@ -143,6 +145,7 @@ func apply_dev_start(opts: Dictionary) -> void:
 func begin_run() -> void:
 	awarded = false
 	boss_coins = 0
+	cache_coins = 0
 	xp_boss = 0
 	xp_earned = 0
 	g.meta_earned = 0
@@ -172,6 +175,13 @@ func add_boss_kill(kind: String, final: bool) -> void:
 	xp_boss += XpScript.boss_xp(kind, final)
 
 
+# called by objective.gd when a cache that holds a coin is taken; the coin is paid out in award_run()
+func add_cache_coin() -> void:
+	if awarded:
+		return
+	cache_coins += 1
+
+
 # Pays out the run that just ended (once). Returns the coins earned and leaves them in g.meta_earned for the summary screen.
 func award_run() -> int:
 	if awarded:
@@ -181,7 +191,13 @@ func award_run() -> int:
 	# rounds cleared: the round reached minus the one the run ended in, plus that one when the run was won, and
 	# minus the shop nodes walked through on the way (a shop node is a screen, not a round: alpha B2.4)
 	var cleared = maxi(0, g.round_n - 1 - g.screens_passed()) + (1 if g.run_won else 0)
-	var n = reward_for_score(g.score) + reward_for_rounds(cleared) + boss_coins + challenge_coins
+	var n = (
+		reward_for_score(g.score)
+		+ reward_for_rounds(cleared)
+		+ boss_coins
+		+ cache_coins
+		+ challenge_coins
+	)
 	g.meta_earned = n
 	level_before = int(xp_info()["level"])
 	xp_earned = XpScript.run_xp(

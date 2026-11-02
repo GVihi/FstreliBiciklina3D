@@ -37,6 +37,7 @@ const NUMBER_KEYS = {
 	"civs_hit": 0,
 	"perfect_dodges": 0,
 	"boss_coins": 0,
+	"cache_coins": 0,
 	"xp_boss": 0,
 	"streak": 0,
 	"best_streak": 0
@@ -166,6 +167,7 @@ static func capture(g) -> Dictionary:
 		"perfect_dodges": g.perfect_dodges,
 		"final_boss_dead": g.final_boss_dead,
 		"boss_coins": g.meta.boss_coins,
+		"cache_coins": g.meta.cache_coins,
 		"xp_boss": g.meta.xp_boss,
 		"challenges_done": done_ids,
 		"streak": g.challenges.streak,
@@ -288,6 +290,7 @@ static func apply(g, data: Dictionary) -> void:
 	g.perfect_dodges = data["perfect_dodges"]
 	g.final_boss_dead = data["final_boss_dead"]
 	g.meta.boss_coins = data["boss_coins"]
+	g.meta.cache_coins = data["cache_coins"]
 	g.meta.xp_boss = data["xp_boss"]
 	for id in data["challenges_done"]:
 		g.challenges.done[id] = true

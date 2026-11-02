@@ -9,6 +9,10 @@ extends RefCounted
 #                   them from their own seeded stream, so a Daily Run gives everybody the same ones. Built so far:
 #                   VANISHING (a countdown starts when the player comes within VANISH_TRIGGER, and a cache that is
 #                   not taken in time is gone for the round and does not count towards the every-cache bonus).
+#                   A cache may also hold 1 meta coin (`pick_coins()`, from a seeded stream of its own, so a Daily Run gives
+#                   everybody the same ones, whatever its variant). The coin is paid with the run
+#                   (`meta.add_cache_coin`), so a quit run pays nothing, like the coins of a boss. Nothing in the world
+#                   shows which cache holds one; the player sees "+1 META COIN" when it is taken.
 #   Extraction      Once every rider (and boss) is down the round does not end by itself any more: a green light
 #                   column opens at the far end of the arena and the round is cleared when the player reaches it.
 #                   Before that it is shown dimmed, so the player knows where the run will end.
@@ -45,9 +49,14 @@ const VANISH_TIME = 8.0  # seconds from the trigger until it is gone (first gues
 const VANISH_COL = Color(0.45, 0.85, 1.0)
 const VANISH_GONE = Color(0.7, 0.7, 0.72)
 
+# A cache may hold 1 meta coin (a first guess of 12 %, between the 10 and 15 % the owner asked for on 2026-11-02)
+const COIN_CHANCE = 0.12
+const COIN_COL = Color(1.0, 0.85, 0.35)
+
 var g = null
 # each {"pos": Vector3, "node": Node3D, "crate": Node3D, "beam_mat": StandardMaterial3D, "taken": bool,
-# "gone": bool, "variant": String, "left": float (seconds left of a vanishing cache, -1 until it starts)}
+# "gone": bool, "variant": String, "left": float (seconds left of a vanishing cache, -1 until it starts),
+# "coin": bool (the cache holds 1 meta coin)}
 var caches: Array = []
 var goal: Dictionary = {}  # {"pos": Vector3, "node": Node3D, "beam_mat": StandardMaterial3D, "ring_mat": ...}
 var extracting = false  # every rider is down and the way out is open
@@ -87,8 +96,12 @@ func setup_round() -> void:
 	var vrng = RandomNumberGenerator.new()
 	vrng.seed = DailyScript.stream_seed(g.run_seed, g.round_n, "cache_variant")
 	var variants = pick_variants(spots.size(), vrng)
+	# the meta coins have a stream of their own too, so no roll moves another
+	var crng = RandomNumberGenerator.new()
+	crng.seed = DailyScript.stream_seed(g.run_seed, g.round_n, "cache_coin")
+	var coins = pick_coins(spots.size(), crng)
 	for i in range(spots.size()):
-		caches.append(_make_cache(spots[i], variants[i]))
+		caches.append(_make_cache(spots[i], variants[i], coins[i]))
 
 
 # The variant of each of `count` caches. Every cache draws the same two numbers whatever the cap does, so the
@@ -104,6 +117,15 @@ static func pick_variants(count: int, rng: RandomNumberGenerator) -> Array:
 			used += 1
 		else:
 			out.append(VARIANT_PLAIN)
+	return out
+
+
+# Which of `count` caches hold a meta coin: each draws one number, COIN_CHANCE of them are true, the same seed gives
+# the same answer.
+static func pick_coins(count: int, rng: RandomNumberGenerator) -> Array:
+	var out: Array = []
+	for _i in range(count):
+		out.append(rng.randf() < COIN_CHANCE)
 	return out
 
 
@@ -219,6 +241,9 @@ func _take(c: Dictionary) -> void:
 	var kind = g.pickup_sys.matter_drop(REWARDS[randi() % REWARDS.size()])
 	if kind != "":
 		g.pickup_sys.spawn_pickup(kind, at + Vector3(0, 1.0, 0))
+	if c["coin"]:
+		g.meta.add_cache_coin()
+		g.add_popup(at + Vector3(0, 2.2, 0), "+1 META COIN", COIN_COL)
 	g.sfx.play("pickup")
 	g.add_hype(10.0)
 	g.hi_check()
@@ -253,7 +278,7 @@ func _beam(root: Node3D, radius: float, col: Color) -> StandardMaterial3D:
 	return m
 
 
-func _make_cache(pos: Vector3, variant: String = VARIANT_PLAIN) -> Dictionary:
+func _make_cache(pos: Vector3, variant: String = VARIANT_PLAIN, coin: bool = false) -> Dictionary:
 	var col = VANISH_COL if variant == VARIANT_VANISHING else GOLD
 	var root = Node3D.new()
 	root.position = Vector3(pos.x, 0.0, pos.z)
@@ -273,7 +298,8 @@ func _make_cache(pos: Vector3, variant: String = VARIANT_PLAIN) -> Dictionary:
 		"taken": false,
 		"gone": false,
 		"variant": variant,
-		"left": -1.0
+		"left": -1.0,
+		"coin": coin
 	}
 
 

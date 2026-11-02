@@ -11,6 +11,10 @@ extends SceneTree
 # caches a variant, and does roll the vanishing one. A vanishing cache starts its countdown only when the player is
 # within VANISH_TRIGGER, keeps counting when the player walks away, is gone at zero (not taken, no pay, no every-cache
 # bonus, off the radar and the map) and can still be taken in time.
+# Meta coins (`pick_coins`, `meta.add_cache_coin`): repeatable for the same seed, one in COIN_CHANCE of the caches
+# holds a coin (between 10 and 15 % over many rolls, the owner's ask), taking a cache with a coin counts it once for the
+# run (a cache without one counts nothing), it is paid with the run (`award_run`) and not before, and a new run starts
+# at zero.
 # Rim (scripts/rim.gd): riders and bosses get the red rim, pedestrians and cheerleaders the green one, the hit flash
 # gives the rim back when it ends and the setting takes it away and back.
 # Exits with status 1 and prints the problems.
@@ -31,6 +35,7 @@ var problems = []
 func _initialize() -> void:
 	_spots()
 	_variants()
+	_coin_rolls()
 	await _round()
 	_rim_models()
 	await _rim_in_game()
@@ -153,6 +158,70 @@ func _variants() -> void:
 		_fail(
 			"every one of %d seeds rolled a variant: 'some of the caches' became 'always'" % SEEDS
 		)
+
+
+func _coin_rolls() -> void:
+	var hits = 0
+	var total = 0
+	for s in range(5000):
+		var r1 = Objective.pick_coins(4, _rng(SEED + s))
+		if r1 != Objective.pick_coins(4, _rng(SEED + s)):
+			_fail("seed %d: the cache coins are not repeatable" % s)
+		if r1.size() != 4:
+			_fail("seed %d: %d coin flags for 4 caches" % [s, r1.size()])
+		hits += r1.count(true)
+		total += r1.size()
+	var share = float(hits) / float(total)
+	if share < 0.10 or share > 0.15:
+		_fail(
+			(
+				"%.1f %% of the caches hold a meta coin, the owner asked for 10 to 15 %%"
+				% (share * 100.0)
+			)
+		)
+
+
+# Takes a cache with a coin and one without on a round that is already set up: `o` is the main's objective_sys.
+func _coins(m, o) -> void:
+	o.setup_round()
+	m.meta.begin_run()
+	if m.meta.cache_coins != 0:
+		_fail("coins: %d cache coins at the start of a run" % m.meta.cache_coins)
+	for c in o.caches:
+		c["variant"] = Objective.VARIANT_PLAIN
+		c["key"] = false
+		c["coin"] = false
+	o.caches[0]["coin"] = true
+	var balance0 = m.meta.balance
+	m.player.position = o.caches[1]["pos"]
+	o.update(0.05)
+	if m.meta.cache_coins != 0:
+		_fail("coins: a cache with no coin counted one")
+	m.player.position = o.caches[0]["pos"]
+	o.update(0.05)
+	o.update(0.05)
+	if m.meta.cache_coins != 1:
+		_fail("coins: %d cache coins after taking one coin cache" % m.meta.cache_coins)
+	if m.meta.balance != balance0:
+		_fail("coins: the coin was paid before the run ended")
+	var cleared = maxi(0, m.round_n - 1 - m.screens_passed()) + (1 if m.run_won else 0)
+	var n = m.meta.award_run()
+	var want = (
+		m.meta.reward_for_score(m.score)
+		+ m.meta.reward_for_rounds(cleared)
+		+ m.challenges.coins
+		+ 1
+	)
+	if n != want or m.meta.balance != balance0 + n:
+		_fail(
+			(
+				"coins: award_run paid %d, wanted %d with the cache coin; balance %d to %d"
+				% [n, want, balance0, m.meta.balance]
+			)
+		)
+	m.meta.begin_run()
+	if m.meta.cache_coins != 0:
+		_fail("coins: a new run did not start at zero")
 
 
 # Plays the vanishing cache on a round that is already set up: `o` is the main's objective_sys.
@@ -328,6 +397,7 @@ func _round() -> void:
 	if o.has_goal() or not o.caches.is_empty():
 		_fail("clear_pickups left objectives behind")
 	_vanishing(m, o)
+	_coins(m, o)
 	_drop(m)
 
 
