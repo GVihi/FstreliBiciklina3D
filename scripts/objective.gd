@@ -5,6 +5,10 @@ extends RefCounted
 #                   light column that rises above the rooftops, so a curious player can see where to go. Walking
 #                   into one pays cash, score and a random pick-up; all of them pays a bonus. They are there from the
 #                   first second of the round, so a fight can be taken across the map.
+#                   Some caches carry a catch (README Milestone K, "Caches with a catch"): `pick_variants()` rolls
+#                   them from their own seeded stream, so a Daily Run gives everybody the same ones. Built so far:
+#                   VANISHING (a countdown starts when the player comes within VANISH_TRIGGER, and a cache that is
+#                   not taken in time is gone for the round and does not count towards the every-cache bonus).
 #   Extraction      Once every rider (and boss) is down the round does not end by itself any more: a green light
 #                   column opens at the far end of the arena and the round is cleared when the player reaches it.
 #                   Before that it is shown dimmed, so the player knows where the run will end.
@@ -30,8 +34,21 @@ const LOCKED = Color(1.0, 0.45, 0.3)
 const BEAM_HEIGHT = 34.0
 const REWARDS = ["ammo", "ammo", "cash", "cash", "rapid", "big", "slow", "shield", "heart"]
 
+# Cache variants. VARIANTS is what can be rolled; the cursed and the locked cache join it when they are built.
+const VARIANT_PLAIN = "plain"
+const VARIANT_VANISHING = "vanishing"
+const VARIANTS = [VARIANT_VANISHING]
+const VARIANT_CHANCE = 0.4  # per cache, first guess
+const VARIANT_MAX = 2  # at most this many of a round's caches get a variant, so plain ones are always left
+const VANISH_TRIGGER = 12.0  # metres: the countdown of a vanishing cache starts when the player is this close
+const VANISH_TIME = 8.0  # seconds from the trigger until it is gone (first guess, tuned by playing)
+const VANISH_COL = Color(0.45, 0.85, 1.0)
+const VANISH_GONE = Color(0.7, 0.7, 0.72)
+
 var g = null
-var caches: Array = []  # each {"pos": Vector3, "node": Node3D, "taken": bool}
+# each {"pos": Vector3, "node": Node3D, "crate": Node3D, "beam_mat": StandardMaterial3D, "taken": bool,
+# "gone": bool, "variant": String, "left": float (seconds left of a vanishing cache, -1 until it starts)}
+var caches: Array = []
 var goal: Dictionary = {}  # {"pos": Vector3, "node": Node3D, "beam_mat": StandardMaterial3D, "ring_mat": ...}
 var extracting = false  # every rider is down and the way out is open
 var taken = 0  # caches taken this round
@@ -65,8 +82,41 @@ func setup_round() -> void:
 	rng.seed = DailyScript.stream_seed(g.run_seed, g.round_n, "objective")
 	var gp: Vector3 = g.arena.goal_spot(rng)
 	goal = _make_goal(gp)
-	for sp in g.arena.cache_spots(CACHE_COUNT, gp, rng):
-		caches.append(_make_cache(sp))
+	var spots = g.arena.cache_spots(CACHE_COUNT, gp, rng)
+	# the variants have a stream of their own, so the spots above never move when a variant is added
+	var vrng = RandomNumberGenerator.new()
+	vrng.seed = DailyScript.stream_seed(g.run_seed, g.round_n, "cache_variant")
+	var variants = pick_variants(spots.size(), vrng)
+	for i in range(spots.size()):
+		caches.append(_make_cache(spots[i], variants[i]))
+
+
+# The variant of each of `count` caches. Every cache draws the same two numbers whatever the cap does, so the
+# stream stays in step and the same seed gives the same answer.
+static func pick_variants(count: int, rng: RandomNumberGenerator) -> Array:
+	var out: Array = []
+	var used = 0
+	for _i in range(count):
+		var roll = rng.randf()
+		var which = rng.randi() % VARIANTS.size()
+		if roll < VARIANT_CHANCE and used < VARIANT_MAX:
+			out.append(VARIANTS[which])
+			used += 1
+		else:
+			out.append(VARIANT_PLAIN)
+	return out
+
+
+# a cache still on the ground: not taken and not vanished (the radar, the markers and the map only show these)
+static func is_open(c: Dictionary) -> bool:
+	return not c["taken"] and not c["gone"]
+
+
+# the seconds left of a vanishing cache whose countdown is running, "" otherwise (the HUD marker label)
+static func countdown_label(c: Dictionary) -> String:
+	if c["variant"] == VARIANT_VANISHING and c["left"] >= 0.0 and is_open(c):
+		return "%d" % int(ceil(c["left"]))
+	return ""
 
 
 func clear() -> void:
@@ -110,7 +160,7 @@ func update(dt: float) -> void:
 	var ring: Node3D = goal["ring"]
 	ring.rotation.y += dt * (1.2 if extracting else 0.3)
 	for c in caches:
-		if c["taken"]:
+		if not is_open(c):
 			continue
 		var cn: Node3D = c["crate"]
 		cn.rotation.y += dt * 1.6
@@ -119,10 +169,42 @@ func update(dt: float) -> void:
 		if d < SENSE_RANGE:
 			g.settings.trigger_hint("cache")  # first-run hint (README alpha E1.3): the first cache in sense range
 		if d < CACHE_RADIUS:
-			_take(c)
+			_take(c)  # taking wins over a countdown that runs out in the same frame
+		elif c["variant"] == VARIANT_VANISHING:
+			_tick_vanishing(c, d, dt)
 	if extracting and dist_to(goal["pos"]) < GOAL_RADIUS:
 		extracting = false
 		g.objective_reached()
+
+
+# The countdown of a vanishing cache: it starts the first time the player is within VANISH_TRIGGER and then runs
+# whatever the player does (walking away does not stop it). The crate shrinks and the light column blinks faster
+# towards the end; at zero the cache is gone for the round.
+func _tick_vanishing(c: Dictionary, d: float, dt: float) -> void:
+	if c["left"] < 0.0:
+		if d >= VANISH_TRIGGER:
+			return
+		c["left"] = VANISH_TIME
+		g.add_popup(c["pos"] + Vector3(0, 1.8, 0), "VANISHING  %d s" % int(VANISH_TIME), VANISH_COL)
+		g.sfx.play("whoosh")
+	c["left"] = maxf(0.0, c["left"] - dt)
+	var frac = c["left"] / VANISH_TIME
+	var crate: Node3D = c["crate"]
+	crate.scale = Vector3.ONE * (0.5 + 0.5 * frac)
+	var bm: StandardMaterial3D = c["beam_mat"]
+	var blink = 1.0 if frac > 0.35 else 0.5 + 0.5 * sin(_t * (14.0 + 20.0 * (1.0 - frac)))
+	bm.albedo_color = Color(VANISH_COL.r, VANISH_COL.g, VANISH_COL.b, 0.2 * blink)
+	if c["left"] <= 0.0:
+		_vanish(c)
+
+
+func _vanish(c: Dictionary) -> void:
+	c["gone"] = true
+	var n = c["node"]
+	if is_instance_valid(n):
+		n.queue_free()
+	g.add_popup(c["pos"] + Vector3(0, 1.4, 0), "CACHE GONE", VANISH_GONE)
+	g.sfx.play("clank2")
 
 
 func _take(c: Dictionary) -> void:
@@ -171,18 +253,28 @@ func _beam(root: Node3D, radius: float, col: Color) -> StandardMaterial3D:
 	return m
 
 
-func _make_cache(pos: Vector3) -> Dictionary:
+func _make_cache(pos: Vector3, variant: String = VARIANT_PLAIN) -> Dictionary:
+	var col = VANISH_COL if variant == VARIANT_VANISHING else GOLD
 	var root = Node3D.new()
 	root.position = Vector3(pos.x, 0.0, pos.z)
 	g.add_child(root)
-	_beam(root, 0.45, Color(GOLD.r, GOLD.g, GOLD.b, 0.2))
+	var bm = _beam(root, 0.45, Color(col.r, col.g, col.b, 0.2))
 	var crate = Node3D.new()
 	crate.position.y = 0.8
 	root.add_child(crate)
 	Util.box(crate, Vector3(0.7, 0.5, 0.5), Vector3.ZERO, Util.mat(Color.html("#7a4e1f"), 0.7))
-	Util.box(crate, Vector3(0.74, 0.1, 0.54), Vector3(0, 0.0, 0), Util.glow_shared(GOLD, 1.6))
-	Util.box(crate, Vector3(0.12, 0.54, 0.54), Vector3(0, 0, 0), Util.glow_shared(GOLD, 1.6))
-	return {"pos": Vector3(pos.x, 0.0, pos.z), "node": root, "crate": crate, "taken": false}
+	Util.box(crate, Vector3(0.74, 0.1, 0.54), Vector3(0, 0.0, 0), Util.glow_shared(col, 1.6))
+	Util.box(crate, Vector3(0.12, 0.54, 0.54), Vector3(0, 0, 0), Util.glow_shared(col, 1.6))
+	return {
+		"pos": Vector3(pos.x, 0.0, pos.z),
+		"node": root,
+		"crate": crate,
+		"beam_mat": bm,
+		"taken": false,
+		"gone": false,
+		"variant": variant,
+		"left": -1.0
+	}
 
 
 func _make_goal(pos: Vector3) -> Dictionary:
