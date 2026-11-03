@@ -296,6 +296,10 @@ func update_player(dt: float, captured: bool) -> void:
 			g.jump_v = 0.0
 			landed = true
 	g.player.position.y = g.jump_h
+	if g.jump_h > 0.0:
+		# the fall of this frame can take the feet below the top of a bench or crate the body is still against (a short
+		# hop, or walking off an edge slowly): put the player out of it now and not a frame later
+		g.player.position = g.arena.clamp_walk(g.player.position)
 	if landed:
 		land(active and want_crouch, impact)
 	ledge_off = lerpf(ledge_off, 0.0, minf(1.0, dt * 12.0))
