@@ -13,6 +13,10 @@ The game keeps four small files in Godot's `user://` folder (on Windows: `%APPDA
 
 A file written before versioning has no version number and counts as **version 0**. Loading it works as before, and the next save writes version 1.
 
+## Tutorial (`tutorial_done` under `[game]` in `settings.cfg`)
+
+`tutorial_done` is `true` once the short tutorial in the training room was finished or skipped; then the TRAINING ROOM entry opens a plain room. A missing key or a value that is not `true` / `false` loads as `false` (the tutorial starts on the next visit). It is a setting, not progress: RESET ALL PROGRESS keeps it. To see the tutorial start by itself again, delete the key by hand; TUTORIAL in the room's pause menu runs it any time.
+
 ## First-run hints (`[hints]` in `settings.cfg`)
 
 `settings.cfg` has a `[hints]` section with one `true` / `false` per first-run hint: `map`, `upgrade`, `shop`, `rest`, `extract` and `cache` (`HINT_IDS` in `scripts/settings.gd`). `true` means the hint was shown once and is not shown again. It is a field with a default, so there is no version bump.

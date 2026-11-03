@@ -1875,15 +1875,23 @@ const PAUSE_ITEMS = [
 # be lost
 func pause_items() -> Array:
 	if g != null and g.practice:
-		return [
+		var items = [
 			{"id": "resume", "label": "RESUME"},
 			{"id": "settings", "label": "SETTINGS"},
-			{"id": "controls", "label": "CONTROLS"},
+			{"id": "controls", "label": "CONTROLS"}
+		]
+		if g.practice_unlock.is_empty():  # the short tutorial is for the room with the player's own loadout
+			if g.tutorial_sys.active:
+				items.append({"id": "tutorial_skip", "label": "SKIP TUTORIAL"})
+			else:
+				items.append({"id": "tutorial_start", "label": "TUTORIAL"})
+		items.append(
 			{
 				"id": "leave_practice",
 				"label": "BACK TO MENU" if g.practice_unlock.is_empty() else "BACK TO UNLOCKS"
 			}
-		]
+		)
+		return items
 	return PAUSE_ITEMS
 
 
@@ -2792,6 +2800,28 @@ func _draw_practice_banner(k: float, cx: float) -> void:
 		tried = "TRYING THE " + str(g.practice_unlock.get("name", ""))
 	_txt(tried, cx, 82.0 * k, int(18 * k), GOLD, 1)
 	_txt("NOTHING COUNTS HERE   ESC FOR THE MENU", cx, 104.0 * k, int(14 * k), GRAY, 1)
+	_draw_tutorial_prompt(k, cx)
+
+
+# the short tutorial's prompt under the banner (tutorial.gd): the step and what to do, then DONE_TEXT for a few seconds
+func _draw_tutorial_prompt(k: float, cx: float) -> void:
+	var t = g.tutorial_sys
+	var line = t.text()
+	if line == "":
+		return
+	var fs = int(26 * k)
+	var w = _text_w(line, fs) + 48.0 * k
+	_hud_panel(Rect2(cx - w * 0.5, 128.0 * k, w, 74.0 * k))
+	if t.active:
+		_txt(
+			"TUTORIAL  %d / %d" % [t.step_number(), t.step_total()],
+			cx,
+			150.0 * k,
+			int(15 * k),
+			GOLD,
+			1
+		)
+	_txt(line, cx, 186.0 * k, fs, TEXT, 1)
 
 
 # ---------------------------------------------------------------- in-round HUD (modern FPS layout)

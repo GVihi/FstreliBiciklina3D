@@ -247,6 +247,8 @@ func load_settings() -> void:
 	# the HINTS switch: anything that is not true / false counts as ON, the default
 	var show_hints = cf.get_value("game", "show_hints", true)
 	g.hints_on = typeof(show_hints) != TYPE_BOOL or show_hints
+	var tut = cf.get_value("game", "tutorial_done", false)
+	g.tutorial_done = typeof(tut) == TYPE_BOOL and tut
 	for id in HINT_IDS:
 		var seen = cf.get_value("hints", id, false)
 		g.hints_seen[id] = typeof(seen) == TYPE_BOOL and seen
@@ -276,6 +278,7 @@ func save_settings() -> void:
 		cf.set_value("game", "window_h", win.y)
 	cf.set_value("game", "player_name", g.player_name)
 	cf.set_value("game", "show_hints", g.hints_on)
+	cf.set_value("game", "tutorial_done", g.tutorial_done)
 	for id in HINT_IDS:
 		cf.set_value("hints", id, hint_seen(id))
 	Keybinds.save_to(cf)

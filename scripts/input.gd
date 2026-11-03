@@ -81,11 +81,26 @@ func handle_input(event: InputEvent) -> void:
 				g.shop_sys.reroll()  # the reload key rerolls in the shop
 			else:
 				manual_reload()
+			if g.state == "shop":
+				g.shop_sys.reroll()
+			else:
+				manual_reload()
+		elif kc == KEY_Q:
+			if g.state == "play":
+				toggle_weapon()
 		elif kc == KEY_SPACE:
 			if g.state == "shop":
 				g.shop_sys.leave_shop()  # Space leaves the shop whatever the jump key is
+			elif g.state == "play":
+				g.player_sys.request_jump()  # Space jumps in a round, or side dashes with A / D held (Milestone L)
 		elif kc == KEY_T:
 			unlock_try()  # TRY IT on the Unlocks page
+		elif kc == KEY_G:
+			if g.state == "play":
+				g.gadget_sys.use()  # the gadget slot's use key (Milestone C); nothing happens with an empty slot
+		elif kc == KEY_V:
+			if g.state == "play":
+				g.player_sys.try_dash()  # dash moved here from Space (Milestone L); voices are toggled in the settings only
 		elif kc == KEY_TAB:
 			if g.state == "title":
 				g.title_page = "" if g.title_page == "settings" else "settings"
@@ -129,6 +144,8 @@ func handle_input(event: InputEvent) -> void:
 				g.shop_sys.buy(0)
 			elif g.state == "rest" and g.state_t > 0.35:
 				g.shop_sys.rest_choose(0)
+			elif g.state == "play":
+				toggle_weapon(false)
 		elif kc == KEY_2 or kc == KEY_KP_2:
 			if g.state == "map" and g.state_t > 0.3:
 				g.pick_node(1)
@@ -139,6 +156,8 @@ func handle_input(event: InputEvent) -> void:
 				g.shop_sys.buy(1)
 			elif g.state == "rest" and g.state_t > 0.35:
 				g.shop_sys.rest_choose(1)
+			elif g.state == "play":
+				toggle_weapon(true)
 		elif kc == KEY_3 or kc == KEY_KP_3:
 			if g.state == "map" and g.state_t > 0.3:
 				g.pick_node(2)
@@ -755,8 +774,9 @@ func settings_adjust(d: int) -> void:
 	if row.get("action", false):
 		return  # a button (RESET ALL PROGRESS): Left / Right do nothing, only Enter, A or a click open it
 	if row.has("choices"):
-		var count = maxi(1, g.settings.choice_labels(row).size())
-		g.settings.set_setting(id, posmod(int(g.settings.get_setting(id)) + d, count))
+		g.settings.set_setting(
+			id, posmod(int(g.settings.get_setting(id)) + d, row["choices"].size())
+		)
 	elif row.get("toggle", false):
 		g.settings.set_setting(id, d > 0)
 	else:
@@ -965,6 +985,21 @@ func pause_activate(i: int) -> void:
 		g.sfx.play("click")
 	elif id == "leave_practice":
 		g.end_practice()  # the training room has no run to lose, so no question
+	elif id == "tutorial_skip":
+		g.tutorial_sys.finish(false)  # a skip counts as seen: the room does not start the tutorial by itself again
+		g.sfx.play("click")
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	elif id == "tutorial_start":
+		g.clear_riders()  # the tutorial starts from the first step, with the door shut and the player on the start
+		g.clear_bosses()
+		g.player.position = g.arena.start_position()
+		g.pvel = Vector3.ZERO
+		g.yaw = 0.0
+		g.pitch = 0.0
+		g.wait = 0.0
+		g.tutorial_sys.start()
+		g.sfx.play("click")
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif id == "restart" or id == "title":  # both lose the run, so ask first (NO is the default)
 		g.confirm_id = id
 		g.confirm_sel = 0
