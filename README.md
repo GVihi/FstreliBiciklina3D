@@ -476,15 +476,6 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 ---
 
-# Milestone J: Manual Reload
-
-> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone J: Manual Reload". Only what is still open stays here.
-
-- [ ] Add reload to the key rebinding list and the Controls page (the Controls page exists now and lists R and X for reload; key rebinding does not exist yet, so only the rebinding list is left)
-- [ ] Rebalance darts per magazine and reload time now that reloading is not free
-
----
-
 # Milestone K: Procedural Arenas
 
 > Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone K: Procedural Arenas". Only what is still open stays here.
@@ -659,7 +650,7 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 - [x] Milestone G: Procedural map generation (done, see `docs/COMPLETED_MILESTONES.md`)
 - [ ] Milestone H: Run start sequence (needs the map from Milestone G to fade into)
 - [ ] Milestone I: Roguelite progression (builds on the meta currency and unlocks in Milestone B)
-- [ ] Milestone J: Manual reload (small and independent, can be done at any time)
+- [x] Milestone J: Manual reload (small and independent, can be done at any time)
 - [ ] Milestone K: Procedural arenas (big: replaces how riders and bosses move; start with the "Foundation" steps, which keep the roundabout playing as today)
 - [x] Milestone L: Jumping (small and independent; dash has moved from Space to V, so Space is free); now also holds the fast S4 League style movement: wall-jumps and the side dash / dodge
 - [ ] Milestone N: Website, launcher and online services (Django app and API, login, cloud saves, save protection, leaderboards, bug reports, installer and auto updates; mostly independent of the gameplay milestones, but XP and levels live in Milestone I, and the online leaderboard builds on Milestone A)

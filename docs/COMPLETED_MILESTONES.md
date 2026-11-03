@@ -387,3 +387,7 @@ Jumping on Space, so the movement feels like a modern FPS. Space was the dash ke
 # Milestone G: Procedural Map Generation
 
 > **Done, every item is ticked.** The full milestone (seed-based map generation, the generation rules, the completability check, the seed debug tool and the custom seed page) moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29. The rules are explained in [`docs/MAP_GENERATION.md`](docs/MAP_GENERATION.md). The heading stays here so references to "Milestone G" still find it.
+
+# Milestone J: Manual Reload
+
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone J: Manual Reload". Only what is still open stays here.
