@@ -84,10 +84,10 @@ func _check_hop() -> void:
 		if not main.player_sys.is_airborne() and frames > 2:
 			break
 	var seconds = float(frames) * DT
-	if top < 0.7 or top > 1.0:
-		_fail("a standing hop reached %.2f m, expected about 0.84 m" % top)
+	if top < 0.95 or top > 1.25:
+		_fail("a standing hop reached %.2f m, expected about 1.09 m" % top)
 	if seconds < 0.45 or seconds > 0.75:
-		_fail("a standing hop lasted %.2f s, expected about 0.58 s" % seconds)
+		_fail("a standing hop lasted %.2f s, expected about 0.66 s" % seconds)
 	if main.player_sys.is_airborne() or main.jump_h != 0.0:
 		_fail("the hop did not end on the ground")
 	if cam_top < eye + top - 0.05:

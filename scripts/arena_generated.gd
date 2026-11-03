@@ -419,7 +419,7 @@ const BLOCK_REACH = 1.15  # metres: no box's corner is further than this from it
 const BLOCK_SPAN = 2  # cells either side looked at for a box a ray meets: a ray is sampled every 0.9 cells
 const BLOCK_TOP_Y = 2.0  # above this nothing of a bench or crate is left: two crates of the biggest scale are 1.98 m
 # The player can stand on a bench or a crate: feet at a box's top, or less than this far below it, are over it and not
-# against its side. A standing hop reaches 0.84 m (player.gd JUMP_SPEED) and a bench is 0.90 m high, a crate 0.76 to 0.99 m,
+# against its side. A standing hop reaches 1.09 m (player.gd JUMP_SPEED) and a bench is 0.90 m high, a crate 0.76 to 0.99 m,
 # so a hop at the top of its arc has to be forgiven this much to get onto one.
 const STAND_TOL = 0.25
 const PROP_TREE = 0  # the kinds of prop a ray is cut with (_props_hit)

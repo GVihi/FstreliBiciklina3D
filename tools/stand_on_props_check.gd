@@ -480,8 +480,8 @@ func _check_standing(arena, boxes: Array, box: Dictionary, spot: Vector3, label:
 		if i > 3 and not main.player_sys.is_airborne():
 			landed_on_top = absf(main.jump_h - top) < 0.002 and absf(main.floor_h - top) < 0.002
 			break
-	if apex - top < 0.6 or apex - top > 1.1:
-		_fail("%s: a hop from the top rose %.2f m, expected about 0.84 m" % [label, apex - top])
+	if apex - top < 0.9 or apex - top > 1.3:
+		_fail("%s: a hop from the top rose %.2f m, expected about 1.09 m" % [label, apex - top])
 	if not landed_on_top:
 		_fail(
 			"%s: a hop from the top did not come down on the top (at %.3f m)" % [label, main.jump_h]

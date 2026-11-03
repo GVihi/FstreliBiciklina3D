@@ -103,7 +103,7 @@ const KICK_RISE_MAX = 0.26
 const KICK_ADS_MUL = 0.5  # recoil is this much smaller while aiming down sights (the view carries it instead)
 
 # Jumping tuning (Milestone L). Metres and seconds. First guesses, to be tuned in the playtest item.
-const JUMP_SPEED = 5.8  # take-off speed: with JUMP_GRAVITY a hop of about 0.84 m that lasts about 0.58 s
+const JUMP_SPEED = 6.6  # take-off speed: with JUMP_GRAVITY a hop of about 1.09 m that lasts about 0.66 s (was 5.8: 0.84 m, too low for a bench)
 const JUMP_GRAVITY = 20.0  # a little stronger than the world's, so the hop is snappy and the fall is quick
 const JUMP_BUFFER = 0.12  # a press this long before landing still jumps on landing (so a chain of hops never misses)
 const COYOTE_TIME = 0.1  # a jump is still allowed this long after leaving the ground (nothing to fall off yet)
@@ -115,7 +115,7 @@ const AIR_DASH_GRAVITY = 0.25  # gravity is this strong while a dash runs in the
 const WALL_REACH = 0.85  # metres from the player's centre to the wall face that count as touching it (the body stops 0.45 m from a wall)
 const WALL_SHOW = 2.4  # metres: a wall this close glows (wall_marks.gd), so the player sees where one could be used
 const WALL_WINDOW = 0.12  # a press this long after touching a wall still wall-jumps
-const WALL_JUMP_SPEED = 6.4  # take-off speed of a wall-jump: a little more than a hop from the ground, so a run of them climbs
+const WALL_JUMP_SPEED = 7.2  # (was 6.4, kept above the hop) take-off speed of a wall-jump: a little more than a hop from the ground, so a run of them climbs
 const WALL_PUSH = 7.0  # m/s away from the wall (the speed along the wall is kept)
 const WALL_JUMP_MAX = 3  # wall-jumps in one airtime; touching the ground gives them back
 const WALL_COOLDOWN = 0.2  # seconds after a wall-jump before the next one, and the wall must be touched again
