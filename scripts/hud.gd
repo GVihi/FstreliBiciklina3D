@@ -2723,9 +2723,18 @@ func _draw_dying(k: float, cx: float, blink: bool) -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.45, 0.02, 0.03, 0.88 * a))
 	var ta = clampf((t - 1.2) / 1.5, 0.0, 1.0)
 	if ta > 0.0:
-		_txt("Your journey ended too soon...", cx, size.y * 0.45, int(44 * k), Color(1, 0.88, 0.86, ta), 1)
+		_txt(
+			"Your journey ended too soon...",
+			cx,
+			size.y * 0.45,
+			int(44 * k),
+			Color(1, 0.88, 0.86, ta),
+			1
+		)
 	if t >= g.DEATH_FADE and blink:
-		_txt("PRESS ANY KEY TO END RUN", cx, size.y * 0.62, int(22 * k), Color(1, 0.88, 0.86, 0.9), 1)
+		_txt(
+			"PRESS ANY KEY TO END RUN", cx, size.y * 0.62, int(22 * k), Color(1, 0.88, 0.86, 0.9), 1
+		)
 
 
 # ---------------------------------------------------------------- pieces
