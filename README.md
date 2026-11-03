@@ -282,19 +282,20 @@ Mostly vibe coded Godot game
 
 ## Accessibility
 
-- [x] Directional warning sounds for riders (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner)
-- [x] Choose the window size: a WINDOW SIZE row in the settings, saved (note in `docs/ROADMAP_HISTORY.md`; `resolution` check not run yet, waits for an in-game check by the owner)
+- [ ] Directional warning sounds for riders: a bike bell or horn from a rider that is close and approaching from behind or the side (louder and panned by its direction, louder the closer it gets and the faster it closes), so a player can hear what the threat arrows and the radar show; also helps players who miss visual cues. Builds on the 3D audio item S7 and `closing` and `dist` in `threat_list` (`scripts/main.gd`); a setting to turn it off or make it quieter
+- [ ] English localization
 
 ## Code signing
 
 > Added 2026-10-27 at the owner's request. A certificate Windows trusts costs money, so the first step is a **self-signed** one, which is possible and free. What it gives and what it does not (checked against Microsoft's [Code signing options for Windows app developers](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/code-signing-options)): the exe carries a signature that shows it was not changed after signing, and Windows treats it as signed on a computer where the certificate was installed as trusted (the owner's, or a tester's who chooses to). It does **not** remove the SmartScreen or "unknown publisher" warning for anybody else: Windows does not trust a self-signed certificate by default, and Microsoft describes it as meant for development, testing and internal use, not for public downloads.
 
 - [x] Before any certificate file exists, extend `.gitignore` with `*.pfx`, `*.p12`, `*.pem`, `*.key` and `*.crt` (done together with V1.1).
-- [x] Create the self-signed code signing certificate on the owner's Windows machine (Godot's Windows export page links Microsoft's guide for creating one; in PowerShell `New-SelfSignedCertificate -Type CodeSigningCert` is the usual way). Export it as a `.pfx` with a password and keep the file and the password outside the repository (the owner's user folder and a password manager). Write the certificate's SHA-256 thumbprint and its expiry date in `docs/` (the thumbprint is public, the file and the password are secret) so testers can compare it.
-- [x] Decide `binary_format/embed_pck` in `export_presets.cfg`. It is `true` today, and Godot's documentation says an exported exe with an embedded PCK breaks signing (it also says embedding can trigger antivirus false positives). Signing means `false`: the export becomes `FB3D.exe` and `FB3D.pck` side by side, and the E2 smoke test (E2.2, E2.3) and the installer in Milestone N have to treat the two files as one build.
-- [x] Set up the export: `SignTool.exe` from the Windows SDK, its path in Editor Settings > Export > Windows (Sign Tool), and in the Windows preset `codesign/enable=true` with the identity type and the `.pfx` as identity. **Leave the password out of the tracked `export_presets.cfg`**: Godot reads it from the environment variable `GODOT_WINDOWS_CODESIGN_PASSWORD` (the identity type and the identity have `GODOT_WINDOWS_CODESIGN_IDENTITY_TYPE` and `GODOT_WINDOWS_CODESIGN_IDENTITY`), the same rule as the PCK encryption key under "Secrets and credentials". Decide whether to timestamp (`codesign/timestamp` is `true` and `codesign/timestamp_server_url` is empty today); a timestamp keeps the signature valid after the certificate expires.
-- [x] Export and verify: FB3D.exe > Properties > Digital Signatures shows the signature, and `signtool verify /pa build\windows\FB3D.exe` reports it as untrusted on a computer without the certificate (expected) and as valid after the certificate was imported as a trusted root and trusted publisher on the owner's test machine. Then repeat E2.2 and E2.3 with the signed build: it starts and the saves are still found in `user://`.
-- [x] Tell testers in `docs/ALPHA_NOTES.md` (E4.2): the build is self-signed, here is the thumbprint, Windows will still warn, and importing the certificate is optional and only for people who trust the owner (it makes Windows trust anything signed with it). Never ask a player to import it.
+- [ ] Create the self-signed code signing certificate on the owner's Windows machine (Godot's Windows export page links Microsoft's guide for creating one; in PowerShell `New-SelfSignedCertificate -Type CodeSigningCert` is the usual way). Export it as a `.pfx` with a password and keep the file and the password outside the repository (the owner's user folder and a password manager). Write the certificate's SHA-256 thumbprint and its expiry date in `docs/` (the thumbprint is public, the file and the password are secret) so testers can compare it.
+- [ ] Decide `binary_format/embed_pck` in `export_presets.cfg`. It is `true` today, and Godot's documentation says an exported exe with an embedded PCK breaks signing (it also says embedding can trigger antivirus false positives). Signing means `false`: the export becomes `FB3D.exe` and `FB3D.pck` side by side, and the E2 smoke test (E2.2, E2.3) and the installer in Milestone N have to treat the two files as one build.
+- [ ] Set up the export: `SignTool.exe` from the Windows SDK, its path in Editor Settings > Export > Windows (Sign Tool), and in the Windows preset `codesign/enable=true` with the identity type and the `.pfx` as identity. **Leave the password out of the tracked `export_presets.cfg`**: Godot reads it from the environment variable `GODOT_WINDOWS_CODESIGN_PASSWORD` (the identity type and the identity have `GODOT_WINDOWS_CODESIGN_IDENTITY_TYPE` and `GODOT_WINDOWS_CODESIGN_IDENTITY`), the same rule as the PCK encryption key under "Secrets and credentials". Decide whether to timestamp (`codesign/timestamp` is `true` and `codesign/timestamp_server_url` is empty today); a timestamp keeps the signature valid after the certificate expires.
+- [ ] Export and verify: FB3D.exe > Properties > Digital Signatures shows the signature, and `signtool verify /pa build\windows\FB3D.exe` reports it as untrusted on a computer without the certificate (expected) and as valid after the certificate was imported as a trusted root and trusted publisher on the owner's test machine. Then repeat E2.2 and E2.3 with the signed build: it starts and the saves are still found in `user://`.
+- [ ] Tell testers in `docs/ALPHA_NOTES.md` (E4.2): the build is self-signed, here is the thumbprint, Windows will still warn, and importing the certificate is optional and only for people who trust the owner (it makes Windows trust anything signed with it). Never ask a player to import it.
+- [ ] Before a public release, decide about a certificate Windows trusts (the "decide about code signing" part of Milestone N "Installer and auto updates"). The options on Microsoft's page, with prices as of 2026-10-27: Azure Artifact Signing, about $9.99 a month (individuals only in the USA and Canada, organisations in the USA, Canada, the EU and the UK); an OV certificate, $150 to $300 a year, worldwide, with the private key on a hardware token or HSM; an EV certificate, $400 or more a year, which since 2024 no longer skips SmartScreen and so is not worth the premium for that; and [SignPath Foundation](https://signpath.org/)'s free signing for open source projects, where the signature is issued to SignPath Foundation and not to the owner (this repository is public but has no `LICENSE` file today, so read their conditions first). All of them still show SmartScreen warnings until the signed program has built up a reputation.
 - [ ] Sign the installer as well once it exists (Milestone N); the update download there already says it checks "its checksum (and signature)".
 
 ---
@@ -475,11 +476,24 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 ---
 
+# Milestone J: Manual Reload
+
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone J: Manual Reload". Only what is still open stays here.
+
+- [ ] Add reload to the key rebinding list and the Controls page (the Controls page exists now and lists R and X for reload; key rebinding does not exist yet, so only the rebinding list is left)
+- [ ] Rebalance darts per magazine and reload time now that reloading is not free
+
+---
+
 # Milestone K: Procedural Arenas
 
 > Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone K: Procedural Arenas". Only what is still open stays here.
 
 > Every run gets one generated arena, about four times bigger than the roundabout, that the player walks through freely and where riders can ride on roads, sidewalks, grass and anywhere open. Design, owner decisions, current-code notes and open questions: [`docs/PROCEDURAL_ARENAS.md`](docs/PROCEDURAL_ARENAS.md). Needs the seed from Milestone G; the world kit from Milestone F9 should be reused for the dressing. This replaces how riders, bosses and pedestrians move (street coordinates become world positions), so it is large: work top to bottom, and the first steps keep the roundabout playing as it does today.
+
+## Decisions
+
+- [ ] Set the performance budget (triangles, lights, shadows, draw distance) on the minimum-spec machine (deferred by the owner: not needed yet, but needed before the world is built)
 
 ## Rider variety and arena hazards
 
@@ -510,7 +524,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 ## Scale, variety and polish
 
-- [ ] Performance pass for the bigger arena (draw distance, culling, shadow and light counts) on the minimum-spec machine (the arena is now 144 m square, about 8 to 12 times the roundabout instead of 4, so the walkable ground, the buildings, the lamps and the gates all grew, and the 4 gold and 1 green light column of the objectives are new draw cost; frame time on weak hardware is not known; the limits it checks against are in `docs/PERFORMANCE_BUDGET.md`)
+- [ ] Performance pass for the bigger arena (draw distance, culling, shadow and light counts) on the minimum-spec machine (the arena is now 144 m square, about 8 to 12 times the roundabout instead of 4, so the walkable ground, the buildings, the lamps and the gates all grew, and the 4 gold and 1 green light column of the objectives are new draw cost; frame time on weak hardware is not known)
 - [x] Arena styles chosen by the seed: plaza, street canyon, market, bridge, tunnel, park (replaces the hand-built arenas in Milestone D)
   - [ ] Look and feel of the bridge and the tunnel: they are walled placeholder boxes with no water edge, no roof or ceiling and the same ground surfaces as the other styles; decide on water or a drop beside the deck, a roof or ceiling lights for the tunnel and a different ground (planks, tiles)
   - [ ] Playtest and balance each style: rider speed, sightlines and run length per style, how a bridge with only 2 gates plays against 3 to 6 riders, whether a tunnel's short sightlines are fair, and the weights (all 1 now; a style can be made rarer by lowering its `weight`)
@@ -645,7 +659,7 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 - [x] Milestone G: Procedural map generation (done, see `docs/COMPLETED_MILESTONES.md`)
 - [ ] Milestone H: Run start sequence (needs the map from Milestone G to fade into)
 - [ ] Milestone I: Roguelite progression (builds on the meta currency and unlocks in Milestone B)
-- [x] Milestone J: Manual reload (small and independent, can be done at any time)
+- [ ] Milestone J: Manual reload (small and independent, can be done at any time)
 - [ ] Milestone K: Procedural arenas (big: replaces how riders and bosses move; start with the "Foundation" steps, which keep the roundabout playing as today)
 - [x] Milestone L: Jumping (small and independent; dash has moved from Space to V, so Space is free); now also holds the fast S4 League style movement: wall-jumps and the side dash / dodge
 - [ ] Milestone N: Website, launcher and online services (Django app and API, login, cloud saves, save protection, leaderboards, bug reports, installer and auto updates; mostly independent of the gameplay milestones, but XP and levels live in Milestone I, and the online leaderboard builds on Milestone A)

@@ -7,7 +7,6 @@ var font: Font
 var arrows: Array = []  # the edge arrows drawn on the last frame, strongest first (tools/threat_check.gd reads it)
 
 const Toon = preload("res://scripts/toon.gd")
-const Keybinds = preload("res://scripts/keybinds.gd")
 const Threats = preload("res://scripts/threats.gd")
 const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 const Objective = preload("res://scripts/objective.gd")
@@ -558,7 +557,7 @@ func _draw_shop(k: float) -> void:
 	draw_rect(rr, Color(0.176, 0.196, 0.22) if rhov else Color(0.13, 0.14, 0.16))
 	draw_rect(rr, (ACCENT if rok else RED) if rhov else Color(0.29, 0.31, 0.33), false, 3.0 * k)
 	_txt(
-		"REROLL  [%s]  $%d" % [Keybinds.key_text("reload"), rc],
+		"REROLL  [R]  $%d" % rc,
 		rr.position.x + rr.size.x * 0.5,
 		rr.position.y + 32.0 * k,
 		int(20 * k),
@@ -1262,61 +1261,15 @@ func _draw_controls_rows(rows: Array, x_key: float, x_text: float, y: float, k: 
 	return y
 
 
-# The keyboard rows of the Controls page with the keys as they are bound now (keybinds.gd), as [keys, what] pairs. A row
-# that is not a rebindable control (the mouse, Esc, Tab, F9, F11) is as listed in CONTROLS_KEYBOARD, and with the default
-# keys every row is exactly the one listed there.
-func controls_keyboard_rows() -> Array:
-	var rows = []
-	for row in CONTROLS_KEYBOARD:
-		var key = str(row[0])
-		var what = str(row[1])
-		if what == "MOVE":
-			key = Keybinds.move_text()
-		elif what.begins_with("SPRINT"):
-			key = Keybinds.keys_text("sprint")
-		elif what.begins_with("CROUCH"):
-			key = Keybinds.keys_text("crouch")
-		elif what.begins_with("JUMP"):
-			key = Keybinds.keys_text("jump")
-		elif what.begins_with("SIDE DASH"):
-			key = (
-				"%s / %s + %s"
-				% [Keybinds.key_text("left"), Keybinds.key_text("right"), Keybinds.key_text("jump")]
-			)
-		elif what.begins_with("DASH"):
-			key = Keybinds.keys_text("dash")
-		elif what.begins_with("RELOAD"):
-			key = Keybinds.keys_text("reload")
-		elif what.begins_with("SWITCH"):
-			var gun = Keybinds.key_text("gun")
-			var melee = Keybinds.key_text("melee")
-			key = "%s / WHEEL / %s / %s" % [Keybinds.key_text("switch"), gun, melee]
-			what = "SWITCH DART GUN AND MELEE (%s GUN, %s MELEE)" % [gun, melee]
-		elif what.begins_with("USE THE GADGET"):
-			key = Keybinds.keys_text("gadget")
-		elif what.begins_with("HOLD TO SHOW THE MAP"):
-			key = Keybinds.keys_text("map")
-		rows.append([key, what])
-	return rows
-
-
 func _draw_controls(k: float, cx: float) -> void:
 	_txt("CONTROLS", cx, size.y * 0.12, int(56 * k), GOLD, 1)
 	var y0 = size.y * 0.255
 	_txt("KEYBOARD AND MOUSE", cx - 600.0 * k, y0 - 30.0 * k, int(16 * k), GOLD)
-	_draw_controls_rows(controls_keyboard_rows(), cx - 600.0 * k, cx - 410.0 * k, y0, k)
+	_draw_controls_rows(CONTROLS_KEYBOARD, cx - 600.0 * k, cx - 410.0 * k, y0, k)
 	_txt("GAMEPAD", cx + 40.0 * k, y0 - 30.0 * k, int(16 * k), GOLD)
 	var y = _draw_controls_rows(CONTROLS_GAMEPAD, cx + 40.0 * k, cx + 230.0 * k, y0, k)
 	_txt("SHOP, UPGRADES AND MAP", cx + 40.0 * k, y + 14.0 * k, int(16 * k), GOLD)
 	_draw_controls_rows(CONTROLS_SCREENS, cx + 40.0 * k, cx + 280.0 * k, y + 44.0 * k, k)
-	_txt(
-		"CHANGE THE KEYS IN THE SETTINGS (TAB): REBIND KEYS",
-		cx,
-		size.y * 0.89,
-		int(16 * k),
-		GRAY,
-		1
-	)
 	_txt("CLICK OR PRESS ESC TO GO BACK", cx, size.y * 0.94, int(18 * k), GRAY, 1)
 
 
@@ -1671,9 +1624,6 @@ func _draw_title_page(k: float, cx: float) -> void:
 		return
 	if g.title_page == "controls":
 		_draw_controls(k, cx)
-		return
-	if g.title_page == "keys":
-		_draw_keys(k, cx)
 		return
 	if g.title_page == "unlocks":
 		_draw_unlocks(k, cx)
@@ -2215,15 +2165,9 @@ const ALL_SETTING_ROWS = [
 	{"id": "fx", "label": "SHAKE AND FLASH", "min": 0.0, "max": 1.0, "fmt": "pct"},
 	{"id": "quality", "label": "GRAPHICS", "choices": ["HIGH", "MEDIUM", "LOW"]},
 	{"id": "fullscreen", "label": "FULLSCREEN", "toggle": true},
-	# the window sizes that fit this screen (settings.gd window_options); the choices are made when the row is drawn
-	{"id": "resolution", "label": "WINDOW SIZE", "choices": [], "dynamic": true},
 	{"id": "sound", "label": "SOUND", "toggle": true},
 	{"id": "voices", "label": "VOICES", "toggle": true},
-	# the bike bell of a rider coming from behind or the side (rider_warning.gd)
-	{"id": "warn", "label": "RIDER WARNING SOUNDS", "choices": ["OFF", "QUIET", "NORMAL"]},
 	{"id": "hints", "label": "FIRST-TIME HINTS", "toggle": true},
-	# a button, not a setting: opens the REBIND KEYS page (input.gd keys_open)
-	{"id": "rebind", "label": "REBIND KEYS", "action": true},
 	# a button, not a setting: opens the two warnings of RESET ALL PROGRESS (input.gd reset_progress_open)
 	{"id": "reset_progress", "label": "RESET ALL PROGRESS", "action": true, "danger": true}
 ]
@@ -2253,14 +2197,12 @@ func settings_visible() -> bool:
 
 # the extra space above the red RESET ALL PROGRESS row, so it stands apart from the settings (in units of 720 p)
 const DANGER_GAP = 12.0
-const SETTING_ROW_H = 26.0  # units of 720 p: the height of a row
-const SETTING_PITCH = 28.0  # units of 720 p from one row to the next
 
 
 func panel_rect() -> Rect2:
 	var k = size.y / 720.0
 	var w = 560.0 * k
-	var h = (44.0 + setting_rows().size() * SETTING_PITCH + 12.0 + DANGER_GAP) * k
+	var h = (44.0 + setting_rows().size() * 34.0 + 12.0 + DANGER_GAP) * k
 	return Rect2((size.x - w) * 0.5, (size.y - h) * 0.5, w, h)
 
 
@@ -2270,9 +2212,9 @@ func row_rect(i: int) -> Rect2:
 	var gap = DANGER_GAP if setting_rows()[i].get("danger", false) else 0.0
 	return Rect2(
 		pr.position.x + 16.0 * k,
-		pr.position.y + (44.0 + gap) * k + i * SETTING_PITCH * k,
+		pr.position.y + (44.0 + gap) * k + i * 34.0 * k,
 		pr.size.x - 32.0 * k,
-		SETTING_ROW_H * k
+		30.0 * k
 	)
 
 
@@ -2345,19 +2287,6 @@ func _draw_settings(k: float) -> void:
 				1
 			)
 			continue
-		if row.get("action", false):
-			# a button that opens a page (REBIND KEYS)
-			draw_rect(r, Color(0.176, 0.196, 0.22) if i == sel else Color(0.13, 0.14, 0.16))
-			draw_rect(r, ACCENT if i == sel else Color(0.29, 0.31, 0.33), false, 2.0 * k)
-			_txt(
-				row["label"],
-				r.position.x + r.size.x * 0.5,
-				r.position.y + 21.0 * k,
-				int(14 * k),
-				TEXT,
-				1
-			)
-			continue
 		if i == sel:
 			draw_rect(r, Color(1, 1, 1, 0.06))
 			draw_rect(r, ACCENT, false, 2.0 * k)
@@ -2365,15 +2294,7 @@ func _draw_settings(k: float) -> void:
 		_txt(row["label"], r.position.x + 8.0 * k, ty, int(14 * k), TEXT)
 		if row.has("choices"):
 			var ch = int(g.get_setting(row["id"]))
-			var names = g.settings.choice_labels(row)
-			_txt(
-				names[clampi(ch, 0, names.size() - 1)],
-				r.position.x + r.size.x - 10.0 * k,
-				ty,
-				int(14 * k),
-				ACCENT,
-				2
-			)
+			_txt(row["choices"][ch], r.position.x + r.size.x - 10.0 * k, ty, int(14 * k), ACCENT, 2)
 		elif row.get("toggle", false):
 			var on = bool(g.get_setting(row["id"]))
 			_txt(
@@ -2421,128 +2342,6 @@ func _draw_settings_hints(k: float, cx: float) -> void:
 		if g.progress_wipe_failed > 0:
 			msg = "WIPED, BUT %d FILE(S) COULD NOT BE DELETED" % g.progress_wipe_failed
 		_txt(msg, cx, panel_rect().position.y - 14.0 * k, int(18 * k), GOLD, 1)
-
-
-# ---------------------------------------------------------------- rebind keys page (keybinds.gd, input.gd keys_*)
-# One row per control (Keybinds.ACTIONS) with two cells, the key and an alternative, and a last row that puts every key
-# back to its default. The mouse and the cells use `keys_row_rect` and `keys_cell_rect`, like the settings rows.
-const KEYS_ROW_H = 28.0  # units of 720 p between rows (the rows are 2 less)
-const KEYS_GAP = 10.0  # the extra space above the RESET TO DEFAULTS row
-
-
-# true while the page is showing (from the settings panel, in the title menu or the pause menu)
-func keys_visible() -> bool:
-	return (
-		g != null
-		and (
-			(g.paused and g.pause_page == "keys") or (g.state == "title" and g.title_page == "keys")
-		)
-	)
-
-
-func keys_row_rect(i: int) -> Rect2:
-	var k = size.y / 720.0
-	var w = 760.0 * k
-	var gap = KEYS_GAP if i >= Keybinds.ACTIONS.size() else 0.0
-	return Rect2(
-		size.x * 0.5 - w * 0.5,
-		size.y * 0.2 + (gap + float(i) * KEYS_ROW_H) * k,
-		w,
-		(KEYS_ROW_H - 2.0) * k
-	)
-
-
-# the key (col 0) or the alternative (col 1) of a row; the reset row is one wide cell
-func keys_cell_rect(i: int, col: int) -> Rect2:
-	var r = keys_row_rect(i)
-	if i >= Keybinds.ACTIONS.size():
-		return r
-	var cw = r.size.x * 0.25
-	return Rect2(r.position.x + r.size.x * 0.5 + cw * float(col), r.position.y, cw, r.size.y)
-
-
-# the area of the list: a click outside it goes back
-func keys_panel_rect() -> Rect2:
-	var k = size.y / 720.0
-	var first = keys_row_rect(0)
-	var last = keys_row_rect(Keybinds.ACTIONS.size())
-	return Rect2(
-		first.position.x - 12.0 * k,
-		first.position.y - 40.0 * k,
-		first.size.x + 24.0 * k,
-		last.end.y - first.position.y + 52.0 * k
-	)
-
-
-# the cell under a point as (row, column), (-1, -1) for none or when the page is not showing
-func keys_at(pos: Vector2) -> Vector2i:
-	if not keys_visible():
-		return Vector2i(-1, -1)
-	for i in range(Keybinds.ACTIONS.size()):
-		for col in range(Keybinds.SLOTS):
-			if keys_cell_rect(i, col).has_point(pos):
-				return Vector2i(i, col)
-	var reset = Keybinds.ACTIONS.size()
-	if keys_row_rect(reset).has_point(pos):
-		return Vector2i(reset, 0)
-	return Vector2i(-1, -1)
-
-
-func _draw_keys(k: float, cx: float) -> void:
-	_txt("REBIND KEYS", cx, size.y * 0.12, int(56 * k), GOLD, 1)
-	var head = keys_row_rect(0)
-	var hy = head.position.y - 10.0 * k
-	_txt("CONTROL", head.position.x + 8.0 * k, hy, int(14 * k), GOLD)
-	var c0 = keys_cell_rect(0, 0)
-	var c1 = keys_cell_rect(0, 1)
-	_txt("KEY", c0.position.x + c0.size.x * 0.5, hy, int(14 * k), GOLD, 1)
-	_txt("ALTERNATIVE", c1.position.x + c1.size.x * 0.5, hy, int(14 * k), GOLD, 1)
-	var n = Keybinds.ACTIONS.size()
-	for i in range(n):
-		var a = Keybinds.ACTIONS[i]
-		var r = keys_row_rect(i)
-		var ty = r.position.y + 20.0 * k
-		_txt(a["label"], r.position.x + 8.0 * k, ty, int(15 * k), TEXT)
-		var ks = Keybinds.keys_of(a["id"])
-		for col in range(Keybinds.SLOTS):
-			var cr = keys_cell_rect(i, col)
-			var on = i == g.keys_sel and col == g.keys_col
-			var waiting = on and g.keys_capture
-			draw_rect(cr, Color(0.176, 0.196, 0.22) if on else Color(0.13, 0.14, 0.16))
-			draw_rect(cr, ACCENT if on else Color(0.29, 0.31, 0.33), false, 2.0 * k)
-			var txt = "PRESS A KEY" if waiting else Keybinds.key_label(int(ks[col]))
-			var tc = TEXT if int(ks[col]) != 0 else GRAY
-			_txt(txt, cr.position.x + cr.size.x * 0.5, ty, int(15 * k), GOLD if waiting else tc, 1)
-	var rr = keys_row_rect(n)
-	var ron = g.keys_sel == n
-	draw_rect(rr, Color(0.176, 0.196, 0.22) if ron else Color(0.13, 0.14, 0.16))
-	draw_rect(rr, ACCENT if ron else Color(0.29, 0.31, 0.33), false, 2.0 * k)
-	_txt(
-		"RESET TO DEFAULTS",
-		rr.position.x + rr.size.x * 0.5,
-		rr.position.y + 20.0 * k,
-		int(15 * k),
-		TEXT,
-		1
-	)
-	if g.keys_msg != "" and g.time - g.keys_msg_t0 < 4.0:
-		_txt(g.keys_msg, cx, size.y * 0.84, int(18 * k), GOLD, 1)
-	_txt(
-		"UP / DOWN: PICK   LEFT / RIGHT: KEY OR ALTERNATIVE   ENTER OR CLICK: CHANGE",
-		cx,
-		size.y * 0.89,
-		int(14 * k),
-		GRAY,
-		1
-	)
-	_txt(
-		"DELETE: CLEAR   ESC OR CLICK OUTSIDE: BACK (OR CANCEL)",
-		cx,
-		size.y * 0.92,
-		int(14 * k),
-		GRAY,
-		1
-	)
 
 
 # ---------------------------------------------------------------- main draw
@@ -2684,12 +2483,7 @@ func _draw() -> void:
 	elif state == "map":
 		_draw_map_screen(k, cx)
 
-	if state == "loading":
-		_draw_loading(k, cx)
-	elif state == "dying":
-		_draw_dying(k, cx, blink)
-
-	if state != "title" and state != "loading" and state != "dying":
+	if state != "title":
 		_draw_hint(k, cx)
 
 	if g.paused:
@@ -2703,9 +2497,6 @@ func _draw() -> void:
 		elif g.pause_page == "controls":
 			_menu_backdrop(k, 0.6)
 			_draw_controls(k, cx)
-		elif g.pause_page == "keys":
-			_menu_backdrop(k, 0.6)
-			_draw_keys(k, cx)
 		else:
 			_menu_backdrop(k, 0.45)
 			_draw_pause_menu(k, cx)
@@ -2715,36 +2506,6 @@ func _draw() -> void:
 	elif state == "title" and g.title_page == "settings":
 		_draw_settings(k)
 		_draw_settings_hints(k, cx)
-
-
-# ---------------------------------------------------------------- loading and death screens
-# A quiet screen before a run: the menu backdrop, one small pulsing LOADING line with dots.
-func _draw_loading(k: float, cx: float) -> void:
-	_menu_backdrop(k, 0.6)
-	var dots = ".".repeat(int(g.time * 3.0) % 4)
-	var pulse = 0.55 + 0.25 * sin(g.time * 4.0)
-	_txt("LOADING" + dots, cx, size.y * 0.5, int(22 * k), Color(TEXT, pulse), 1)
-
-
-# The death screen: the round fades to a red filter over main.DEATH_FADE seconds, the line fades in, then the prompt blinks.
-func _draw_dying(k: float, cx: float, blink: bool) -> void:
-	var t = g.state_t
-	var a = clampf(t / (g.DEATH_FADE * 0.75), 0.0, 1.0)
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.45, 0.02, 0.03, 0.88 * a))
-	var ta = clampf((t - 1.2) / 1.5, 0.0, 1.0)
-	if ta > 0.0:
-		_txt(
-			"Your journey ended too soon...",
-			cx,
-			size.y * 0.45,
-			int(44 * k),
-			Color(1, 0.88, 0.86, ta),
-			1
-		)
-	if t >= g.DEATH_FADE and blink:
-		_txt(
-			"PRESS ANY KEY TO END RUN", cx, size.y * 0.62, int(22 * k), Color(1, 0.88, 0.86, 0.9), 1
-		)
 
 
 # ---------------------------------------------------------------- pieces
@@ -3116,7 +2877,7 @@ func _draw_hud_centre(k: float) -> void:
 		var chip_w = _text_w("V", fs) + 10.0 * k
 		var total = lw + 6.0 * k + chip_w
 		_txt("DASH", mx - total * 0.5, base, fs, ACCENT)
-		# _key_chip("V", mx + total * 0.5, base, fs, k)
+		_key_chip("V", mx + total * 0.5, base, fs, k)
 	else:
 		_txt("DASH", mx, base, fs, GRAY, 1)
 	var df = 1.0 if ready else clampf(1.0 - g.dash_cd / 0.9, 0.0, 1.0)
@@ -3214,13 +2975,13 @@ func _draw_boss_ui(k: float) -> void:
 					Rect2(size.x - 16.0 * k, 0, 16.0 * k, size.y), Color(1.0, 0.16, 0.12, pulse)
 				)
 				if int(g.time * 8.0) % 2 == 0:
-					var warn = "GET OFF THE RED LANE!  DASH"
+					var warn = "GET OFF THE RED LANE!  DASH [V]"
 					if mode == "tele" and b["pat"] == "slam":
-						warn = "GET OUT OF THE CIRCLE!  OR DASH THROUGH"
+						warn = "GET OUT OF THE CIRCLE!  OR DASH THROUGH [V]"
 					elif mode == "tele" and b["pat"] == "volley":
 						warn = "PHONES INCOMING!  DODGE OR DEFLECT"
 					elif b["combo"] > 0:
-						warn = "COMBO!  KEEP MOVING"
+						warn = "COMBO!  KEEP MOVING  [V]"
 					_txt(warn, cx, size.y * 0.45, int(22 * k), ACCENT, 1)
 			elif mode == "stagger":
 				var gp = 0.10 + 0.08 * absf(sin(g.time * 8.0))

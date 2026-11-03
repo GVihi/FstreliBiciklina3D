@@ -11,7 +11,6 @@ const GAME_TITLE = "FB3D"
 
 const Lighting = preload("res://scripts/lighting.gd")
 const Util = preload("res://scripts/util.gd")
-const Keybinds = preload("res://scripts/keybinds.gd")
 const WorldBuilder = preload("res://scripts/world.gd")
 const Models = preload("res://scripts/models.gd")
 const HudScript = preload("res://scripts/hud.gd")
@@ -20,7 +19,6 @@ const Rim = preload("res://scripts/rim.gd")
 const ObjectiveScript = preload("res://scripts/objective.gd")
 const AmbushScript = preload("res://scripts/ambush.gd")
 const ExploreScript = preload("res://scripts/explore_map.gd")
-const RiderWarningScript = preload("res://scripts/rider_warning.gd")
 const DevStartScript = preload("res://scripts/dev_start.gd")
 const UnlocksScript = preload("res://scripts/unlocks.gd")
 const BuildInfo = preload("res://scripts/build_info.gd")
@@ -176,7 +174,6 @@ var best_rank = 0  # highest style rank reached this run (0 = D .. 4 = S)
 var last_rank = -1  # leaderboard place of the run that just ended (0 = first), -1 = not on the list
 var player_name = "PLAYER"  # last name typed on the leaderboard (saved), offered again next time
 var hints_seen = {}  # first-run hint id -> true once it was shown (saved in settings.cfg under [hints], see settings.gd)
-var warn_level = 2  # RIDER WARNING setting (README Milestone E, Accessibility): 0 OFF, 1 QUIET, 2 NORMAL; saved as [game] rider_warning
 var hints_on = true  # HINTS setting (README alpha E1.4): false = no first-run hint is shown; saved as [game] show_hints
 var hint_txt = ""  # the first-run hint line on screen (E1.2), "" = none; drawn bottom centre by Hud._draw_hint
 var tutorial_done = false  # the short tutorial was finished or skipped, so the training room opens without it (saved in settings.cfg as [game] tutorial_done)
@@ -286,7 +283,6 @@ var slide_cd = 0.0
 # player node, and riders, phones and boss slams look at the height). clamp_walk and obstacle_at only look at x and z,
 # so the arena bounds hold in the air.
 var jump_h = 0.0  # metres above the ground, 0 = standing on it (the same number as player.position.y)
-var floor_h = 0.0  # metres: the floor under the player's feet, 0 on the ground, the top of a bench or crate on one (Arena.stand_height)
 var jump_v = 0.0  # vertical speed (m/s, up is positive)
 var jump_buf = 0.0  # > 0 for a moment after Space / A was pressed, so a press just before landing still jumps
 var coyote_t = 0.0  # > 0 while a jump is still allowed (grace after leaving the ground; the ground is flat for now)
@@ -341,11 +337,6 @@ var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / 
 var pause_page = ""  # "" = pause menu, "settings" = settings panel, "controls", "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
 var setting_sel = 0  # highlighted row of the settings panel (keyboard / gamepad / mouse hover)
-var keys_sel = 0  # highlighted row of the REBIND KEYS page (the last row is RESET TO DEFAULTS)
-var keys_col = 0  # 0 = the key of that control, 1 = its alternative
-var keys_capture = false  # the page is waiting for the key that becomes the new binding
-var keys_msg = ""  # the line under the list: swapped, refused, cleared
-var keys_msg_t0 = -100.0  # `time` when keys_msg was set
 var confirm_id = ""  # what the confirmation asks about: "restart", "title", or "reset1" / "reset2" (the two RESET ALL PROGRESS warnings)
 var progress_wiped_t0 = -100.0  # g.time of the last RESET ALL PROGRESS, for the "ALL PROGRESS WIPED" line under the settings panel
 var progress_wipe_failed = 0  # how many progress files that wipe could not delete (0 = all gone)
@@ -682,7 +673,6 @@ var gadget_sys = GadgetsScript.new(self)  # gadgets.gd: Gadgets: the gadget use 
 var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
 var objective_sys = ObjectiveScript.new(self)  # objective.gd: Objectives: supply caches and the extraction point on generated arenas.
 var ambush_sys = AmbushScript.new(self)  # ambush.gd: the last wave of riders when the extraction point opens on a generated arena.
-var warn_sys = RiderWarningScript.new(self)  # rider_warning.gd: a bike bell from a close rider that comes at the player from behind or the side.
 var explore_sys = ExploreScript.new(self)  # explore_map.gd: what the player has found of the arena, for the map shown while M is held.
 var pickup_sys = PickupsScript.new(self)  # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
 var civ_sys = PedestriansScript.new(self)  # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
@@ -1914,7 +1904,7 @@ func end_round() -> void:
 		sfx.v_cheer()
 		sfx.say("round_perfect" if perfect else "round_clear")
 	else:
-		state = "dying"
+		state = "over"
 		over_reason = "riders"
 		clear_saved_run()
 		meta.award_run()
@@ -1953,38 +1943,6 @@ func win_run() -> void:
 	sfx.say("round_clear")
 
 
-# How long the death screen fades to red before it asks for a key (hud.gd draws it, input.gd ends it).
-const DEATH_FADE = 4.0
-# The short loading screen before a run: `begin_loading` shows it, update_game runs the stored start when it is over.
-const LOADING_TIME = 1.0
-var pending_start: Callable = Callable()
-
-
-func begin_loading(start: Callable) -> void:
-	pending_start = start
-	state = "loading"
-	state_t = 0.0
-
-
-# Runs the stored start now instead of after LOADING_TIME. update_game calls it when the time is up; the checks in
-# tools/ call it to get past the loading screen without waiting for frames.
-func finish_loading() -> void:
-	if state != "loading" or not pending_start.is_valid():
-		return
-	var start = pending_start
-	pending_start = Callable()
-	start.call()
-
-
-func end_death_screen() -> void:
-	if state != "dying" or state_t < DEATH_FADE:
-		return
-	state = "over"
-	state_t = 0.0  # the summary ignores input for 0.8 s, so the key that ended this screen does not press a button
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	sfx.play("click")
-
-
 func game_over(reason: String) -> void:
 	if practice:
 		return  # a practice round has no end, so nothing is scored, paid or saved
@@ -1994,7 +1952,7 @@ func game_over(reason: String) -> void:
 	clear_riders()
 	clear_bosses()
 	clear_phones()
-	state = "dying"  # fades to red first; any key then moves on to the run summary ("over")
+	state = "over"
 	state_t = 0.0
 	over_reason = reason
 	clear_saved_run()
@@ -2116,13 +2074,13 @@ func stick(ax_x: int, ax_y: int) -> Vector2:
 # keyboard + left stick, x = right, y = forward
 func read_move() -> Vector2:
 	var mv = Vector2.ZERO
-	if Keybinds.pressed("forward"):
+	if Input.is_physical_key_pressed(KEY_W):
 		mv.y += 1.0
-	if Keybinds.pressed("back"):
+	if Input.is_physical_key_pressed(KEY_S):
 		mv.y -= 1.0
-	if Keybinds.pressed("left"):
+	if Input.is_physical_key_pressed(KEY_A):
 		mv.x -= 1.0
-	if Keybinds.pressed("right"):
+	if Input.is_physical_key_pressed(KEY_D):
 		mv.x += 1.0
 	if pad_on():
 		var ls = stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y)
@@ -2278,9 +2236,6 @@ func combo_shout() -> void:
 # ================================================================== update
 func update_game(dt: float) -> void:
 	state_t += dt
-	if state == "loading" and state_t >= LOADING_TIME and pending_start.is_valid():
-		finish_loading()
-		return
 	if state == "play":
 		play_time += dt
 		round_t += dt
@@ -2403,7 +2358,6 @@ func update_game(dt: float) -> void:
 	ambush_sys.update(gdt)
 	explore_sys.update(dt)
 	phone_sys.update_phones(gdt)
-	warn_sys.update(dt)
 	gadget_sys.update(gdt)
 	tutorial_sys.update(gdt)
 	boss_sys.update_bosses(gdt)
