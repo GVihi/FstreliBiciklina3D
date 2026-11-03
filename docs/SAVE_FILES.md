@@ -13,6 +13,10 @@ The game keeps four small files in Godot's `user://` folder (on Windows: `%APPDA
 
 A file written before versioning has no version number and counts as **version 0**. Loading it works as before, and the next save writes version 1.
 
+## Tutorial (`tutorial_done` under `[game]` in `settings.cfg`)
+
+`tutorial_done` is `true` once the short tutorial in the training room was finished or skipped; then the TRAINING ROOM entry opens a plain room. A missing key or a value that is not `true` / `false` loads as `false` (the tutorial starts on the next visit). It is a setting, not progress: RESET ALL PROGRESS keeps it. To see the tutorial start by itself again, delete the key by hand; TUTORIAL in the room's pause menu runs it any time.
+
 ## First-run hints (`[hints]` in `settings.cfg`)
 
 `settings.cfg` has a `[hints]` section with one `true` / `false` per first-run hint: `map`, `upgrade`, `shop`, `rest`, `extract` and `cache` (`HINT_IDS` in `scripts/settings.gd`). `true` means the hint was shown once and is not shown again. It is a field with a default, so there is no version bump.
@@ -21,23 +25,6 @@ A file written before versioning has no version number and counts as **version 0
 - `Settings.mark_hint_seen(id)` sets the flag and saves; it returns `true` only the first time, so the caller knows when to draw the hint.
 - The flags are **settings, not progress**: RESET ALL PROGRESS keeps `settings.cfg`, so a reset does not show the hints again. To see them again, delete the `[hints]` section (or set the values to `false`) by hand.
 - The **FIRST-TIME HINTS** row of the settings page is `show_hints` under `[game]` (`true` = ON, the default). A missing key or a value that is not `true` / `false` loads as ON. With it OFF no hint is shown and the flags above are **not** used up, so switching it ON again shows the hints the player has not met yet; a hint that was already seen stays seen. Switching it OFF also takes a line that is on screen away at once. Like the flags it is kept by RESET ALL PROGRESS.
-
-## Rider warning sounds (`rider_warning` under `[game]` in `settings.cfg`)
-
-The RIDER WARNING SOUNDS row of the settings is a whole number: `0` OFF, `1` QUIET, `2` NORMAL (the default). A missing key, a value that is not a whole number, or a number outside 0 to 2 loads as the default or is clamped to that range. No version bump (a new field with a default). It is a setting, not progress: RESET ALL PROGRESS keeps it.
-
-## Window size (`window_w` and `window_h` under `[game]` in `settings.cfg`)
-
-The WINDOW SIZE row of the settings saves the size of the window in pixels as two whole numbers. A missing key, a value that is not a whole number, or a size under 640 x 360 or over 8192 x 8192 is ignored and the window keeps its default size; a size bigger than the free area of the screen is cut to it. While the game is fullscreen the saved size is the one it goes back to when fullscreen is switched off. Settings, not progress: RESET ALL PROGRESS keeps it.
-
-## Key bindings (`[keys]` in `settings.cfg`)
-
-`settings.cfg` has a `[keys]` section with one entry per rebindable control (`forward`, `left`, `back`, `right`, `sprint`, `crouch`, `jump`, `dash`, `reload`, `switch`, `gun`, `melee`, `gadget`, `map`; the list is `ACTIONS` in `scripts/keybinds.gd`). Each value is a pair of whole numbers, the key and the alternative, as Godot physical key codes (`0` = no alternative), for example `jump=[32, 0]`.
-
-- A missing section, an entry that is not a pair of whole numbers, a menu key (Esc, Tab, Enter, the arrows, F7, F9, F10, F11, Delete, Backspace, T) or Alt, Meta or Caps Lock, a control with no key, or the same key on both spots: that control loads on its **default** keys.
-- Two controls on one key: **every** control loads on its defaults, so a hand-edited file can only make the keys go back, never leave a control that cannot be pressed.
-- The bindings are **settings, not progress**: RESET ALL PROGRESS keeps them. RESET TO DEFAULTS on the REBIND KEYS page puts them back.
-- Not rebindable: the mouse, the gamepad, and the menu keys above. Keys 1 to 4 and Space also work on the shop, map and upgrade screens whatever the bindings say.
 
 ## Safety rules (`scripts/save_util.gd`)
 

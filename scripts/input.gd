@@ -4,7 +4,6 @@ extends RefCounted
 
 const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 const Toon = preload("res://scripts/toon.gd")
-const Keybinds = preload("res://scripts/keybinds.gd")
 
 const INTRO_IGNORED_KEYS = [KEY_SHIFT, KEY_CTRL, KEY_ALT, KEY_META, KEY_CAPSLOCK]
 
@@ -17,17 +16,6 @@ func _init(game) -> void:
 
 # ================================================================== input
 func handle_input(event: InputEvent) -> void:
-	if g.state == "loading":
-		return  # a moment of nothing: no clicks or keys while the run is being made
-	if g.state == "dying":
-		var pressed = (
-			(event is InputEventKey and event.pressed and not event.echo)
-			or (event is InputEventMouseButton and event.pressed)
-			or (event is InputEventJoypadButton and event.pressed)
-		)
-		if pressed:
-			g.end_death_screen()
-		return
 	if g.intro_active:
 		intro_input(event)  # nothing else reacts while the intro screen is up
 		return
@@ -71,21 +59,27 @@ func handle_input(event: InputEvent) -> void:
 			seed_key(event)  # typing a seed: letters like R, V and S must not trigger their hotkeys
 			return
 		var kc = event.keycode
-		if g.hud.keys_visible():
-			keys_key(event)  # the REBIND KEYS page takes every key
-			return
-		if g.state == "play" and play_key(event):
-			return  # a control of the round (Keybinds): reload, switch, jump, gadget, dash, the two weapon slots
-		if Keybinds.matches(event, "reload"):
+		if kc == KEY_R:
 			if g.state == "shop":
-				g.shop_sys.reroll()  # the reload key rerolls in the shop
+				g.shop_sys.reroll()
 			else:
 				manual_reload()
+		elif kc == KEY_Q:
+			if g.state == "play":
+				toggle_weapon()
 		elif kc == KEY_SPACE:
 			if g.state == "shop":
-				g.shop_sys.leave_shop()  # Space leaves the shop whatever the jump key is
+				g.shop_sys.leave_shop()
+			elif g.state == "play":
+				g.player_sys.request_jump()  # Space jumps in a round, or side dashes with A / D held (Milestone L)
 		elif kc == KEY_T:
 			unlock_try()  # TRY IT on the Unlocks page
+		elif kc == KEY_G:
+			if g.state == "play":
+				g.gadget_sys.use()  # the gadget slot's use key (Milestone C); nothing happens with an empty slot
+		elif kc == KEY_V:
+			if g.state == "play":
+				g.player_sys.try_dash()  # dash moved here from Space (Milestone L); voices are toggled in the settings only
 		elif kc == KEY_TAB:
 			if g.state == "title":
 				g.title_page = "" if g.title_page == "settings" else "settings"
@@ -107,13 +101,13 @@ func handle_input(event: InputEvent) -> void:
 			menu_move(1)
 			confirm_move()
 			settings_adjust(1)
-		elif kc == KEY_UP or Keybinds.matches(event, "forward"):
+		elif kc == KEY_UP or kc == KEY_W:
 			title_move(-1)
 			summary_move(-1)
 			pause_move(-1)
 			confirm_move()
 			settings_move(-1)
-		elif kc == KEY_DOWN or Keybinds.matches(event, "back"):
+		elif kc == KEY_DOWN or kc == KEY_S:
 			title_move(1)
 			summary_move(1)
 			pause_move(1)
@@ -129,6 +123,8 @@ func handle_input(event: InputEvent) -> void:
 				g.shop_sys.buy(0)
 			elif g.state == "rest" and g.state_t > 0.35:
 				g.shop_sys.rest_choose(0)
+			elif g.state == "play":
+				toggle_weapon(false)
 		elif kc == KEY_2 or kc == KEY_KP_2:
 			if g.state == "map" and g.state_t > 0.3:
 				g.pick_node(1)
@@ -139,6 +135,8 @@ func handle_input(event: InputEvent) -> void:
 				g.shop_sys.buy(1)
 			elif g.state == "rest" and g.state_t > 0.35:
 				g.shop_sys.rest_choose(1)
+			elif g.state == "play":
+				toggle_weapon(true)
 		elif kc == KEY_3 or kc == KEY_KP_3:
 			if g.state == "map" and g.state_t > 0.3:
 				g.pick_node(2)
@@ -168,28 +166,6 @@ func handle_input(event: InputEvent) -> void:
 			g.settings.toggle_fullscreen()
 
 
-# The keys of a round (keybinds.gd): reload, switch, jump, gadget, dash and the two weapon slots. Returns true when the
-# key was one of them, so nothing else reacts to it.
-func play_key(event: InputEventKey) -> bool:
-	if Keybinds.matches(event, "reload"):
-		manual_reload()
-	elif Keybinds.matches(event, "switch"):
-		toggle_weapon()
-	elif Keybinds.matches(event, "jump"):
-		g.player_sys.request_jump()  # jumps in a round, or side dashes with the left / right key held (Milestone L)
-	elif Keybinds.matches(event, "gadget"):
-		g.gadget_sys.use()  # the gadget slot's use key (Milestone C); nothing happens with an empty slot
-	elif Keybinds.matches(event, "dash"):
-		g.player_sys.try_dash()  # dash moved here from Space (Milestone L)
-	elif Keybinds.matches(event, "gun"):
-		toggle_weapon(false)
-	elif Keybinds.matches(event, "melee"):
-		toggle_weapon(true)
-	else:
-		return false
-	return true
-
-
 # The gamepad buttons of a round with the mouse captured (the pause menu has its own handling in on_pad_button).
 func play_pad_button(btn: int) -> void:
 	if btn == JOY_BUTTON_A:
@@ -212,9 +188,6 @@ func on_pad_button(btn: int) -> void:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 			else:
 				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		return
-	if g.hud.keys_visible():
-		keys_pad(btn)
 		return
 	if g.state == "play":
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
@@ -360,7 +333,7 @@ func summary_activate(i: int) -> void:
 	g.summary_sel = i
 	var id = g.hud.SUMMARY_ITEMS[i]["id"]
 	if id == "new_run":
-		g.begin_loading(func(): g.restart_run())  # a new seed in a normal run, the same seed again in a Daily Run or a run on a typed-in seed
+		g.restart_run()  # a new seed in a normal run, the same seed again in a Daily Run or a run on a typed-in seed
 	elif id == "unlocks":
 		open_unlocks_from_summary()  # Esc goes back to the title menu, not to this summary
 	else:
@@ -426,8 +399,7 @@ func seed_start() -> void:
 		g.sfx.play("click")
 		return
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	var sd = g.seed_buf.hex_to_int()
-	g.begin_loading(func(): g.start_game(false, sd))
+	g.start_game(false, g.seed_buf.hex_to_int())
 
 
 func confirm_name() -> void:
@@ -447,10 +419,6 @@ func hover_menu(pos: Vector2) -> void:
 	var ri = g.hud.setting_row_at(pos)
 	if ri >= 0:
 		g.setting_sel = ri
-	var kcell = g.hud.keys_at(pos)
-	if kcell.x >= 0 and not g.keys_capture:
-		g.keys_sel = kcell.x
-		g.keys_col = kcell.y
 	var ti = g.hud.title_at(pos)
 	if ti >= 0:
 		g.title_sel = ti
@@ -512,9 +480,8 @@ func title_back() -> void:
 		# to the menu
 		if g.title_page == "scores_confirm":
 			g.title_page = "scores"
-		elif g.title_page == "reset_confirm" or g.title_page == "keys":
+		elif g.title_page == "reset_confirm":
 			g.title_page = "settings"
-			g.keys_capture = false
 		else:
 			g.title_page = ""
 		g.sfx.play("click")
@@ -542,16 +509,16 @@ func title_activate(i: int) -> void:
 	if i == g.hud.TITLE_CONTINUE:
 		if g.hud.title_has_continue():
 			g.title_sel = i
-			g.begin_loading(func(): g.continue_run())
+			g.continue_run()
 		return
 	g.title_sel = i
 	var id = g.hud.TITLE_ITEMS[i]["id"]
 	if id == "play":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		g.begin_loading(func(): g.start_game())
+		g.start_game()
 	elif id == "daily":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		g.begin_loading(func(): g.start_game(true))
+		g.start_game(true)
 	elif id == "training":
 		training_start()
 	elif id == "quit":
@@ -755,8 +722,9 @@ func settings_adjust(d: int) -> void:
 	if row.get("action", false):
 		return  # a button (RESET ALL PROGRESS): Left / Right do nothing, only Enter, A or a click open it
 	if row.has("choices"):
-		var count = maxi(1, g.settings.choice_labels(row).size())
-		g.settings.set_setting(id, posmod(int(g.settings.get_setting(id)) + d, count))
+		g.settings.set_setting(
+			id, posmod(int(g.settings.get_setting(id)) + d, row["choices"].size())
+		)
 	elif row.get("toggle", false):
 		g.settings.set_setting(id, d > 0)
 	else:
@@ -769,159 +737,11 @@ func settings_activate() -> void:
 	var rows = g.hud.setting_rows()
 	var row = rows[clampi(g.setting_sel, 0, rows.size() - 1)]
 	if row.get("action", false):
-		if str(row["id"]) == "rebind":
-			keys_open()  # Enter / A on the REBIND KEYS row
-		else:
-			reset_progress_open()  # Enter / A on the red RESET ALL PROGRESS row
+		reset_progress_open()  # Enter / A on the red RESET ALL PROGRESS row
 	elif row.has("choices") or row.get("toggle", false):
 		var id = str(row["id"])
 		g.settings.set_setting(id, g.settings.next_value(id))
 		g.sfx.play("click")
-
-
-# ---- the REBIND KEYS page (hud.gd `_draw_keys`, keybinds.gd), opened from the settings panel in the title menu and in
-# the pause menu. Up / Down pick a control, Left / Right pick its key or its alternative, Enter, A or a click start the
-# rebinding, and the next key pressed becomes the new one (Esc or B cancel, Delete or X clear the alternative). The last
-# row puts every key back to its default.
-func keys_rows() -> int:
-	return Keybinds.ACTIONS.size() + 1
-
-
-func keys_open() -> void:
-	if not g.hud.settings_visible():
-		return
-	g.keys_sel = 0
-	g.keys_col = 0
-	g.keys_capture = false
-	g.keys_msg = ""
-	if g.state == "title":
-		g.title_page = "keys"
-	else:
-		g.pause_page = "keys"
-	g.sfx.play("click")
-
-
-# Esc / B: cancel a rebinding in progress, otherwise back to the settings panel
-func keys_back() -> void:
-	if g.keys_capture:
-		g.keys_capture = false
-		return
-	if g.state == "title":
-		g.title_page = "settings"
-	else:
-		g.pause_page = "settings"
-	g.sfx.play("click")
-
-
-func keys_move(d: int) -> void:
-	g.keys_sel = posmod(g.keys_sel + d, keys_rows())
-	g.sfx.play("click")
-
-
-func keys_side(d: int) -> void:
-	if g.keys_sel < Keybinds.ACTIONS.size():
-		g.keys_col = clampi(g.keys_col + d, 0, Keybinds.SLOTS - 1)
-		g.sfx.play("click")
-
-
-func keys_say(text: String) -> void:
-	g.keys_msg = text
-	g.keys_msg_t0 = g.time
-
-
-func keys_activate() -> void:
-	if g.keys_sel >= Keybinds.ACTIONS.size():
-		Keybinds.reset_defaults()
-		g.settings.save_settings()
-		g.keys_capture = false
-		keys_say("ALL KEYS ARE BACK TO THE DEFAULTS")
-	else:
-		g.keys_capture = true
-		g.keys_msg = ""
-	g.sfx.play("click")
-
-
-# the highlighted key takes the key that was pressed; a refused key leaves the page waiting, so another can be tried
-func keys_assign(code: int) -> void:
-	var id = str(Keybinds.ACTIONS[g.keys_sel]["id"])
-	var res = Keybinds.assign(id, g.keys_col, code)
-	if res["ok"]:
-		g.keys_capture = false
-		g.settings.save_settings()
-	keys_say(str(res["msg"]))
-	g.sfx.play("click")
-
-
-func keys_clear() -> void:
-	if g.keys_sel < Keybinds.ACTIONS.size():
-		var id = str(Keybinds.ACTIONS[g.keys_sel]["id"])
-		if Keybinds.clear(id, g.keys_col):
-			g.settings.save_settings()
-			keys_say("")
-		else:
-			keys_say("EVERY CONTROL KEEPS AT LEAST ONE KEY")
-	g.keys_capture = false
-
-
-# every key press while the page is showing
-func keys_key(event: InputEventKey) -> void:
-	var kc = event.keycode
-	if g.keys_capture:
-		if kc == KEY_ESCAPE:
-			g.keys_capture = false
-		elif kc == KEY_DELETE or kc == KEY_BACKSPACE:
-			keys_clear()
-		else:
-			keys_assign(Keybinds.event_code(event))
-		return
-	if kc == KEY_ESCAPE:
-		keys_back()
-	elif kc == KEY_ENTER or kc == KEY_KP_ENTER:
-		keys_activate()
-	elif kc == KEY_UP or Keybinds.matches(event, "forward"):
-		keys_move(-1)
-	elif kc == KEY_DOWN or Keybinds.matches(event, "back"):
-		keys_move(1)
-	elif kc == KEY_LEFT:
-		keys_side(-1)
-	elif kc == KEY_RIGHT:
-		keys_side(1)
-	elif kc == KEY_DELETE or kc == KEY_BACKSPACE:
-		keys_clear()
-
-
-func keys_pad(btn: int) -> void:
-	if g.keys_capture:
-		if btn == JOY_BUTTON_B:
-			g.keys_capture = false
-		return
-	if btn == JOY_BUTTON_DPAD_UP:
-		keys_move(-1)
-	elif btn == JOY_BUTTON_DPAD_DOWN:
-		keys_move(1)
-	elif btn == JOY_BUTTON_DPAD_LEFT:
-		keys_side(-1)
-	elif btn == JOY_BUTTON_DPAD_RIGHT:
-		keys_side(1)
-	elif btn == JOY_BUTTON_A:
-		keys_activate()
-	elif btn == JOY_BUTTON_B:
-		keys_back()
-	elif btn == JOY_BUTTON_X:
-		keys_clear()
-
-
-func keys_click(pos: Vector2) -> void:
-	if g.keys_capture:
-		g.keys_capture = false  # a click while waiting for a key cancels
-		return
-	var cell = g.hud.keys_at(pos)
-	if cell.x >= 0:
-		g.keys_sel = cell.x
-		g.keys_col = cell.y
-		keys_activate()
-	elif not g.hud.keys_panel_rect().has_point(pos):
-		keys_back()
 
 
 # ---- pause menu (entries are listed in hud.gd PAUSE_ITEMS)
@@ -937,8 +757,6 @@ func pause_back() -> void:
 		return
 	if g.pause_page == "confirm" and (g.confirm_id == "reset1" or g.confirm_id == "reset2"):
 		reset_progress_back()  # Esc / B on a RESET ALL PROGRESS warning is NO: back to the settings, nothing wiped
-	elif g.pause_page == "keys":
-		keys_back()
 	elif g.pause_page != "":
 		g.pause_page = ""
 		g.sfx.play("click")
@@ -965,6 +783,21 @@ func pause_activate(i: int) -> void:
 		g.sfx.play("click")
 	elif id == "leave_practice":
 		g.end_practice()  # the training room has no run to lose, so no question
+	elif id == "tutorial_skip":
+		g.tutorial_sys.finish(false)  # a skip counts as seen: the room does not start the tutorial by itself again
+		g.sfx.play("click")
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	elif id == "tutorial_start":
+		g.clear_riders()  # the tutorial starts from the first step, with the door shut and the player on the start
+		g.clear_bosses()
+		g.player.position = g.arena.start_position()
+		g.pvel = Vector3.ZERO
+		g.yaw = 0.0
+		g.pitch = 0.0
+		g.wait = 0.0
+		g.tutorial_sys.start()
+		g.sfx.play("click")
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif id == "restart" or id == "title":  # both lose the run, so ask first (NO is the default)
 		g.confirm_id = id
 		g.confirm_sel = 0
@@ -1005,7 +838,7 @@ func confirm_activate(i: int) -> void:
 		return
 	g.pause_page = ""
 	if id == "restart":
-		g.begin_loading(func(): g.restart_run())
+		g.restart_run()
 	elif id == "title":
 		g.abandon_run()
 
@@ -1020,8 +853,6 @@ func on_click() -> void:
 				and not g.hud.panel_rect().has_point(mp)
 			):
 				title_back()
-		elif g.title_page == "keys":
-			keys_click(mp)
 		elif g.title_page == "seed":
 			if g.hud.seed_start_rect().has_point(mp):
 				seed_start()
@@ -1100,8 +931,6 @@ func on_click() -> void:
 					and not g.hud.panel_rect().has_point(pmp)
 				):
 					pause_back()
-			elif g.pause_page == "keys":
-				keys_click(pmp)
 			elif g.pause_page == "confirm":
 				var ci = g.hud.confirm_at(pmp)
 				if ci >= 0:

@@ -3,8 +3,6 @@ extends RefCounted
 # The values themselves stay on main.gd (g) because the HUD reads them there; this file only holds the logic.
 
 const SaveUtil = preload("res://scripts/save_util.gd")
-const Keybinds = preload("res://scripts/keybinds.gd")
-const RiderWarning = preload("res://scripts/rider_warning.gd")
 const GOLD = Color(0.95, 0.71, 0.19)
 const SETTINGS_PATH = "user://settings.cfg"
 const VERSION = 1  # settings.cfg: [meta] version. Version 0 (before versioning) had no [meta] section.
@@ -17,21 +15,6 @@ const HINT_IDS = ["map", "upgrade", "shop", "rest", "extract", "cache"]
 # takes a click or a key, and it does not pause or slow the game.
 const HINT_SECONDS = 5.0
 const HINT_FADE = 0.8
-# Window sizes (README Milestone E, "Choosing the resolution"): the RESOLUTION row steps through the sizes that fit the
-# screen, smallest first, with the current size in the list when it is not one of them (a window the player dragged).
-# Fullscreen always uses the screen's own size, so the row is about the window; picking a size leaves fullscreen.
-const WINDOW_PRESETS = [
-	Vector2i(1280, 720),
-	Vector2i(1366, 768),
-	Vector2i(1600, 900),
-	Vector2i(1920, 1080),
-	Vector2i(2560, 1440),
-	Vector2i(3440, 1440),
-	Vector2i(3840, 2160),
-]
-const WINDOW_DECOR = 40  # pixels kept for the title bar and the frame when a size has to fit the screen's free area
-const WINDOW_MIN = Vector2i(640, 360)  # a saved size below this, or above WINDOW_MAX, is ignored
-const WINDOW_MAX = Vector2i(8192, 8192)
 const HINT_MAX_CHARS = 90  # one line at the smallest window; E1.3 texts stay under this
 # The six hint lines (README early alpha E1.3), one per id of HINT_IDS, each under HINT_MAX_CHARS. They say what the
 # screen does not already say: the prompts on the screens name the keys, so these name the idea.
@@ -49,7 +32,6 @@ var g = null
 var _muted = false
 var _voices = true
 var _fullscreen = false
-var _win_size = Vector2i.ZERO  # the windowed size to come back to (saved), ZERO = none known yet
 
 
 func _init(game) -> void:
@@ -98,8 +80,6 @@ func is_fullscreen() -> bool:
 
 
 func set_fullscreen(on: bool) -> void:
-	if on and not is_fullscreen():
-		_win_size = DisplayServer.window_get_size()  # the size to come back to
 	DisplayServer.window_set_mode(
 		DisplayServer.WINDOW_MODE_FULLSCREEN if on else DisplayServer.WINDOW_MODE_WINDOWED
 	)
@@ -110,108 +90,10 @@ func toggle_fullscreen() -> void:
 	save_settings()
 
 
-# ---------------------------------------------------------------- window size
-# The sizes of the RESOLUTION row: the presets that fit `usable` (the screen's free area, 0 = unknown, so all of them),
-# and `current` when it is none of them, sorted by area. Pure, so a check can try any screen.
-static func window_options(usable: Vector2i, current: Vector2i) -> Array:
-	var out = []
-	for p in WINDOW_PRESETS:
-		var fits = (
-			usable.x <= 0 or usable.y <= 0 or (p.x <= usable.x and p.y + WINDOW_DECOR <= usable.y)
-		)
-		if fits:
-			out.append(p)
-	if current.x > 0 and current.y > 0 and not out.has(current):
-		out.append(current)
-	out.sort_custom(
-		func(a, b): return a.x * a.y < b.x * b.y or (a.x * a.y == b.x * b.y and a.x < b.x)
-	)
-	return out
-
-
-static func window_label(v: Vector2i) -> String:
-	return "%d x %d" % [v.x, v.y]
-
-
-# a size the window may have: at least WINDOW_MIN, and no bigger than the free area of the screen when that is known
-static func clamp_window(size: Vector2i, usable: Vector2i) -> Vector2i:
-	var out = Vector2i(maxi(size.x, WINDOW_MIN.x), maxi(size.y, WINDOW_MIN.y))
-	if usable.x > 0 and usable.y > 0:
-		out.x = mini(out.x, usable.x)
-		out.y = mini(out.y, maxi(WINDOW_MIN.y, usable.y - WINDOW_DECOR))
-	return out
-
-
-# The saved window size, or ZERO for none: anything that is not two whole numbers, or is outside WINDOW_MIN and
-# WINDOW_MAX, is ignored, so a hand-edited file can only make the window keep its default size.
-static func parse_window(cf: ConfigFile) -> Vector2i:
-	var w = cf.get_value("game", "window_w", 0)
-	var h = cf.get_value("game", "window_h", 0)
-	if typeof(w) != TYPE_INT or typeof(h) != TYPE_INT:
-		return Vector2i.ZERO
-	if w < WINDOW_MIN.x or h < WINDOW_MIN.y or w > WINDOW_MAX.x or h > WINDOW_MAX.y:
-		return Vector2i.ZERO
-	return Vector2i(w, h)
-
-
-# the size of the window, or the one it goes back to while it is fullscreen
-func window_size_now() -> Vector2i:
-	if is_fullscreen() and _win_size != Vector2i.ZERO:
-		return _win_size
-	return DisplayServer.window_get_size()
-
-
-func window_choices() -> Array:
-	return window_options(DisplayServer.screen_get_usable_rect().size, window_size_now())
-
-
-func resolution_labels() -> Array:
-	var out = []
-	for v in window_choices():
-		out.append(window_label(v))
-	return out
-
-
-# the position of the current size in window_choices()
-func resolution_index() -> int:
-	return maxi(0, window_choices().find(window_size_now()))
-
-
-# the labels of a settings row that has choices: the fixed ones, or the sizes of this screen for the RESOLUTION row
-func choice_labels(row: Dictionary) -> Array:
-	if row.get("dynamic", false):
-		return resolution_labels()
-	return row["choices"]
-
-
-func _center_window(size: Vector2i) -> void:
-	var usable = DisplayServer.screen_get_usable_rect()
-	var pos = usable.position + (usable.size - size) / 2
-	DisplayServer.window_set_position(
-		Vector2i(maxi(pos.x, usable.position.x), maxi(pos.y, usable.position.y))
-	)
-
-
-# Gives the window this size and puts it in the middle of the screen. Leaves fullscreen first, because a fullscreen
-# window has the size of the screen whatever is asked.
-func set_window_size(size: Vector2i) -> void:
-	var fit = clamp_window(size, DisplayServer.screen_get_usable_rect().size)
-	if is_fullscreen():
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-	_win_size = fit
-	DisplayServer.window_set_size(fit)
-	_center_window(fit)
-
-
 # call once the sound system exists: applies the saved sound and window settings
 func apply_loaded() -> void:
 	g.sfx.muted = _muted
 	g.sfx.voices_on = _voices
-	if _win_size != Vector2i.ZERO:
-		var usable = DisplayServer.screen_get_usable_rect().size
-		_win_size = clamp_window(_win_size, usable)
-		DisplayServer.window_set_size(_win_size)
-		_center_window(_win_size)
 	if _fullscreen:
 		set_fullscreen(true)
 
@@ -224,7 +106,6 @@ func load_settings() -> void:
 			SaveUtil.backup(SETTINGS_PATH, "bad")  # unreadable: keep a copy before the next save replaces it
 		return
 	SaveUtil.backup_if_newer(SETTINGS_PATH, int(cf.get_value("meta", "version", 0)), VERSION)
-	Keybinds.load_from(cf)  # [keys]: a missing or damaged section leaves the default keys
 	g.fov_hip = clampf(float(cf.get_value("game", "fov", g.fov_hip)), 60.0, 105.0)
 	g.sens_mul = clampf(float(cf.get_value("game", "sens", g.sens_mul)), 0.3, 3.0)
 	g.toggle_ads = bool(cf.get_value("game", "toggle_ads", g.toggle_ads))
@@ -236,17 +117,13 @@ func load_settings() -> void:
 	g.quality = clampi(int(cf.get_value("game", "quality", g.quality)), 0, 2)
 	_muted = bool(cf.get_value("game", "muted", _muted))
 	_voices = bool(cf.get_value("game", "voices", _voices))
-	# the RIDER WARNING choice: a whole number 0 to 2; anything else loads as the default (NORMAL)
-	var warn = cf.get_value("game", "rider_warning", RiderWarning.DEFAULT_LEVEL)
-	g.warn_level = (
-		clampi(int(warn), 0, 2) if typeof(warn) == TYPE_INT else RiderWarning.DEFAULT_LEVEL
-	)
 	_fullscreen = bool(cf.get_value("game", "fullscreen", _fullscreen))
-	_win_size = parse_window(cf)
 	g.player_name = str(cf.get_value("game", "player_name", g.player_name))
 	# the HINTS switch: anything that is not true / false counts as ON, the default
 	var show_hints = cf.get_value("game", "show_hints", true)
 	g.hints_on = typeof(show_hints) != TYPE_BOOL or show_hints
+	var tut = cf.get_value("game", "tutorial_done", false)
+	g.tutorial_done = typeof(tut) == TYPE_BOOL and tut
 	for id in HINT_IDS:
 		var seen = cf.get_value("hints", id, false)
 		g.hints_seen[id] = typeof(seen) == TYPE_BOOL and seen
@@ -268,17 +145,12 @@ func save_settings() -> void:
 	cf.set_value("game", "quality", g.quality)
 	cf.set_value("game", "muted", g.sfx.muted)
 	cf.set_value("game", "voices", g.sfx.voices_on)
-	cf.set_value("game", "rider_warning", g.warn_level)
 	cf.set_value("game", "fullscreen", is_fullscreen())
-	var win = window_size_now()
-	if win != Vector2i.ZERO:
-		cf.set_value("game", "window_w", win.x)
-		cf.set_value("game", "window_h", win.y)
 	cf.set_value("game", "player_name", g.player_name)
 	cf.set_value("game", "show_hints", g.hints_on)
+	cf.set_value("game", "tutorial_done", g.tutorial_done)
 	for id in HINT_IDS:
 		cf.set_value("hints", id, hint_seen(id))
-	Keybinds.save_to(cf)
 	cf.save(SETTINGS_PATH)
 
 
@@ -354,12 +226,8 @@ func get_setting(id: String):
 		return g.sfx.voices_on
 	if id == "fullscreen":
 		return is_fullscreen()
-	if id == "resolution":
-		return resolution_index()
 	if id == "hints":
 		return g.hints_on
-	if id == "warn":
-		return g.warn_level
 	return null
 
 
@@ -395,15 +263,8 @@ func set_setting(id: String, v) -> void:
 			g.sfx.toggle_voices()
 	elif id == "fullscreen":
 		set_fullscreen(bool(v))
-	elif id == "resolution":
-		var sizes = window_choices()
-		var want = clampi(int(v), 0, sizes.size() - 1)
-		if sizes[want] != window_size_now() or is_fullscreen():
-			set_window_size(sizes[want])
 	elif id == "hints":
 		g.hints_on = bool(v)
-	elif id == "warn":
-		g.warn_level = clampi(int(v), 0, RiderWarning.LEVEL_NAMES.size() - 1)
 	save_settings()
 
 
@@ -411,10 +272,6 @@ func set_setting(id: String, v) -> void:
 func next_value(id: String):
 	if id == "quality":
 		return (g.quality + 1) % 3
-	if id == "warn":
-		return (g.warn_level + 1) % RiderWarning.LEVEL_NAMES.size()
-	if id == "resolution":
-		return (resolution_index() + 1) % maxi(1, window_choices().size())
 	return not get_setting(id)
 
 
@@ -422,11 +279,8 @@ func next_value(id: String):
 func click_setting(sid: String) -> bool:
 	if sid == "":
 		return false
-	if g.hud.is_action(sid):  # a button: REBIND KEYS opens its page, RESET ALL PROGRESS opens the first warning
-		if sid == "rebind":
-			g.input_sys.keys_open()
-		else:
-			g.input_sys.reset_progress_open()
+	if g.hud.is_action(sid):  # the RESET ALL PROGRESS button: opens the first warning
+		g.input_sys.reset_progress_open()
 		return true
 	if g.hud.is_toggle(sid):
 		set_setting(sid, next_value(sid))
