@@ -18,8 +18,9 @@ extends RefCounted
 #                   (`meta.add_cache_coin`), so a quit run pays nothing, like the coins of a boss. Nothing in the world
 #                   shows which cache holds one; the player sees "+1 META COIN" when it is taken.
 #   Extraction      Once every rider (and boss) is down the round does not end by itself any more: a green light
-#                   column opens at the far end of the arena and the round is cleared when the player reaches it.
-#                   Before that it is shown dimmed, so the player knows where the run will end.
+#                   column opens and the round is cleared when the player reaches it. The point is one spot, at a
+#                   random place in the arena each round (seeded, so a Daily Run gives everybody the same one), never
+#                   a gate. Before that it is shown dimmed, so the player knows where the run will end.
 #
 # One round at a time: `setup_round()` builds both from the arena's layout and a stream seeded by the run seed and
 # the round number (so a Daily Run gives everybody the same spots), `clear()` takes them away again.

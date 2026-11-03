@@ -625,7 +625,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
   - [x] A supply cache has a 12 % chance to hold 1 meta coin (asked by the owner on 2026-11-02, 10 to 15 %): the roll is seeded like the variants, any variant can hold one, and the coin is paid with the run like a boss coin (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner)
   - [x] Vanishing cache (note in `docs/ROADMAP_HISTORY.md`; the seeded variant roll is built, the cursed and the locked cache join it; waits for an in-game check by the owner)
   - [x] Mark the variants on the HUD and the radar so the player can tell them apart (colour and shape, not colour alone) (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game look)
-- [ ] Choose your exit: the arena has several gates and the run map branches, so the extraction point could be one per exit gate, each matching a next node on the map (the player leaves through the gate of the node they want), instead of one fixed point. Needs the node choice (`pick_node`, Milestone D) to be made on the way out instead of on the map screen, and the HUD, radar and world markers to show more than one point
+- [x] Choose your exit: the extraction point is one spot at a random place in the arena each round (seeded, not a gate) (note in `docs/ROADMAP_HISTORY.md`; `objective_check` not run yet, waits for an in-game check by the owner)
 
 ## Rider variety and arena hazards
 

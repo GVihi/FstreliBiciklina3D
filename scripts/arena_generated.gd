@@ -262,7 +262,8 @@ func cheer_spots(count: int) -> Array:
 const GOAL_CLEAR = 3  # cells of room round the extraction point
 const CACHE_CLEAR = 2  # cells of room round a supply cache
 const WALK_CLEAR = 2  # corridors narrower than this do not count as a way there
-const GOAL_TOP = 6  # the extraction point is one of the farthest this many spots (by walking distance)
+const GOAL_MIN_WALK = 40.0  # the extraction point is at least this many metres of walking from the start (first guess)
+const GOAL_TOP = 6  # fallback when no spot is that far: one of the farthest this many spots (by walking distance)
 const CACHE_MIN_WALK = 18.0  # a cache is at least this many metres of walking from the start, ...
 const CACHE_APART = 22.0  # ... this far from the extraction point and from each other (straight line)
 
@@ -333,15 +334,24 @@ func _spot_cells(clear: int) -> Array:
 	return out
 
 
-# The extraction point: one of the GOAL_TOP spots that are furthest to walk from the start, picked by `rng` (so each
-# round of a run can end somewhere else, and one seed and round always give the same one).
+# The extraction point: a random spot anywhere in the arena that is at least GOAL_MIN_WALK metres of walking from the
+# start, picked by `rng` (so each round of a run ends somewhere else, and one seed and round always give the same one).
+# `_spot_cells` lists cells in index order, so a uniform pick from it is repeatable without sorting. If no spot is that
+# far (a tiny arena), it falls back to one of the GOAL_TOP farthest spots, as before.
 func goal_spot(rng: RandomNumberGenerator) -> Vector3:
 	var dist = walk_distances()
+	var cell = float(layout["cell"])
 	var cells = _spot_cells(GOAL_CLEAR)
 	if cells.is_empty():
 		cells = _spot_cells(1)
 	if cells.is_empty():
 		return start_position()
+	var pool = []
+	for i in cells:
+		if float(dist[i]) * cell >= GOAL_MIN_WALK:
+			pool.append(i)
+	if not pool.is_empty():
+		return cell_world(int(pool[rng.randi() % pool.size()]))
 	cells.sort_custom(func(a, b): return dist[a] > dist[b] or (dist[a] == dist[b] and a < b))
 	return cell_world(int(cells[rng.randi() % mini(GOAL_TOP, cells.size())]))
 
