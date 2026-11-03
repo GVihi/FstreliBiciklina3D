@@ -86,6 +86,13 @@ func _to_summary(daily: bool = false, custom_seed: int = SEED) -> void:
 	main.summary_sel = 0
 
 
+# a lost run fades to red first (state "dying") and any key then moves on to the summary; this does what that key does
+func _skip_death_screen() -> void:
+	if main.state == "dying":
+		main.state_t = main.DEATH_FADE
+		main.end_death_screen()
+
+
 # the index of the summary button with this id, -1 when there is none
 func _summary_button(id: String) -> int:
 	for i in range(main.hud.SUMMARY_ITEMS.size()):
@@ -185,6 +192,9 @@ func _check_actions() -> void:
 
 # a run has just been started from the summary: a fresh run, nothing of the last one left
 func _check_new_run(what: String) -> void:
+	if main.state != "loading":
+		_fail("%s did not show the loading screen (state %s)" % [what, main.state])
+	main.finish_loading()  # a run starts after a short loading screen; skip the wait
 	if main.state == "over" or main.state == "title":
 		_fail("%s did not start a run (state %s)" % [what, main.state])
 		return
@@ -449,6 +459,7 @@ func _check_pressing() -> void:
 
 
 func _left_summary(what: String, i: int) -> void:
+	main.finish_loading()  # NEW RUN waits behind the loading screen; the others have nothing pending
 	if main.state == "over":
 		_fail("%s did not leave the summary" % what)
 	if main.hud.SUMMARY_ITEMS[i]["id"] == "title" and main.state != "title":
@@ -461,6 +472,7 @@ func _check_new_summary() -> void:
 	main.summary_sel = 2
 	main.state = "play"
 	main.game_over("riders")
+	_skip_death_screen()
 	if main.state != "over":
 		_fail("game_over did not end on the summary (state %s)" % main.state)
 	if main.summary_sel != 0:
@@ -478,6 +490,7 @@ func _check_new_summary() -> void:
 	main.hearts = 0
 	main.round_n = 1
 	main.end_round()  # no rider was hit, so the round is lost and the run ends
+	_skip_death_screen()
 	if main.state != "over":
 		_fail("a lost round did not end on the summary (state %s)" % main.state)
 	elif main.summary_sel != 0:
@@ -540,6 +553,7 @@ func _check_default_button() -> void:
 				main.hearts = 0
 				main.round_n = 1
 				main.end_round()
+			_skip_death_screen()
 			if main.state != "over":
 				_fail("%s did not end on the summary (state %s)" % [tag, main.state])
 				continue

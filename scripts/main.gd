@@ -1955,6 +1955,16 @@ func begin_loading(start: Callable) -> void:
 	state_t = 0.0
 
 
+# Runs the stored start now instead of after LOADING_TIME. update_game calls it when the time is up; the checks in
+# tools/ call it to get past the loading screen without waiting for frames.
+func finish_loading() -> void:
+	if state != "loading" or not pending_start.is_valid():
+		return
+	var start = pending_start
+	pending_start = Callable()
+	start.call()
+
+
 func end_death_screen() -> void:
 	if state != "dying" or state_t < DEATH_FADE:
 		return
@@ -2256,9 +2266,7 @@ func combo_shout() -> void:
 func update_game(dt: float) -> void:
 	state_t += dt
 	if state == "loading" and state_t >= LOADING_TIME and pending_start.is_valid():
-		var start = pending_start
-		pending_start = Callable()
-		start.call()
+		finish_loading()
 		return
 	if state == "play":
 		play_time += dt

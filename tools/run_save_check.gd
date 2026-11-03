@@ -285,6 +285,14 @@ func _check_end_paths() -> void:
 			for i in range(main.PER_ROUND):
 				main.hits.append(null)
 			main.end_round()
+		if how != "win_run":
+			# a lost run fades to red first; the run is already over then, so quitting during the fade loses nothing
+			if main.state != "dying":
+				_fail("%s: state is %s, expected dying" % [how, main.state])
+			if not main.saved_run.is_empty():
+				_fail("%s: saved_run is still set while the death screen fades" % how)
+			main.state_t = main.DEATH_FADE
+			main.end_death_screen()
 		if main.state != "over":
 			_fail("%s: state is %s, expected over" % [how, main.state])
 		if not main.saved_run.is_empty():
@@ -480,6 +488,9 @@ func _check_title_menu() -> void:
 	# Enter on CONTINUE plays the run on
 	main.go_to_title()
 	main.input_sys.title_activate(main.title_sel)
+	if main.state != "loading":
+		_fail("activating CONTINUE did not show the loading screen (state %s)" % main.state)
+	main.finish_loading()
 	if main.state != "map" or main.run_seed != SEED_A:
 		_fail("activating CONTINUE did not resume the run (state %s)" % main.state)
 	# no saved run: no button, the menu is as it was
