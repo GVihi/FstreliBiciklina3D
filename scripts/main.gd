@@ -20,6 +20,7 @@ const Rim = preload("res://scripts/rim.gd")
 const ObjectiveScript = preload("res://scripts/objective.gd")
 const AmbushScript = preload("res://scripts/ambush.gd")
 const ExploreScript = preload("res://scripts/explore_map.gd")
+const RiderWarningScript = preload("res://scripts/rider_warning.gd")
 const DevStartScript = preload("res://scripts/dev_start.gd")
 const UnlocksScript = preload("res://scripts/unlocks.gd")
 const BuildInfo = preload("res://scripts/build_info.gd")
@@ -174,6 +175,7 @@ var best_rank = 0  # highest style rank reached this run (0 = D .. 4 = S)
 var last_rank = -1  # leaderboard place of the run that just ended (0 = first), -1 = not on the list
 var player_name = "PLAYER"  # last name typed on the leaderboard (saved), offered again next time
 var hints_seen = {}  # first-run hint id -> true once it was shown (saved in settings.cfg under [hints], see settings.gd)
+var warn_level = 2  # RIDER WARNING setting (README Milestone E, Accessibility): 0 OFF, 1 QUIET, 2 NORMAL; saved as [game] rider_warning
 var hints_on = true  # HINTS setting (README alpha E1.4): false = no first-run hint is shown; saved as [game] show_hints
 var hint_txt = ""  # the first-run hint line on screen (E1.2), "" = none; drawn bottom centre by Hud._draw_hint
 var hint_t0 = -100.0  # g.time when hint_txt was set; the line fades out after Settings.HINT_SECONDS
@@ -677,6 +679,7 @@ var gadget_sys = GadgetsScript.new(self)  # gadgets.gd: Gadgets: the gadget use 
 var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
 var objective_sys = ObjectiveScript.new(self)  # objective.gd: Objectives: supply caches and the extraction point on generated arenas.
 var ambush_sys = AmbushScript.new(self)  # ambush.gd: the last wave of riders when the extraction point opens on a generated arena.
+var warn_sys = RiderWarningScript.new(self)  # rider_warning.gd: a bike bell from a close rider that comes at the player from behind or the side.
 var explore_sys = ExploreScript.new(self)  # explore_map.gd: what the player has found of the arena, for the map shown while M is held.
 var pickup_sys = PickupsScript.new(self)  # pickups.gd: Pickups: drops from kills, floating collectibles, magnet and collection.
 var civ_sys = PedestriansScript.new(self)  # pedestrians.gd: Pedestrians (civilians): spawning, walking, getting hit.
@@ -2382,6 +2385,7 @@ func update_game(dt: float) -> void:
 	ambush_sys.update(gdt)
 	explore_sys.update(dt)
 	phone_sys.update_phones(gdt)
+	warn_sys.update(dt)
 	gadget_sys.update(gdt)
 	boss_sys.update_bosses(gdt)
 	if riders.size() == 0 and bosses.size() == 0 and wait > 0.0:

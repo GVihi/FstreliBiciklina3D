@@ -282,7 +282,7 @@ Mostly vibe coded Godot game
 
 ## Accessibility
 
-- [ ] Directional warning sounds for riders: a bike bell or horn from a rider that is close and approaching from behind or the side (louder and panned by its direction, louder the closer it gets and the faster it closes), so a player can hear what the threat arrows and the radar show; also helps players who miss visual cues. Builds on the 3D audio item S7 and `closing` and `dist` in `threat_list` (`scripts/main.gd`); a setting to turn it off or make it quieter
+- [x] Directional warning sounds for riders (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner)
 - [x] Choose the window size: a WINDOW SIZE row in the settings, saved (note in `docs/ROADMAP_HISTORY.md`; `resolution` check not run yet, waits for an in-game check by the owner)
 
 ## Code signing

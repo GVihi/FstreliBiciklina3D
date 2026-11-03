@@ -461,4 +461,11 @@ def sfx_wall_jump(M):
     nz(M, 0.04, 0.18, "bandpass", 1200, 3400, 1.3, 0.2, 0.1)
 one("wall_jump", sfx_wall_jump)
 
+# A bicycle bell for the rider warning (scripts/rider_warning.gd): two quick strikes of a bright metal bell. Sine
+# partials only, so it draws no random numbers; it still sits at the very end, like every new sound.
+def sfx_bell(M):
+    ring(M, 0.0, 2350, 0.34, 0.55, 0.1)
+    ring(M, 0.17, 2350, 0.30, 0.6, 0.1)
+one("bell", sfx_bell)
+
 print("baked %d files into %s" % (len(written), os.path.abspath(OUT)))

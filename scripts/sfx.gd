@@ -27,6 +27,7 @@ const NAMES = [
 	"crash",
 	"step",
 	"wall_jump",
+	"bell",
 	"throw",
 	"ring",
 	"v_yelp",
@@ -321,6 +322,28 @@ func play3d(n: String, pos: Vector3, vol_db: float = 0.0) -> void:
 	p.stream = s
 	p.volume_db = vol_db
 	p.unit_size = 12.0
+	p.bus = BUS
+	add_child(p)
+	p.position = pos
+	p.finished.connect(p.queue_free)
+	p.play()
+
+
+# The rider warning bell (rider_warning.gd): played from the rider's position so it is panned by where the rider is,
+# but at the volume the caller worked out, so the distance is not taken off twice (no distance attenuation and no
+# low-pass filter: the bell has to stay bright to be heard). `pitch` is lower for a rider behind the player.
+func play_warning(pos: Vector3, vol_db: float, pitch: float = 1.0) -> void:
+	if muted or vol_db <= -60.0 or get_child_count() > MAX_PLAYERS:
+		return
+	var s = streams.get("bell", null)
+	if s == null:
+		return
+	var p = AudioStreamPlayer3D.new()
+	p.stream = s
+	p.volume_db = vol_db
+	p.pitch_scale = pitch
+	p.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
+	p.attenuation_filter_cutoff_hz = 20500.0
 	p.bus = BUS
 	add_child(p)
 	p.position = pos

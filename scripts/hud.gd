@@ -2211,6 +2211,8 @@ const ALL_SETTING_ROWS = [
 	{"id": "resolution", "label": "WINDOW SIZE", "choices": [], "dynamic": true},
 	{"id": "sound", "label": "SOUND", "toggle": true},
 	{"id": "voices", "label": "VOICES", "toggle": true},
+	# the bike bell of a rider coming from behind or the side (rider_warning.gd)
+	{"id": "warn", "label": "RIDER WARNING SOUNDS", "choices": ["OFF", "QUIET", "NORMAL"]},
 	{"id": "hints", "label": "FIRST-TIME HINTS", "toggle": true},
 	# a button, not a setting: opens the REBIND KEYS page (input.gd keys_open)
 	{"id": "rebind", "label": "REBIND KEYS", "action": true},

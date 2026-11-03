@@ -4,6 +4,7 @@ extends RefCounted
 
 const SaveUtil = preload("res://scripts/save_util.gd")
 const Keybinds = preload("res://scripts/keybinds.gd")
+const RiderWarning = preload("res://scripts/rider_warning.gd")
 const GOLD = Color(0.95, 0.71, 0.19)
 const SETTINGS_PATH = "user://settings.cfg"
 const VERSION = 1  # settings.cfg: [meta] version. Version 0 (before versioning) had no [meta] section.
@@ -235,6 +236,11 @@ func load_settings() -> void:
 	g.quality = clampi(int(cf.get_value("game", "quality", g.quality)), 0, 2)
 	_muted = bool(cf.get_value("game", "muted", _muted))
 	_voices = bool(cf.get_value("game", "voices", _voices))
+	# the RIDER WARNING choice: a whole number 0 to 2; anything else loads as the default (NORMAL)
+	var warn = cf.get_value("game", "rider_warning", RiderWarning.DEFAULT_LEVEL)
+	g.warn_level = (
+		clampi(int(warn), 0, 2) if typeof(warn) == TYPE_INT else RiderWarning.DEFAULT_LEVEL
+	)
 	_fullscreen = bool(cf.get_value("game", "fullscreen", _fullscreen))
 	_win_size = parse_window(cf)
 	g.player_name = str(cf.get_value("game", "player_name", g.player_name))
@@ -262,6 +268,7 @@ func save_settings() -> void:
 	cf.set_value("game", "quality", g.quality)
 	cf.set_value("game", "muted", g.sfx.muted)
 	cf.set_value("game", "voices", g.sfx.voices_on)
+	cf.set_value("game", "rider_warning", g.warn_level)
 	cf.set_value("game", "fullscreen", is_fullscreen())
 	var win = window_size_now()
 	if win != Vector2i.ZERO:
@@ -351,6 +358,8 @@ func get_setting(id: String):
 		return resolution_index()
 	if id == "hints":
 		return g.hints_on
+	if id == "warn":
+		return g.warn_level
 	return null
 
 
@@ -393,6 +402,8 @@ func set_setting(id: String, v) -> void:
 			set_window_size(sizes[want])
 	elif id == "hints":
 		g.hints_on = bool(v)
+	elif id == "warn":
+		g.warn_level = clampi(int(v), 0, RiderWarning.LEVEL_NAMES.size() - 1)
 	save_settings()
 
 
@@ -400,6 +411,8 @@ func set_setting(id: String, v) -> void:
 func next_value(id: String):
 	if id == "quality":
 		return (g.quality + 1) % 3
+	if id == "warn":
+		return (g.warn_level + 1) % RiderWarning.LEVEL_NAMES.size()
 	if id == "resolution":
 		return (resolution_index() + 1) % maxi(1, window_choices().size())
 	return not get_setting(id)
