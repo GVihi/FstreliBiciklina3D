@@ -3,6 +3,7 @@ extends RefCounted
 # Shared game state stays on main.gd (g); this file holds the logic.
 
 const Threats = preload("res://scripts/threats.gd")
+const Keybinds = preload("res://scripts/keybinds.gd")
 
 var g = null
 
@@ -148,9 +149,7 @@ func update_player(dt: float, captured: bool) -> void:
 	var want_ads = false
 	if active and not g.melee:
 		want_ads = g.ads_on if g.toggle_ads else Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
-	var want_crouch = (
-		active and (Input.is_key_pressed(KEY_CTRL) or Input.is_physical_key_pressed(KEY_C))
-	)
+	var want_crouch = active and Keybinds.pressed("crouch")
 	var pad_sprint = false
 	var trig = false
 	var mv = Vector2.ZERO
@@ -229,7 +228,7 @@ func update_player(dt: float, captured: bool) -> void:
 	g.ads_t = move_toward(g.ads_t, 1.0 if want_ads else 0.0, dt * 9.0)
 	g.sprinting = (
 		active
-		and (Input.is_key_pressed(KEY_SHIFT) or pad_sprint)
+		and (Keybinds.pressed("sprint") or pad_sprint)
 		and mv.y > 0.0
 		and not want_crouch
 		and not want_ads

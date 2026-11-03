@@ -201,6 +201,16 @@ Checked: not run, this session had no Godot. Read through: the checks that look 
 
 Not covered: nothing was looked at on a screen. Waiting for your in-game check: the eleven title buttons at your window size (text inside the shorter buttons), TRAINING ROOM with a loadout that is not the default, no pedestrians in the room, and BACK TO MENU.
 
+### Key rebinding
+
+What was built: `scripts/keybinds.gd`, one table (`ACTIONS`) of 14 rebindable controls: the four movement keys, sprint, crouch / slide, jump, dash, reload, switch weapon, the dart gun and melee slots, the gadget and the map. Each has a key and an alternative, stored by **physical key** (the place on the keyboard, so WASD stays under the fingers on a French keyboard) under `[keys]` in `settings.cfg` (`docs/SAVE_FILES.md`). `input.gd` (`play_key`), `main.gd` (`read_move`, `map_held`), `player.gd` (sprint, crouch) and the menus' up / down read the table instead of fixed keys. A new REBIND KEYS button in the settings panel (title and pause menu) opens a page with a key cell and an alternative cell per control and a RESET TO DEFAULTS row; Enter, A or a click start waiting for a key, Esc, B or a click cancel, Delete or X clear the alternative; keyboard, mouse and gamepad all work. The Controls page, the shop's REROLL button and the gadget line in the HUD show the keys as they are bound now (`controls_keyboard_rows` in `hud.gd`), and with the default keys they read exactly as before.
+
+Decisions (first guesses, the owner can change them): (1) no key is on two controls: giving a key another control has **swaps** the two (or takes it from a control that has a second one), and a control always keeps at least one key; (2) menu keys (Esc, Tab, Enter, arrows, F7, F9, F10, F11, Delete, Backspace, T) and Alt, Meta and Caps Lock cannot be bound, and Space still leaves the shop and 1 to 4 still buy there; (3) the mouse and the gamepad are not rebindable (the gamepad's buttons are listed on the Controls page as before); (4) a damaged or hand-edited `[keys]` section puts keys back to the defaults, a clash puts all of them back; (5) the settings rows are 31 units apart instead of 34 so the panel still fits with one more row. Also ticks the open item "Add reload to the key rebinding list".
+
+Checked: `gdformat` and `gdlint` on the touched files. **Not run:** `python tools/run_checks.py keybinds controls_page pause_map jump progress_reset hint_setting gadget` (no Godot in the session that wrote this). `tools/keybinds_check.gd` is new: the table, the rules (swap, take, refuse, clear), 300 random changes in a row, the settings round trip and damaged files, the page (open, rebind, refuse Tab, cancel, reset, mouse cells at four window sizes), and that movement and the round keys follow the bindings. `tools/pause_map_check.gd` now sends the physical key too, because the map key is read by its physical key.
+
+Not covered: nothing was looked at on a screen. Waiting for your in-game check: the page's layout and wording, that a held key keeps working after a rebind in the middle of a run, and non-US keyboard layouts (the page shows the letter the layout prints, the binding is the physical place).
+
 ## Milestone E: Polish & Accessibility › Accessibility
 
 ### Screen shake and screen flash intensity options (reduced-motion / photosensitivity)

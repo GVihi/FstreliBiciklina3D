@@ -7,6 +7,7 @@ extends RefCounted
 # roll, so the same seed plays the same in the Daily Run. Nothing here uses a random number.
 
 const Util = preload("res://scripts/util.gd")
+const Keybinds = preload("res://scripts/keybinds.gd")
 const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 
 var g = null
@@ -85,7 +86,7 @@ func hud_text() -> String:
 		return t + "  EMPTY"
 	if cool > 0.0:
 		return t + "  %.1fs" % cool
-	return t + "  [G]"
+	return t + "  [%s]" % Keybinds.key_text("gadget")
 
 
 # What the HUD slot display shows next to the gadget's name: the uses left, then EMPTY or the cooldown ("" for an empty

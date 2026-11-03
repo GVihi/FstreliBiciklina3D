@@ -3,6 +3,7 @@ extends RefCounted
 # The values themselves stay on main.gd (g) because the HUD reads them there; this file only holds the logic.
 
 const SaveUtil = preload("res://scripts/save_util.gd")
+const Keybinds = preload("res://scripts/keybinds.gd")
 const GOLD = Color(0.95, 0.71, 0.19)
 const SETTINGS_PATH = "user://settings.cfg"
 const VERSION = 1  # settings.cfg: [meta] version. Version 0 (before versioning) had no [meta] section.
@@ -106,6 +107,7 @@ func load_settings() -> void:
 			SaveUtil.backup(SETTINGS_PATH, "bad")  # unreadable: keep a copy before the next save replaces it
 		return
 	SaveUtil.backup_if_newer(SETTINGS_PATH, int(cf.get_value("meta", "version", 0)), VERSION)
+	Keybinds.load_from(cf)  # [keys]: a missing or damaged section leaves the default keys
 	g.fov_hip = clampf(float(cf.get_value("game", "fov", g.fov_hip)), 60.0, 105.0)
 	g.sens_mul = clampf(float(cf.get_value("game", "sens", g.sens_mul)), 0.3, 3.0)
 	g.toggle_ads = bool(cf.get_value("game", "toggle_ads", g.toggle_ads))
@@ -148,6 +150,7 @@ func save_settings() -> void:
 	cf.set_value("game", "show_hints", g.hints_on)
 	for id in HINT_IDS:
 		cf.set_value("hints", id, hint_seen(id))
+	Keybinds.save_to(cf)
 	cf.save(SETTINGS_PATH)
 
 
@@ -276,8 +279,11 @@ func next_value(id: String):
 func click_setting(sid: String) -> bool:
 	if sid == "":
 		return false
-	if g.hud.is_action(sid):  # the RESET ALL PROGRESS button: opens the first warning
-		g.input_sys.reset_progress_open()
+	if g.hud.is_action(sid):  # a button: REBIND KEYS opens its page, RESET ALL PROGRESS opens the first warning
+		if sid == "rebind":
+			g.input_sys.keys_open()
+		else:
+			g.input_sys.reset_progress_open()
 		return true
 	if g.hud.is_toggle(sid):
 		set_setting(sid, next_value(sid))
