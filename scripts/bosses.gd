@@ -104,6 +104,8 @@ const BOSS_ROOM = 0.7
 # a boss that is swerving only gives the swerve up when the way to the player is clear this many metres further than it
 # looks to start one: otherwise it turns back and forth at the edge of an obstacle's shadow (steer_boss)
 const BOSS_RELEASE = 6.0
+# how often (seconds) a walking boss asks the arena for the way round the buildings (update_route), not every frame
+const ROUTE_EVERY = 0.25
 # the red lane and the red circle sit this high on open ground, so the curbs (0.12 m) do not hide them
 const OPEN_MARK_Y = 0.14
 
@@ -337,6 +339,41 @@ func way_clear(pos: Vector3, heading: Vector3, reach: float) -> bool:
 			return false
 		l += 1.0
 	return true
+
+
+# true if a boss at `from` could walk straight to `to` with BOSS_ROOM to spare on both sides (line_clear only asks
+# about the line itself, which a boss grazing the corner of a building passes)
+func room_clear(from: Vector3, to: Vector3) -> bool:
+	var d = Vector3(to.x - from.x, 0.0, to.z - from.z)
+	var dist = d.length()
+	if dist < 0.01:
+		return true
+	var dir = d / dist
+	var across = Vector3(-dir.z, 0.0, dir.x) * BOSS_ROOM
+	var l = 0.4
+	while l < dist + 0.4:
+		var p = from + dir * minf(l, dist)
+		if obstacle_at(p) or obstacle_at(p + across) or obstacle_at(p - across):
+			return false
+		l += 0.4
+	return true
+
+
+# Where a boss on open ground heads for. While it has room to walk straight at `target` that is straight at it. When
+# something solid is in between it is the way round the buildings the arena works out (Arena.route_dir), kept in
+# b["route"]. Steering round what is right in front of it (steer_boss) is not enough on its own: a boss that only
+# does that can follow one wall to its end, meet the next and go round and round without ever reaching the player.
+# The question is asked every ROUTE_EVERY seconds and the answer kept in between. Returns true when the way is open;
+# an arena with no route to give (route_dir says ZERO) leaves b["route"] empty and the boss walks as it did.
+func update_route(b: Dictionary, target: Vector3, dt: float) -> bool:
+	b["route_t"] = float(b.get("route_t", 0.0)) - dt
+	if b["route_t"] <= 0.0:
+		b["route_t"] = ROUTE_EVERY
+		var wp: Vector3 = b["wp"]
+		var open = room_clear(wp, target)
+		b["route_open"] = open
+		b["route"] = Vector3.ZERO if open else g.arena.route_dir(wp, target)
+	return bool(b.get("route_open", true))
 
 
 # The way a boss walks to get to `want` (a unit vector). If the way is clear that is `want`. If not, the boss
@@ -575,7 +612,10 @@ func update_boss(b: Dictionary, dt: float) -> bool:
 	if mode == "charge":
 		b["chase_t"] += dt
 		var aim = Vector3(pp.x, 0.0, pp.z)
-		if b["kind"] == "wifi":  # the wifi node weaves about while it comes
+		var open_way = true
+		if open_ground():
+			open_way = update_route(b, aim, dt)
+		if b["kind"] == "wifi" and open_way:  # the wifi node weaves about while it comes, but not round a building
 			aim += Vector3(-dir.z, 0.0, dir.x) * sin(b["t"] * 1.7) * 3.5
 		var dv = aim - wp
 		dv.y = 0.0
@@ -583,6 +623,9 @@ func update_boss(b: Dictionary, dt: float) -> bool:
 		if dv.length() > 0.05:
 			var walk = dv.normalized()
 			if open_ground():
+				var route: Vector3 = b.get("route", Vector3.ZERO)
+				if not open_way and route != Vector3.ZERO:
+					walk = route
 				walk = steer_boss(b, walk)
 			set_boss_pos(b, wp + walk * step)
 		b["wyaw"] = atan2(dir.x, dir.z)

@@ -88,6 +88,8 @@ Target machine: **i5-7500 (4 cores), GTX 1060 3 GB, 8 GB RAM, 1080p at 60 fps.**
 
 **Decided (F1): ship Forward+; Compatibility stays only as Godot's fallback when Vulkan fails.** Measured on a development laptop with integrated graphics (`docs/baseline_f1/README.md`): Forward+ stayed under 16.7 ms in every preset and theme, Compatibility stuttered on the HIGH preset and has no FXAA on MEDIUM. Not measured on a GTX 1060 class machine.
 
+The per-arena limits for the generated world (triangles, draw calls, lights, shadows, draw distance) are in `docs/PERFORMANCE_BUDGET.md`.
+
 ## 6. Gameplay readability rules (non-negotiable)
 
 1. **Riders read against the background** by silhouette, value contrast and key colour; the road and buildings stay mid-tone and less saturated than gameplay colours.

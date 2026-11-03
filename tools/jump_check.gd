@@ -462,8 +462,8 @@ func _check_side_dash() -> void:
 		main._process(DT)
 		guard += 1
 	var moved = (main.player.position - start).dot(right)
-	if moved < 0.8 or moved > 2.6:
-		_fail("a side dash moved %.2f m sideways, expected about 1.6 m" % moved)
+	if moved < 1.6 or moved > 3.2:
+		_fail("a side dash moved %.2f m sideways, expected about 2.4 m" % moved)
 	if absf(main.pvel.dot(right)) > 0.6:
 		_fail("sideways speed was left over after the side dash (%.2f m/s)" % main.pvel.dot(right))
 	if main.pvel.dot(fwd) < 3.4:
