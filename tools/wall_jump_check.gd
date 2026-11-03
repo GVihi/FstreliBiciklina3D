@@ -393,7 +393,6 @@ func _check_bounds() -> void:
 				var p = main.player.position
 				if (
 					absf(p.y - main.jump_h) > 0.0001
-					or a.obstacle_at(p)
 					or main.clamp_walk(p).distance_to(p) > 0.01
 					or main.jump_h >= GeneratedArena.SOLID_HEIGHT
 				):
