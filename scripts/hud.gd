@@ -2207,6 +2207,8 @@ const ALL_SETTING_ROWS = [
 	{"id": "fx", "label": "SHAKE AND FLASH", "min": 0.0, "max": 1.0, "fmt": "pct"},
 	{"id": "quality", "label": "GRAPHICS", "choices": ["HIGH", "MEDIUM", "LOW"]},
 	{"id": "fullscreen", "label": "FULLSCREEN", "toggle": true},
+	# the window sizes that fit this screen (settings.gd window_options); the choices are made when the row is drawn
+	{"id": "resolution", "label": "WINDOW SIZE", "choices": [], "dynamic": true},
 	{"id": "sound", "label": "SOUND", "toggle": true},
 	{"id": "voices", "label": "VOICES", "toggle": true},
 	{"id": "hints", "label": "FIRST-TIME HINTS", "toggle": true},
@@ -2241,7 +2243,8 @@ func settings_visible() -> bool:
 
 # the extra space above the red RESET ALL PROGRESS row, so it stands apart from the settings (in units of 720 p)
 const DANGER_GAP = 12.0
-const SETTING_PITCH = 31.0  # units of 720 p from one row to the next (the rows are 30 high)
+const SETTING_ROW_H = 26.0  # units of 720 p: the height of a row
+const SETTING_PITCH = 28.0  # units of 720 p from one row to the next
 
 
 func panel_rect() -> Rect2:
@@ -2259,7 +2262,7 @@ func row_rect(i: int) -> Rect2:
 		pr.position.x + 16.0 * k,
 		pr.position.y + (44.0 + gap) * k + i * SETTING_PITCH * k,
 		pr.size.x - 32.0 * k,
-		30.0 * k
+		SETTING_ROW_H * k
 	)
 
 
@@ -2352,7 +2355,15 @@ func _draw_settings(k: float) -> void:
 		_txt(row["label"], r.position.x + 8.0 * k, ty, int(14 * k), TEXT)
 		if row.has("choices"):
 			var ch = int(g.get_setting(row["id"]))
-			_txt(row["choices"][ch], r.position.x + r.size.x - 10.0 * k, ty, int(14 * k), ACCENT, 2)
+			var names = g.settings.choice_labels(row)
+			_txt(
+				names[clampi(ch, 0, names.size() - 1)],
+				r.position.x + r.size.x - 10.0 * k,
+				ty,
+				int(14 * k),
+				ACCENT,
+				2
+			)
 		elif row.get("toggle", false):
 			var on = bool(g.get_setting(row["id"]))
 			_txt(

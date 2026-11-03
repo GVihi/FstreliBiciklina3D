@@ -3,7 +3,7 @@
 How to run the game from the editor and how to start it with test coins and unlocks. Moved word for word from `README.md` on 2026-10-29; the rules for tests, secrets and the roadmap stay in the README.
 
 ## Running from the Godot editor
-- The game starts in a 1280x720 window (the base size in `project.godot`). Fullscreen is built in: F11, or the FULLSCREEN row in the settings, and the choice is saved.
+- The game starts in a 1280x720 window (the base size in `project.godot`). Fullscreen is built in: F11, or the FULLSCREEN row in the settings, and the choice is saved. The WINDOW SIZE row in the settings picks a window size that fits the screen, and that is saved too (`docs/SAVE_FILES.md`).
 - If the game runs inside the editor's embedded game view, fullscreen and other window changes do not work there, because the game is not its own window. Turn off the editor's embedded game window option (in the game view toolbar) so the game runs in a separate window, or run an exported build.
 
 ## Developer start options (roadmap alpha D2.1)

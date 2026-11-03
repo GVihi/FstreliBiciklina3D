@@ -743,9 +743,8 @@ func settings_adjust(d: int) -> void:
 	if row.get("action", false):
 		return  # a button (RESET ALL PROGRESS): Left / Right do nothing, only Enter, A or a click open it
 	if row.has("choices"):
-		g.settings.set_setting(
-			id, posmod(int(g.settings.get_setting(id)) + d, row["choices"].size())
-		)
+		var count = maxi(1, g.settings.choice_labels(row).size())
+		g.settings.set_setting(id, posmod(int(g.settings.get_setting(id)) + d, count))
 	elif row.get("toggle", false):
 		g.settings.set_setting(id, d > 0)
 	else:
