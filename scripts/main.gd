@@ -81,8 +81,8 @@ const CROUCH_SPEED = 1.6
 const EYE_STAND = 1.7
 const EYE_CROUCH = 1.1
 
-const DASH_TIME = 0.22
-const DASH_SPEED = 15.0
+const DASH_TIME = 0.28  # dash: about 2.75 m in all (was 0.22 s at 15 m/s, about 2.2 m)
+const DASH_SPEED = 19.0
 const SLIDE_TIME = 0.75
 const SLIDE_SPEED = 9.0
 const FREE_SHOTS_COOLDOWN = 15.0  # seconds between two SLIDE SHOT / QUICK DRAW grants, however fast the dash recharges
