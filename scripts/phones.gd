@@ -41,13 +41,14 @@ func launch_phone(r: Dictionary) -> void:
 func throw_clear(start: Vector3) -> bool:
 	if not g.arena.rider_pursuit():
 		return true
-	var tgt = Vector3(g.player.position.x, SIGHT_Y, g.player.position.z)
+	# at the height of the floor the player stands on (a bench or crate top), or the box itself would block the line
+	var tgt = Vector3(g.player.position.x, g.floor_h + SIGHT_Y, g.player.position.z)
 	return Threats.sight_clear(g.arena, start, tgt)
 
 
 # src is whoever threw it (a rider or a boss): a deflected phone flies back to it
 func throw_phone(start: Vector3, src, off: Vector3 = Vector3.ZERO) -> void:
-	var target = Vector3(g.player.position.x + off.x, 0.45, g.player.position.z + off.z)
+	var target = Vector3(g.player.position.x + off.x, g.floor_h + 0.45, g.player.position.z + off.z)
 	var d = clampf(1.25 - g.round_n * 0.05, 0.75, 1.25)
 	var node = Models.build_phone()
 	g.add_child(node)
@@ -96,13 +97,13 @@ func update_phones(dt: float) -> void:
 		if ph["p"] < 0.6:  # it follows you (a little ahead of you) until the last moment
 			var lead = Vector3(
 				g.player.position.x + g.pvel.x * 0.35 + ph["off"].x,
-				0.45,
+				g.floor_h + 0.45,
 				g.player.position.z + g.pvel.z * 0.35 + ph["off"].z
 			)
 			tg = tg.lerp(lead, minf(1.0, dt * 5.0))
 			ph["target"] = tg
 			var rg: MeshInstance3D = ph["ring"]
-			rg.position = Vector3(tg.x, 0.04, tg.z)
+			rg.position = Vector3(tg.x, g.floor_h + 0.04, tg.z)
 		var pos = Vector3(
 			lerpf(s.x, tg.x, p),
 			lerpf(s.y, tg.y, pow(p, 1.35)) + sin(p * PI) * 0.9,

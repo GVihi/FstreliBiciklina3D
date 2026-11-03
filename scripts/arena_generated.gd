@@ -471,6 +471,26 @@ func _clear(p: Vector3, margin: float, feet: float = 0.0) -> bool:
 	return true
 
 
+# how far (along the ground) p is from the nearest bench or crate footprint, if that is less than `reach`, else INF
+func stand_gap(p: Vector3, reach: float) -> float:
+	if _blocks.is_empty():
+		return INF
+	var n = int(layout["cells"])
+	var cell = float(layout["cell"])
+	var cx = int(floor(p.x / cell + float(n) / 2.0))
+	var cz = int(floor(p.z / cell + float(n) / 2.0))
+	var span = int(ceil((reach + BLOCK_REACH) / cell))
+	var best = INF
+	for dz in range(-span, span + 1):
+		for dx in range(-span, span + 1):
+			var key = Vector2i(cx + dx, cz + dz)
+			if not _blocks.has(key):
+				continue
+			for b in _blocks[key]:
+				best = minf(best, _block_gap(b, p.x, p.z))
+	return best if best < reach else INF
+
+
 # the height of the feet that counts for a bench or a crate: only the player can get above one (hop onto it, stand on it),
 # everything else on foot (bosses, pickups) is at ground level for them, whatever height it is drawn at
 func _feet_of(p: Vector3, who: String) -> float:

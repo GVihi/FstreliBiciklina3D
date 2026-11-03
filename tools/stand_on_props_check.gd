@@ -321,6 +321,12 @@ func _check_floor(arena, box: Dictionary, label: String) -> void:
 			_fail("%s: stand_height with %s is %.3f, expected %.3f" % [label, c[0], got, c[2]])
 	var on_top: Vector3 = _local_point(box, 0.0, 0.0, top)
 	var inside: Vector3 = _local_point(box, 0.0, 0.0, 0.0)
+	# riders reach a player on the box by coming up to the box (Arena.stand_gap, riders.gd BOX_REACH)
+	var beside: Vector3 = _local_point(box, hx + 0.5, 0.0, 0.0)
+	if absf(arena.stand_gap(beside, 1.3) - 0.5) > 0.02:
+		_fail("%s: stand_gap 0.5 m from the end is %.3f" % [label, arena.stand_gap(beside, 1.3)])
+	if arena.stand_gap(_local_point(box, hx + 2.0, 0.0, 0.0), 1.3) != INF:
+		_fail("%s: stand_gap finds the box from 2 m away with a reach of 1.3 m" % label)
 	if arena.clamp_walk(inside, "player").distance_to(inside) < 0.1:
 		_fail("%s: a player on the ground inside the box is not brought out" % label)
 	if arena.clamp_walk(on_top, "boss").distance_to(on_top) < 0.1:

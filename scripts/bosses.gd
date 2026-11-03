@@ -5,6 +5,7 @@ extends RefCounted
 const Models = preload("res://scripts/models.gd")
 const Rim = preload("res://scripts/rim.gd")
 const Util = preload("res://scripts/util.gd")
+const BOX_LINE_SHORT = 1.3  # metres: a slam line to a player on a bench or crate stops this far short, at the box
 
 var g = null
 
@@ -322,6 +323,8 @@ func open_ground() -> bool:
 func line_clear(from: Vector3, to: Vector3) -> bool:
 	var d = Vector3(to.x - from.x, 0.0, to.z - from.z)
 	var dist = d.length()
+	if g.floor_h > 0.0:  # a player on a bench or crate: the line is clear up to the box it stands on
+		dist = maxf(0.0, dist - BOX_LINE_SHORT)
 	if dist < 0.01:
 		return true
 	return lunge_probe(from, d / dist, dist).y < 0.5

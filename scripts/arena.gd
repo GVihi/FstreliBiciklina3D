@@ -193,6 +193,12 @@ func stand_height(_p: Vector3) -> float:
 	return 0.0
 
 
+# How far along the ground world point p is from the nearest thing the player can stand on, looking out to `reach` metres,
+# or INF when there is none within it. Riders use it to reach a player standing on one (they ride round it, not into it).
+func stand_gap(_p: Vector3, _reach: float) -> float:
+	return INF
+
+
 # what the ground is at world point p: "grass", "plaza", "sidewalk", "road", "tunnel" or "building"
 func surface_at(_p: Vector3) -> String:
 	_missing("surface_at")
