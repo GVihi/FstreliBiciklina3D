@@ -1903,7 +1903,7 @@ func end_round() -> void:
 		sfx.v_cheer()
 		sfx.say("round_perfect" if perfect else "round_clear")
 	else:
-		state = "over"
+		state = "dying"
 		over_reason = "riders"
 		clear_saved_run()
 		meta.award_run()
@@ -1942,6 +1942,28 @@ func win_run() -> void:
 	sfx.say("round_clear")
 
 
+# How long the death screen fades to red before it asks for a key (hud.gd draws it, input.gd ends it).
+const DEATH_FADE = 4.0
+# The short loading screen before a run: `begin_loading` shows it, update_game runs the stored start when it is over.
+const LOADING_TIME = 1.0
+var pending_start: Callable = Callable()
+
+
+func begin_loading(start: Callable) -> void:
+	pending_start = start
+	state = "loading"
+	state_t = 0.0
+
+
+func end_death_screen() -> void:
+	if state != "dying" or state_t < DEATH_FADE:
+		return
+	state = "over"
+	state_t = 0.0  # the summary ignores input for 0.8 s, so the key that ended this screen does not press a button
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	sfx.play("click")
+
+
 func game_over(reason: String) -> void:
 	if practice:
 		return  # a practice round has no end, so nothing is scored, paid or saved
@@ -1951,7 +1973,7 @@ func game_over(reason: String) -> void:
 	clear_riders()
 	clear_bosses()
 	clear_phones()
-	state = "over"
+	state = "dying"  # fades to red first; any key then moves on to the run summary ("over")
 	state_t = 0.0
 	over_reason = reason
 	clear_saved_run()
@@ -2233,6 +2255,11 @@ func combo_shout() -> void:
 # ================================================================== update
 func update_game(dt: float) -> void:
 	state_t += dt
+	if state == "loading" and state_t >= LOADING_TIME and pending_start.is_valid():
+		var start = pending_start
+		pending_start = Callable()
+		start.call()
+		return
 	if state == "play":
 		play_time += dt
 		round_t += dt
