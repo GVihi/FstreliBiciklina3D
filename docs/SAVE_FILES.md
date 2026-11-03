@@ -22,6 +22,10 @@ A file written before versioning has no version number and counts as **version 0
 - The flags are **settings, not progress**: RESET ALL PROGRESS keeps `settings.cfg`, so a reset does not show the hints again. To see them again, delete the `[hints]` section (or set the values to `false`) by hand.
 - The **FIRST-TIME HINTS** row of the settings page is `show_hints` under `[game]` (`true` = ON, the default). A missing key or a value that is not `true` / `false` loads as ON. With it OFF no hint is shown and the flags above are **not** used up, so switching it ON again shows the hints the player has not met yet; a hint that was already seen stays seen. Switching it OFF also takes a line that is on screen away at once. Like the flags it is kept by RESET ALL PROGRESS.
 
+## Rider warning sounds (`rider_warning` under `[game]` in `settings.cfg`)
+
+The RIDER WARNING SOUNDS row of the settings is a whole number: `0` OFF, `1` QUIET, `2` NORMAL (the default). A missing key, a value that is not a whole number, or a number outside 0 to 2 loads as the default or is clamped to that range. No version bump (a new field with a default). It is a setting, not progress: RESET ALL PROGRESS keeps it.
+
 ## Window size (`window_w` and `window_h` under `[game]` in `settings.cfg`)
 
 The WINDOW SIZE row of the settings saves the size of the window in pixels as two whole numbers. A missing key, a value that is not a whole number, or a size under 640 x 360 or over 8192 x 8192 is ignored and the window keeps its default size; a size bigger than the free area of the screen is cut to it. While the game is fullscreen the saved size is the one it goes back to when fullscreen is switched off. Settings, not progress: RESET ALL PROGRESS keeps it.
