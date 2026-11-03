@@ -22,7 +22,7 @@ config/icon="res://assets/icon/icon.png"
 
 [display]
 
-window/size/viewport_width=720
+window/size/viewport_width=854
 window/size/viewport_height=480
 
 [rendering]
