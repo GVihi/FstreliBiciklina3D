@@ -61,6 +61,9 @@ func _initialize() -> void:
 	for ch in "7F3A91C2":
 		_type(ch)
 	_press(KEY_ENTER)
+	if main.state != "loading":
+		_fail("Enter on a typed seed did not show the loading screen (state %s)" % main.state)
+	main.finish_loading()
 	if main.state == "title" or main.run_seed != 0x7F3A91C2 or not main.custom_seed_run:
 		_fail(
 			(
