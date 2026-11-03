@@ -619,11 +619,12 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 > The round no longer ends by itself when the last rider falls. Supply caches are spread over the (now bigger) arena for the curious, and once every rider and boss is down an extraction point opens at the far end and the round is cleared when the player walks into it. Built on branch `rework/caches-extraction-point-fresnel-wip-crash-on-round-end`, which is a work in progress (commit "WIP rework", then "Crash fix"): nothing here is ticked off as playtested, and the lines that say "waiting for your in-game check" are still to be played. The roundabout has none of it (`objective_sys.enabled()` is false there) and plays as before.
 
-- [ ] Caches with a catch (today they are pure reward): some of the 4 caches get a variant, chosen by the same seeded stream so the Daily Run gives everybody the same ones
-  - [ ] Cursed cache: pays more but calls riders from the nearest gate when taken
-  - [ ] Locked cache: needs a key that is found at another cache or dropped by a rider
+- [x] Caches with a catch (today they are pure reward): some of the 4 caches get a variant, chosen by the same seeded stream so the Daily Run gives everybody the same ones
+  - [x] Cursed cache: pays more but calls riders from the nearest gate when taken (note in `docs/ROADMAP_HISTORY.md`; pays 2x and calls 2 to 3 riders; waits for an in-game check by the owner)
+  - [x] Locked cache: needs a key that is found at another cache or dropped by a rider (note in `docs/ROADMAP_HISTORY.md`; the key is found at another cache, a rider drop is not built; waits for an in-game check by the owner)
+  - [x] A supply cache has a 12 % chance to hold 1 meta coin (asked by the owner on 2026-11-02, 10 to 15 %): the roll is seeded like the variants, any variant can hold one, and the coin is paid with the run like a boss coin (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner)
   - [x] Vanishing cache (note in `docs/ROADMAP_HISTORY.md`; the seeded variant roll is built, the cursed and the locked cache join it; waits for an in-game check by the owner)
-  - [ ] Mark the variants on the HUD and the radar so the player can tell them apart (colour and shape, not colour alone)
+  - [x] Mark the variants on the HUD and the radar so the player can tell them apart (colour and shape, not colour alone) (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game look)
 - [ ] Choose your exit: the arena has several gates and the run map branches, so the extraction point could be one per exit gate, each matching a next node on the map (the player leaves through the gate of the node they want), instead of one fixed point. Needs the node choice (`pick_node`, Milestone D) to be made on the way out instead of on the map screen, and the HUD, radar and world markers to show more than one point
 
 ## Rider variety and arena hazards

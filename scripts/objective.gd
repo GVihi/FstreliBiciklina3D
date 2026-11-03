@@ -8,7 +8,15 @@ extends RefCounted
 #                   Some caches carry a catch (README Milestone K, "Caches with a catch"): `pick_variants()` rolls
 #                   them from their own seeded stream, so a Daily Run gives everybody the same ones. Built so far:
 #                   VANISHING (a countdown starts when the player comes within VANISH_TRIGGER, and a cache that is
-#                   not taken in time is gone for the round and does not count towards the every-cache bonus).
+#                   not taken in time is gone for the round and does not count towards the every-cache bonus),
+#                   CURSED (pays CURSED_MULT times the cash and score, but taking it calls a few riders out of the gate
+#                   nearest to the cache, one after another, like a small ambush that the player chose) and
+#                   LOCKED (pays LOCKED_MULT times, but only opens with a key, which another plain cache of the same
+#                   round holds; `assign_keys()` pairs them, so a locked cache can always be opened).
+#                   A cache may also hold 1 meta coin (`pick_coins()`, from a seeded stream of its own, so a Daily Run gives
+#                   everybody the same ones, whatever its variant). The coin is paid with the run
+#                   (`meta.add_cache_coin`), so a quit run pays nothing, like the coins of a boss. Nothing in the world
+#                   shows which cache holds one; the player sees "+1 META COIN" when it is taken.
 #   Extraction      Once every rider (and boss) is down the round does not end by itself any more: a green light
 #                   column opens at the far end of the arena and the round is cleared when the player reaches it.
 #                   Before that it is shown dimmed, so the player knows where the run will end.
@@ -34,25 +42,54 @@ const LOCKED = Color(1.0, 0.45, 0.3)
 const BEAM_HEIGHT = 34.0
 const REWARDS = ["ammo", "ammo", "cash", "cash", "rapid", "big", "slow", "shield", "heart"]
 
-# Cache variants. VARIANTS is what can be rolled; the cursed and the locked cache join it when they are built.
+# Cache variants. VARIANTS is what can be rolled.
 const VARIANT_PLAIN = "plain"
 const VARIANT_VANISHING = "vanishing"
-const VARIANTS = [VARIANT_VANISHING]
+const VARIANT_CURSED = "cursed"
+const VARIANT_LOCKED = "locked"
+const VARIANTS = [VARIANT_VANISHING, VARIANT_CURSED, VARIANT_LOCKED]
 const VARIANT_CHANCE = 0.4  # per cache, first guess
 const VARIANT_MAX = 2  # at most this many of a round's caches get a variant, so plain ones are always left
 const VANISH_TRIGGER = 12.0  # metres: the countdown of a vanishing cache starts when the player is this close
 const VANISH_TIME = 8.0  # seconds from the trigger until it is gone (first guess, tuned by playing)
 const VANISH_COL = Color(0.45, 0.85, 1.0)
 const VANISH_GONE = Color(0.7, 0.7, 0.72)
+# The cursed cache (first guesses, tuned by playing). It pays CURSED_MULT times the cash and the score of a plain
+# cache and calls riders when it is taken: CURSE_MIN_RIDERS, and CURSE_MAX_RIDERS from round CURSE_BIG_ROUND on. The
+# first comes CURSE_DELAY seconds after the take, then one every CURSE_GAP seconds, out of the gate nearest to the cache.
+const CURSED_COL = Color(0.78, 0.35, 1.0)
+const CURSED_MULT = 2
+const CURSE_MIN_RIDERS = 2
+const CURSE_MAX_RIDERS = 3
+const CURSE_BIG_ROUND = 6
+const CURSE_DELAY = 1.0
+const CURSE_GAP = 1.4
+# The locked cache (first guesses, tuned by playing): pays LOCKED_MULT times the cash and the score of a plain cache,
+# and the key is used up when it opens. The reminder that it is locked shows at most every LOCK_NOTE_GAP seconds.
+const LOCKED_COL = Color(1.0, 0.55, 0.15)
+const LOCKED_MULT = 2
+const LOCK_NOTE_GAP = 2.5
+const KEY_COL = Color(0.95, 0.95, 0.4)
+
+# A cache may hold 1 meta coin (a first guess of 12 %, between the 10 and 15 % the owner asked for on 2026-11-02)
+const COIN_CHANCE = 0.12
+const COIN_COL = Color(1.0, 0.85, 0.35)
 
 var g = null
 # each {"pos": Vector3, "node": Node3D, "crate": Node3D, "beam_mat": StandardMaterial3D, "taken": bool,
-# "gone": bool, "variant": String, "left": float (seconds left of a vanishing cache, -1 until it starts)}
+# "gone": bool, "variant": String, "left": float (seconds left of a vanishing cache, -1 until it starts),
+# "key": bool (taking it gives the player a key), "warn": float (seconds until a locked cache may remind again),
+# "coin": bool (the cache holds 1 meta coin)}
 var caches: Array = []
 var goal: Dictionary = {}  # {"pos": Vector3, "node": Node3D, "beam_mat": StandardMaterial3D, "ring_mat": ...}
 var extracting = false  # every rider is down and the way out is open
 var taken = 0  # caches taken this round
+var keys = 0  # keys the player holds this round: a locked cache takes one
 var _t = 0.0
+# riders a cursed cache has called and that are still to come: one entry per rider, the gate it comes out of
+var _curse_gates: Array = []
+var _curse_wait = 0.0
+var _curse_rng = RandomNumberGenerator.new()  # kinds and lanes of the called riders (seeded in setup_round)
 
 
 func _init(game) -> void:
@@ -87,8 +124,15 @@ func setup_round() -> void:
 	var vrng = RandomNumberGenerator.new()
 	vrng.seed = DailyScript.stream_seed(g.run_seed, g.round_n, "cache_variant")
 	var variants = pick_variants(spots.size(), vrng)
+	# the riders a cursed cache calls and the meta coins have a stream of their own, so no roll moves another
+	_curse_rng.seed = DailyScript.stream_seed(g.run_seed, g.round_n, "cache_curse")
+	var holds = assign_keys(variants)
+	keys = 0
+	var crng = RandomNumberGenerator.new()
+	crng.seed = DailyScript.stream_seed(g.run_seed, g.round_n, "cache_coin")
+	var coins = pick_coins(spots.size(), crng)
 	for i in range(spots.size()):
-		caches.append(_make_cache(spots[i], variants[i]))
+		caches.append(_make_cache(spots[i], variants[i], holds[i], coins[i]))
 
 
 # The variant of each of `count` caches. Every cache draws the same two numbers whatever the cap does, so the
@@ -107,6 +151,58 @@ static func pick_variants(count: int, rng: RandomNumberGenerator) -> Array:
 	return out
 
 
+# riders a cursed cache calls in round n: CURSE_MIN_RIDERS, one more from round CURSE_BIG_ROUND
+static func curse_count(n: int) -> int:
+	return CURSE_MAX_RIDERS if n >= CURSE_BIG_ROUND else CURSE_MIN_RIDERS
+
+
+# Pairs every locked cache with a plain one that holds its key (the first plain cache not yet a holder). A locked cache
+# with no plain cache left to hold its key turns plain, so a locked cache can always be opened. Changes `variants` and
+# returns, for each cache, whether it holds a key. No random number is drawn, so the same seed gives the same pairs.
+static func assign_keys(variants: Array) -> Array:
+	var holds: Array = []
+	holds.resize(variants.size())
+	holds.fill(false)
+	for i in range(variants.size()):
+		if variants[i] != VARIANT_LOCKED:
+			continue
+		var holder = -1
+		for j in range(variants.size()):
+			if variants[j] == VARIANT_PLAIN and not holds[j]:
+				holder = j
+				break
+		if holder < 0:
+			variants[i] = VARIANT_PLAIN
+		else:
+			holds[holder] = true
+	return holds
+
+
+# the colour of a cache's light column and glow
+static func variant_color(variant: String) -> Color:
+	if variant == VARIANT_VANISHING:
+		return VANISH_COL
+	if variant == VARIANT_CURSED:
+		return CURSED_COL
+	if variant == VARIANT_LOCKED:
+		return LOCKED_COL
+	return GOLD
+
+
+# riders a cursed cache called that have not come out of their gate yet
+func curse_pending() -> int:
+	return _curse_gates.size()
+
+
+# Which of `count` caches hold a meta coin: each draws one number, COIN_CHANCE of them are true, the same seed gives
+# the same answer.
+static func pick_coins(count: int, rng: RandomNumberGenerator) -> Array:
+	var out: Array = []
+	for _i in range(count):
+		out.append(rng.randf() < COIN_CHANCE)
+	return out
+
+
 # a cache still on the ground: not taken and not vanished (the radar, the markers and the map only show these)
 static func is_open(c: Dictionary) -> bool:
 	return not c["taken"] and not c["gone"]
@@ -116,6 +212,13 @@ static func is_open(c: Dictionary) -> bool:
 static func countdown_label(c: Dictionary) -> String:
 	if c["variant"] == VARIANT_VANISHING and c["left"] >= 0.0 and is_open(c):
 		return "%d" % int(ceil(c["left"]))
+	return ""
+
+
+# "LOCKED" on a locked cache that is still shut ("OPEN" once the player holds a key), "" otherwise (HUD marker label)
+func lock_label(c: Dictionary) -> String:
+	if c["variant"] == VARIANT_LOCKED and is_open(c):
+		return "OPEN" if keys > 0 else "LOCKED"
 	return ""
 
 
@@ -134,6 +237,9 @@ func clear() -> void:
 	goal = {}
 	extracting = false
 	taken = 0
+	_curse_gates.clear()
+	_curse_wait = 0.0
+	keys = 0
 
 
 # The riders (and boss) are down: open the way out.
@@ -151,6 +257,7 @@ func update(dt: float) -> void:
 	if goal.is_empty():
 		return
 	_t += dt
+	_tick_curse(dt)
 	var pulse = 0.5 + 0.5 * sin(_t * (4.0 if extracting else 1.6))
 	var bm: StandardMaterial3D = goal["beam_mat"]
 	var col: Color = GREEN if extracting else LOCKED
@@ -168,8 +275,12 @@ func update(dt: float) -> void:
 		var d = dist_to(c["pos"])
 		if d < SENSE_RANGE:
 			g.settings.trigger_hint("cache")  # first-run hint (README alpha E1.3): the first cache in sense range
+		c["warn"] = maxf(0.0, c["warn"] - dt)
 		if d < CACHE_RADIUS:
-			_take(c)  # taking wins over a countdown that runs out in the same frame
+			if c["variant"] == VARIANT_LOCKED and keys <= 0:
+				_remind_locked(c)
+			else:
+				_take(c)  # taking wins over a countdown that runs out in the same frame
 		elif c["variant"] == VARIANT_VANISHING:
 			_tick_vanishing(c, d, dt)
 	if extracting and dist_to(goal["pos"]) < GOAL_RADIUS:
@@ -207,18 +318,75 @@ func _vanish(c: Dictionary) -> void:
 	g.sfx.play("clank2")
 
 
+# The riders a cursed cache called come out one after another, each out of the gate that was nearest to the cache.
+# They are extra riders (ambush riders in riders.gd): they take no place in the round's `hits`, so they never change
+# what clears the round, and they come from a random stream of their own (`_curse_rng`), so when the player takes the
+# cache never changes the riders of the round's own waves. Nothing is sent while the game is not in a round.
+func _tick_curse(dt: float) -> void:
+	if _curse_gates.is_empty():
+		return
+	if g.state != "play":
+		_curse_gates.clear()
+		return
+	_curse_wait -= dt
+	if _curse_wait > 0.0:
+		return
+	var gate: Dictionary = _curse_gates.pop_front()
+	g.rider_sys.spawn_rider(_curse_rng.randi() % 3, 1, true, _curse_rng, gate)
+	_curse_wait = CURSE_GAP
+
+
+# Taking a cursed cache: line up its riders at the gate nearest to it.
+func _call_riders(at: Vector3) -> void:
+	var gate = g.rider_sys.nearest_open_gate(at)
+	if gate.is_empty():
+		return
+	if _curse_gates.is_empty():
+		_curse_wait = CURSE_DELAY
+	for _i in range(curse_count(g.round_n)):
+		_curse_gates.append(gate)
+	g.add_note("CURSED CACHE - RIDERS COMING", CURSED_COL)
+	g.sfx.play("boss_intro", -4.0)
+
+
+# The player stands at a locked cache with no key: say so, not more often than every LOCK_NOTE_GAP seconds
+func _remind_locked(c: Dictionary) -> void:
+	if c["warn"] > 0.0:
+		return
+	c["warn"] = LOCK_NOTE_GAP
+	g.add_popup(c["pos"] + Vector3(0, 1.8, 0), "LOCKED - FIND A KEY", LOCKED_COL)
+	g.sfx.play("clank2")
+
+
 func _take(c: Dictionary) -> void:
 	c["taken"] = true
 	taken += 1
 	var n: Node = c["node"]
 	n.queue_free()
 	var at: Vector3 = c["pos"]
-	g.add_popup(at + Vector3(0, 1.4, 0), "CACHE  +%d" % CACHE_SCORE, GOLD)
-	g.score += CACHE_SCORE * (2 if g.hype_t > 0.0 else 1)
-	g.shop_sys.add_cash(CACHE_CASH)
+	var cursed = c["variant"] == VARIANT_CURSED
+	var locked = c["variant"] == VARIANT_LOCKED
+	var mult = CURSED_MULT if cursed else (LOCKED_MULT if locked else 1)
+	if locked:
+		keys -= 1
+	g.add_popup(
+		at + Vector3(0, 1.4, 0),
+		"CACHE  +%d" % (CACHE_SCORE * mult),
+		CURSED_COL if cursed else (LOCKED_COL if locked else GOLD)
+	)
+	g.score += CACHE_SCORE * mult * (2 if g.hype_t > 0.0 else 1)
+	g.shop_sys.add_cash(CACHE_CASH * mult)
+	if c["key"]:
+		keys += 1
+		g.add_popup(at + Vector3(0, 2.2, 0), "KEY FOUND", KEY_COL)
 	var kind = g.pickup_sys.matter_drop(REWARDS[randi() % REWARDS.size()])
 	if kind != "":
 		g.pickup_sys.spawn_pickup(kind, at + Vector3(0, 1.0, 0))
+	if cursed:
+		_call_riders(at)
+	if c["coin"]:
+		g.meta.add_cache_coin()
+		g.add_popup(at + Vector3(0, 2.2, 0), "+1 META COIN", COIN_COL)
 	g.sfx.play("pickup")
 	g.add_hype(10.0)
 	g.hi_check()
@@ -253,8 +421,10 @@ func _beam(root: Node3D, radius: float, col: Color) -> StandardMaterial3D:
 	return m
 
 
-func _make_cache(pos: Vector3, variant: String = VARIANT_PLAIN) -> Dictionary:
-	var col = VANISH_COL if variant == VARIANT_VANISHING else GOLD
+func _make_cache(
+	pos: Vector3, variant: String = VARIANT_PLAIN, key: bool = false, coin: bool = false
+) -> Dictionary:
+	var col = variant_color(variant)
 	var root = Node3D.new()
 	root.position = Vector3(pos.x, 0.0, pos.z)
 	g.add_child(root)
@@ -273,7 +443,10 @@ func _make_cache(pos: Vector3, variant: String = VARIANT_PLAIN) -> Dictionary:
 		"taken": false,
 		"gone": false,
 		"variant": variant,
-		"left": -1.0
+		"left": -1.0,
+		"key": key,
+		"warn": 0.0,
+		"coin": coin
 	}
 
 
