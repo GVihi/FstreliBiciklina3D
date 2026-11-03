@@ -18,6 +18,7 @@ var trig_was = false
 # camera spring for take-off and landing (Milestone L): the eye dips on a landing and settles with a small overshoot
 var land_dip = 0.0  # metres, negative = lower
 var land_dip_v = 0.0
+var ledge_off = 0.0  # metres, negative = lower: the eye after climbing onto a bench or crate, which then comes up smoothly
 
 # recoil spring: the gun kicks back (metres), the muzzle rises (radians) and it rolls a little, then settles with a small overshoot
 var kick_back = 0.0
@@ -268,21 +269,37 @@ func update_player(dt: float, captured: bool) -> void:
 	g.player.position = g.slide_walk(walk_from, walk_from + g.pvel * dt)
 	g.player.rotation.y = g.yaw
 
-	# the jump itself: gravity pulls the height back to the ground (frozen while the game is paused)
+	# the jump itself: gravity pulls the height back down to the floor (frozen while the game is paused). The floor is the
+	# ground, or the top of the bench or crate the player is over (Arena.stand_height; the feet are still where they were
+	# last frame, so a hop that is a little short of a top, within STAND_TOL, still gets onto it)
 	var landed = false
 	var impact = 0.0
-	if is_airborne() and not g.paused:
+	var on_floor = not is_airborne()
+	g.floor_h = g.arena.stand_height(g.player.position)
+	if on_floor and g.jump_h > g.floor_h:  # walked off the edge of a bench or crate: falls on from here at this speed
+		g.air_speed = clampf(g.pvel.length(), g.WALK, AIR_SPEED_MAX)
+	if g.jump_v <= 0.0 and g.jump_h < g.floor_h and not g.paused:
+		# the feet are just below a top the player is over: climb onto it (a hop that fell short, or a step up from a
+		# lower box). The eye follows smoothly (ledge_off) and the landing counts when it came out of the air.
+		ledge_off -= g.floor_h - g.jump_h
+		g.jump_h = g.floor_h
+		if not on_floor:
+			impact = maxf(0.0, -g.jump_v)
+			landed = true
+		g.jump_v = 0.0
+	elif is_airborne() and not g.paused:
 		var gravity = JUMP_GRAVITY * (AIR_DASH_GRAVITY if g.dash_t > 0.0 else 1.0)
 		g.jump_v -= gravity * dt
 		g.jump_h += g.jump_v * dt
-		if g.jump_h <= 0.0 and g.jump_v <= 0.0:
+		if g.jump_h <= g.floor_h and g.jump_v <= 0.0:
 			impact = -g.jump_v
-			g.jump_h = 0.0
+			g.jump_h = g.floor_h
 			g.jump_v = 0.0
 			landed = true
 	g.player.position.y = g.jump_h
 	if landed:
 		land(active and want_crouch, impact)
+	ledge_off = lerpf(ledge_off, 0.0, minf(1.0, dt * 12.0))
 	update_land_dip(dt)
 	update_wall(dt, active)
 	var in_air = is_airborne()
@@ -293,7 +310,7 @@ func update_player(dt: float, captured: bool) -> void:
 	var bob = sin(g.bob_t) * 0.022 * minf(1.0, spd / g.RUN) * (1.0 - g.ads_t)
 	if g.slide_t > 0.0 or g.dash_t > 0.0 or in_air:
 		bob = 0.0
-	g.cam.position.y = lerpf(g.EYE_STAND, g.EYE_CROUCH, g.crouch_t) + bob + land_dip
+	g.cam.position.y = lerpf(g.EYE_STAND, g.EYE_CROUCH, g.crouch_t) + bob + land_dip + ledge_off
 	g.cam.rotation.x = g.pitch + land_dip * LAND_PITCH
 	g.cam.rotation.z = 0.0
 	if g.slide_t > 0.0:
@@ -349,7 +366,7 @@ func apply_aim_assist(dt: float) -> void:
 
 # true while the player is off the ground (a jump, or the fall that follows it)
 func is_airborne() -> bool:
-	return g.jump_h > 0.0 or g.jump_v > 0.0
+	return g.jump_h > g.floor_h or g.jump_v > 0.0
 
 
 # Space and gamepad A call this (a side dash, or the press is remembered for JUMP_BUFFER seconds and update_player takes off when it can)
@@ -475,9 +492,10 @@ func update_land_dip(dt: float) -> void:
 	land_dip = clampf(land_dip, -0.15, 0.06)
 
 
-# true while the player is high enough in a jump for a rider to pass underneath
+# true while the player is high enough in a jump for a rider to pass underneath: above the floor, so standing on a bench is
+# not a jump and the riders still reach the player there
 func is_hurdling() -> bool:
-	return g.jump_h >= HURDLE_HEIGHT
+	return g.jump_h - g.floor_h >= HURDLE_HEIGHT
 
 
 # which way A / D (or the left stick) is held, for the side dash: -1 left, 1 right, 0 when the player is not strafing
@@ -523,6 +541,7 @@ func start_slide() -> void:
 # round start and new run: standing on the ground, nothing pressed
 func reset_air() -> void:
 	g.jump_h = 0.0
+	g.floor_h = 0.0
 	g.jump_v = 0.0
 	g.jump_buf = 0.0
 	g.coyote_t = COYOTE_TIME
@@ -539,6 +558,7 @@ func reset_air() -> void:
 	g.player.position.y = 0.0
 	land_dip = 0.0
 	land_dip_v = 0.0
+	ledge_off = 0.0
 
 
 func grant_free_shots() -> void:

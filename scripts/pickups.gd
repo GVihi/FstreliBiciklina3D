@@ -112,7 +112,9 @@ func landing_spot(y_land: float, kill: Vector3) -> Vector3:
 	# away): drop it on the kill, on ground a rider can stand on, so it can always be picked up
 	var feet = g.clamp_walk(Vector3(kill.x, y_land, kill.z), "pickup")
 	if Vector2(feet.x - kill.x, feet.z - kill.z).length() > LAND_MAX:
-		feet = g.clamp_walk(Vector3(kill.x, y_land, kill.z), "player")
+		# asked at ground level: the player's walk counts a bench or a crate as a floor for feet this high (y_land)
+		feet = g.clamp_walk(Vector3(kill.x, 0.0, kill.z), "player")
+		feet.y = y_land
 	return feet
 
 

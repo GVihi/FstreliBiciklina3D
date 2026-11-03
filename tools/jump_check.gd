@@ -378,11 +378,9 @@ func _check_bounds_generated() -> void:
 					main.player_sys.try_side_dash(1.0 if (k / 40) % 2 == 0 else -1.0)
 				main._process(DT)
 				var p = main.player.position
-				if (
-					absf(p.y - main.jump_h) > 0.0001
-					or main.arena.obstacle_at(p)
-					or main.clamp_walk(p).distance_to(p) > 0.01
-				):
+				# clamp_walk is the player's own test (it knows the player may stand on a bench or a crate); obstacle_at is
+				# what a boss on foot sees, which is not for a player above a box
+				if absf(p.y - main.jump_h) > 0.0001 or main.clamp_walk(p).distance_to(p) > 0.01:
 					bad += 1
 	main.arena = old_arena
 	if tested == 0:

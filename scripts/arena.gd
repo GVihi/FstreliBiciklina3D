@@ -186,6 +186,13 @@ func wall_near(_p: Vector3, _reach: float) -> Dictionary:
 	return {}
 
 
+# The height of the floor the player's feet stand on at world point p (p.y is the height of the feet): 0.0 for the ground, or
+# the top of a prop the player can stand on when the feet are over it and no more than a short step below its top. This
+# base class has nothing to stand on, so the ground is flat; the generated arena overrides it for its benches and crates.
+func stand_height(_p: Vector3) -> float:
+	return 0.0
+
+
 # what the ground is at world point p: "grass", "plaza", "sidewalk", "road", "tunnel" or "building"
 func surface_at(_p: Vector3) -> String:
 	_missing("surface_at")

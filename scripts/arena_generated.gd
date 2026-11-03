@@ -97,7 +97,9 @@ func _block_gap(b: Dictionary, x: float, z: float) -> float:
 
 # true if p is closer than `reach` metres (along the ground) to the footprint of a bench or a crate: a body that is a
 # disc of that radius would touch it. Boxes in cells further out than BLOCK_REACH + reach are further than `reach`.
-func _near_block(p: Vector3, reach: float) -> bool:
+# `feet` is the height of the body's feet: a box whose top they are at, or less than STAND_TOL below, is a floor for them
+# and not a wall (the player standing on it or hopping over it). The ground level 0.0 is below every box's top.
+func _near_block(p: Vector3, reach: float, feet: float = 0.0) -> bool:
 	if _blocks.is_empty():
 		return false
 	var n = int(layout["cells"])
@@ -111,6 +113,8 @@ func _near_block(p: Vector3, reach: float) -> bool:
 			if not _blocks.has(key):
 				continue
 			for b in _blocks[key]:
+				if feet >= b["y1"] - STAND_TOL:
+					continue
 				if _block_gap(b, p.x, p.z) < reach:
 					return true
 	return false
@@ -414,6 +418,10 @@ const BLOCK_BOSS_CLEAR = 0.18
 const BLOCK_REACH = 1.15  # metres: no box's corner is further than this from its middle (a bench: 1.06 m)
 const BLOCK_SPAN = 2  # cells either side looked at for a box a ray meets: a ray is sampled every 0.9 cells
 const BLOCK_TOP_Y = 2.0  # above this nothing of a bench or crate is left: two crates of the biggest scale are 1.98 m
+# The player can stand on a bench or a crate: feet at a box's top, or less than this far below it, are over it and not
+# against its side. A standing hop reaches 0.84 m (player.gd JUMP_SPEED) and a bench is 0.90 m high, a crate 0.76 to 0.99 m,
+# so a hop at the top of its arc has to be forgiven this much to get onto one.
+const STAND_TOL = 0.25
 const PROP_TREE = 0  # the kinds of prop a ray is cut with (_props_hit)
 const PROP_LAMP = 1
 const PROP_BLOCK = 2
@@ -448,12 +456,12 @@ func _walkable(p: Vector3) -> bool:
 # true if p is walkable, the eight points `margin` metres round it are ground, and no trunk, lamp pole, bench or crate
 # is within `margin` of the middle (a body is a disc of that radius: it stops that far from a wall and that far from a
 # trunk's or a pole's edge, or from a bench's or a crate's side)
-func _clear(p: Vector3, margin: float) -> bool:
+func _clear(p: Vector3, margin: float, feet: float = 0.0) -> bool:
 	if (
 		not _ground_walkable(p)
 		or _near_tree(p, margin + WorldDressScript.TRUNK_SOLID)
 		or _near_lamp(p, margin + WorldDressScript.LAMP_SOLID)
-		or _near_block(p, margin + WorldModelsScript.BLOCK_SOLID)
+		or _near_block(p, margin + WorldModelsScript.BLOCK_SOLID, feet)
 	):
 		return false
 	for k in range(8):
@@ -463,16 +471,50 @@ func _clear(p: Vector3, margin: float) -> bool:
 	return true
 
 
+# the height of the feet that counts for a bench or a crate: only the player can get above one (hop onto it, stand on it),
+# everything else on foot (bosses, pickups) is at ground level for them, whatever height it is drawn at
+func _feet_of(p: Vector3, who: String) -> float:
+	return p.y if who == "player" else 0.0
+
+
+# The floor under the feet at p (see Arena.stand_height): the top of the highest bench or crate whose footprint p is over and
+# whose top the feet (p.y) are at or no more than STAND_TOL below, or 0.0. A box the feet are lower than that is a wall
+# (_near_block), so a player never stands inside one. Crates stacked on each other: the one on top is a wall from the lower
+# one's top and covers it, so a stack is not climbed.
+func stand_height(p: Vector3) -> float:
+	if _blocks.is_empty():
+		return 0.0
+	var n = int(layout["cells"])
+	var cell = float(layout["cell"])
+	var cx = int(floor(p.x / cell + float(n) / 2.0))
+	var cz = int(floor(p.z / cell + float(n) / 2.0))
+	var best = 0.0
+	for dz in range(-1, 2):  # a box is less than BLOCK_REACH, so less than a cell, from its middle
+		for dx in range(-1, 2):
+			var key = Vector2i(cx + dx, cz + dz)
+			if not _blocks.has(key):
+				continue
+			for b in _blocks[key]:
+				var top = float(b["y1"])
+				if top <= best or p.y < top - STAND_TOL:
+					continue
+				var l = _block_local(b, p.x, p.z)
+				if absf(l.x) <= b["hx"] and absf(l.y) <= b["hz"]:
+					best = top
+	return best
+
+
 # keep a point on the walkable ground, sliding along an edge: a point that is free comes back unchanged, one
 # in or against a wall comes back as the nearest free point (which is where pushing into a wall slides to)
 func clamp_walk(p: Vector3, who: String = "player") -> Vector3:
 	var margin: float = MARGINS.get(who, MARGINS["player"])
-	if _clear(p, margin):
+	var feet = _feet_of(p, who)
+	if _clear(p, margin, feet):
 		return p
 	# far outside the grid (a thrown pickup, a knock-back): first bring it to the edge of the grid
 	var half = float(layout["cells"]) * float(layout["cell"]) / 2.0 - 0.5
 	var at = Vector3(clampf(p.x, -half, half), p.y, clampf(p.z, -half, half))
-	if _clear(at, margin):
+	if _clear(at, margin, feet):
 		return at
 	p = at
 	# Search rings of growing radius for the nearest free point. Close to the point the rings are fine (a wall
@@ -489,7 +531,7 @@ func clamp_walk(p: Vector3, who: String = "player") -> Vector3:
 		for k in range(n):
 			var a = TAU * float(k) / float(n)
 			var q = Vector3(p.x + cos(a) * r, p.y, p.z + sin(a) * r)
-			if _clear(q, margin):
+			if _clear(q, margin, feet):
 				# on a ring every free point is as near as the next; take the one nearest the start so a
 				# knock-back out of a wall ends up on the side the player can reach
 				var d = Vector2(q.x - home.x, q.z - home.z).length()
@@ -512,32 +554,33 @@ func clamp_walk(p: Vector3, who: String = "player") -> Vector3:
 # starts inside a wall (a knock-back, a spawn), for bosses and for pickups.
 func slide_walk(from: Vector3, to: Vector3, who: String = "player") -> Vector3:
 	var margin: float = MARGINS.get(who, MARGINS["player"])
-	if _clear(to, margin):
+	var feet = _feet_of(to, who)
+	if _clear(to, margin, feet):
 		return to
-	if not _clear(from, margin):
+	if not _clear(from, margin, feet):
 		return clamp_walk(to, who)
 	var dx = to.x - from.x
 	var dz = to.z - from.z
 	var p = from
 	if absf(dx) >= absf(dz):
-		p = _step_to_wall(p, Vector3(dx, 0.0, 0.0), margin)
-		p = _step_to_wall(p, Vector3(0.0, 0.0, dz), margin)
+		p = _step_to_wall(p, Vector3(dx, 0.0, 0.0), margin, feet)
+		p = _step_to_wall(p, Vector3(0.0, 0.0, dz), margin, feet)
 	else:
-		p = _step_to_wall(p, Vector3(0.0, 0.0, dz), margin)
-		p = _step_to_wall(p, Vector3(dx, 0.0, 0.0), margin)
+		p = _step_to_wall(p, Vector3(0.0, 0.0, dz), margin, feet)
+		p = _step_to_wall(p, Vector3(dx, 0.0, 0.0), margin, feet)
 	p.y = to.y
 	return p
 
 
 # move p by `step` and stop at the wall: the whole step when it is free, otherwise the longest free part of it
-func _step_to_wall(p: Vector3, step: Vector3, margin: float) -> Vector3:
-	if step == Vector3.ZERO or _clear(p + step, margin):
+func _step_to_wall(p: Vector3, step: Vector3, margin: float, feet: float = 0.0) -> Vector3:
+	if step == Vector3.ZERO or _clear(p + step, margin, feet):
 		return p + step
 	var free = 0.0
 	var blocked = 1.0
 	for i in range(WALL_HALVINGS):
 		var mid = (free + blocked) * 0.5
-		if _clear(p + step * mid, margin):
+		if _clear(p + step * mid, margin, feet):
 			free = mid
 		else:
 			blocked = mid
