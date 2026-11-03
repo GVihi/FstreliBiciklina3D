@@ -544,6 +544,137 @@ func _step_to_wall(p: Vector3, step: Vector3, margin: float) -> Vector3:
 	return p + step * free
 
 
+# ---------------------------------------------------------------- the way round buildings (bosses)
+# A boss that only swerves round what is right in front of it can lose itself: it follows a wall to its end, meets
+# the next wall and goes round and round (tools/boss_attack_check.gd found seeds where it never got to the player,
+# whichever gate it came in at). route_dir gives it the way instead. The steps (4 directions) from the target's cell
+# to every other cell are counted through cells with clearance of at least ROUTE_CLEAR, and the boss walks down the
+# counts. The counts are kept until the target stands in another cell, so asking again costs next to nothing.
+const ROUTE_CLEAR = 2  # clearance a cell needs to count as part of the way (1 = touching a building)
+const ROUTE_LOOK = 6  # cells ahead the boss aims at, as far as the straight line to that cell is free
+const ROUTE_ROOM = 0.5  # metres kept free on each side of that line
+
+var _route_cell: int = -1  # the cell (x + z * cells) the counts lead to
+var _route_fields: Dictionary = {}  # clearance asked for -> steps to _route_cell for every cell (-1 where none)
+
+
+func _cell_index(p: Vector3) -> int:
+	var n = int(layout["cells"])
+	var cell = float(layout["cell"])
+	var cx = int(floor(p.x / cell + float(n) / 2.0))
+	var cz = int(floor(p.z / cell + float(n) / 2.0))
+	if cx < 0 or cz < 0 or cx >= n or cz >= n:
+		return -1
+	return cz * n + cx
+
+
+# steps from cell `target` to every cell through cells with clearance >= clear, -1 where there is no way. The target
+# itself always counts as 0, even when the player stands against a building.
+func _route_count(target: int, clear: int) -> PackedInt32Array:
+	var n = int(layout["cells"])
+	var dist = PackedInt32Array()
+	dist.resize(n * n)
+	dist.fill(-1)
+	dist[target] = 0
+	var queue = [target]
+	var head = 0
+	while head < queue.size():
+		var i = int(queue[head])
+		head += 1
+		var x = i % n
+		var z = i / n
+		for step in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var nx = x + step.x
+			var nz = z + step.y
+			if nx < 0 or nz < 0 or nx >= n or nz >= n or dist[nz * n + nx] != -1:
+				continue
+			if ArenaGenScript.nav_clearance(layout, nx, nz) >= clear:
+				dist[nz * n + nx] = dist[i] + 1
+				queue.append(nz * n + nx)
+	return dist
+
+
+func _route_field(target: int, clear: int) -> PackedInt32Array:
+	if target != _route_cell:
+		_route_cell = target
+		_route_fields.clear()
+	if not _route_fields.has(clear):
+		_route_fields[clear] = _route_count(target, clear)
+	return _route_fields[clear]
+
+
+# the neighbour of cell i with the fewest steps to go, or -1. From a cell the counts do not reach (a boss squeezed
+# against a building) it is the neighbour with the fewest steps of those that have a count at all.
+func _route_next(field: PackedInt32Array, i: int) -> int:
+	var n = int(layout["cells"])
+	var x = i % n
+	var z = i / n
+	var here = field[i]
+	var best = -1
+	var best_d = 1 << 30
+	for step in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var nx = x + step.x
+		var nz = z + step.y
+		if nx < 0 or nz < 0 or nx >= n or nz >= n:
+			continue
+		var d = field[nz * n + nx]
+		if d < 0 or (here >= 0 and d >= here):
+			continue
+		if d < best_d:
+			best_d = d
+			best = nz * n + nx
+	return best
+
+
+# true if a boss could walk the straight line a to b with ROUTE_ROOM to spare on both sides
+func _line_free(a: Vector3, b: Vector3) -> bool:
+	var d = Vector3(b.x - a.x, 0.0, b.z - a.z)
+	var span = d.length()
+	if span < 0.01:
+		return true
+	var dir = d / span
+	var across = Vector3(-dir.z, 0.0, dir.x) * ROUTE_ROOM
+	var l = 0.5
+	while l < span + 0.5:
+		var p = a + dir * minf(l, span)
+		if obstacle_at(p) or obstacle_at(p + across) or obstacle_at(p - across):
+			return false
+		l += 0.5
+	return true
+
+
+# see Arena.route_dir. It follows the counts down from the cell `from` is in, up to ROUTE_LOOK cells, and stops
+# early where the straight line to the next cell is no longer free, so the boss cuts corners instead of walking
+# the grid in steps.
+func route_dir(from: Vector3, to: Vector3) -> Vector3:
+	var fi = _cell_index(from)
+	var ti = _cell_index(to)
+	if fi < 0 or ti < 0 or fi == ti:
+		return Vector3.ZERO
+	var field = _route_field(ti, ROUTE_CLEAR)
+	if field[fi] < 0:
+		field = _route_field(ti, 1)  # only a narrow way joins them
+	var cur = fi
+	var aim = -1
+	for i in range(ROUTE_LOOK):
+		var nxt = _route_next(field, cur)
+		if nxt < 0:
+			break
+		if i > 0 and not _line_free(from, cell_world(nxt)):
+			break
+		aim = nxt
+		cur = nxt
+		if field[cur] == 0:
+			break
+	if aim < 0:
+		return Vector3.ZERO
+	var w = cell_world(aim)
+	var d = Vector3(w.x - from.x, 0.0, w.z - from.z)
+	if d.length() < 0.01:
+		return Vector3.ZERO
+	return d.normalized()
+
+
 # true if a boss on foot at p is blocked: inside a building or a tunnel block, or outside the arena, or within
 # TREE_RIDER_CLEAR of a trunk, LAMP_RIDER_CLEAR of a pole or BLOCK_BOSS_CLEAR of a bench or a crate
 func obstacle_at(p: Vector3) -> bool:

@@ -2569,8 +2569,11 @@ const HUD_MARGIN = 18.0  # pixels at 720p between the HUD and the side of the wi
 const HUD_BOTTOM = 22.0  # ... and the bottom of the window (the baseline of the bottom row)
 
 
-# the width of a text in pixels
+# the width of a text in pixels (0 for a size of 0 or less, like _txt: a headless run has a window of no height, so
+# the sizes that are scaled by it come out as 0 and Godot would log "p_size <= 0" for each one)
 func _text_w(s: String, fs: int) -> float:
+	if fs <= 0:
+		return 0.0
 	return font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 
 
