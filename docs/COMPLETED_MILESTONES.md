@@ -239,6 +239,7 @@ Everything in `README.md` that is finished, moved here word for word on 2026-10-
 - [x] Map nodes: every node uses the whole arena with its own set-up (rider mix, gates in use, props, theme and modifiers), and the player starts each round in a clear start area (the owner left this choice to Claude, reasons in the design note)
 - [x] A rider that passes the player does damage as it does now (same dash and perfect-dodge rules); riders keep coming back until they are killed, with no cap on passes and no time limit (the melee weapon is the fallback), and a round ends when every rider is down
 - [x] Decide whether road, sidewalk and grass change rider speed
+- [x] Set the performance budget (triangles, lights, shadows, draw distance) on the minimum-spec machine
 
 ### Foundation
 

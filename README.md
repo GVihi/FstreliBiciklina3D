@@ -482,10 +482,6 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 > Every run gets one generated arena, about four times bigger than the roundabout, that the player walks through freely and where riders can ride on roads, sidewalks, grass and anywhere open. Design, owner decisions, current-code notes and open questions: [`docs/PROCEDURAL_ARENAS.md`](docs/PROCEDURAL_ARENAS.md). Needs the seed from Milestone G; the world kit from Milestone F9 should be reused for the dressing. This replaces how riders, bosses and pedestrians move (street coordinates become world positions), so it is large: work top to bottom, and the first steps keep the roundabout playing as it does today.
 
-## Decisions
-
-- [ ] Set the performance budget (triangles, lights, shadows, draw distance) on the minimum-spec machine (deferred by the owner: not needed yet, but needed before the world is built)
-
 ## Rider variety and arena hazards
 
 > Riders ride at the player, pass, turn and come back (`scripts/riders.gd`). On the bigger arena a few more patterns would make fights different from each other, and the buildings the arena already has could be part of the fight. Ideas to decide on before building; each must keep `rider_pursuit_check` and `round_clear_check` working (a round still ends when every rider is down, so no pattern may leave a rider that cannot be reached).
@@ -515,7 +511,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 ## Scale, variety and polish
 
-- [ ] Performance pass for the bigger arena (draw distance, culling, shadow and light counts) on the minimum-spec machine (the arena is now 144 m square, about 8 to 12 times the roundabout instead of 4, so the walkable ground, the buildings, the lamps and the gates all grew, and the 4 gold and 1 green light column of the objectives are new draw cost; frame time on weak hardware is not known)
+- [ ] Performance pass for the bigger arena (draw distance, culling, shadow and light counts) on the minimum-spec machine (the arena is now 144 m square, about 8 to 12 times the roundabout instead of 4, so the walkable ground, the buildings, the lamps and the gates all grew, and the 4 gold and 1 green light column of the objectives are new draw cost; frame time on weak hardware is not known; the limits it checks against are in `docs/PERFORMANCE_BUDGET.md`)
 - [x] Arena styles chosen by the seed: plaza, street canyon, market, bridge, tunnel, park (replaces the hand-built arenas in Milestone D)
   - [ ] Look and feel of the bridge and the tunnel: they are walled placeholder boxes with no water edge, no roof or ceiling and the same ground surfaces as the other styles; decide on water or a drop beside the deck, a roof or ceiling lights for the tunnel and a different ground (planks, tiles)
   - [ ] Playtest and balance each style: rider speed, sightlines and run length per style, how a bridge with only 2 gates plays against 3 to 6 riders, whether a tunnel's short sightlines are fair, and the weights (all 1 now; a style can be made rarer by lowering its `weight`)
