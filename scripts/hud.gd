@@ -2674,7 +2674,12 @@ func _draw() -> void:
 	elif state == "map":
 		_draw_map_screen(k, cx)
 
-	if state != "title":
+	if state == "loading":
+		_draw_loading(k, cx)
+	elif state == "dying":
+		_draw_dying(k, cx, blink)
+
+	if state != "title" and state != "loading" and state != "dying":
 		_draw_hint(k, cx)
 
 	if g.paused:
@@ -2700,6 +2705,27 @@ func _draw() -> void:
 	elif state == "title" and g.title_page == "settings":
 		_draw_settings(k)
 		_draw_settings_hints(k, cx)
+
+
+# ---------------------------------------------------------------- loading and death screens
+# A quiet screen before a run: the menu backdrop, one small pulsing LOADING line with dots.
+func _draw_loading(k: float, cx: float) -> void:
+	_menu_backdrop(k, 0.6)
+	var dots = ".".repeat(int(g.time * 3.0) % 4)
+	var pulse = 0.55 + 0.25 * sin(g.time * 4.0)
+	_txt("LOADING" + dots, cx, size.y * 0.5, int(22 * k), Color(TEXT, pulse), 1)
+
+
+# The death screen: the round fades to a red filter over main.DEATH_FADE seconds, the line fades in, then the prompt blinks.
+func _draw_dying(k: float, cx: float, blink: bool) -> void:
+	var t = g.state_t
+	var a = clampf(t / (g.DEATH_FADE * 0.75), 0.0, 1.0)
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.45, 0.02, 0.03, 0.88 * a))
+	var ta = clampf((t - 1.2) / 1.5, 0.0, 1.0)
+	if ta > 0.0:
+		_txt("Your journey ended too soon...", cx, size.y * 0.45, int(44 * k), Color(1, 0.88, 0.86, ta), 1)
+	if t >= g.DEATH_FADE and blink:
+		_txt("PRESS ANY KEY TO END RUN", cx, size.y * 0.62, int(22 * k), Color(1, 0.88, 0.86, 0.9), 1)
 
 
 # ---------------------------------------------------------------- pieces

@@ -17,6 +17,17 @@ func _init(game) -> void:
 
 # ================================================================== input
 func handle_input(event: InputEvent) -> void:
+	if g.state == "loading":
+		return  # a moment of nothing: no clicks or keys while the run is being made
+	if g.state == "dying":
+		var pressed = (
+			(event is InputEventKey and event.pressed and not event.echo)
+			or (event is InputEventMouseButton and event.pressed)
+			or (event is InputEventJoypadButton and event.pressed)
+		)
+		if pressed:
+			g.end_death_screen()
+		return
 	if g.intro_active:
 		intro_input(event)  # nothing else reacts while the intro screen is up
 		return
@@ -349,7 +360,7 @@ func summary_activate(i: int) -> void:
 	g.summary_sel = i
 	var id = g.hud.SUMMARY_ITEMS[i]["id"]
 	if id == "new_run":
-		g.restart_run()  # a new seed in a normal run, the same seed again in a Daily Run or a run on a typed-in seed
+		g.begin_loading(func(): g.restart_run())  # a new seed in a normal run, the same seed again in a Daily Run or a run on a typed-in seed
 	elif id == "unlocks":
 		open_unlocks_from_summary()  # Esc goes back to the title menu, not to this summary
 	else:
@@ -415,7 +426,8 @@ func seed_start() -> void:
 		g.sfx.play("click")
 		return
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	g.start_game(false, g.seed_buf.hex_to_int())
+	var sd = g.seed_buf.hex_to_int()
+	g.begin_loading(func(): g.start_game(false, sd))
 
 
 func confirm_name() -> void:
@@ -530,16 +542,16 @@ func title_activate(i: int) -> void:
 	if i == g.hud.TITLE_CONTINUE:
 		if g.hud.title_has_continue():
 			g.title_sel = i
-			g.continue_run()
+			g.begin_loading(func(): g.continue_run())
 		return
 	g.title_sel = i
 	var id = g.hud.TITLE_ITEMS[i]["id"]
 	if id == "play":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		g.start_game()
+		g.begin_loading(func(): g.start_game())
 	elif id == "daily":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		g.start_game(true)
+		g.begin_loading(func(): g.start_game(true))
 	elif id == "training":
 		training_start()
 	elif id == "quit":
@@ -993,7 +1005,7 @@ func confirm_activate(i: int) -> void:
 		return
 	g.pause_page = ""
 	if id == "restart":
-		g.restart_run()
+		g.begin_loading(func(): g.restart_run())
 	elif id == "title":
 		g.abandon_run()
 
