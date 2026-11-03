@@ -2771,8 +2771,11 @@ const HUD_MARGIN = 18.0  # pixels at 720p between the HUD and the side of the wi
 const HUD_BOTTOM = 22.0  # ... and the bottom of the window (the baseline of the bottom row)
 
 
-# the width of a text in pixels
+# the width of a text in pixels (0 for a size of 0 or less, like _txt: a headless run has a window of no height, so
+# the sizes that are scaled by it come out as 0 and Godot would log "p_size <= 0" for each one)
 func _text_w(s: String, fs: int) -> float:
+	if fs <= 0:
+		return 0.0
 	return font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 
 
@@ -3046,7 +3049,7 @@ func _draw_hud_centre(k: float) -> void:
 		var chip_w = _text_w("V", fs) + 10.0 * k
 		var total = lw + 6.0 * k + chip_w
 		_txt("DASH", mx - total * 0.5, base, fs, ACCENT)
-		_key_chip("V", mx + total * 0.5, base, fs, k)
+		# _key_chip("V", mx + total * 0.5, base, fs, k)
 	else:
 		_txt("DASH", mx, base, fs, GRAY, 1)
 	var df = 1.0 if ready else clampf(1.0 - g.dash_cd / 0.9, 0.0, 1.0)
@@ -3144,13 +3147,13 @@ func _draw_boss_ui(k: float) -> void:
 					Rect2(size.x - 16.0 * k, 0, 16.0 * k, size.y), Color(1.0, 0.16, 0.12, pulse)
 				)
 				if int(g.time * 8.0) % 2 == 0:
-					var warn = "GET OFF THE RED LANE!  DASH [V]"
+					var warn = "GET OFF THE RED LANE!  DASH"
 					if mode == "tele" and b["pat"] == "slam":
-						warn = "GET OUT OF THE CIRCLE!  OR DASH THROUGH [V]"
+						warn = "GET OUT OF THE CIRCLE!  OR DASH THROUGH"
 					elif mode == "tele" and b["pat"] == "volley":
 						warn = "PHONES INCOMING!  DODGE OR DEFLECT"
 					elif b["combo"] > 0:
-						warn = "COMBO!  KEEP MOVING  [V]"
+						warn = "COMBO!  KEEP MOVING"
 					_txt(warn, cx, size.y * 0.45, int(22 * k), ACCENT, 1)
 			elif mode == "stagger":
 				var gp = 0.10 + 0.08 * absf(sin(g.time * 8.0))

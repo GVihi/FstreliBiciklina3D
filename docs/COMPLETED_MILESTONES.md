@@ -239,6 +239,7 @@ Everything in `README.md` that is finished, moved here word for word on 2026-10-
 - [x] Map nodes: every node uses the whole arena with its own set-up (rider mix, gates in use, props, theme and modifiers), and the player starts each round in a clear start area (the owner left this choice to Claude, reasons in the design note)
 - [x] A rider that passes the player does damage as it does now (same dash and perfect-dodge rules); riders keep coming back until they are killed, with no cap on passes and no time limit (the melee weapon is the fallback), and a round ends when every rider is down
 - [x] Decide whether road, sidewalk and grass change rider speed
+- [x] Set the performance budget (triangles, lights, shadows, draw distance) on the minimum-spec machine
 
 ### Foundation
 
@@ -317,3 +318,77 @@ Everything in `README.md` that is finished, moved here word for word on 2026-10-
 - [x] Move items into data tables (shop items, packs and upgrade tiers are in `data/items.json`; see `data/README.md`)
 - [x] Move perks into data tables (perks and duos are in `data/perks.json`; see `data/README.md`)
 - [x] Move weapons into data tables (dart gun and melee tuning are in `data/weapons.json`; see `data/README.md`)
+
+## Keeping secrets out of the public repository
+
+- [x] Turn on GitHub secret scanning and push protection for the repository (Settings > Code security), so a push that contains a known key format is blocked
+- [x] Extend `.gitignore` before any secret file exists (done as V1.1 of the Web Integration Roadmap)
+- [x] Add an example file with fake values (for example `secrets.example.cfg`) that shows what the game or the build expects, and have the game, the launcher and the build scripts read the real values from an untracked file or an environment variable (the template and the game's loader are V1.2 of the Web Integration Roadmap; the build scripts do not exist yet and read the same environment variables when they are written, V2.5 and V4.1)
+- [x] Add a pre-commit check that stops a commit if the staged changes contain a key-like string (done as V1.4 of the Web Integration Roadmap: `tools/secrets_check.py`, no `.bat` needed since the testing rule changed on 2026-10-27)
+- [x] Add a secrets check to CI that fails a pull request when it finds one (done as V1.5 of the Web Integration Roadmap: the `secrets` job in `.github/workflows/ci.yml`)
+- [x] Decide where the real keys live and write down who has them and how to rotate them (done as V1.7 of the Web Integration Roadmap: [`docs/SECRETS.md`](docs/SECRETS.md))
+- [x] Write a short "a key leaked" procedure in `docs/` (done as V1.7: "A key leaked" in [`docs/SECRETS.md`](docs/SECRETS.md))
+- [x] Do a one-time look through the existing history for anything key-like before the web integration starts (nothing was found in the current files)
+
+# Milestone L: Jumping
+
+Jumping on Space, so the movement feels like a modern FPS. Space was the dash key (and the gamepad A button), so the first step was to give dash a new key: it is V now (left bumper on a gamepad), and Space and A are free for jumping.
+
+> Feel goal: fast-paced, like a Quake game. Sprints, jumps and dashes chain into each other, and the player can aim and shoot while airborne. Every decision below should be judged against that.
+>
+> Movement inspiration: the game S4 League (fast, acrobatic third-person shooter movement with wall-jumps, dashes and dodges that chain into each other). Take the feel of the movement, not the exact rules or numbers. The game stays first person: the third-person view that used to be Milestone M was dropped by the owner on 2026-11-01.
+
+- [x] Decide the new dash key and gamepad button (Space and A are taken by jumping), and move dash there in the input map, the key rebinding list, the Controls page and the HUD hint under the dash bar (decided with the owner: V, and LB on a gamepad; V no longer toggles voices, that is in the settings only; note in `docs/ROADMAP_HISTORY.md`; key rebinding does not exist yet, so that list is left to the "Key rebinding" item; waits for an in-game check by the owner)
+- [x] Jump on Space: a short hop with gravity, a fixed jump height and some air control (decide the numbers while building it; coyote time and jump buffering make it feel right)
+- [x] Jump on the gamepad (A) and add it to the key rebinding list and the Controls page
+- [x] Decide how jumping mixes with sprint, crouch, slide and dash (can you jump out of a slide, dash in the air, shoot and aim while airborne)
+- [x] Fast, Quake-like movement flow: sprint into a jump without losing speed, start a dash from the air or out of a jump, keep momentum through the landing, and aim, shoot and throw while airborne with no penalty to aim; tune it so chaining sprint, jump and dash is clearly faster than walking and every step of it can be cancelled into the next (decide the numbers while building it, and check it does not make riders, bosses or the arena size feel too small)
+- [x] Wall-jumps (S4 League style): jump off a wall or other solid surface while airborne next to it to get pushed away from it and upwards, with a short window after contact, a limit on how many wall-jumps can chain before touching the ground, and momentum kept through the jump so a run of them climbs or crosses a gap; decide which arena surfaces allow it (buildings and walls yes, the fountain and props to be decided), and check the `Arena` bounds queries (`clamp_walk`, `obstacle_at`) so a wall-jump can never lift the player over the arena edge, which is covered by the "Keep the player inside the arena" item below
+- [x] Side dash / dodge (S4 League style): a quick sideways burst to the left or right, taken from the ground or from the air, with its own short cooldown and key or double-tap input (decide with the dash key above), that can be chained out of a jump, a wall-jump or a sprint and into the next move; decide how it relates to the existing dash and its bar (a separate charge or the same one), and whether a side dash at the right moment counts as a PERFECT DODGE (see the dodge item below)
+- [x] Decide whether jumping over a passing rider counts as a dodge, and keep the PERFECT DODGE rule working as it does now
+- [x] Keep the player inside the arena while jumping: the height must not let the player clear buildings, props or the fountain, so the `Arena` bounds queries (`clamp_walk`, `obstacle_at`) still hold in the air
+- [x] Camera and gun feedback for take-off and landing (viewmodel dip, a small camera kick) and the jump and landing sounds (builds on "Footsteps, landing, slide and dash" in S2)
+- [x] Check darts, melee, hit boxes, aim assist and the radar while airborne
+- [x] Playtest and tune the feel: jump height, gravity, air control, wall-jump push and side dash distance
+
+## Exploration and extraction
+
+> The round no longer ends by itself when the last rider falls. Supply caches are spread over the (now bigger) arena for the curious, and once every rider and boss is down an extraction point opens at the far end and the round is cleared when the player walks into it. Built on branch `rework/caches-extraction-point-fresnel-wip-crash-on-round-end`, which is a work in progress (commit "WIP rework", then "Crash fix"): nothing here is ticked off as playtested, and the lines that say "waiting for your in-game check" are still to be played. The roundabout has none of it (`objective_sys.enabled()` is false there) and plays as before.
+
+- [x] Caches with a catch (today they are pure reward): some of the 4 caches get a variant, chosen by the same seeded stream so the Daily Run gives everybody the same ones
+  - [x] Cursed cache: pays more but calls riders from the nearest gate when taken (note in `docs/ROADMAP_HISTORY.md`; pays 2x and calls 2 to 3 riders; waits for an in-game check by the owner)
+  - [x] Locked cache: needs a key that is found at another cache or dropped by a rider (note in `docs/ROADMAP_HISTORY.md`; the key is found at another cache, a rider drop is not built; waits for an in-game check by the owner)
+  - [x] A supply cache has a 12 % chance to hold 1 meta coin (asked by the owner on 2026-11-02, 10 to 15 %): the roll is seeded like the variants, any variant can hold one, and the coin is paid with the run like a boss coin (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner)
+  - [x] Vanishing cache (note in `docs/ROADMAP_HISTORY.md`; the seeded variant roll is built, the cursed and the locked cache join it; waits for an in-game check by the owner)
+  - [x] Mark the variants on the HUD and the radar so the player can tell them apart (colour and shape, not colour alone) (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game look)
+- [x] Choose your exit: the extraction point is one spot at a random place in the arena each round (seeded, not a gate) (note in `docs/ROADMAP_HISTORY.md`; `objective_check` not run yet, waits for an in-game check by the owner)
+
+# Early Alpha Roadmap (v0.2.0): done
+
+> The early alpha is finished: every box of its roadmap is ticked. The whole roadmap (the loop, the working order, sections A to E, the website milestone W, the "Not in the early alpha" list and the 2026-10-27 roadmap audit) moved to [`docs/ALPHA_ROADMAP.md`](docs/ALPHA_ROADMAP.md) on 2026-10-29, and what was shipped is in [`docs/ALPHA_NOTES.md`](docs/ALPHA_NOTES.md). Ids like "alpha D1", "A1.6", "C4" or "W5" elsewhere in this file point into that document.
+
+# Roguelite Development Roadmap
+
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Roguelite Development Roadmap". Only what is still open stays here.
+
+> The game is already most of the way to a roguelite. It has runs made of rounds, a shop, perks that pair into duos, and bosses. Almost everything on this list is a layer on top of that, plus the missing "between runs" progression.
+
+## Weapon Slots
+
+### Choosing weapons: unlock, then pick a loadout
+
+> Decided with the owner. New weapons are **bought first** with meta coins on the Unlocks page (the four weapons are already in `data/unlocks.json` as `planned`; the dart gun is bought too since alpha C2, `weapon_dart_gun`; **the gummy worm is bought too since 2026-10-31 (`weapon_gummy_worm`, 30 coins), so a new player starts with the dart pistol only: see "Melee weapon is locked at the start" below**). Before a run the player **chooses one weapon per slot** (primary, melee, gadget) on the Loadout screen, and the run starts with those three equipped through `equip_primary`, `equip_melee` and `equip_gadget`. Weapons are not found or bought inside a run, so they leave the shop pool (the "joins the shop pool" note in `data/README.md` changes when the first weapon is built). **A Daily Run still allows choosing a loadout** of weapons (everyone shares the seed, not the weapons). Q / wheel / 1 / 2 keep switching between the primary and the melee weapon; a gadget is used on the spot with its own key and is not switched to. Assumed slots for the new weapons: Suction-Dart Crossbow, Confetti Cannon and Phone Launcher are primary weapons, the Stink Bomb is a gadget (say if the Phone Launcher should be something else). Decided: a custom-seed run uses the chosen weapons too, and the starting perk of the Loadout page now applies in a Daily Run and a custom-seed run as well (it did not before).
+
+- [x] HUD slot display: show the primary, melee and gadget slots with the weapon in each and the one in the player's hands highlighted (three rows above the ammo counter in the bottom right, keys 1, 2 and G, the gadget row also shows the uses left and the cooldown; replaces the weapon name line and the gadget line) (note in `docs/ROADMAP_HISTORY.md`; check: `python tools/run_checks.py hud_slots`; waits for an in-game check by the owner)
+- [x] Gadget use key (keyboard and gamepad button): G and D-pad up; uses and cooldown shown as a line in the HUD corner (the full HUD slot display above came later) (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner)
+- [x] Melee weapon is locked at the start, and unlocks very fast
+
+> **Added 2026-10-28 (owner): a bunch of new weapons, melee variants and gadgets** (the rest of this section, up to "Synergies"). They follow the same rules as the weapons above: a new weapon is **bought first** on the Unlocks page (an entry in `data/unlocks.json` with `kind: "weapon"`, a name, a description and a tier of the price curve, `planned: true` until it is built), then **chosen on the Loadout page**, and never found in the shop pool. The tiers named below are first guesses (the price curve is 60, 120, 250, 450 and 750 coins), and so is every number. **A new weapon is done when:** (1) it is an entry of `data/weapons.json` with its numbers, described in `data/README.md` ("Adding a weapon" there lists every step); (2) the `info` of that entry says which slot it sits in, so it joins `PRIMARY_WEAPONS`, `MELEE_WEAPONS` or `GADGET_WEAPONS` of `scripts/weapon_slots.gd` by itself and needs no entry there, and `python tools/run_checks.py weapon_registry` passes; (3) a `tools/<name>_check.gd` covers what is special about it (the runner finds it by its name, no `.bat`); (4) `python tools/run_checks.py offer_sense` passes, because that check goes through every weapon in `PRIMARY_WEAPONS`: decide for each new primary weapon what the ammo drops, FREE DARTS, the cache ammo reward and the clip upgrades mean for it (the same question as B9.2), and give the entries that do nothing for it a `needs` (`data/README.md`, "What an entry needs to matter"); (5) the owner plays a run with it. Run only the checks of the code touched, not the whole suite (testing rule).
+
+# Milestone G: Procedural Map Generation
+
+> **Done, every item is ticked.** The full milestone (seed-based map generation, the generation rules, the completability check, the seed debug tool and the custom seed page) moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29. The rules are explained in [`docs/MAP_GENERATION.md`](docs/MAP_GENERATION.md). The heading stays here so references to "Milestone G" still find it.
+
+# Milestone J: Manual Reload
+
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone J: Manual Reload". Only what is still open stays here.

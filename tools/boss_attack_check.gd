@@ -18,6 +18,8 @@ const WALL_HALF_Z = 14.0
 const CHASE_SECONDS = 45.0
 const GEN_SEEDS = 30
 const GEN_SECONDS = 40.0
+const GATE_SEEDS = 12  # layouts of the every-gate walk (the first GATE_SEEDS of the GEN_SEEDS)
+const GATE_SECONDS = 100.0  # a boss from any gate has this long to get to the player, however long the way
 
 var bad: Array = []
 var main = null
@@ -45,6 +47,7 @@ func _init() -> void:
 	summary += _check_slam_wall()
 	summary += _check_chase_round_wall() + "\n"
 	summary += _check_generated_arenas()
+	summary += "\n" + _check_every_gate()
 	_finish(summary)
 
 
@@ -274,6 +277,9 @@ func _check_generated_arenas() -> String:
 		main.arena = arena
 		var player: Vector3 = arena.start_position()
 		main.player.position = player
+		# the gate (the game draws it from rider_rng) and the boss patterns are the same on every run
+		seed(1000 + k * 37)
+		main.rider_rng.seed = 1000 + k * 37
 		var b = _new_boss(4)
 		var first_attack = -1.0
 		var prev_mode = b["mode"]
@@ -314,4 +320,61 @@ func _check_generated_arenas() -> String:
 	return (
 		"on %d generated arenas the boss reached the player on %d (slowest %.1f s)"
 		% [seeds, attacked, slowest]
+	)
+
+
+# The check above lets the game pick the gate, so which gates it tries changes from run to run. This one walks a boss
+# in from every gate of the first GATE_SEEDS layouts, with the player standing on the start, and wants every one of
+# them to get there (the first attack or tackle) inside GATE_SECONDS: a boss that steers round what is in front of it
+# and nothing more can lose itself behind a building for ever (seeds 1037 to 1740 did). How soon it gets there is
+# not asked here, only that it does.
+func _check_every_gate() -> String:
+	var rules = ArenaGenScript.load_rules()
+	var walks = 0
+	var arrived = 0
+	var slowest = 0.0
+	for k in range(GATE_SEEDS):
+		var layout = ArenaGenScript.generate(1000 + k * 37, rules)
+		if layout.is_empty():
+			continue
+		var arena = GeneratedArena.new(layout, rules)
+		main.arena = arena
+		var player: Vector3 = arena.start_position()
+		var gates: Array = arena.gates()
+		for gi in range(gates.size()):
+			var gate: Dictionary = gates[gi]
+			main.player.position = player
+			seed(1000 + k * 37 + gi)
+			main.rider_rng.seed = 1000 + k * 37 + gi
+			var b = _new_boss(4)
+			b["wp"] = arena.clamp_walk(gate["pos"] - gate["outward"] * 5.0, "boss")
+			b["route_t"] = 0.0
+			walks += 1
+			var reached_at = -1.0
+			for step in range(int(GATE_SECONDS / DT)):
+				main.hearts = 99
+				main.invuln = 0.0
+				main.player.position = player
+				main.boss_sys.update_bosses(DT)
+				if main.bosses.is_empty():
+					break
+				if b["mode"] != "charge":
+					reached_at = float(step) * DT
+					break
+			_clear_bosses()
+			if reached_at >= 0.0:
+				arrived += 1
+				slowest = maxf(slowest, reached_at)
+			else:
+				bad.append(
+					(
+						"every gate: seed %d, gate %d: the boss never got to the player in %d s"
+						% [1000 + k * 37, gi, GATE_SECONDS]
+					)
+				)
+	if walks < GATE_SEEDS:
+		bad.append("every gate: only %d walks were made from %d layouts" % [walks, GATE_SEEDS])
+	return (
+		"from every gate of %d layouts the boss got to the player on %d of %d walks (slowest %.1f s)"
+		% [GATE_SEEDS, arrived, walks, slowest]
 	)

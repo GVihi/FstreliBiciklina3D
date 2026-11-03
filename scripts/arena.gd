@@ -114,6 +114,14 @@ func rider_avoidance() -> bool:
 	return false
 
 
+# The way a walking body should head to get from `from` to `to` round the buildings in between: a unit vector on the
+# ground, or Vector3.ZERO when the arena has no route to give (the roundabout has no buildings to go round, and a
+# generated arena gives none when `from` or `to` is outside the grid or no corridor joins them). The caller keeps
+# steering round whatever is right in front of it; this only says which way round.
+func route_dir(_from: Vector3, _to: Vector3) -> Vector3:
+	return Vector3.ZERO
+
+
 # The arena style the run seed picked (README Milestone K, "Arena styles chosen by the seed"): "plaza", "canyon",
 # "market", "park", "bridge" or "tunnel" on a generated arena, "" on the roundabout, and its name for the screen
 # ("STREET CANYON"; "" where there is no style).

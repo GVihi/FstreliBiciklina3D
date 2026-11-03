@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "machine": "Intel i5-7500, GTX 1060 3 GB, 8 GB RAM, 1080p at 60 fps (docs/ART_DIRECTION.md, section 5)",
+  "frame_ms": 16.6,
+  "world": {
+    "triangles_max": 300000,
+    "draw_calls_max": 40
+  },
+  "entities": {
+    "triangles_max": 100000
+  },
+  "lights": {
+    "lamp_lights_on_max": 8,
+    "other_lights_on_max": 4,
+    "shadow_casting_lights_max": 1
+  },
+  "shadows": {
+    "sun_splits": 1,
+    "sun_max_distance_m": 36.0
+  },
+  "draw_distance_m": 250.0
+}
