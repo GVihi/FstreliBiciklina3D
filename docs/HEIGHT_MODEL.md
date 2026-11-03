@@ -33,7 +33,7 @@ ground, the `Arena` interface, riders, combat, tools) all read the same rules.
 | Change between neighbouring cells | Player | Riders and bosses |
 |---|---|---|
 | up to 0.5 m (1 unit) | walks, **automatic step-up** | rides it as a slope (see below) |
-| 0.5 to 0.8 m | jump (the hop is about 0.84 m) | blocked |
+| 0.5 to 0.8 m | jump (the hop is about 1.09 m since 2026-11-03, so a ledge up to 0.8 m is a jump and not a wall) | blocked |
 | more than 0.8 m | blocked (wall-jump can climb it) | blocked |
 | stairs | walk up (treads of 0.5 m) | **blocked in the first version** (stairs are obstacles for bikes) |
 

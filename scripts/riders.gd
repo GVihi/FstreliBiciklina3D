@@ -8,6 +8,8 @@ const Rim = preload("res://scripts/rim.gd")
 # Steering. A rider owns its world position and the way it faces ("yaw") and steers at a point on its lane
 # a little way ahead, turning no faster than TURN_RATE. On the roundabout that point is on the lane circle,
 # so the rider rides the same ring as before; open ground will steer at the player instead.
+const BOX_REACH = 1.3  # metres: a rider this close to the bench or crate the player stands on has reached the player (riders ride about 1 m off a box)
+const BOX_REACH_FLAT = 2.6  # and no further than this from the player, so a box further along the same bench is not it
 const TURN_RATE = 9.0  # radians per second: more than the ring ever asks for (about 3 at full speed)
 const LOOKAHEAD_MIN = 0.5  # metres
 const LOOKAHEAD_TIME = 0.03  # seconds of riding: the point to steer at is this far ahead (at least the minimum)
@@ -475,7 +477,13 @@ func rider_collide(r: Dictionary) -> void:
 	if g.state != "play" or r["hidden"]:
 		return
 	var rp = r["pos"]
-	if Vector2(rp.x - g.player.position.x, rp.z - g.player.position.z).length() < 0.95:
+	var flat = Vector2(rp.x - g.player.position.x, rp.z - g.player.position.z).length()
+	# a player standing on a bench or crate cannot be ridden into (riders keep about a metre off a box), so a rider that
+	# comes up to the box the player is on counts as reaching the player
+	var at_the_box = (
+		g.floor_h > 0.0 and flat < BOX_REACH_FLAT and g.arena.stand_gap(rp, BOX_REACH) < BOX_REACH
+	)
+	if flat < 0.95 or at_the_box:
 		if g.player_sys.is_hurdling():  # jumped over it: no collision, but no PERFECT DODGE either (that is for the dashes)
 			if not r.get("hurdled", false):
 				r["hurdled"] = true

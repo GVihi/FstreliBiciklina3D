@@ -282,6 +282,7 @@ var slide_cd = 0.0
 # player node, and riders, phones and boss slams look at the height). clamp_walk and obstacle_at only look at x and z,
 # so the arena bounds hold in the air.
 var jump_h = 0.0  # metres above the ground, 0 = standing on it (the same number as player.position.y)
+var floor_h = 0.0  # metres: the floor under the player's feet, 0 on the ground, the top of a bench or crate on one (Arena.stand_height)
 var jump_v = 0.0  # vertical speed (m/s, up is positive)
 var jump_buf = 0.0  # > 0 for a moment after Space / A was pressed, so a press just before landing still jumps
 var coyote_t = 0.0  # > 0 while a jump is still allowed (grace after leaving the ground; the ground is flat for now)

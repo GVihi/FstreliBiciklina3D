@@ -84,10 +84,10 @@ func _check_hop() -> void:
 		if not main.player_sys.is_airborne() and frames > 2:
 			break
 	var seconds = float(frames) * DT
-	if top < 0.7 or top > 1.0:
-		_fail("a standing hop reached %.2f m, expected about 0.84 m" % top)
+	if top < 0.95 or top > 1.25:
+		_fail("a standing hop reached %.2f m, expected about 1.09 m" % top)
 	if seconds < 0.45 or seconds > 0.75:
-		_fail("a standing hop lasted %.2f s, expected about 0.58 s" % seconds)
+		_fail("a standing hop lasted %.2f s, expected about 0.66 s" % seconds)
 	if main.player_sys.is_airborne() or main.jump_h != 0.0:
 		_fail("the hop did not end on the ground")
 	if cam_top < eye + top - 0.05:
@@ -378,11 +378,9 @@ func _check_bounds_generated() -> void:
 					main.player_sys.try_side_dash(1.0 if (k / 40) % 2 == 0 else -1.0)
 				main._process(DT)
 				var p = main.player.position
-				if (
-					absf(p.y - main.jump_h) > 0.0001
-					or main.arena.obstacle_at(p)
-					or main.clamp_walk(p).distance_to(p) > 0.01
-				):
+				# clamp_walk is the player's own test (it knows the player may stand on a bench or a crate); obstacle_at is
+				# what a boss on foot sees, which is not for a player above a box
+				if absf(p.y - main.jump_h) > 0.0001 or main.clamp_walk(p).distance_to(p) > 0.01:
 					bad += 1
 	main.arena = old_arena
 	if tested == 0:
