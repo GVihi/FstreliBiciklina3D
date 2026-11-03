@@ -11,6 +11,7 @@ const GAME_TITLE = "FB3D"
 
 const Lighting = preload("res://scripts/lighting.gd")
 const Util = preload("res://scripts/util.gd")
+const Keybinds = preload("res://scripts/keybinds.gd")
 const WorldBuilder = preload("res://scripts/world.gd")
 const Models = preload("res://scripts/models.gd")
 const HudScript = preload("res://scripts/hud.gd")
@@ -335,6 +336,11 @@ var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / 
 var pause_page = ""  # "" = pause menu, "settings" = settings panel, "controls", "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
 var setting_sel = 0  # highlighted row of the settings panel (keyboard / gamepad / mouse hover)
+var keys_sel = 0  # highlighted row of the REBIND KEYS page (the last row is RESET TO DEFAULTS)
+var keys_col = 0  # 0 = the key of that control, 1 = its alternative
+var keys_capture = false  # the page is waiting for the key that becomes the new binding
+var keys_msg = ""  # the line under the list: swapped, refused, cleared
+var keys_msg_t0 = -100.0  # `time` when keys_msg was set
 var confirm_id = ""  # what the confirmation asks about: "restart", "title", or "reset1" / "reset2" (the two RESET ALL PROGRESS warnings)
 var progress_wiped_t0 = -100.0  # g.time of the last RESET ALL PROGRESS, for the "ALL PROGRESS WIPED" line under the settings panel
 var progress_wipe_failed = 0  # how many progress files that wipe could not delete (0 = all gone)
@@ -2050,9 +2056,7 @@ func map_held() -> bool:
 	if state != "play" or paused:
 		return false
 	return (
-		map_key_forced
-		or Input.is_key_pressed(KEY_M)
-		or Input.is_joy_button_pressed(0, JOY_BUTTON_BACK)
+		map_key_forced or Keybinds.pressed("map") or Input.is_joy_button_pressed(0, JOY_BUTTON_BACK)
 	)
 
 
@@ -2066,13 +2070,13 @@ func stick(ax_x: int, ax_y: int) -> Vector2:
 # keyboard + left stick, x = right, y = forward
 func read_move() -> Vector2:
 	var mv = Vector2.ZERO
-	if Input.is_physical_key_pressed(KEY_W):
+	if Keybinds.pressed("forward"):
 		mv.y += 1.0
-	if Input.is_physical_key_pressed(KEY_S):
+	if Keybinds.pressed("back"):
 		mv.y -= 1.0
-	if Input.is_physical_key_pressed(KEY_A):
+	if Keybinds.pressed("left"):
 		mv.x -= 1.0
-	if Input.is_physical_key_pressed(KEY_D):
+	if Keybinds.pressed("right"):
 		mv.x += 1.0
 	if pad_on():
 		var ls = stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y)

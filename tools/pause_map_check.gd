@@ -53,6 +53,7 @@ func _drop(m) -> void:
 func _key(key: int, pressed: bool) -> void:
 	var ev = InputEventKey.new()
 	ev.keycode = key
+	ev.physical_keycode = key  # a real keyboard sends both; the map key is read by its physical key (keybinds.gd)
 	ev.pressed = pressed
 	Input.parse_input_event(ev)
 
