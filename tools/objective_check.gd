@@ -4,7 +4,8 @@ extends SceneTree
 #
 # Spots (scripts/arena_generated.gd): on 150 generated arenas the extraction point and the supply caches repeat for
 # the same seed, stand on ground that can be walked to with room round it, and are spread out (the extraction point
-# is far from the start, the caches far from the start, the extraction point and each other).
+# is at least GOAL_MIN_WALK from the start and moves from round to round instead of sitting at the far end, the caches
+# far from the start, the extraction point and each other).
 # Round (scripts/objective.gd): a generated round has caches and a locked extraction point, a cache pays once, taking
 # them all pays the bonus, the roundabout has none of it.
 # Cache variants (scripts/objective.gd): `pick_variants` repeats for the same seed, never gives more than VARIANT_MAX
@@ -32,7 +33,8 @@ const Models = preload("res://scripts/models.gd")
 const Objective = preload("res://scripts/objective.gd")
 
 const SEEDS = 150
-const GOAL_MIN_SHARE = 0.55  # the extraction point is at least this share of the way to the farthest reachable cell
+const GOAL_ROUNDS = 40  # rounds of one arena whose extraction points are compared
+const GOAL_MIN_DISTINCT = 10  # ... at least this many different spots among them (it used to be one of 6)
 const SEED = 0x2468ACE0
 
 var problems = []
@@ -93,11 +95,35 @@ func _spots() -> void:
 			continue
 		if ArenaGenScript.nav_clearance(layout, gi % n, gi / n) < GeneratedArena.GOAL_CLEAR:
 			_fail("%s: the extraction point has no room round it" % tag)
-		var far = 0
-		for d in dist:
-			far = maxi(far, d)
-		if float(dist[gi]) < float(far) * GOAL_MIN_SHARE:
-			_fail("%s: the extraction point is only %d of %d steps away" % [tag, dist[gi], far])
+		if float(dist[gi]) * cell < GeneratedArena.GOAL_MIN_WALK:
+			_fail(
+				(
+					"%s: the extraction point is only %.0f m of walking from the start"
+					% [tag, float(dist[gi]) * cell]
+				)
+			)
+		if k % 15 == 0:
+			# the point moves from round to round and is not always at the far end
+			var spots = {}
+			var near_far_end = 0
+			var far = 0
+			for d in dist:
+				far = maxi(far, d)
+			for r in range(GOAL_ROUNDS):
+				var gr = a.goal_spot(_rng(run_seed + 1000 + r))
+				spots[gr] = true
+				var ri = _cell_index(a, gr)
+				if ri >= 0 and float(dist[ri]) >= float(far) * 0.9:
+					near_far_end += 1
+			if spots.size() < GOAL_MIN_DISTINCT:
+				_fail(
+					(
+						"%s: %d rounds gave only %d different extraction points"
+						% [tag, GOAL_ROUNDS, spots.size()]
+					)
+				)
+			if near_far_end == GOAL_ROUNDS:
+				_fail("%s: every extraction point is still at the far end" % tag)
 		var caches = a.cache_spots(4, goal, _rng(run_seed + 1))
 		if caches != a.cache_spots(4, goal, _rng(run_seed + 1)):
 			_fail("%s: the caches are not repeatable" % tag)
