@@ -684,7 +684,7 @@ Jumping on Space, so the movement feels like a modern FPS. Space was the dash ke
 - [x] Keep the player inside the arena while jumping: the height must not let the player clear buildings, props or the fountain, so the `Arena` bounds queries (`clamp_walk`, `obstacle_at`) still hold in the air
 - [x] Camera and gun feedback for take-off and landing (viewmodel dip, a small camera kick) and the jump and landing sounds (builds on "Footsteps, landing, slide and dash" in S2)
 - [x] Check darts, melee, hit boxes, aim assist and the radar while airborne
-- [ ] Playtest and tune the feel: jump height, gravity, air control, wall-jump push and side dash distance
+- [x] Playtest and tune the feel: jump height, gravity, air control, wall-jump push and side dash distance
 
 ---
 
@@ -827,5 +827,5 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 - [ ] Milestone I: Roguelite progression (builds on the meta currency and unlocks in Milestone B)
 - [ ] Milestone J: Manual reload (small and independent, can be done at any time)
 - [ ] Milestone K: Procedural arenas (big: replaces how riders and bosses move; start with the "Foundation" steps, which keep the roundabout playing as today)
-- [ ] Milestone L: Jumping (small and independent; dash has moved from Space to V, so Space is free); now also holds the fast S4 League style movement: wall-jumps and the side dash / dodge
+- [x] Milestone L: Jumping (small and independent; dash has moved from Space to V, so Space is free); now also holds the fast S4 League style movement: wall-jumps and the side dash / dodge
 - [ ] Milestone N: Website, launcher and online services (Django app and API, login, cloud saves, save protection, leaderboards, bug reports, installer and auto updates; mostly independent of the gameplay milestones, but XP and levels live in Milestone I, and the online leaderboard builds on Milestone A)
