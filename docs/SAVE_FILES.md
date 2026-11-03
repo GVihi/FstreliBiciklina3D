@@ -22,6 +22,15 @@ A file written before versioning has no version number and counts as **version 0
 - The flags are **settings, not progress**: RESET ALL PROGRESS keeps `settings.cfg`, so a reset does not show the hints again. To see them again, delete the `[hints]` section (or set the values to `false`) by hand.
 - The **FIRST-TIME HINTS** row of the settings page is `show_hints` under `[game]` (`true` = ON, the default). A missing key or a value that is not `true` / `false` loads as ON. With it OFF no hint is shown and the flags above are **not** used up, so switching it ON again shows the hints the player has not met yet; a hint that was already seen stays seen. Switching it OFF also takes a line that is on screen away at once. Like the flags it is kept by RESET ALL PROGRESS.
 
+## Key bindings (`[keys]` in `settings.cfg`)
+
+`settings.cfg` has a `[keys]` section with one entry per rebindable control (`forward`, `left`, `back`, `right`, `sprint`, `crouch`, `jump`, `dash`, `reload`, `switch`, `gun`, `melee`, `gadget`, `map`; the list is `ACTIONS` in `scripts/keybinds.gd`). Each value is a pair of whole numbers, the key and the alternative, as Godot physical key codes (`0` = no alternative), for example `jump=[32, 0]`.
+
+- A missing section, an entry that is not a pair of whole numbers, a menu key (Esc, Tab, Enter, the arrows, F7, F9, F10, F11, Delete, Backspace, T) or Alt, Meta or Caps Lock, a control with no key, or the same key on both spots: that control loads on its **default** keys.
+- Two controls on one key: **every** control loads on its defaults, so a hand-edited file can only make the keys go back, never leave a control that cannot be pressed.
+- The bindings are **settings, not progress**: RESET ALL PROGRESS keeps them. RESET TO DEFAULTS on the REBIND KEYS page puts them back.
+- Not rebindable: the mouse, the gamepad, and the menu keys above. Keys 1 to 4 and Space also work on the shop, map and upgrade screens whatever the bindings say.
+
 ## Safety rules (`scripts/save_util.gd`)
 
 - A file that cannot be read is copied to `<file>.bad.bak` before the game saves over it.

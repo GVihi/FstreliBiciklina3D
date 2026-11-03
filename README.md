@@ -392,7 +392,7 @@ Mostly vibe coded Godot game
 - [x] Try before buying: a TRY IT button on the Unlocks page takes the player and the weapon into the training room (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner)
 - [x] Training room on the title menu: a TRAINING ROOM entry takes the player into the room with the chosen loadout, and the room has no pedestrians (note in `docs/ROADMAP_HISTORY.md`; not run here, waits for the checks and an in-game look by the owner)
 - [ ] Short tutorial
-- [ ] Key rebinding
+- [x] Key rebinding (note in `docs/ROADMAP_HISTORY.md`; `keybinds` and the checks of the code it touched not run yet, waits for an in-game check by the owner)
 
 ## Accessibility
 
@@ -600,7 +600,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 > Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone J: Manual Reload". Only what is still open stays here.
 
-- [ ] Add reload to the key rebinding list and the Controls page (the Controls page exists now and lists R and X for reload; key rebinding does not exist yet, so only the rebinding list is left)
+- [x] Add reload to the key rebinding list and the Controls page (done with Key rebinding; note in `docs/ROADMAP_HISTORY.md`)
 - [ ] Rebalance darts per magazine and reload time now that reloading is not free
 
 ---
