@@ -174,7 +174,8 @@ func _row() -> void:
 		_fail("next_value gave %s for %d sizes" % [str(next), count])
 	main.settings.set_setting("resolution", 9999)  # past the end: the last size, no crash
 	main.settings.set_setting("resolution", -5)  # before the start: the first size, no crash
-	if before == Vector2i.ZERO:
+	# a headless run has no window (the "headless" display server answers 0 x 0), so there is no size to report
+	if before == Vector2i.ZERO and DisplayServer.get_name() != "headless":
 		_fail("the window reported no size")
 	# the panel with its rows fits, and clears the help line
 	for s in SIZES:

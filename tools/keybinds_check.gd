@@ -21,6 +21,7 @@ var main
 
 
 func _initialize() -> void:
+	Input.use_accumulated_input = false  # a pressed key counts at once, not at the next real frame (as in jump_check)
 	Keybinds.reset_defaults()
 	_table()
 	_rules()
