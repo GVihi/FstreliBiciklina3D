@@ -476,24 +476,11 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 ---
 
-# Milestone J: Manual Reload
-
-> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone J: Manual Reload". Only what is still open stays here.
-
-- [ ] Add reload to the key rebinding list and the Controls page (the Controls page exists now and lists R and X for reload; key rebinding does not exist yet, so only the rebinding list is left)
-- [ ] Rebalance darts per magazine and reload time now that reloading is not free
-
----
-
 # Milestone K: Procedural Arenas
 
 > Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone K: Procedural Arenas". Only what is still open stays here.
 
 > Every run gets one generated arena, about four times bigger than the roundabout, that the player walks through freely and where riders can ride on roads, sidewalks, grass and anywhere open. Design, owner decisions, current-code notes and open questions: [`docs/PROCEDURAL_ARENAS.md`](docs/PROCEDURAL_ARENAS.md). Needs the seed from Milestone G; the world kit from Milestone F9 should be reused for the dressing. This replaces how riders, bosses and pedestrians move (street coordinates become world positions), so it is large: work top to bottom, and the first steps keep the roundabout playing as it does today.
-
-## Decisions
-
-- [ ] Set the performance budget (triangles, lights, shadows, draw distance) on the minimum-spec machine (deferred by the owner: not needed yet, but needed before the world is built)
 
 ## Rider variety and arena hazards
 
@@ -524,7 +511,7 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 ## Scale, variety and polish
 
-- [ ] Performance pass for the bigger arena (draw distance, culling, shadow and light counts) on the minimum-spec machine (the arena is now 144 m square, about 8 to 12 times the roundabout instead of 4, so the walkable ground, the buildings, the lamps and the gates all grew, and the 4 gold and 1 green light column of the objectives are new draw cost; frame time on weak hardware is not known)
+- [ ] Performance pass for the bigger arena (draw distance, culling, shadow and light counts) on the minimum-spec machine (the arena is now 144 m square, about 8 to 12 times the roundabout instead of 4, so the walkable ground, the buildings, the lamps and the gates all grew, and the 4 gold and 1 green light column of the objectives are new draw cost; frame time on weak hardware is not known; the limits it checks against are in `docs/PERFORMANCE_BUDGET.md`)
 - [x] Arena styles chosen by the seed: plaza, street canyon, market, bridge, tunnel, park (replaces the hand-built arenas in Milestone D)
   - [ ] Look and feel of the bridge and the tunnel: they are walled placeholder boxes with no water edge, no roof or ceiling and the same ground surfaces as the other styles; decide on water or a drop beside the deck, a roof or ceiling lights for the tunnel and a different ground (planks, tiles)
   - [ ] Playtest and balance each style: rider speed, sightlines and run length per style, how a bridge with only 2 gates plays against 3 to 6 riders, whether a tunnel's short sightlines are fair, and the weights (all 1 now; a style can be made rarer by lowering its `weight`)
@@ -659,7 +646,7 @@ The game gets a home on the web: a new Django app on the existing website (Djang
 - [x] Milestone G: Procedural map generation (done, see `docs/COMPLETED_MILESTONES.md`)
 - [ ] Milestone H: Run start sequence (needs the map from Milestone G to fade into)
 - [ ] Milestone I: Roguelite progression (builds on the meta currency and unlocks in Milestone B)
-- [ ] Milestone J: Manual reload (small and independent, can be done at any time)
+- [x] Milestone J: Manual reload (small and independent, can be done at any time)
 - [ ] Milestone K: Procedural arenas (big: replaces how riders and bosses move; start with the "Foundation" steps, which keep the roundabout playing as today)
 - [x] Milestone L: Jumping (small and independent; dash has moved from Space to V, so Space is free); now also holds the fast S4 League style movement: wall-jumps and the side dash / dodge
 - [ ] Milestone N: Website, launcher and online services (Django app and API, login, cloud saves, save protection, leaderboards, bug reports, installer and auto updates; mostly independent of the gameplay milestones, but XP and levels live in Milestone I, and the online leaderboard builds on Milestone A)

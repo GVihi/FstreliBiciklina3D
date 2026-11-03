@@ -239,6 +239,7 @@ Everything in `README.md` that is finished, moved here word for word on 2026-10-
 - [x] Map nodes: every node uses the whole arena with its own set-up (rider mix, gates in use, props, theme and modifiers), and the player starts each round in a clear start area (the owner left this choice to Claude, reasons in the design note)
 - [x] A rider that passes the player does damage as it does now (same dash and perfect-dodge rules); riders keep coming back until they are killed, with no cap on passes and no time limit (the melee weapon is the fallback), and a round ends when every rider is down
 - [x] Decide whether road, sidewalk and grass change rider speed
+- [x] Set the performance budget (triangles, lights, shadows, draw distance) on the minimum-spec machine
 
 ### Foundation
 
@@ -387,3 +388,7 @@ Jumping on Space, so the movement feels like a modern FPS. Space was the dash ke
 # Milestone G: Procedural Map Generation
 
 > **Done, every item is ticked.** The full milestone (seed-based map generation, the generation rules, the completability check, the seed debug tool and the custom seed page) moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29. The rules are explained in [`docs/MAP_GENERATION.md`](docs/MAP_GENERATION.md). The heading stays here so references to "Milestone G" still find it.
+
+# Milestone J: Manual Reload
+
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone J: Manual Reload". Only what is still open stays here.
