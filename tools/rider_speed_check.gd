@@ -24,6 +24,7 @@ func _init() -> void:
 	root.add_child(main)
 	for i in range(3):
 		await process_frame
+	main.heat = 0  # the numbers below are the game without Heat, whatever level settings.cfg remembers
 	main.start_game(false, SEED)
 	main.pick_node(0)
 	if main.state != "play":

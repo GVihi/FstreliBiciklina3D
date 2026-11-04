@@ -113,11 +113,13 @@ func handle_input(event: InputEvent) -> void:
 			menu_move(-1)
 			confirm_move()
 			settings_adjust(-1)
+			heat_adjust(-1)
 		elif kc == KEY_RIGHT:
 			loadout_switch(1)
 			menu_move(1)
 			confirm_move()
 			settings_adjust(1)
+			heat_adjust(1)
 		elif kc == KEY_UP or Keybinds.matches(event, "forward"):
 			title_move(-1)
 			summary_move(-1)
@@ -266,10 +268,12 @@ func on_pad_button(btn: int) -> void:
 		loadout_switch(-1)
 		menu_move(-1)
 		settings_adjust(-1)
+		heat_adjust(-1)
 	elif btn == JOY_BUTTON_DPAD_RIGHT:
 		loadout_switch(1)
 		menu_move(1)
 		settings_adjust(1)
+		heat_adjust(1)
 	elif btn == JOY_BUTTON_A:
 		if g.state == "title":
 			title_activate(g.title_sel)
@@ -445,6 +449,27 @@ func seed_start() -> void:
 	g.begin_loading(func(): g.start_game(false, sd))
 
 
+# ---- PLAY page (title screen, README H1.4): Left / Right (D-pad too) and a click on an arrow change the Heat level by
+# one, Enter / A / a click on START begin the run. The level is Main.heat itself and is saved with the settings at
+# every change, so the next start of the game (and the next visit to this page) opens on it.
+func heat_adjust(d: int) -> void:
+	if g.state != "title" or g.title_page != "play":
+		return
+	var level = g.heat_sys.clamp_level(g.heat + d)
+	if level == g.heat:
+		return  # already at the end of the ladder
+	g.heat = level
+	g.settings.save_settings()
+	g.sfx.play("click")
+
+
+func play_start() -> void:
+	if g.state != "title" or g.title_page != "play":
+		return
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	g.begin_loading(func(): g.start_game())
+
+
 func confirm_name() -> void:
 	var nm = g.name_buf.strip_edges()
 	if nm == "":
@@ -551,6 +576,9 @@ func title_activate(i: int) -> void:
 	if g.title_page == "unlocks":
 		unlock_buy()  # Enter / A buys the highlighted unlock; Esc / B go back
 		return
+	if g.title_page == "play":
+		play_start()  # Enter / A start the run at the chosen Heat; Left / Right change it, Esc / B go back
+		return
 	if g.title_page != "":
 		title_back()
 		return
@@ -562,8 +590,8 @@ func title_activate(i: int) -> void:
 	g.title_sel = i
 	var id = g.hud.TITLE_ITEMS[i]["id"]
 	if id == "play":
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		g.begin_loading(func(): g.start_game())
+		g.title_page = "play"  # the Heat level is chosen there (README H1.4), START begins the run
+		g.sfx.play("click")
 	elif id == "daily":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		g.begin_loading(func(): g.start_game(true))
@@ -1057,6 +1085,15 @@ func on_click() -> void:
 			if g.hud.seed_start_rect().has_point(mp):
 				seed_start()
 			else:
+				title_back()
+		elif g.title_page == "play":
+			if g.hud.play_start_rect().has_point(mp):
+				play_start()
+			elif g.hud.heat_arrow_rect(-1).has_point(mp):
+				heat_adjust(-1)
+			elif g.hud.heat_arrow_rect(1).has_point(mp):
+				heat_adjust(1)
+			elif not g.hud.heat_row_rect().has_point(mp):
 				title_back()
 		elif g.title_page == "loadout":
 			var li = g.hud.loadout_at(mp)

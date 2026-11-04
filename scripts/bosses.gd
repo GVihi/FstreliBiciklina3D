@@ -179,7 +179,7 @@ func spawn_boss() -> void:
 		variant = 0
 	var info = g.BOSS_INFO[kind]
 	var nm = info["name"]
-	var hp = boss_hp(int(info["hp"]))
+	var hp = g.heat_sys.boss_health(boss_hp(int(info["hp"])))  # Heat (README H1.8): x1.15 from H4, before the final boss's extra
 	if final:
 		hp = int(round(float(hp) * FINAL_HP_MUL))
 	var m = Models.build_boss(kind, variant, Models.kit_of(0))
@@ -211,7 +211,11 @@ func spawn_boss() -> void:
 
 
 func spawn_runner(r: Dictionary) -> void:
-	var hp = (3 if r["max_hp"] > 2 else 2) + int(floor(float(maxi(0, g.round_n - 2)) / 2.0))
+	# the tough rider's health without the Heat bonus decides the base, so the bonus is not counted twice: the runner
+	# follows the boss factor of Heat (README H1.8), rounded up
+	var plain = int(r["max_hp"]) - int(g.heat_sys.value("tough_hp_plus"))
+	var hp = (3 if plain > 2 else 2) + int(floor(float(maxi(0, g.round_n - 2)) / 2.0))
+	hp = g.heat_sys.boss_health(hp, -1, true)
 	var m = Models.build_boss("runner", 0, r["kit"])
 	g.add_child(m["root"])
 	g.rim_apply(m["root"], Rim.FOE)

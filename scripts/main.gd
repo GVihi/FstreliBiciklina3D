@@ -43,6 +43,7 @@ const PlayerScript = preload("res://scripts/player.gd")
 const ScoresScript = preload("res://scripts/scores.gd")
 const MetaScript = preload("res://scripts/meta.gd")
 const ChallengesScript = preload("res://scripts/challenges.gd")
+const HeatScript = preload("res://scripts/heat.gd")
 const ViewmodelScript = preload("res://scripts/viewmodel.gd")
 const DailyScript = preload("res://scripts/daily.gd")
 const RunSave = preload("res://scripts/run_save.gd")
@@ -143,6 +144,7 @@ var daily_arena = ""  # the arena style of the daily seed, shown under it on the
 var arena_rules_cache = {}  # `data/arena_rules.json`, read on first use by `arena_style_text`
 var daily_mode = false  # true while a Daily Run is in progress (own scoreboard later, no normal high score)
 var custom_seed_run = false  # true while a run with a seed typed in on the title screen is in progress (kept off the normal high score and Top 10, like a Daily Run; a restart replays the same seed)
+var heat = 0  # the Heat level of this run, 0 to heat_sys.top_level() (heat.gd, docs/HEAT.md); 0 is the game as it was before Heat. Chosen on the PLAY page of the title screen (input.gd `heat_adjust`, README H1.4); start_game sets it to 0 for a Daily Run. Read so far by the rider speed (H1.5), the rider count (H1.6) and the starting hearts (H1.7); the other effects follow (README H1.8 to H1.9)
 var run_seed = 0  # the seed this run started with: today's daily seed in a Daily Run, a random one in a normal run
 var run_map = {}  # the run map generated from run_seed (map_gen.gd); the run walks it one node per round (see "run map walk" below)
 var map_floor = -1  # floor index (0-based) of the node being played, -1 before the first pick
@@ -697,6 +699,7 @@ var wall_marks = WallMarksScript.new(self)  # wall_marks.gd: the glow on a wall 
 var scores = ScoresScript.new(self)  # scores.gd: Scores: the local Top 10 leaderboard saved to user://scores.json.
 var meta = MetaScript.new(self)  # meta.gd: Meta currency: earned from finished runs, saved to user://meta.json, separate from run cash.
 var challenges = ChallengesScript.new(self)  # challenges.gd: Meta challenges from data/challenges.json: tracked in a run, paid out by meta.award_run().
+var heat_sys = HeatScript.new(self)  # heat.gd: Heat: the level table from data/heat.json and the lookup of what a level does (docs/HEAT.md).
 var input_sys = InputScript.new(self)  # input.gd: Input: mouse, keyboard and gamepad handling, menu clicks and weapon switching.
 var player_sys = PlayerScript.new(self)  # player.gd: Player: movement, dash and slide, perfect dodges, aim assist, spread and gun handling.
 
@@ -1445,6 +1448,7 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	daily_mode = daily
 	custom_seed_run = not daily and custom_seed >= 0
 	if daily:
+		heat = 0  # the Daily Run is Heat 0 for everybody (docs/HEAT.md); a restart of any other run keeps the level
 		refresh_daily_seed()
 		run_seed = daily_seed
 	elif custom_seed_run:
@@ -1466,6 +1470,7 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	if not run_map.is_empty():
 		MAX_ROUNDS = run_map["floors"].size()  # a run is one node on every floor of the map
 	score = 0
+	MAXHEARTS = heat_sys.start_hearts()  # Heat (README H1.7): 2 hearts from H3; a Daily Run is Heat 0, set above
 	hearts = MAXHEARTS
 	combo = 0
 	best_combo = 0
@@ -1556,6 +1561,7 @@ func plan_riders() -> void:
 	if rider_plan.is_empty():
 		return
 	layout_shuffle(rider_plan)
+	rider_plan = heat_sys.with_extra_riders(rider_plan, mix)  # Heat (README H1.6): extra riders after the seed's own shuffle
 	PER_ROUND = rider_plan.size()
 
 
