@@ -519,6 +519,45 @@ func _check_side_dash() -> void:
 	main.invuln = 1000.0
 	_release(KEY_A)
 	_ground()
+	# landing while the burst still runs keeps the speed from before it, not the burst (it used to slide the player across
+	# the arena at about 20 m/s for a couple of seconds), for the side dash and for the dash
+	for kind in ["side dash", "dash"]:
+		_ground()
+		main.dash_cd = 0.0
+		main.pvel = fwd * 5.0
+		main.player_sys.request_jump()
+		main._process(DT)
+		main.jump_h = 0.05  # just above the ground and falling: it lands in the next few frames
+		main.jump_v = -3.0
+		main.player.position.y = 0.05
+		_press(KEY_D)
+		if kind == "side dash":
+			main.player_sys.request_jump()
+		else:
+			main.player_sys.try_dash()
+		var burst = main.side_t if kind == "side dash" else main.dash_t
+		if burst <= 0.0:
+			_fail("the %s did not start in the air for the landing check" % kind)
+		guard = 0
+		while main.player_sys.is_airborne() and guard < 60:
+			main._process(DT)
+			guard += 1
+		if main.carry_speed > 6.0:
+			_fail(
+				"landing in a %s kept %.2f m/s of the burst (before it: about 5 m/s)" % [kind, main.carry_speed]
+			)
+		guard = 0
+		while (main.side_t > 0.0 or main.dash_t > 0.0) and guard < 60:  # the burst itself is fast, wait it out
+			main._process(DT)
+			guard += 1
+		var fastest = 0.0
+		for i in range(60):
+			main._process(DT)
+			fastest = maxf(fastest, main.pvel.length())
+		if fastest > main.player_sys.AIR_SPEED_MAX:
+			_fail("after landing in a %s the player slid at %.2f m/s" % [kind, fastest])
+		_release(KEY_D)
+	_ground()
 
 
 # the hit box is the player node: the melee zone rises with it, and a phone or a slam cannot reach a player in the air
