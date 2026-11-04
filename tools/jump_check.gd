@@ -544,7 +544,10 @@ func _check_side_dash() -> void:
 			guard += 1
 		if main.carry_speed > 6.0:
 			_fail(
-				"landing in a %s kept %.2f m/s of the burst (before it: about 5 m/s)" % [kind, main.carry_speed]
+				(
+					"landing in a %s kept %.2f m/s of the burst (before it: about 5 m/s)"
+					% [kind, main.carry_speed]
+				)
 			)
 		guard = 0
 		while (main.side_t > 0.0 or main.dash_t > 0.0) and guard < 60:  # the burst itself is fast, wait it out
