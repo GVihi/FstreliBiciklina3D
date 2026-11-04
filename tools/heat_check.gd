@@ -6,6 +6,9 @@ extends SceneTree
 #     of data/map_rules.json, hearts, cash),
 #   - the lookup: -1 is the level of the run, a level past the end is the top level,
 #   - a run starts at Heat 0 (`Main.heat`), and Heat 0 is neutral for every effect,
+#   - the level is saved: `heat` in the saved run (an old run without it loads as 0, a bad or too big number is kept to the
+#     levels there are, a Daily Run is always 0) and in settings.cfg (a bad value leaves the level as it is), each with a
+#     round trip through a real file,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -17,9 +20,14 @@ extends SceneTree
 const HeatScript = preload("res://scripts/heat.gd")
 const START_HEARTS = 3  # the hearts a run starts with (Main.MAXHEARTS), which hearts_minus is taken from
 const EXPECTED_TOP = 5  # the ladder of docs/HEAT.md: H0 to H5
+const RunSave = preload("res://scripts/run_save.gd")
+const TEST_RUN_PATH = "user://heat_check_run.json"  # the saved run of this check, never the player's run.json
+const SETTINGS_PATH = "user://settings.cfg"
 
 var problems = []
 var main
+var kept_settings = PackedByteArray()
+var had_settings = false
 
 
 func _initialize() -> void:
@@ -33,6 +41,10 @@ func _initialize() -> void:
 	_check_caps()
 	_check_lookup()
 	_check_bad_data()
+	_keep_settings()
+	_check_run_save()
+	_check_settings()
+	_restore_settings()
 	_finish()
 
 
@@ -141,6 +153,122 @@ func _check_lookup() -> void:
 	info["name"] = "CHANGED"
 	if h.levels[1]["name"] == "CHANGED":
 		_fail("level_info gave out the table itself, not a copy")
+
+
+# the Heat level in the saved run: written, read back, cleaned and put into the game
+func _check_run_save() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	RunSave.test_path = TEST_RUN_PATH
+	var keep = main.heat
+	# a round trip through a real file, at the top level
+	main.heat = top
+	main.daily_mode = false
+	if not RunSave.save(main):
+		_fail("the saved run could not be written")
+	var loaded = RunSave.load_file()
+	if int(loaded.get("heat", -1)) != top:
+		_fail(
+			"the saved run holds Heat %s, expected %d" % [str(loaded.get("heat", "<missing>")), top]
+		)
+	main.reset_run()
+	main.meta.begin_run()
+	main.challenges.begin_run()
+	main.heat = 0
+	RunSave.apply(main, loaded)
+	if main.heat != top:
+		_fail("after loading the saved run the game is at Heat %d, expected %d" % [main.heat, top])
+	# a run saved before Heat has no key and was played at 0
+	var raw = RunSave.capture(main)
+	raw.erase("heat")
+	if int(RunSave.clean(raw)["heat"]) != 0:
+		_fail("a saved run without a heat key should load as Heat 0")
+	# bad values: too big is kept to the levels there are, below 0 and not a number fall back
+	raw = RunSave.capture(main)
+	raw["heat"] = 999
+	var cleaned = RunSave.clean(raw)
+	main.heat = 0
+	RunSave.apply(main, cleaned)
+	if main.heat != top:
+		_fail("Heat 999 in a saved run should load as the top level %d, got %d" % [top, main.heat])
+	for bad in [-4, "x", null, [1], 2.9]:
+		raw["heat"] = bad
+		var want = 2 if typeof(bad) == TYPE_FLOAT else 0
+		var got = int(RunSave.clean(raw)["heat"])
+		if got != want:
+			_fail("a saved run with heat %s should load as Heat %d, got %d" % [str(bad), want, got])
+	# a Daily Run is always Heat 0
+	raw["heat"] = 3
+	raw["daily"] = true
+	if int(RunSave.clean(raw)["heat"]) != 0:
+		_fail("a saved Daily Run should load as Heat 0")
+	for path in [TEST_RUN_PATH, TEST_RUN_PATH + ".bak", TEST_RUN_PATH + ".tmp"]:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	RunSave.test_path = ""
+	main.heat = keep
+
+
+# the level in settings.cfg: kept to the levels there are, and a value that is not a number leaves it alone
+func _check_settings() -> void:
+	var top = main.heat_sys.top_level()
+	var keep = main.heat
+	if FileAccess.file_exists(SETTINGS_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SETTINGS_PATH))
+	main.heat = 3
+	main.settings.save_settings()
+	main.heat = 0
+	main.settings.load_settings()
+	if main.heat != 3:
+		_fail("settings.cfg did not give Heat 3 back (got %d)" % main.heat)
+	# a file from before Heat has no key: the level stays what it is
+	var cf = ConfigFile.new()
+	cf.load(SETTINGS_PATH)
+	cf.erase_section_key("game", "heat")
+	cf.save(SETTINGS_PATH)
+	main.heat = 2
+	main.settings.load_settings()
+	if main.heat != 2:
+		_fail("a settings.cfg without heat changed the level (got %d)" % main.heat)
+	# hand-edited values
+	for case in [[999, top], [-3, 0], [1.0, 1]]:
+		cf.set_value("game", "heat", case[0])
+		cf.save(SETTINGS_PATH)
+		main.heat = 4
+		main.settings.load_settings()
+		if main.heat != case[1]:
+			_fail(
+				(
+					"heat %s in settings.cfg loaded as %d, expected %d"
+					% [str(case[0]), main.heat, case[1]]
+				)
+			)
+	for bad in ["x", true, [1, 2]]:
+		cf.set_value("game", "heat", bad)
+		cf.save(SETTINGS_PATH)
+		main.heat = 4
+		main.settings.load_settings()
+		if main.heat != 4:
+			_fail("heat %s in settings.cfg changed the level to %d" % [str(bad), main.heat])
+	main.heat = keep
+
+
+# the real settings.cfg is kept in memory and written back at the end
+func _keep_settings() -> void:
+	had_settings = FileAccess.file_exists(SETTINGS_PATH)
+	if had_settings:
+		kept_settings = FileAccess.get_file_as_bytes(SETTINGS_PATH)
+
+
+func _restore_settings() -> void:
+	if had_settings:
+		var f = FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+		if f:
+			f.store_buffer(kept_settings)
+			f.close()
+	elif FileAccess.file_exists(SETTINGS_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SETTINGS_PATH))
+	main.settings.load_settings()
 
 
 func _check_bad_data() -> void:

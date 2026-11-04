@@ -9,6 +9,7 @@ extends RefCounted
 
 const SaveUtil = preload("res://scripts/save_util.gd")
 const WeaponSlots = preload("res://scripts/weapon_slots.gd")
+const HeatScript = preload("res://scripts/heat.gd")
 const PATH = "user://run.json"
 const VERSION = 1
 # a check sets this to another file, so it never touches the player's own saved run (empty = the real file)
@@ -18,6 +19,7 @@ const MAX_NUMBER = 1000000000.0  # sanity limit for a saved number (score, cash,
 # the shape of the saved run, name -> the value it falls back to. `capture` writes exactly these keys.
 const NUMBER_KEYS = {
 	"run_seed": 0,
+	"heat": 0,  # the Heat level of the run (heat.gd); a run saved before Heat has none and was played at 0
 	"round_n": 1,
 	"map_floor": -1,
 	"map_lane": 0,
@@ -126,6 +128,7 @@ static func capture(g) -> Dictionary:
 	done_ids.sort()
 	return {
 		"run_seed": g.run_seed,
+		"heat": g.heat,
 		"daily": g.daily_mode,
 		"custom": g.custom_seed_run,
 		"daily_date": g.daily_date,
@@ -201,6 +204,9 @@ static func clean(raw: Dictionary) -> Dictionary:
 		out["melee"] = false  # nothing to hold
 	out["gadget"] = WeaponSlots.gadget_or_none(raw.get("gadget", WeaponSlots.NO_GADGET))
 	out["run_seed"] = clampi(out["run_seed"], 0, 0xFFFFFFFF)
+	# the table of the game is not known here, so only the sanity limit; `apply` keeps it to the levels there are.
+	# A Daily Run is always Heat 0 (docs/HEAT.md), whatever a hand-edited file says
+	out["heat"] = 0 if out["daily"] else clampi(out["heat"], 0, HeatScript.MAX_LEVEL)
 	out["round_n"] = clampi(out["round_n"], 1, MAX_ROUNDS_SAVED)
 	out["map_floor"] = clampi(out["map_floor"], -1, MAX_ROUNDS_SAVED)
 	out["map_lane"] = clampi(out["map_lane"], 0, MAX_ROUNDS_SAVED)
@@ -241,6 +247,7 @@ static func clean(raw: Dictionary) -> Dictionary:
 # the saved run does not hold starts from its usual value.
 static func apply(g, data: Dictionary) -> void:
 	g.run_seed = data["run_seed"]
+	g.heat = g.heat_sys.clamp_level(int(data["heat"]))
 	g.daily_mode = data["daily"]
 	g.custom_seed_run = data["custom"]
 	g.daily_date = data["daily_date"] if data["daily_date"] != "" else g.daily_date

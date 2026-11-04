@@ -86,6 +86,13 @@ an achievement is a challenge done at least once, so nothing new is saved: `meta
 - **Checked:** `gdformat` and `gdlint` on the three scripts, clean. **Godot was not available in this session, so `python tools/run_checks.py heat` was not run: run it once.** The check covers the real table, level 0, the ladder, the caps against `data/map_rules.json`, the lookup and the bad-data cases.
 - **Not covered:** the effects themselves (H1.5 to H1.9), saving the level (H1.3), the picker (H1.4).
 
+### Implement Heat system › H1.3 Save it
+
+- **Built:** `heat` in the saved run (`scripts/run_save.gd`: in `NUMBER_KEYS`, written by `capture`, cleaned by `clean`, put into the game by `apply`) and `[game] heat` in `settings.cfg` (`scripts/settings.gd`, `load_settings` and `save_settings`). `docs/SAVE_FILES.md` has a section for it. `tools/heat_check.gd` has two new cases: the saved run (a round trip through a real test file, an old run without the key, too big, negative, text, `null`, an array, a fraction, a Daily Run) and the settings (a round trip, a file without the key, too big, negative, a float, text, `true`, an array).
+- **Decisions:** the level in `settings.cfg` is the level of the run last started or continued, because there is one `Main.heat`; the picker (H1.4) writes it and saves. A bad or missing value in `settings.cfg` leaves the level as it is, like the other settings. A saved Daily Run loads as Heat 0 (`clean`, since the Daily Run is Heat 0 for everybody); other runs are cut to the top level of the table in `apply`, because `clean` is static and does not know the table. No version bump: a new field with a default.
+- **Checked:** `gdformat` and `gdlint` on `heat_check.gd`, `run_save.gd` and `settings.gd`, clean. **Godot was not available, so `python tools/run_checks.py heat` was not run: run it once.** The existing saved-run and settings checks (`python tools/run_checks.py run_save hint_setting`) cover the code around the new lines and were not run either.
+- **Not covered:** nothing writes the setting yet (the picker is H1.4), so the file only gets a `heat` line when something else saves the settings.
+
 ## Milestone C: Weapon System Expansion › Weapon Slots
 
 ### Add primary weapon slot

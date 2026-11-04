@@ -234,6 +234,11 @@ func load_settings() -> void:
 	g.rim_outline = bool(cf.get_value("game", "rim_outline", g.rim_outline))
 	g.fx_scale = clampf(float(cf.get_value("game", "fx_scale", g.fx_scale)), 0.0, 1.0)
 	g.quality = clampi(int(cf.get_value("game", "quality", g.quality)), 0, 2)
+	# the Heat level the title screen starts from (docs/HEAT.md); anything but a number leaves it as it is, and it is kept
+	# to the levels the table has
+	var heat_saved = cf.get_value("game", "heat", g.heat)
+	if typeof(heat_saved) == TYPE_INT or typeof(heat_saved) == TYPE_FLOAT:
+		g.heat = g.heat_sys.clamp_level(int(heat_saved))
 	_muted = bool(cf.get_value("game", "muted", _muted))
 	_voices = bool(cf.get_value("game", "voices", _voices))
 	# the RIDER WARNING choice: a whole number 0 to 2; anything else loads as the default (NORMAL)
@@ -268,6 +273,7 @@ func save_settings() -> void:
 	cf.set_value("game", "rim_outline", g.rim_outline)
 	cf.set_value("game", "fx_scale", g.fx_scale)
 	cf.set_value("game", "quality", g.quality)
+	cf.set_value("game", "heat", g.heat)
 	cf.set_value("game", "muted", g.sfx.muted)
 	cf.set_value("game", "voices", g.sfx.voices_on)
 	cf.set_value("game", "rider_warning", g.warn_level)

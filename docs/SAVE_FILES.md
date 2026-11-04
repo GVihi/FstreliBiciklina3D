@@ -34,6 +34,15 @@ The RIDER WARNING SOUNDS row of the settings is a whole number: `0` OFF, `1` QUI
 
 The WINDOW SIZE row of the settings saves the size of the window in pixels as two whole numbers. A missing key, a value that is not a whole number, or a size under 640 x 360 or over 8192 x 8192 is ignored and the window keeps its default size; a size bigger than the free area of the screen is cut to it. While the game is fullscreen the saved size is the one it goes back to when fullscreen is switched off. Settings, not progress: RESET ALL PROGRESS keeps it.
 
+## Heat level (`heat` under `[game]` in `settings.cfg`, and `heat` in `run.json`)
+
+The Heat level (README Milestone B, `docs/HEAT.md`) is saved in two places, both whole numbers from 0 (no Heat) up to the top level of `data/heat.json`:
+
+- **`settings.cfg`, `[game] heat`:** the level the title screen starts from. It is the level of the run last started or continued, and the picker of README H1.4 changes it. A missing key (a file from before Heat), or a value that is not a number, leaves the level as it is (0 on a fresh start); a number below 0 or above the top level is kept to that range. It is a setting, not progress, so RESET ALL PROGRESS keeps it.
+- **`run.json`, `heat` in the saved run:** the level the run is played at, so CONTINUE plays on at the same Heat. A run saved before Heat has no key and was played at 0. A number past the sanity limit (20) is cut there when the file is read, and to the levels the table has when the run is put into the game; anything that is not a number reads as 0. **A saved Daily Run always loads as Heat 0**, whatever the file says, because the Daily Run is the same for everybody.
+
+No version bump for either (a new field with a default, like the other files). `tools/heat_check.gd` checks both round trips and the bad values.
+
 ## Key bindings (`[keys]` in `settings.cfg`)
 
 `settings.cfg` has a `[keys]` section with one entry per rebindable control (`forward`, `left`, `back`, `right`, `sprint`, `crouch`, `jump`, `dash`, `reload`, `switch`, `gun`, `melee`, `gadget`, `map`; the list is `ACTIONS` in `scripts/keybinds.gd`). Each value is a pair of whole numbers, the key and the alternative, as Godot physical key codes (`0` = no alternative), for example `jump=[32, 0]`.
