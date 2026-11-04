@@ -103,9 +103,10 @@ func _spawn_rider(lane_idx: int, dir: int, ambush: bool, gate_override: Dictiona
 	# Heat (docs/HEAT.md, README H1.5): a factor on the whole base speed, 1.0 at Heat 0. RIDER_SPEED_CAP below still
 	# limits every rider, so a late sprinter that already rides at the cap does not get faster
 	var base = 165.0 * g.RIDER_SCALE * diff * g.TYPES[type]["sp"] * g.heat_sys.value("rider_speed")
-	var hp = 1
+	var hp = 1  # pro, sprinter and courier riders always fall to one hit, at every Heat level (docs/HEAT.md)
 	if type == "tough":
 		hp = 3 if g.round_n >= 5 else 2
+		hp += int(g.heat_sys.value("tough_hp_plus"))  # Heat (README H1.8): 0 at Heat 0, 1 from H4
 	var m = Models.build_rider(type, kit)
 	g.add_child(m["root"])
 	g.rim_apply(m["root"], Rim.FOE)

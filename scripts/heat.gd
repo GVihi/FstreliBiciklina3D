@@ -80,6 +80,18 @@ func start_hearts(level: int = -1) -> int:
 	return mini(START_HEARTS, maxi(int(caps["hearts_min"]), START_HEARTS - minus))
 
 
+# README H1.8: a boss's health with the Heat factor of `level` (-1: the level of the run). `hp` is the health the boss has
+# without Heat (after the growth per round, before the extra health of the final boss). The result is rounded to the
+# nearest whole number, or up with `round_up` (the angry cyclist mini boss, which is small), and is at least 1. At Heat 0
+# the factor is 1.0 and `hp` comes back as it is.
+func boss_health(hp: int, level: int = -1, round_up: bool = false) -> int:
+	var factor = value("boss_hp", level)
+	if is_equal_approx(factor, 1.0):
+		return hp
+	var scaled = float(hp) * factor
+	return maxi(1, int(ceil(scaled - 0.000001)) if round_up else int(round(scaled)))
+
+
 # README H1.6: the riders of a round with the extra riders of `level` (-1: the level of the run). `plan` is the node's own
 # plan after its shuffle and `mix` the node's kinds and counts ({kind: count}). Returns a new array. The seed's riders
 # keep their order and are not changed; the extras copy the mix in its proportions (largest remainder, a tie goes to the
