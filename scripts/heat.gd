@@ -69,6 +69,74 @@ func value(key: String, level: int = -1) -> float:
 	return float(levels[clamp_level(lv)][key])
 
 
+# README H1.6: the riders of a round with the extra riders of `level` (-1: the level of the run). `plan` is the node's own
+# plan after its shuffle and `mix` the node's kinds and counts ({kind: count}). Returns a new array. The seed's riders
+# keep their order and are not changed; the extras copy the mix in its proportions (largest remainder, a tie goes to the
+# kind that comes first in `mix`) and are spread evenly through the round. Nothing is drawn from a random stream, so
+# no stream moves. The extra share is rounded up, at least one rider, and the round never goes past the `riders_max` cap
+# (a plan that is already at the cap, an empty plan and Heat 0 come back as they are).
+func with_extra_riders(plan: Array, mix: Dictionary, level: int = -1) -> Array:
+	var out = plan.duplicate()
+	var share = value("riders_more", level)
+	if share <= 0.0 or plan.is_empty():
+		return out
+	var wanted = maxi(1, int(ceil(float(plan.size()) * share - 0.000001)))
+	var n = mini(wanted, int(caps["riders_max"]) - plan.size())
+	if n <= 0:
+		return out
+	var extras = _extra_kinds(mix, n)
+	if extras.is_empty():
+		return out
+	var total = plan.size() + extras.size()
+	var at = {}  # position in the new plan -> index of the extra rider that goes there
+	for j in range(extras.size()):
+		var pos = int(floor((float(j) + 0.5) * float(total) / float(extras.size())))
+		at[mini(pos, total - 1)] = j
+	out = []
+	var next_plan = 0
+	for p in range(total):
+		if at.has(p):
+			out.append(extras[at[p]])
+		else:
+			out.append(plan[next_plan])
+			next_plan += 1
+	return out
+
+
+# `n` riders in the proportions of `mix`, grouped by kind in the order of the mix
+func _extra_kinds(mix: Dictionary, n: int) -> Array:
+	var kinds = []
+	var total = 0
+	for kind in mix:
+		if int(mix[kind]) > 0:
+			kinds.append(str(kind))
+			total += int(mix[kind])
+	if total == 0:
+		return []
+	var counts = {}
+	var rest = []  # the part after the point of each kind's exact share
+	var given = 0
+	for kind in kinds:
+		var exact = float(n) * float(int(mix[kind])) / float(total)
+		var whole = int(floor(exact))
+		counts[kind] = whole
+		rest.append(exact - float(whole))
+		given += whole
+	while given < n:
+		var best = 0
+		for i in range(1, kinds.size()):
+			if rest[i] > rest[best] + 0.000001:
+				best = i
+		counts[kinds[best]] += 1
+		rest[best] = -1.0
+		given += 1
+	var out = []
+	for kind in kinds:
+		for k in range(int(counts[kind])):
+			out.append(kind)
+	return out
+
+
 # true when `level` changes nothing (level 0 always does, the table loader makes sure)
 func is_neutral(level: int) -> bool:
 	var e = levels[clamp_level(level)]

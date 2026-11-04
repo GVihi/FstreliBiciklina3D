@@ -1560,6 +1560,7 @@ func plan_riders() -> void:
 	if rider_plan.is_empty():
 		return
 	layout_shuffle(rider_plan)
+	rider_plan = heat_sys.with_extra_riders(rider_plan, mix)  # Heat (README H1.6): extra riders after the seed's own shuffle
 	PER_ROUND = rider_plan.size()
 
 
