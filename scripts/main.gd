@@ -2100,9 +2100,7 @@ func map_held() -> bool:
 	if state != "play" or paused:
 		return false
 	return (
-		map_key_forced
-		or Keybinds.pressed("map")
-		or Input.is_joy_button_pressed(0, JOY_BUTTON_BACK)
+		map_key_forced or Keybinds.pressed("map") or Input.is_joy_button_pressed(0, JOY_BUTTON_BACK)
 	)
 
 

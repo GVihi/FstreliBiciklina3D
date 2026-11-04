@@ -2422,6 +2422,7 @@ func _draw_settings_hints(k: float, cx: float) -> void:
 			msg = "WIPED, BUT %d FILE(S) COULD NOT BE DELETED" % g.progress_wipe_failed
 		_txt(msg, cx, panel_rect().position.y - 14.0 * k, int(18 * k), GOLD, 1)
 
+
 # ---------------------------------------------------------------- rebind keys page (keybinds.gd, input.gd keys_*)
 # One row per control (Keybinds.ACTIONS) with two cells, the key and an alternative, and a last row that puts every key
 # back to its default. The mouse and the cells use `keys_row_rect` and `keys_cell_rect`, like the settings rows.

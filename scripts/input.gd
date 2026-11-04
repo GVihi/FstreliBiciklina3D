@@ -794,6 +794,7 @@ func settings_activate() -> void:
 		g.settings.set_setting(id, g.settings.next_value(id))
 		g.sfx.play("click")
 
+
 # ---- the REBIND KEYS page (hud.gd `_draw_keys`, keybinds.gd), opened from the settings panel in the title menu and in
 # the pause menu. Up / Down pick a control, Left / Right pick its key or its alternative, Enter, A or a click start the
 # rebinding, and the next key pressed becomes the new one (Esc or B cancel, Delete or X clear the alternative). The last
