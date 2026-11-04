@@ -3159,6 +3159,10 @@ func _draw_hud_centre(k: float) -> void:
 		_txt("FREE DARTS %d" % g.free_shots, mx, size.y - 84.0 * k, int(13 * k), GOLD, 1)
 
 
+# under the name of the final boss while it makes its entrance ("Obljubim vam!" is what it says: I promise you)
+const FINAL_INTRO_LINE = "HE PROMISES YOU EVERYTHING"
+
+
 func _draw_boss_ui(k: float) -> void:
 	var cx = size.x * 0.5
 	if g.bosses.size() > 0:
@@ -3207,7 +3211,9 @@ func _draw_boss_ui(k: float) -> void:
 					1
 				)
 				_txt(b["name"], cx, size.y * 0.33, int(36 * k), TEXT, 1)
-			if mode == "tele" or mode == "lunge":
+				if b.get("final", false):
+					_txt(FINAL_INTRO_LINE, cx, size.y * 0.385, int(18 * k), GOLD, 1)
+			if mode == "tele" or mode == "lunge" or mode == "decree":
 				var pulse = 0.12 + 0.12 * absf(sin(g.time * 12.0))
 				draw_rect(Rect2(0, 0, 16.0 * k, size.y), Color(1.0, 0.16, 0.12, pulse))
 				draw_rect(
@@ -3215,7 +3221,9 @@ func _draw_boss_ui(k: float) -> void:
 				)
 				if int(g.time * 8.0) % 2 == 0:
 					var warn = "GET OFF THE RED LANE!  DASH"
-					if mode == "tele" and b["pat"] == "slam":
+					if mode == "decree" or (mode == "tele" and b["pat"] == "decree"):
+						warn = "THE DECREE!  JUMP THE RING OR DASH THROUGH"
+					elif mode == "tele" and b["pat"] == "slam":
 						warn = "GET OUT OF THE CIRCLE!  OR DASH THROUGH"
 					elif mode == "tele" and b["pat"] == "volley":
 						warn = "PHONES INCOMING!  DODGE OR DEFLECT"

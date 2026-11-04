@@ -55,7 +55,7 @@ One run has **one arena layout** (`scripts/arena_gen.gd`, from the same run seed
 |---|---|
 | all | `theme`: index into `Content.THEMES` (a boss node uses the fixed theme of its boss, `boss_theme`) |
 | normal, elite, boss | `riders` (`count` and a `mix` of pro / sprinter / courier / tough that adds up to the count), `gates` (sorted indexes of the arena gates riders may enter by, at least `min_open`), `modifiers` (0 or 1 of `rain`, `double_riders`) |
-| boss | `boss` (`mower`, `wifi` or `minister`; the final boss is always `minister`) and `final: true` on the last one |
+| boss | `boss` (`mower`, `wifi` or `minister`; the final boss is always `minister` in the map, and the fight spawns the golden president (`president`) for the node with `final: true`) and `final: true` on the last one |
 | shop, rest, event | `seed`: a 32-bit number for what Milestone D draws later (offers, event choice) |
 
 Rider types and modifiers have a first floor (`min_floor`), so floor 1 only has plain pros and `tough` riders appear from floor 3. Elites hold more riders and more `tough` ones; bosses fewer.

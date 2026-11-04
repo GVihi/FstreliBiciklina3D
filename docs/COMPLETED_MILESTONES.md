@@ -20,6 +20,8 @@ Everything in `README.md` that is finished, moved here word for word on 2026-10-
   - [x] Tune round length once real run times are known (alpha D1)
 - [x] Implement permanent unlocks between runs (coins, buying, starting perks, the Dart Gun and the Loadout page work, see Milestone I; alpha C1 to C5)
 - [x] Balance pass for the 10-round difficulty curve (rider speed, boss health, final boss health) (alpha D2)
+- [x] Add final boss encounter (reuses the golden president model)
+  - [x] Give the final boss its own model, attacks and arena moment (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner)
 
 ## Milestone A: Menu, Game Flow, Saves & High Scores
 

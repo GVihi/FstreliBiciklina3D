@@ -663,12 +663,79 @@ static func build_minister(variant: int) -> Dictionary:
 	return build_fighter(c)
 
 
+# The final boss, the golden president: the fighter rig in a gold suit, a quarter taller than the minister, with a
+# crown, a tricolour sash, shoulder plates, a red cape and a glowing medallion on the chest. The scale is on the
+# `geo` pivot, not on the root, because `pose_boss` sets the root's scale every frame (the death shrink).
+const PRESIDENT_SCALE = 1.25
+
+
+static func build_president() -> Dictionary:
+	var d = build_fighter(
+		{
+			"suit": Color.html("#c9a227"),
+			"dark": Color.html("#2b2417"),
+			"acc": Color.html("#fff1b0"),
+			"skin": Color.html("#f0c8a0"),
+			"tie": Color.html("#c8322b"),
+			"hair": Color.html("#ececec"),
+			"glasses": true,
+			"arm_base": [-1.3, -1.3]
+		}
+	)
+	var geo: Node3D = d["geo"]
+	var gold = Util.mat(Color.html("#e8b923"), 0.3, 0.8)
+	var cape = Util.mat(Color.html("#8a1f1f"), 0.8)
+	var sash = Util.mat(Color.html("#1d56b3"), 0.6)
+	var sash_edge = Util.mat(Color.html("#f6f6f2"), 0.6)
+	# the cape hangs behind the shoulders (the model faces +Z, so behind is -Z)
+	Util.box(geo, Vector3(0.62, 1.05, 0.03), Vector3(0, 1.22, -0.19), cape)
+	# the sash runs from the right shoulder to the left hip over the chest
+	var s1 = Util.box(geo, Vector3(0.11, 0.86, 0.34), Vector3(0, 1.27, 0), sash)
+	s1.rotation.z = 0.62
+	var s2 = Util.box(geo, Vector3(0.03, 0.86, 0.35), Vector3(0.045, 1.27, 0), sash_edge)
+	s2.rotation.z = 0.62
+	# shoulder plates
+	for x in [0.34, -0.34]:
+		Util.box(geo, Vector3(0.22, 0.06, 0.22), Vector3(x, 1.57, 0), gold)
+	# the crown: a band and five points
+	Util.cyl(geo, 0.16, 0.16, 0.07, Vector3(0, 1.98, 0), gold)
+	for i in range(5):
+		var a = TAU * float(i) / 5.0
+		Util.box(geo, Vector3(0.05, 0.13, 0.05), Vector3(sin(a) * 0.14, 2.07, cos(a) * 0.14), gold)
+	# the medallion on the chest glows, and pulses (pose_president)
+	var medal = Util.glow(Color(1.0, 0.8, 0.25), 2.0)
+	Util.sphere(geo, 0.09, Vector3(0, 1.3, 0.17), medal, 0.7)
+	geo.scale = Vector3(PRESIDENT_SCALE, PRESIDENT_SCALE, PRESIDENT_SCALE)
+	Util.trim_shadows(d["root"])
+	d["medal"] = medal
+	return d
+
+
+# on top of `pose_fighter`: the medallion pulses, both arms go up for a wind-up (a telegraph you can read from a
+# long way off) and are thrown down while the shock ring goes out
+static func pose_president(d: Dictionary, ph: float, mode: String, pat: String) -> void:
+	var em: StandardMaterial3D = d["medal"]
+	em.emission_energy_multiplier = 1.5 + 1.2 * sin(ph * 2.0)
+	var up = mode == "tele" and pat == "decree"
+	var down = mode == "decree"
+	if not (up or down):
+		return
+	var tilt = (-2.9 + sin(ph * 3.0) * 0.08) if up else -0.15
+	for i in range(2):
+		var a: Node3D = d["arms"][i]
+		a.rotation.x = tilt
+
+
 # Boss models face +Z. Returns {"root": Node3D, ... animation handles}.
 static func build_boss(kind: String, variant: int, kit: Dictionary) -> Dictionary:
 	if kind == "runner":
 		var d = build_runner(kit)
 		d["fighter"] = true
 		return d
+	if kind == "president":
+		var d3 = build_president()
+		d3["fighter"] = true
+		return d3
 	if kind == "minister":
 		var d2 = build_minister(variant)
 		d2["fighter"] = true

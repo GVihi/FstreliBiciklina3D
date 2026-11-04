@@ -117,6 +117,22 @@ static var BOSS_INFO = {
 		"wk": 1.8,
 		"speed": 3.8
 	},
+	# the final boss (floor 10): never picked from BOSS_KINDS, only `spawn_boss` makes it. A quarter taller than the
+	# minister, so the hit box, the chest and the weak spot are the minister's numbers times 1.25. Same health and
+	# speed as the minister: the final boss's extra health is FINAL_HP_MUL in bosses.gd
+	"president":
+	{
+		"name": "PREDSEDNIK POZLATA",
+		"hp": 22,
+		"dur": 8.0,
+		"lat": 125.0,
+		"cy": 1.25,
+		"r": Vector3(0.88, 1.45, 0.75),
+		"voice": "boss_minister",
+		"weak_y": 1.95,
+		"wk": 2.25,
+		"speed": 3.8
+	},
 	"runner":
 	{
 		"name": "ANGRY CYCLIST",
