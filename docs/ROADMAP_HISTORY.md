@@ -70,6 +70,15 @@ the HI score in the HUD, the title screen's HIGH SCORE line and the NEW HIGH SCO
 
 an achievement is a challenge done at least once, so nothing new is saved: `meta.json` already counts each one. Each entry in `data/challenges.json` has an `icon` (`no_gun`, `crate`, `chevrons`, `heart`, `clock` or `star`, drawn with plain shapes by `_draw_badge` in `scripts/hud.gd`, no image files); the CHALLENGES page shows a round badge beside each name, gold once unlocked and dim before, and an ACHIEVEMENTS n / 5 line under the heading. No pop-up beyond the in-run CHALLENGE DONE note and the NEW tag on the run summary. Written without running Godot, parse-checked and linted only; waiting for your in-game check: the badges on the CHALLENGES page, drawn at 1280 by 720 and larger, and `tools\run_challenges_check.bat`
 
+## Milestone B: Meta Currency, Unlocks & Skins › Difficulty Scaling
+
+### Implement Heat system › H1.1 Design note, no code
+
+- **Built:** `docs/HEAT.md`: what Heat is, the rules that hold at every level, the ladder H0 to H5, where each effect plugs into the code, the caps, and how Heat meets the Daily Run, custom seeds, the run save, settings, unlocks and the leaderboards.
+- **Decisions (first guesses, tuned in H1.12):** H1 riders 10 % faster, H2 20 % more riders, H3 2 hearts, H4 tough riders +1 health and bosses x1.15, H5 shop prices x1.20 and cash x0.80. A seed keeps its map and rider mix at every Heat (Heat acts when a round is played). Daily Run is always Heat 0; a custom seed may use Heat and stays unranked. Heart drops, PATCH UP and the heart on a round clear do not change. Score is not multiplied. Heat N+1 opens when a run is won at Heat N. The local Top 10 stays one board with a `heat` field until the Milestone A split.
+- **Checked:** the numbers and function names against the code (`riders.gd`, `bosses.gd`, `shop.gd`, `main.gd`, `objective.gd`); every cash source goes through `add_cash`. No code and no checks run, nothing to run.
+- **Not covered:** real rider speeds in m/s (H1.5 measures them), the balance of any number (needs the bot harness, H1.12).
+
 ## Milestone C: Weapon System Expansion › Weapon Slots
 
 ### Add primary weapon slot
