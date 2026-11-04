@@ -17,6 +17,9 @@ extends SceneTree
 #   - runs start with fewer hearts (README H1.7): `start_hearts` is 3 at Heat 0 and 2 from H3, never below the `hearts_min`
 #     cap and never above 3, a run that is started (new, restarted, saved and loaded) has that many hearts and a MAXHEARTS
 #     to match, a Daily Run stays at 3, and practice and the title screen are not changed,
+#   - tougher enemies (README H1.8): a tough rider has `tough_hp_plus` more health and every other kind still has 1, a boss
+#     has `boss_hp` times its health (before the extra of the final boss), the angry cyclist follows that factor rounded
+#     up without counting the rider's bonus twice, and Heat 0 has exactly the health of the game before Heat,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -58,6 +61,7 @@ func _initialize() -> void:
 	_check_rider_speed()
 	_check_more_riders()
 	_check_hearts()
+	_check_tougher()
 	_restore_settings()
 	_finish()
 
@@ -551,6 +555,162 @@ func _check_hearts() -> void:
 		)
 	main.heat = 0
 	main.daily_mode = false
+	main.go_to_title()
+
+
+# README H1.8: tough riders have `tough_hp_plus` more health, bosses `boss_hp` times the health (the angry cyclist rounded
+# up), and every other rider still falls to one hit
+func _check_tougher() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	# the arithmetic on its own
+	for hp in [1, 2, 3, 5, 16, 22, 78, 101]:
+		if h.boss_health(hp, 0) != hp or h.boss_health(hp, 0, true) != hp:
+			_fail("Heat 0 changed a boss health of %d" % hp)
+		for level in range(top + 1):
+			var exact = float(hp) * h.value("boss_hp", level)
+			var near = maxi(1, int(round(exact)))
+			var up = maxi(1, int(ceil(exact - 0.000001)))
+			if h.boss_health(hp, level) != near:
+				_fail(
+					(
+						"Heat %d: a boss of %d health has %d, expected %d"
+						% [level, hp, h.boss_health(hp, level), near]
+					)
+				)
+			if h.boss_health(hp, level, true) != up:
+				_fail(
+					(
+						"Heat %d: a runner of %d health has %d, expected %d"
+						% [level, hp, h.boss_health(hp, level, true), up]
+					)
+				)
+			if h.boss_health(hp, level) < hp:
+				_fail("Heat %d: a boss of %d health got weaker" % [level, hp])
+	var keep = main.heat
+	main.heat = top
+	if h.boss_health(22) != h.boss_health(22, top):
+		_fail("with no level given, boss_health is not the one of the run's Heat")
+	main.heat = keep
+	main.generated_arena = true
+	main.heat = 0
+	main.start_game(false, SEED)
+	main.pick_node(0)
+	if main.state != "play":
+		_fail("could not start a round for the tougher case (state %s)" % main.state)
+		return
+	# riders: only a tough rider gets more health
+	var kinds = ["pro", "sprinter", "courier", "tough"]
+	for floor_no in [1, 2, 4, 5, 10]:
+		for level in range(top + 1):
+			for i in range(kinds.size()):
+				main.heat = level
+				main.round_n = floor_no
+				main.rider_plan = kinds.duplicate()
+				main.next_idx = i
+				var r = main.rider_sys.spawn_rider(0, 1)
+				var want = 1
+				if r["type"] == "tough":
+					want = (3 if floor_no >= 5 else 2) + int(h.value("tough_hp_plus", level))
+				if r["type"] != kinds[i]:
+					_fail(
+						(
+							"floor %d, Heat %d: asked for a %s rider and got a %s"
+							% [floor_no, level, kinds[i], r["type"]]
+						)
+					)
+				if r["hp"] != want or r["max_hp"] != want:
+					_fail(
+						(
+							"floor %d, Heat %d: a %s rider has %d of %d health, expected %d"
+							% [floor_no, level, r["type"], r["hp"], r["max_hp"], want]
+						)
+					)
+				main.clear_riders()
+	# bosses: the kind's base health with the growth per round, the Heat factor, then the extra of the final boss
+	var boss_sys = main.boss_sys
+	for round_no in [2, 3, 6, 9]:
+		for level in range(top + 1):
+			main.heat = level
+			main.round_n = round_no
+			main.boss_count = 0
+			main.clear_bosses()
+			boss_sys.spawn_boss()
+			if main.bosses.is_empty():
+				_fail("round %d, Heat %d: no boss was spawned" % [round_no, level])
+				continue
+			var b = main.bosses[0]
+			var plain = boss_sys.boss_hp(int(main.BOSS_INFO[b["kind"]]["hp"]))
+			var want = h.boss_health(plain, level)
+			if b["final"]:
+				want = int(round(float(want) * boss_sys.FINAL_HP_MUL))
+			if b["max_hp"] != want or b["hp"] != want:
+				_fail(
+					(
+						"round %d, Heat %d: a %s has %d of %d health, expected %d"
+						% [round_no, level, b["kind"], b["hp"], b["max_hp"], want]
+					)
+				)
+			if level == 0 and not b["final"] and b["max_hp"] != plain:
+				_fail(
+					(
+						"Heat 0: a %s has %d health, the game without Heat has %d"
+						% [b["kind"], b["max_hp"], plain]
+					)
+				)
+			main.clear_bosses()
+	for level in range(top + 1):  # the final boss, the golden president
+		main.heat = level
+		main.round_n = main.MAX_ROUNDS
+		main.boss_count = 0
+		main.clear_bosses()
+		boss_sys.spawn_boss()
+		var b = main.bosses[0]
+		var want = int(
+			round(float(h.boss_health(boss_sys.boss_hp(22), level)) * boss_sys.FINAL_HP_MUL)
+		)
+		if level == 0:
+			want = int(round(float(boss_sys.boss_hp(22)) * boss_sys.FINAL_HP_MUL))
+		if b["kind"] != "president" or b["max_hp"] != want:
+			_fail(
+				(
+					"the final boss at Heat %d is a %s with %d health, expected a president with %d"
+					% [level, b["kind"], b["max_hp"], want]
+				)
+			)
+		main.clear_bosses()
+	# the angry cyclist: built from a tough rider, follows the boss factor (rounded up) and does not count the rider's
+	# Heat bonus twice
+	for round_no in [2, 4, 5, 8]:
+		for level in range(top + 1):
+			main.heat = level
+			main.round_n = round_no
+			main.rider_plan = ["tough"]
+			main.next_idx = 0
+			main.clear_bosses()
+			var r = main.rider_sys.spawn_rider(0, 1)
+			boss_sys.spawn_runner(r)
+			var b = main.bosses[0]
+			var base = (3 if round_no >= 5 else 2) + int(floor(float(maxi(0, round_no - 2)) / 2.0))
+			var want = h.boss_health(base, level, true)
+			if b["kind"] != "runner" or b["max_hp"] != want:
+				_fail(
+					(
+						"round %d, Heat %d: the angry cyclist has %d health, expected %d"
+						% [round_no, level, b["max_hp"], want]
+					)
+				)
+			if level == 0 and b["max_hp"] != base:
+				_fail(
+					(
+						"Heat 0: the angry cyclist has %d health, the game without Heat has %d"
+						% [b["max_hp"], base]
+					)
+				)
+			main.clear_bosses()
+			main.clear_riders()
+	main.heat = 0
+	main.rider_plan = []
 	main.go_to_title()
 
 
