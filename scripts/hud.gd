@@ -1143,6 +1143,78 @@ func _draw_scores_confirm(k: float, cx: float) -> void:
 	_txt("ESC TO GO BACK", cx, size.y * 0.80, int(16 * k), GRAY, 1)
 
 
+# ---------------------------------------------------------------- PLAY page (README H1.4)
+# PLAY opens this page before a run starts: the Heat level with an arrow on each side, what the level adds written
+# under it, and START. The clicks are handled in input.gd (`on_click`, `heat_adjust`, `play_start`).
+func heat_row_rect() -> Rect2:
+	var k = size.y / 720.0
+	return Rect2(size.x * 0.5 - 230.0 * k, size.y * 0.38, 460.0 * k, 64.0 * k)
+
+
+# the arrow on the left (d = -1, one level down) or on the right (d = 1, one level up) of the Heat row
+func heat_arrow_rect(d: int) -> Rect2:
+	var row = heat_row_rect()
+	if d < 0:
+		return Rect2(row.position, Vector2(row.size.y, row.size.y))
+	return Rect2(Vector2(row.end.x - row.size.y, row.position.y), Vector2(row.size.y, row.size.y))
+
+
+func play_start_rect() -> Rect2:
+	var k = size.y / 720.0
+	return Rect2(size.x * 0.5 - 130.0 * k, size.y * 0.64, 260.0 * k, 46.0 * k)
+
+
+func _draw_play_page(k: float, cx: float) -> void:
+	_txt("PLAY", cx, size.y * 0.2, int(60 * k), GOLD, 1)
+	_txt("CHOOSE HOW HOT THE RUN IS.", cx, size.y * 0.29, int(20 * k), TEXT, 1)
+	var info = g.heat_sys.level_info(g.heat)
+	var level = int(info["level"])
+	var row = heat_row_rect()
+	draw_rect(row, Color(0.13, 0.14, 0.16))
+	draw_rect(row, ACCENT, false, 3.0 * k)
+	_txt("HEAT %d" % level, cx, row.position.y + 29.0 * k, int(26 * k), TEXT, 1)
+	_txt(str(info["name"]), cx, row.position.y + 54.0 * k, int(16 * k), GOLD, 1)
+	# the arrows are dim at the ends of the ladder; they also say < and >, so colour is not the only sign
+	for d in [-1, 1]:
+		var open = g.heat_sys.clamp_level(level + d) != level
+		var ar = heat_arrow_rect(d)
+		draw_rect(ar, Color(0.176, 0.196, 0.22) if open else Color(0.13, 0.14, 0.16))
+		draw_rect(ar, ACCENT if open else Color(0.29, 0.31, 0.33), false, 3.0 * k)
+		_txt(
+			"<" if d < 0 else ">",
+			ar.position.x + ar.size.x * 0.5,
+			ar.position.y + 42.0 * k,
+			int(32 * k),
+			TEXT if open else GRAY,
+			1
+		)
+	# what the level adds, written under the row; a level above 1 keeps what the levels below it add
+	_txt(str(info["desc"]), cx, size.y * 0.54, int(20 * k), TEXT, 1)
+	if level > 1:
+		_txt("AND EVERYTHING THE LEVELS BELOW IT ADD", cx, size.y * 0.585, int(14 * k), GRAY, 1)
+	var r = play_start_rect()
+	draw_rect(r, Color(0.176, 0.196, 0.22))
+	draw_rect(r, ACCENT, false, 3.0 * k)
+	_txt("START", cx, r.position.y + 32.0 * k, int(24 * k), TEXT, 1)
+	_txt("THE DAILY RUN IS ALWAYS HEAT 0.", cx, size.y * 0.74, int(14 * k), GRAY, 1)
+	_txt(
+		"GAMEPAD: LEFT / RIGHT CHANGES THE HEAT, A STARTS, B GOES BACK",
+		cx,
+		size.y * 0.78,
+		int(14 * k),
+		GRAY,
+		1
+	)
+	_txt(
+		"LEFT / RIGHT CHANGES THE HEAT   ENTER OR CLICK START   ESC TO GO BACK",
+		cx,
+		size.y * 0.84,
+		int(18 * k),
+		GRAY,
+		1
+	)
+
+
 # the START button of the custom seed page (the click is handled in input.gd)
 func seed_start_rect() -> Rect2:
 	var k = size.y / 720.0
@@ -1668,6 +1740,9 @@ func _draw_title_page(k: float, cx: float) -> void:
 		return
 	if g.title_page == "seed":
 		_draw_seed_page(k, cx)
+		return
+	if g.title_page == "play":
+		_draw_play_page(k, cx)
 		return
 	if g.title_page == "controls":
 		_draw_controls(k, cx)
