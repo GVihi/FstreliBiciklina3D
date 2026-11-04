@@ -277,7 +277,7 @@ Mostly vibe coded Godot game
 - [x] Training room map for the tutorial and for trying a weapon before buying it (note in `docs/ROADMAP_HISTORY.md`; the tutorial and the menu entries are separate items)
 - [x] Try before buying: a TRY IT button on the Unlocks page takes the player and the weapon into the training room (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game check by the owner)
 - [x] Training room on the title menu: a TRAINING ROOM entry takes the player into the room with the chosen loadout, and the room has no pedestrians (note in `docs/ROADMAP_HISTORY.md`; not run here, waits for the checks and an in-game look by the owner)
-- [ ] Short tutorial
+- [x] Short tutorial in the training room: eight prompted steps, the first TRAINING ROOM visit starts it, TUTORIAL in the pause menu runs it again (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game look by the owner)
 - [x] Key rebinding (note in `docs/ROADMAP_HISTORY.md`; `keybinds` and the checks of the code it touched not run yet, waits for an in-game check by the owner)
 
 ## Accessibility
@@ -475,11 +475,24 @@ Where to get free assets, and the licence rules: [`docs/ASSET_SOURCES.md`](docs/
 
 ---
 
+# Milestone J: Manual Reload
+
+> Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone J: Manual Reload". Only what is still open stays here.
+
+- [ ] Add reload to the key rebinding list and the Controls page (the Controls page exists now and lists R and X for reload; key rebinding does not exist yet, so only the rebinding list is left)
+- [ ] Rebalance darts per magazine and reload time now that reloading is not free
+
+---
+
 # Milestone K: Procedural Arenas
 
 > Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone K: Procedural Arenas". Only what is still open stays here.
 
 > Every run gets one generated arena, about four times bigger than the roundabout, that the player walks through freely and where riders can ride on roads, sidewalks, grass and anywhere open. Design, owner decisions, current-code notes and open questions: [`docs/PROCEDURAL_ARENAS.md`](docs/PROCEDURAL_ARENAS.md). Needs the seed from Milestone G; the world kit from Milestone F9 should be reused for the dressing. This replaces how riders, bosses and pedestrians move (street coordinates become world positions), so it is large: work top to bottom, and the first steps keep the roundabout playing as it does today.
+
+## Decisions
+
+- [ ] Set the performance budget (triangles, lights, shadows, draw distance) on the minimum-spec machine (deferred by the owner: not needed yet, but needed before the world is built)
 
 ## Rider variety and arena hazards
 

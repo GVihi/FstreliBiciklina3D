@@ -32,6 +32,7 @@ const PedestriansScript = preload("res://scripts/pedestrians.gd")
 const PickupsScript = preload("res://scripts/pickups.gd")
 const PhonesScript = preload("res://scripts/phones.gd")
 const GadgetsScript = preload("res://scripts/gadgets.gd")
+const TutorialScript = preload("res://scripts/tutorial.gd")
 const BossesScript = preload("res://scripts/bosses.gd")
 const RidersScript = preload("res://scripts/riders.gd")
 const ShopScript = preload("res://scripts/shop.gd")
@@ -178,6 +179,7 @@ var hints_seen = {}  # first-run hint id -> true once it was shown (saved in set
 var warn_level = 2  # RIDER WARNING setting (README Milestone E, Accessibility): 0 OFF, 1 QUIET, 2 NORMAL; saved as [game] rider_warning
 var hints_on = true  # HINTS setting (README alpha E1.4): false = no first-run hint is shown; saved as [game] show_hints
 var hint_txt = ""  # the first-run hint line on screen (E1.2), "" = none; drawn bottom centre by Hud._draw_hint
+var tutorial_done = false  # the short tutorial was finished or skipped, so the training room opens without it (saved in settings.cfg as [game] tutorial_done)
 var hint_t0 = -100.0  # g.time when hint_txt was set; the line fades out after Settings.HINT_SECONDS
 var name_entry = false  # true on the run summary while the player is typing a name for a new leaderboard entry
 var name_buf = ""
@@ -675,6 +677,7 @@ var practice_unlock = {}  # the entry of data/unlocks.json being tried; empty wh
 var practice_was_training = false  # the session already was in the room (--training-room): it stays there afterwards
 var world_root: Node3D = null  # the generated arena's world (the roundabout's is built straight into this node)
 var settings = SettingsScript.new(self)  # settings.gd: saved settings, graphics quality, high score file
+var tutorial_sys = TutorialScript.new(self)  # tutorial.gd: Tutorial: the short tutorial in the training room, step by step.
 var gadget_sys = GadgetsScript.new(self)  # gadgets.gd: Gadgets: the gadget use key, its uses and cooldown, and the banana peel trap.
 var phone_sys = PhonesScript.new(self)  # phones.gd: Phones: riders throwing phones at the player and the phones in flight.
 var objective_sys = ObjectiveScript.new(self)  # objective.gd: Objectives: supply caches and the extraction point on generated arenas.
@@ -962,7 +965,10 @@ func start_practice(u: Dictionary) -> bool:
 func start_training() -> bool:
 	if state != "title":
 		return false
-	return _begin_practice({})
+	var began = _begin_practice({})
+	if began and not tutorial_done:
+		tutorial_sys.start()  # the first visit to the room is the short tutorial (tutorial.gd)
+	return began
 
 
 # the part of start_practice and start_training that is the same: `u` is the unlock being tried, or empty for the
@@ -975,6 +981,7 @@ func _begin_practice(u: Dictionary) -> bool:
 		use_training_room()
 	practice = true
 	practice_unlock = u
+	tutorial_sys.stop()
 	reset_run()
 	run_map = {}
 	round_n = 1
@@ -1031,6 +1038,7 @@ func _begin_practice(u: Dictionary) -> bool:
 func end_practice() -> void:
 	if not practice:
 		return
+	tutorial_sys.stop()
 	clear_riders()
 	clear_bosses()
 	clear_phones()
@@ -2395,10 +2403,13 @@ func update_game(dt: float) -> void:
 	phone_sys.update_phones(gdt)
 	warn_sys.update(dt)
 	gadget_sys.update(gdt)
+	tutorial_sys.update(gdt)
 	boss_sys.update_bosses(gdt)
 	if riders.size() == 0 and bosses.size() == 0 and wait > 0.0:
 		wait -= dt
 		if wait <= 0.0:
+			if tutorial_sys.holding():
+				return  # the tutorial keeps the door shut; wait stays 0 until its rider step lets the next rider out
 			if pending_boss:
 				pending_boss = false
 				boss_sys.spawn_boss()
