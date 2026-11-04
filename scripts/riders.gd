@@ -100,7 +100,9 @@ func _spawn_rider(lane_idx: int, dir: int, ambush: bool, gate_override: Dictiona
 		kit_i = 5
 	var kit = Models.kit_of(kit_i)
 	var diff = 1.0 + (g.round_n - 1) * ROUND_SPEED_GROWTH + g.next_idx * 0.03
-	var base = 165.0 * g.RIDER_SCALE * diff * g.TYPES[type]["sp"]
+	# Heat (docs/HEAT.md, README H1.5): a factor on the whole base speed, 1.0 at Heat 0. RIDER_SPEED_CAP below still
+	# limits every rider, so a late sprinter that already rides at the cap does not get faster
+	var base = 165.0 * g.RIDER_SCALE * diff * g.TYPES[type]["sp"] * g.heat_sys.value("rider_speed")
 	var hp = 1
 	if type == "tough":
 		hp = 3 if g.round_n >= 5 else 2
