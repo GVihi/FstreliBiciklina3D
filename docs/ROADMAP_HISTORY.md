@@ -107,6 +107,13 @@ an achievement is a challenge done at least once, so nothing new is saved: `meta
 - **Checked:** `gdformat` and `gdlint` on `riders.gd`, `heat_check.gd` and `rider_speed_check.gd`, clean. **Godot was not available, so `python tools/run_checks.py heat rider_speed` was not run: run it once.** **A person still has to feel it in the game:** whether Heat 1 is noticeably faster on floor 1 and whether late floors become unfair (H1.12 tunes this with the bot harness).
 - **Not covered:** more riders (H1.6), the other effects, showing the level (H1.10).
 
+### Implement Heat system › H1.6 Effect: more riders
+
+- **Built:** `Heat.with_extra_riders(plan, mix, level)` in `scripts/heat.gd`, called by `Main.plan_riders` right after the seed's shuffle. It adds `ceil(size * riders_more)` riders (at least 1 when the share is above 0), never past the `riders_max` cap of the table (16), in the proportions of the node's mix (largest remainder, a tie goes to the kind first in the mix). The seed's riders keep their order and the extras are spread evenly between them. `PER_ROUND` follows the new plan length. `tools/heat_check.gd` has a case (`_check_more_riders`) on made-up mixes (neutral level unchanged, the count, the cap, order, proportions, the passed-in plan untouched, `rider_rng.state` unmoved) and on the real plan of the first round of a run, planned from the same stream at every level.
+- **Decisions:** `docs/HEAT.md` said the extras are added before the shuffle; they are added after it instead, so the seed's shuffle (and the random draws after it) is the same at every Heat and only the extras differ. No random stream is used for the extras at all. A round that is already at the cap gets none. `tools/node_setup_check.gd` sets `Main.heat = 0` first, so it keeps testing the node's own mix whatever level `settings.cfg` remembers.
+- **Checked:** `gdformat` and `gdlint` on `heat.gd`, `main.gd`, `heat_check.gd`, clean. **Godot was not available, so `python tools/run_checks.py heat node_setup` was not run: run it once.** **A person still has to play it:** whether 2 or 3 extra riders per round at H2 feels right, and whether the rider spawn pacing (which reads `PER_ROUND`) still works with the bigger rounds; H1.12 tunes the numbers.
+- **Not covered:** hearts (H1.7), tough riders and bosses (H1.8), prices and cash (H1.9), showing the level (H1.10).
+
 ## Milestone C: Weapon System Expansion › Weapon Slots
 
 ### Add primary weapon slot

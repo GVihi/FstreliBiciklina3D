@@ -78,7 +78,7 @@ Mostly vibe coded Godot game
   - [x] H1.3 Save it (`heat` in `run.json` and in `settings.cfg`, `docs/SAVE_FILES.md`)
   - [x] H1.4 Choose the level before a run: a HEAT entry in the menu after clicking PLAY (`scripts/hud.gd`, `scripts/input.gd`; keyboard and gamepad), with what the level adds written under it. All levels open for now (levels will later become available after reaching XP levels in steps of 5); not offered for the Daily Run (fixed 0); a RESTART RUN keeps the level
   - [x] H1.5 Effect: faster riders. The rider speed growth in `riders.gd` (`diff`) gets a Heat factor, still capped by `RIDER_SPEED_CAP`
-  - [ ] H1.6 Effect: more riders. A node's rider count (`plan_riders`) goes up by a share per level, taken from the mix in the same proportions, so the seed's mix does not change
+  - [x] H1.6 Effect: more riders. A node's rider count (`plan_riders`) goes up by a share per level, taken from the mix in the same proportions, so the seed's mix does not change
   - [ ] H1.7 Effect: fewer hearts (2 instead of 3 from H3, see `docs/HEAT.md`). Heart drops, PATCH UP and the heart on a round clear stay as they are (decided in H1.1)
   - [ ] H1.8 Effect: tougher riders and bosses (rider health in `riders.gd`, boss health in `bosses.gd`; a boss weak spot is still one hit of the right kind)
   - [ ] H1.9 Effect: a tighter economy (shop prices and cash from drops in `shop.gd` and `pickups.gd`)
