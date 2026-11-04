@@ -469,7 +469,15 @@ func wall_jump() -> void:
 func land(crouch_held: bool, impact: float = 0.0) -> void:
 	g.wall_jumps = 0
 	g.since_land = 0.0
-	g.carry_speed = g.pvel.length()
+	# a dash burst that is still running is not speed the player had: a side dash gives back the velocity from before it
+	# (side_carry), a dash goes no faster than the air was steering at. Without this a landing inside the burst kept 20 m/s
+	# for a couple of seconds and slid the player across the arena.
+	var kept = g.pvel.length()
+	if g.side_t > 0.0:
+		kept = g.side_carry.length()
+	elif g.dash_t > 0.0:
+		kept = minf(kept, g.air_speed)
+	g.carry_speed = kept
 	land_dip_v -= impact * LAND_KICK * g.fx_scale
 	kick_dip_v -= impact * 0.05
 	g.sfx.play(
