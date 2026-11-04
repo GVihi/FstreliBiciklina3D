@@ -35,6 +35,12 @@ const CRAWL_SPEED = 0.5  # metres per second: the slowest a boxed-in rider goes 
 const AWAY_REACH = 2.0  # metres from the exit point at which a rider that gave up counts as out
 const NEVER_GIVES_UP = 1.0e9  # seconds: the time limit of a rider that cannot get away (g.riders_can_escape())
 const AGE_SPEED_CAP = 6.0  # seconds: the longest a rider speeds up for, where it has no time limit
+# how much faster a rider is on every later floor, as a share of the floor 1 speed. It was 0.13, which made a pro rider
+# on floor 10 2.2 times as fast as on floor 1 (17.9 m/s, and a sprinter 25 m/s), too fast to follow or aim at
+const ROUND_SPEED_GROWTH = 0.05
+# the fastest a rider aims to ride, in metres per second, whatever its surge, its age and its type. Before this a
+# sprinter's burst on a late floor went past 60 m/s. It does not limit a rider that gave up and is riding out (39)
+const RIDER_SPEED_CAP = 18.0
 const AWAY_MIN_SPEED = 8.0  # metres per second: the slowest a rider that gave up goes to make its turn
 const STUN_BRAKE = 40.0  # metres per second squared: how hard a rider that crashed on a banana peel stops (scripts/gadgets.gd)
 const AMBUSH_MIN_DIST = 35.0  # metres: an ambush rider comes out of a gate at least this far from the player (ambush_gate)
@@ -93,7 +99,7 @@ func _spawn_rider(lane_idx: int, dir: int, ambush: bool, gate_override: Dictiona
 	elif type == "tough":
 		kit_i = 5
 	var kit = Models.kit_of(kit_i)
-	var diff = 1.0 + (g.round_n - 1) * 0.13 + g.next_idx * 0.03
+	var diff = 1.0 + (g.round_n - 1) * ROUND_SPEED_GROWTH + g.next_idx * 0.03
 	var base = 165.0 * g.RIDER_SCALE * diff * g.TYPES[type]["sp"]
 	var hp = 1
 	if type == "tough":
@@ -523,7 +529,7 @@ func update_rider(r: Dictionary, dt: float) -> void:
 			r["stun_t"] = maxf(0.0, r["stun_t"] - dt)
 			r["spd"] = move_toward(r["spd"], 0.0, STUN_BRAKE * dt)
 		else:
-			r["spd"] += (r["tgt"] * mul - r["spd"]) * minf(1.0, dt * 3.0)
+			r["spd"] += (minf(r["tgt"] * mul, RIDER_SPEED_CAP) - r["spd"]) * minf(1.0, dt * 3.0)
 		move_rider(r, dt)  # riders keep circling: through the tunnel and round again
 		if not r["entered"] and not r["hidden"]:
 			r["entered"] = true
