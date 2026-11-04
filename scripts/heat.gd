@@ -2,11 +2,13 @@ extends RefCounted
 # Heat: the difficulty level the player picks before a run (README Milestone B, "Difficulty Scaling"; the design is in
 # docs/HEAT.md). Level 0 is the game as it was before Heat. The table is data/heat.json (format: data/README.md): one
 # entry per level with the value of EVERY effect at that level, so a lookup is a read and nothing is added up.
-# This file only holds the table and the lookup. Each effect is applied where it plays out (riders.gd, bosses.gd,
-# shop.gd, main.gd), one chunk each (README H1.5 to H1.9); until then nothing reads `Main.heat`.
+# This file only holds the table and the lookup (and the two effects that need a little arithmetic: `with_extra_riders`
+# and `start_hearts`). Each effect is applied where it plays out (riders.gd, bosses.gd, shop.gd, main.gd), one chunk each
+# (README H1.5 to H1.9); the speed, the crowd and the hearts are built, the rest is not read yet.
 
 const PATH = "res://data/heat.json"
 const MAX_LEVEL = 20  # sanity limit for a hand-edited table
+const START_HEARTS = 3  # the hearts a run starts with at Heat 0 (the `MAXHEARTS` of `Main.reset_run`)
 
 # effect key -> its value at level 0, where it changes nothing
 const NEUTRAL = {
@@ -67,6 +69,15 @@ func value(key: String, level: int = -1) -> float:
 	if lv < 0:
 		lv = int(g.heat) if g != null else 0
 	return float(levels[clamp_level(lv)][key])
+
+
+# README H1.7: the hearts a run starts with at `level` (-1: the level of the run). `START_HEARTS` less `hearts_minus`, but
+# never below the `hearts_min` cap of the table, and never above `START_HEARTS`, so Heat 0 and a table that is hand-edited
+# the wrong way both leave the hearts at 3. MAX LIVES in shop.gd, heart drops, PATCH UP and the heart on a round clear
+# work on top of this and are not changed (docs/HEAT.md).
+func start_hearts(level: int = -1) -> int:
+	var minus = int(value("hearts_minus", level))
+	return mini(START_HEARTS, maxi(int(caps["hearts_min"]), START_HEARTS - minus))
 
 
 # README H1.6: the riders of a round with the extra riders of `level` (-1: the level of the run). `plan` is the node's own

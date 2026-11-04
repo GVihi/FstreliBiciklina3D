@@ -144,7 +144,7 @@ var daily_arena = ""  # the arena style of the daily seed, shown under it on the
 var arena_rules_cache = {}  # `data/arena_rules.json`, read on first use by `arena_style_text`
 var daily_mode = false  # true while a Daily Run is in progress (own scoreboard later, no normal high score)
 var custom_seed_run = false  # true while a run with a seed typed in on the title screen is in progress (kept off the normal high score and Top 10, like a Daily Run; a restart replays the same seed)
-var heat = 0  # the Heat level of this run, 0 to heat_sys.top_level() (heat.gd, docs/HEAT.md); 0 is the game as it was before Heat. Chosen on the PLAY page of the title screen (input.gd `heat_adjust`, README H1.4); start_game sets it to 0 for a Daily Run. Nothing reads it yet (README H1.5 to H1.9)
+var heat = 0  # the Heat level of this run, 0 to heat_sys.top_level() (heat.gd, docs/HEAT.md); 0 is the game as it was before Heat. Chosen on the PLAY page of the title screen (input.gd `heat_adjust`, README H1.4); start_game sets it to 0 for a Daily Run. Read so far by the rider speed (H1.5), the rider count (H1.6) and the starting hearts (H1.7); the other effects follow (README H1.8 to H1.9)
 var run_seed = 0  # the seed this run started with: today's daily seed in a Daily Run, a random one in a normal run
 var run_map = {}  # the run map generated from run_seed (map_gen.gd); the run walks it one node per round (see "run map walk" below)
 var map_floor = -1  # floor index (0-based) of the node being played, -1 before the first pick
@@ -1470,6 +1470,7 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	if not run_map.is_empty():
 		MAX_ROUNDS = run_map["floors"].size()  # a run is one node on every floor of the map
 	score = 0
+	MAXHEARTS = heat_sys.start_hearts()  # Heat (README H1.7): 2 hearts from H3; a Daily Run is Heat 0, set above
 	hearts = MAXHEARTS
 	combo = 0
 	best_combo = 0
