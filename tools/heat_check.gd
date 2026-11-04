@@ -11,6 +11,9 @@ extends SceneTree
 #     round trip through a real file,
 #   - riders are faster by the level's `rider_speed` (README H1.5): at Heat 0 a rider starts with exactly the speed it had
 #     before Heat, at every other level with that speed times the factor, and the top level still stops at `RIDER_SPEED_CAP`,
+#   - rounds have more riders (README H1.6): Heat 0 plans exactly as before, a higher level adds the rounded-up share (at
+#     least one, never past `riders_max`), the seed's riders keep their order, the extras copy the mix in its proportions,
+#     no random stream moves, and a real round planned on the same stream at every level agrees with all of that,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -50,6 +53,7 @@ func _initialize() -> void:
 	_check_run_save()
 	_check_settings()
 	_check_rider_speed()
+	_check_more_riders()
 	_restore_settings()
 	_finish()
 
@@ -321,6 +325,110 @@ func _check_rider_speed() -> void:
 	main.heat = 0
 	main.next_idx = 0
 	main.go_to_title()
+
+
+# README H1.6: `Heat.with_extra_riders` on made-up mixes, then on the real plan of a round
+func _check_more_riders() -> void:
+	var h = main.heat_sys
+	var cap = int(h.caps["riders_max"])
+	var mixes = [
+		{"pro": 5, "sprinter": 2, "courier": 1},
+		{"pro": 6, "tough": 2, "sprinter": 2, "courier": 1},
+		{"pro": 1},
+		{"pro": 12},
+		{"pro": 15},
+		{"pro": cap},
+	]
+	var rng_before = main.rider_rng.state
+	for mix in mixes:
+		var plan = []
+		for kind in mix:
+			for k in range(int(mix[kind])):
+				plan.append(kind)
+		plan.reverse()
+		var kept = plan.duplicate()
+		for level in range(h.top_level() + 1):
+			var res = h.with_extra_riders(plan, mix, level)
+			var tag = "mix %s at Heat %d" % [str(mix), level]
+			if plan != kept:
+				_fail("%s: the plan that was passed in was changed" % tag)
+			var share = h.value("riders_more", level)
+			var want = plan.size()
+			if share > 0.0:
+				var more = maxi(1, int(ceil(float(plan.size()) * share - 0.000001)))
+				want += maxi(0, mini(more, cap - plan.size()))
+			if share <= 0.0 and res != plan:
+				_fail("%s: a level with no extra riders changed the plan" % tag)
+			if res.size() != want:
+				_fail("%s: %d riders, expected %d" % [tag, res.size(), want])
+			if plan.size() <= cap and res.size() > cap:
+				_fail("%s: %d riders, over the cap %d" % [tag, res.size(), cap])
+			if not _is_subsequence(plan, res):
+				_fail("%s: the seed's riders lost their order" % tag)
+			var extra = res.size() - plan.size()
+			for kind in mix:
+				var have = res.count(kind) - plan.count(kind)
+				var exact = float(extra) * float(int(mix[kind])) / float(plan.size())
+				if have < 0 or absf(float(have) - exact) >= 1.0:
+					_fail(
+						(
+							"%s: %d extra %s riders, the proportion asks for %.2f"
+							% [tag, have, kind, exact]
+						)
+					)
+	if main.rider_rng.state != rng_before:
+		_fail("with_extra_riders moved the rider random stream")
+	if h.with_extra_riders([], {}, h.top_level()) != []:
+		_fail("an empty plan got riders")
+	# the real plan of the first round: the same stream at every level, so only Heat differs
+	main.generated_arena = true
+	main.heat = 0
+	main.start_game(false, SEED)
+	main.pick_node(0)
+	if main.state != "play":
+		_fail("could not start a round for the rider count case (state %s)" % main.state)
+		return
+	var stream = main.DailyScript.stream_seed(main.run_seed, main.round_n, "riders")
+	main.rider_rng.seed = stream
+	main.plan_riders()
+	var plain = main.rider_plan.duplicate()
+	if plain.is_empty():
+		_fail("the first round has no rider plan, so the rider count case tested nothing")
+		main.go_to_title()
+		return
+	for level in range(1, h.top_level() + 1):
+		main.heat = level
+		main.rider_rng.seed = stream
+		main.plan_riders()
+		var share = h.value("riders_more", level)
+		var want = plain.size()
+		if share > 0.0:
+			var more = maxi(1, int(ceil(float(plain.size()) * share - 0.000001)))
+			want += maxi(0, mini(more, cap - plain.size()))
+		if main.rider_plan.size() != want or main.PER_ROUND != want:
+			_fail(
+				(
+					"Heat %d: the round has %d riders (PER_ROUND %d), expected %d"
+					% [level, main.rider_plan.size(), main.PER_ROUND, want]
+				)
+			)
+		if not _is_subsequence(plain, main.rider_plan):
+			_fail("Heat %d: the seed's riders of the round lost their order" % level)
+	main.heat = 0
+	main.rider_rng.seed = stream
+	main.plan_riders()
+	if main.rider_plan != plain or main.PER_ROUND != plain.size():
+		_fail("Heat 0 does not plan the round it planned before")
+	main.go_to_title()
+
+
+# true when every element of `sub` is in `full`, in the same order (others may lie between)
+func _is_subsequence(sub: Array, full: Array) -> bool:
+	var i = 0
+	for item in full:
+		if i < sub.size() and item == sub[i]:
+			i += 1
+	return i == sub.size()
 
 
 # the `diff` of riders.gd for a floor and for the rider sent at index `idx`

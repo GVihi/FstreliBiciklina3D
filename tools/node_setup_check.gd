@@ -66,6 +66,7 @@ func _same_counts(a: Dictionary, b: Dictionary) -> bool:
 func _check_generated() -> void:
 	await _boot(true)
 	for seed_value in SEEDS:
+		main.heat = 0  # the plans are the node's own mix, without the extra riders of a Heat level (README H1.6)
 		main.start_game(false, seed_value)
 		main.hits.resize(400)
 		main.hits.fill(false)
@@ -149,6 +150,7 @@ func _check_gates(tag: String, content: Dictionary) -> void:
 
 func _check_roundabout() -> void:
 	await _boot(false)
+	main.heat = 0
 	main.start_game(false, 0x9E378A43)
 	main.hits.resize(400)
 	main.hits.fill(false)
