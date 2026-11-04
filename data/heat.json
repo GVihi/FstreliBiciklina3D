@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "caps": {"riders_max": 16, "hearts_min": 2, "cash_min": 0.5},
+  "levels": [
+    {"level": 0, "name": "NO HEAT", "desc": "THE GAME AS IT IS"},
+    {"level": 1, "name": "FASTER", "desc": "RIDERS RIDE 10% FASTER", "rider_speed": 1.1},
+    {"level": 2, "name": "CROWDED", "desc": "20% MORE RIDERS IN A ROUND", "rider_speed": 1.1, "riders_more": 0.2},
+    {"level": 3, "name": "FEWER LIVES", "desc": "2 HEARTS INSTEAD OF 3", "rider_speed": 1.1, "riders_more": 0.2, "hearts_minus": 1},
+    {"level": 4, "name": "TOUGH", "desc": "TOUGH RIDERS +1 HEALTH, BOSSES 15% MORE", "rider_speed": 1.1, "riders_more": 0.2, "hearts_minus": 1, "tough_hp_plus": 1, "boss_hp": 1.15},
+    {"level": 5, "name": "STINGY", "desc": "SHOP PRICES 20% UP, CASH 20% DOWN", "rider_speed": 1.1, "riders_more": 0.2, "hearts_minus": 1, "tough_hp_plus": 1, "boss_hp": 1.15, "price": 1.2, "cash": 0.8}
+  ]
+}

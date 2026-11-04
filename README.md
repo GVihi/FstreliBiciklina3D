@@ -74,7 +74,7 @@ Mostly vibe coded Godot game
 
 - [ ] Implement Heat system
   - [x] H1.1 Design note, no code (`docs/HEAT.md`)
-  - [ ] H1.2 The table and the level: `data/heat.json` (loaded by a new `scripts/heat.gd` like `data/items.json`: bad entries skipped and logged with `push_error`; documented in `data/README.md`), `g.heat` in `main.gd` (0 to the top level, 0 by default), a lookup such as `Heat.value(key, level)`. No effect yet. Check `tools/heat_check.gd`: the file loads, every level is in range, level 0 changes nothing
+  - [x] H1.2 The table and the level (`data/heat.json`, `scripts/heat.gd`, `Main.heat`, `tools/heat_check.gd`)
   - [ ] H1.3 Save it: `heat` in the run save (`scripts/run_save.gd`, clamped on load, an old `run.json` without it loads as 0) and the last chosen level in `settings.cfg`, so CONTINUE gives the same Heat back (docs/SAVE_FILES.md updated; the heat check gets a save and load round trip)
   - [ ] H1.4 Choose the level before a run: a HEAT entry in the title screen's menu next to CUSTOM SEED (`scripts/hud.gd`, `scripts/input.gd`; keyboard and gamepad), with what the level adds written under it. All levels open for now; not offered for the Daily Run (fixed 0); a RESTART RUN keeps the level
   - [ ] H1.5 Effect: faster riders. The rider speed growth in `riders.gd` (`diff`) gets a Heat factor, still capped by `RIDER_SPEED_CAP`

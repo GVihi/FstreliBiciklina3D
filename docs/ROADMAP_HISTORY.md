@@ -79,6 +79,13 @@ an achievement is a challenge done at least once, so nothing new is saved: `meta
 - **Checked:** the numbers and function names against the code (`riders.gd`, `bosses.gd`, `shop.gd`, `main.gd`, `objective.gd`); every cash source goes through `add_cash`. No code and no checks run, nothing to run.
 - **Not covered:** real rider speeds in m/s (H1.5 measures them), the balance of any number (needs the bot harness, H1.12).
 
+### Implement Heat system › H1.2 The table and the level
+
+- **Built:** `data/heat.json` (the ladder H0 to H5 of `docs/HEAT.md`, every level lists the value of every effect at that level), `scripts/heat.gd` (loader `parse` and `load_table`, lookup `value(key, level)`, `top_level`, `clamp_level`, `level_info`, `is_neutral`), `Main.heat` (0 by default) and `Main.heat_sys`, a section in `data/README.md`, and `tools/heat_check.gd`. No effect is switched on: nothing reads `Main.heat` yet.
+- **Decisions:** levels are stored as absolute values, not deltas, so a lookup is a read and the ladder rule "every level keeps the one below" is a check on the table. A key left out is neutral, so a later effect does not force an edit of every level. Heat only makes the game harder, so each key has a range that cannot go the easy way. Level 0 is forced neutral by the loader, so a broken file cannot make Heat 0 harder than before Heat. Entries with a bad value are skipped like `items.json`; a missing or invalid file runs the game with level 0 only. `Main.heat` is not reset by `reset_run` (the level is chosen before a run starts, H1.4).
+- **Checked:** `gdformat` and `gdlint` on the three scripts, clean. **Godot was not available in this session, so `python tools/run_checks.py heat` was not run: run it once.** The check covers the real table, level 0, the ladder, the caps against `data/map_rules.json`, the lookup and the bad-data cases.
+- **Not covered:** the effects themselves (H1.5 to H1.9), saving the level (H1.3), the picker (H1.4).
+
 ## Milestone C: Weapon System Expansion › Weapon Slots
 
 ### Add primary weapon slot

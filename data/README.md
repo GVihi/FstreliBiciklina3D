@@ -331,3 +331,37 @@ The coins are paid when the run ends, together with the score and boss coins (a 
 How the numbers were chosen, so they are easy to change: a boss pays 5 coins and the final boss 20, so the easy goals pay 3 to 5 and the 20 minute run pays 10. A challenge pays at most once per run (the counter still counts every run it was done in), so it cannot be farmed inside one run. Both are first guesses to tune once the challenges can be played.
 
 The export preset includes `data/*.json`, so the file ships with the game. `tools\run_challenges_check.bat` checks the loader, every condition, the payout and the save file.
+
+## `heat.json`
+
+The Heat levels (README Milestone B, "Difficulty Scaling"; the design and the numbers' reasons are in [`docs/HEAT.md`](../docs/HEAT.md)). Loaded by `scripts/heat.gd` into `Main.heat_sys`; bad entries are skipped and logged with `push_error`, so check the Godot output panel after editing. **Nothing reads the effects yet**: each one is switched on by its own chunk (README H1.5 to H1.9).
+
+```
+{
+  "version": 1,
+  "caps": {"riders_max": 16, "hearts_min": 2, "cash_min": 0.5},   // limits the ladder has to stay inside (the check tests them)
+  "levels": [ {"level": 0, "name": "NO HEAT", "desc": "..."}, {"level": 1, "name": "FASTER", "desc": "...", "rider_speed": 1.1}, ... ]
+}
+```
+
+Every level lists the value of **every** effect **at that level** (not what it adds to the level below), so a lookup is a read: `Main.heat_sys.value("rider_speed")` for the level of the run, `value("rider_speed", 3)` for level 3. A key that is left out keeps its neutral value. `Main.heat` is the level of the run being played (0 by default).
+
+| key | neutral | allowed | what it is |
+|---|---|---|---|
+| `rider_speed` | 1.0 | 1.0 to 3.0 | factor on how fast riders ride |
+| `riders_more` | 0.0 | 0.0 to 2.0 | share of riders added to a round (0.2 = 20 % more, rounded up) |
+| `hearts_minus` | 0 | 0 to 2, whole | hearts taken off the 3 a run starts with |
+| `tough_hp_plus` | 0 | 0 to 5, whole | health added to a tough rider |
+| `boss_hp` | 1.0 | 1.0 to 3.0 | factor on boss health |
+| `price` | 1.0 | 1.0 to 3.0 | factor on shop prices (before HAGGLER) |
+| `cash` | 1.0 | 0.1 to 1.0 | factor on the cash the player earns (before BOUNTY) |
+
+Rules the loader keeps, so a broken or hand-edited file cannot make the game worse than it was before Heat:
+
+- **Level 0 changes nothing.** It has to exist; if it is missing, or sets a key away from neutral, the game runs without Heat (or the key is set back) and says so in the log.
+- Levels run **0, 1, 2 ... without a gap**; a level after a gap is dropped. At most level 20.
+- Heat only makes the game harder, so no key goes the easy way (see "allowed").
+- Every level has a `name` and a `desc` (upper case, they are drawn on the title screen later, H1.4). The entry is skipped when a value is not a number, is out of range, or is a fraction where a whole number is needed.
+- **Keep the order and the numbers unless you mean to change them:** every level also keeps what the one below it does (speed, riders, hearts lost, health, boss health and prices never go down, cash never goes up), and `tools/heat_check.gd` tests that.
+
+The export preset includes `data/*.json`, so the file ships with the game. Check: `python tools/run_checks.py heat`.
