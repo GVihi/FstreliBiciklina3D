@@ -9,6 +9,8 @@ extends SceneTree
 #   - the level is saved: `heat` in the saved run (an old run without it loads as 0, a bad or too big number is kept to the
 #     levels there are, a Daily Run is always 0) and in settings.cfg (a bad value leaves the level as it is), each with a
 #     round trip through a real file,
+#   - riders are faster by the level's `rider_speed` (README H1.5): at Heat 0 a rider starts with exactly the speed it had
+#     before Heat, at every other level with that speed times the factor, and the top level still stops at `RIDER_SPEED_CAP`,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -21,6 +23,9 @@ const HeatScript = preload("res://scripts/heat.gd")
 const START_HEARTS = 3  # the hearts a run starts with (Main.MAXHEARTS), which hearts_minus is taken from
 const EXPECTED_TOP = 5  # the ladder of docs/HEAT.md: H0 to H5
 const RunSave = preload("res://scripts/run_save.gd")
+const Riders = preload("res://scripts/riders.gd")
+const SEED = 0x1234ABCD  # the run of the rider speed case
+const DT = 1.0 / 60.0
 const TEST_RUN_PATH = "user://heat_check_run.json"  # the saved run of this check, never the player's run.json
 const SETTINGS_PATH = "user://settings.cfg"
 
@@ -44,6 +49,7 @@ func _initialize() -> void:
 	_keep_settings()
 	_check_run_save()
 	_check_settings()
+	_check_rider_speed()
 	_restore_settings()
 	_finish()
 
@@ -251,6 +257,86 @@ func _check_settings() -> void:
 		if main.heat != 4:
 			_fail("heat %s in settings.cfg changed the level to %d" % [str(bad), main.heat])
 	main.heat = keep
+
+
+# README H1.5: the Heat factor on the speed a rider starts a round with (riders.gd `spawn_rider`, the `diff` line)
+func _check_rider_speed() -> void:
+	var h = main.heat_sys
+	main.generated_arena = true
+	main.heat = 0
+	main.start_game(false, SEED)
+	main.pick_node(0)
+	if main.state != "play":
+		_fail("could not start a round for the rider speed case (state %s)" % main.state)
+		return
+	for floor_no in [1, 5, 10]:
+		for idx in [0, 6]:
+			var plain = 165.0 * main.RIDER_SCALE * _diff(floor_no, idx)
+			var at_zero = _pro_base(0, floor_no, idx)
+			if absf(at_zero - plain) > 0.000001:
+				_fail(
+					(
+						"Heat 0, floor %d, rider %d: a pro rider starts at %.6f m/s, the game without Heat has %.6f"
+						% [floor_no, idx, at_zero, plain]
+					)
+				)
+			for level in range(1, h.top_level() + 1):
+				var want = at_zero * h.value("rider_speed", level)
+				var got = _pro_base(level, floor_no, idx)
+				if absf(got - want) > 0.000001:
+					_fail(
+						(
+							"Heat %d, floor %d, rider %d: a pro rider starts at %.4f m/s, expected %.4f"
+							% [level, floor_no, idx, got, want]
+						)
+					)
+	if _pro_base(h.top_level(), 1, 0) <= _pro_base(0, 1, 0):
+		_fail("the top level does not make riders faster than Heat 0")
+	# a rider told to aim at 1000 m/s on the top level still stops at the cap
+	main.heat = h.top_level()
+	main.round_n = 10
+	main.next_idx = 0
+	var r = main.rider_sys.spawn_rider(0, 1)
+	r["age"] = 1000.0
+	r["tgt"] = 1000.0
+	r["chg"] = 1000.0
+	r["spd"] = 1.0
+	var state_before = main.state
+	main.state = "check"  # nobody gets run over, and a finished rider does not end the round
+	var top = 0.0
+	for i in range(600):
+		main.rider_sys.update_rider(r, DT)
+		r["chg"] = 1000.0
+		r["tgt"] = 1000.0
+		top = maxf(top, float(r["spd"]))
+	main.state = state_before
+	if top > Riders.RIDER_SPEED_CAP + 0.05:
+		_fail(
+			(
+				"at the top level a rider reached %.2f m/s, over the cap %.1f"
+				% [top, Riders.RIDER_SPEED_CAP]
+			)
+		)
+	main.clear_riders()
+	main.heat = 0
+	main.next_idx = 0
+	main.go_to_title()
+
+
+# the `diff` of riders.gd for a floor and for the rider sent at index `idx`
+func _diff(floor_no: int, idx: int) -> float:
+	return 1.0 + (floor_no - 1) * Riders.ROUND_SPEED_GROWTH + idx * 0.03
+
+
+# the base speed of a pro rider (a rider's own type factor taken out) at a Heat level, floor and send index
+func _pro_base(level: int, floor_no: int, idx: int) -> float:
+	main.heat = level
+	main.round_n = floor_no
+	main.next_idx = idx
+	var r = main.rider_sys.spawn_rider(0, 1)
+	var base = float(r["base"]) / float(main.TYPES[r["type"]]["sp"])
+	main.clear_riders()
+	return base
 
 
 # the real settings.cfg is kept in memory and written back at the end
