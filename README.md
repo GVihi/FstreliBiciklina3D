@@ -79,29 +79,6 @@ Mostly vibe coded Godot game
 - [ ] Allow multiple Heat modifiers
 - [ ] Increase rewards for higher Heat levels
 
-## Cosmetics & Skins
-
-### Weapon Cosmetics
-
-- [ ] Dart gun skins
-- [ ] Worm skins
-
-### UI Cosmetics
-
-- [ ] Crosshair skins
-- [ ] Hit effect skins
-
-### World Cosmetics
-
-- [ ] Cheerleader skins
-- [ ] Rider bike skins
-- [ ] Rider helmet skins
-
-### Easy Cosmetic Variants
-
-- [ ] Colour swaps
-- [ ] Material swaps
-
 ---
 
 # Milestone C: Weapon System Expansion
