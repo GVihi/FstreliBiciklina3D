@@ -100,6 +100,13 @@ an achievement is a challenge done at least once, so nothing new is saved: `meta
 - **Checked:** `gdformat` and `gdlint` on `hud.gd`, `input.gd`, `main.gd` and the new check, clean. **Godot was not available in this session, so `python tools/run_checks.py heat` was not run: run it once.** The check covers the page opening and closing (Esc, B), the level stepping and its ends (keys, D-pad, Up / Down do nothing), the saved value in `settings.cfg`, drawing every level at two window sizes with the buttons on screen and apart, starting with Enter and A, RESTART RUN, the Daily Run at 0, and the mouse clicks (those only where headless Godot can move the mouse). **What a person still has to look at in the game:** how the page looks and reads, and that the arrows are easy to hit.
 - **Not covered:** the effects (H1.5 to H1.9), showing the level on the run bar, pause menu and summary (H1.10), locking levels (H1.11), a Heat choice for CUSTOM SEED.
 
+### Implement Heat system › H1.5 Effect: faster riders
+
+- **Built:** `riders.gd` `spawn_rider` multiplies the base speed (the `diff` line) by `Main.heat_sys.value("rider_speed")`, 1.0 at Heat 0 and 1.1 at H1 to H5. A new case in `tools/heat_check.gd` (`_check_rider_speed`) spawns riders at every level on floors 1, 5 and 10 and for two send positions: Heat 0 has exactly the speed of the game before Heat, every other level that speed times the factor, the top level is faster than Heat 0, and a rider told to aim at 1000 m/s on the top level still stops at `RIDER_SPEED_CAP`. `tools/rider_speed_check.gd` now sets `Main.heat = 0` first, so it measures the game without Heat whatever level `settings.cfg` remembers. The real speeds are in `docs/HEAT.md`.
+- **Decisions:** the factor is on the whole base speed, so the aim range, bursts and the age speed-up all scale with it; the cap is not raised, so riders that already ride at the cap (sprinters from about floor 4 on their fast aim) gain less than the 10 %. Ambush riders go through `spawn_rider` too, so they follow the factor; the angry cyclist mini boss (`bosses.gd` `spawn_runner`) is built from a rider but charges with its own boss speed, and bosses are left to H1.8.
+- **Checked:** `gdformat` and `gdlint` on `riders.gd`, `heat_check.gd` and `rider_speed_check.gd`, clean. **Godot was not available, so `python tools/run_checks.py heat rider_speed` was not run: run it once.** **A person still has to feel it in the game:** whether Heat 1 is noticeably faster on floor 1 and whether late floors become unfair (H1.12 tunes this with the bot harness).
+- **Not covered:** more riders (H1.6), the other effects, showing the level (H1.10).
+
 ## Milestone C: Weapon System Expansion › Weapon Slots
 
 ### Add primary weapon slot
