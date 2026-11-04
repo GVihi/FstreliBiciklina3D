@@ -10,7 +10,7 @@ extends SceneTree
 #     kinds adds up to the node's mix, and the riders spawned have exactly those kinds;
 #   - riders only come in by the gates the node leaves open, and by any gate when the node lists none;
 #   - a boss node has its boss only after every rider is down and only once, and the boss is the node's kind (the
-#     last node's is the final minister); a fight node without a boss never asks for one, even where the old rule
+#     last node's is the final president); a fight node without a boss never asks for one, even where the old rule
 #     would have (after 4 riders);
 #   - the "double_riders" modifier makes every wave a pair of riders.
 # On the roundabout (the arena the game starts with) none of it applies: node_setup() is empty, a round has 10
@@ -209,12 +209,13 @@ func _check_bosses_and_modifiers(tag: String) -> void:
 				main.clear_bosses()
 				main.boss_sys.spawn_boss()
 				var b = main.bosses.back()
-				if b["kind"] != str(content["boss"]):
+				# the map node of the last floor says "minister" and the fight spawns the golden president for it
+				var want_kind = str(content["boss"])
+				if content.get("final", false) and want_kind == "minister":
+					want_kind = "president"
+				if b["kind"] != want_kind:
 					bad.append(
-						(
-							"%s: the boss is a %s, the node says %s"
-							% [where, b["kind"], str(content["boss"])]
-						)
+						"%s: the boss is a %s, the node says %s" % [where, b["kind"], want_kind]
 					)
 				if bool(b["final"]) != bool(content.get("final", false)):
 					bad.append(
@@ -223,8 +224,8 @@ func _check_bosses_and_modifiers(tag: String) -> void:
 							% [where, str(b["final"]), str(content.get("final", false))]
 						)
 					)
-				if content.get("final", false) and b["kind"] != "minister":
-					bad.append("%s: the final boss is a %s, not the minister" % [where, b["kind"]])
+				if content.get("final", false) and b["kind"] != "president":
+					bad.append("%s: the final boss is a %s, not the president" % [where, b["kind"]])
 				main.clear_bosses()
 				if main.need_boss():
 					bad.append("%s: a second boss was asked for after the first" % where)

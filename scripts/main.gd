@@ -581,7 +581,9 @@ func _warm_up() -> void:
 		cl["root"].position = Vector3(x, 0.0, 1.5)
 		x += 1.6
 	x = -6.0
-	for spec in [["mower", 0], ["wifi", 0], ["minister", 0], ["minister", 1], ["runner", 0]]:
+	for spec in [
+		["mower", 0], ["wifi", 0], ["minister", 0], ["minister", 1], ["president", 0], ["runner", 0]
+	]:
 		var b = Models.build_boss(spec[0], spec[1], Models.kit_of(5))
 		holder.add_child(b["root"])
 		b["root"].position = Vector3(x, 0.0, -1.5)
@@ -1695,6 +1697,10 @@ func free_boss(b: Dictionary) -> void:
 	strip.queue_free()
 	var disc: Node = b["disc"]
 	disc.queue_free()
+	for key in ["ring", "beam"]:  # the president's decree ring and entrance beam
+		var extra: Node = b[key]
+		if extra != null:
+			extra.queue_free()
 
 
 func clear_phones() -> void:
@@ -2175,7 +2181,7 @@ func threat_list() -> Array:
 	for b in bosses:
 		if boss_sys.boss_hittable(b):
 			var urg = 0.6
-			if b["mode"] == "tele" or b["mode"] == "lunge":
+			if b["mode"] == "tele" or b["mode"] == "lunge" or b["mode"] == "decree":
 				urg = 1.0
 			elif b["mode"] == "stagger":
 				urg = 0.35

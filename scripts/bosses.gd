@@ -42,6 +42,44 @@ func make_disc() -> MeshInstance3D:
 	return mi
 
 
+# the gold ring of the president's decree: a ring of radius 1 that `update_decree` scales out to the real radius. It
+# is about as tall as a jump clears (player.gd HURDLE_HEIGHT), so the player can read what to jump over
+func make_ring() -> MeshInstance3D:
+	var mi = MeshInstance3D.new()
+	mi.mesh = Util.torus_mesh(0.93, 1.0, 48, 6)
+	var m = StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(1.0, 0.82, 0.25, 0.85)
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visible = false
+	g.add_child(mi)
+	return mi
+
+
+# the golden spotlight the final boss walks in under: a tall, see-through cone of light that fades with the intro
+func make_beam() -> MeshInstance3D:
+	var mi = MeshInstance3D.new()
+	var cm = CylinderMesh.new()
+	cm.top_radius = 1.3
+	cm.bottom_radius = 2.0
+	cm.height = BEAM_HEIGHT
+	cm.radial_segments = 24
+	cm.rings = 1
+	mi.mesh = cm
+	var m = StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.albedo_color = Color(1.0, 0.85, 0.35, 0.0)
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visible = false
+	g.add_child(mi)
+	return mi
+
+
 # bosses get tougher every round: 32% more health per round after the second
 func boss_hp(base: int) -> int:
 	return int(round(float(base) * (1.0 + 0.32 * float(maxi(0, g.round_n - 2)))))
@@ -91,12 +129,28 @@ func make_boss_dict(
 		"combo": 0,
 		"slam_r": 4.5,
 		"disc": make_disc(),
-		"strip": make_strip()
+		"strip": make_strip(),
+		# the president only (spawn_boss gives them real nodes): the shock ring of the decree and the entrance beam
+		"ring": null,
+		"beam": null,
+		"ring_r": 0.0,
+		"ring_hit": false,
+		"next_pat": ""
 	}
 
 
 # extra health of the final boss on top of the normal per-round growth
 const FINAL_HP_MUL = 1.3
+
+# the final boss: the golden president (see Models.build_president). Its own attack is the decree, a gold shock ring
+# that goes out from it: the circle on the ground shows how far it reaches, and the ring itself is about as tall as a
+# jump clears. A jump over it, a dash through it, a wall between, or standing further out than the circle all keep you
+# safe. It is the only boss that has it.
+const DECREE_RADIUS = 9.5  # metres the ring goes out to
+const DECREE_SPEED = 7.0  # metres per second the ring moves (0.12 m a frame at 60 fps, far less than the band)
+const DECREE_BAND = 1.1  # metres either side of the ring's front that count as being hit
+const DECREE_REACH = 5.0  # the president only starts a decree when the player is closer than the radius plus this
+const BEAM_HEIGHT = 16.0  # metres tall the spotlight of the entrance is
 
 # open ground: how far ahead a walking boss looks for something solid (metres), and how much room it keeps to
 # either side of its path
@@ -121,12 +175,10 @@ func spawn_boss() -> void:
 		kind = str(setup["boss"])
 	var variant = (g.round_n + g.boss_count) % 2
 	if final:
-		kind = "minister"  # the golden president is the final boss
-		variant = 1
+		kind = "president"  # the golden president is the final boss (the map node of floor 10 still says minister)
+		variant = 0
 	var info = g.BOSS_INFO[kind]
 	var nm = info["name"]
-	if kind == "minister" and variant == 1:
-		nm = "PREDSEDNIK POZLATA"
 	var hp = boss_hp(int(info["hp"]))
 	if final:
 		hp = int(round(float(hp) * FINAL_HP_MUL))
@@ -151,6 +203,10 @@ func spawn_boss() -> void:
 	start_boss_sound(b)
 	g.sfx.play("boss_intro")
 	g.sfx.say(info["voice"])
+	if kind == "president":
+		b["ring"] = make_ring()
+		b["beam"] = make_beam()
+		start_entrance(b)
 	pose_boss(b, 0.0)
 
 
@@ -235,6 +291,8 @@ func pose_boss(b: Dictionary, dt: float) -> void:
 	root.scale = Vector3(sc, sc, sc)
 	if m["fighter"]:
 		Models.pose_fighter(m, b["ph"] * (1.2 if kind == "runner" else 1.0))
+		if kind == "president":
+			Models.pose_president(m, b["ph"], mode, b["pat"])
 	elif kind == "mower":
 		var blade: Node3D = m["spin"]
 		blade.rotation.y += dt * 25.0
@@ -485,9 +543,14 @@ func slam_radius(b: Dictionary) -> float:
 #   combo  - two or three dashes in a row, each one re-aimed at you
 #   slam   - stops and slams the ground: everything inside the red circle gets hit (dash through it, or run)
 #   volley - throws a fan of phones (not the mower)
+#   decree - the president only: a gold shock ring goes out from it (jump it or dash through it)
 func boss_pick_pattern(b: Dictionary) -> String:
 	var k = b["kind"]
 	var ph = b["phase"]
+	if str(b["next_pat"]) != "":  # the fight asked for one (the president's final speech): it goes first
+		var asked = str(b["next_pat"])
+		b["next_pat"] = ""
+		return asked
 	var w = {}
 	if k == "runner":
 		w["lunge"] = 10.0
@@ -501,6 +564,8 @@ func boss_pick_pattern(b: Dictionary) -> String:
 			w["combo"] = 2.0 + 2.0 * float(ph - 1)
 			if k != "mower" and g.phones.size() <= 1:
 				w["volley"] = 1.5 + 1.5 * float(ph - 1)
+		if k == "president" and boss_flat_dist(b) < DECREE_RADIUS + DECREE_REACH:
+			w["decree"] = 2.0 + 1.5 * float(ph - 1)  # its own attack, from the first phase on
 	var total = 0.0
 	for key in w.keys():
 		total += w[key]
@@ -535,6 +600,9 @@ func start_tele(b: Dictionary, quick: bool = false) -> void:
 		b["slam_r"] = slam_radius(b)
 	elif pat == "volley":
 		t = 0.8
+	elif pat == "decree":
+		t = [1.1, 1.0, 0.9][b["phase"] - 1]
+		b["slam_r"] = DECREE_RADIUS  # the circle on the ground (update_disc) is how far the ring will go
 	b["tele_t"] = t
 	b["tele_total"] = t
 	b["lock"] = g.player.position
@@ -554,8 +622,13 @@ func start_stagger(b: Dictionary, t: float, crashed: bool) -> void:
 	g.sfx.set_loop(b["snd"], 0.0, 1.0)
 
 
+# the minister and the president walk (and talk) like people: they have footsteps and their voice lines
+func is_politician(b: Dictionary) -> bool:
+	return b["kind"] == "minister" or b["kind"] == "president"
+
+
 func boss_steps(b: Dictionary, dt: float) -> void:
-	if b["kind"] != "minister" and b["kind"] != "runner":
+	if not is_politician(b) and b["kind"] != "runner":
 		return
 	b["step_t"] -= dt
 	if b["step_t"] <= 0.0:
@@ -584,7 +657,7 @@ func update_bosses(dt: float) -> void:
 			continue
 		var b = g.bosses[i]
 		b["t"] += dt
-		b["ph"] += dt * (9.0 if b["kind"] == "minister" else 14.0)
+		b["ph"] += dt * (9.0 if is_politician(b) else 14.0)
 		if b["flash"] > 0.0:
 			b["flash"] -= dt
 			if b["flash"] <= 0.0:
@@ -598,6 +671,7 @@ func update_bosses(dt: float) -> void:
 			return
 		if removed:
 			continue
+		update_entrance(b)
 		pose_boss(b, dt)
 
 
@@ -656,6 +730,16 @@ func update_boss(b: Dictionary, dt: float) -> bool:
 		b["wyaw"] = atan2(dir.x, dir.z)
 		if b["tele_t"] <= 0.0:
 			do_volley(b)
+	elif mode == "tele" and b["pat"] == "decree":
+		b["tele_t"] -= dt
+		b["wyaw"] = atan2(dir.x, dir.z)
+		update_disc(b)
+		if b["tele_t"] <= 0.0:
+			do_decree(b)
+	elif mode == "decree":
+		update_decree(b, dt)
+		if g.state != "play":
+			return false
 	elif mode == "tele":
 		b["tele_t"] -= dt
 		var lk: Vector3 = b["lock"]
@@ -746,6 +830,82 @@ func do_slam(b: Dictionary) -> void:
 		g.shop_sys.add_style(6.0)
 		g.add_popup(pos + Vector3(0, 1.6, 0), "SLAM DODGED", g.ACCENT, true)
 	start_stagger(b, 1.2, false)
+
+
+# the wind-up is over: the ring goes out from the president
+func do_decree(b: Dictionary) -> void:
+	hide_strip(b)
+	var wp: Vector3 = b["wp"]
+	var pos = Vector3(wp.x, 0.4, wp.z)
+	b["mode"] = "decree"
+	b["ring_r"] = 0.0
+	b["ring_hit"] = false
+	g.sfx.play3d("crash", pos)
+	g.shake = maxf(g.shake, 0.6)
+	g.hitstop = maxf(g.hitstop, 0.04)
+	g.fx_sys.burst(pos, 26, ["#ffe27a", "#f2b630", "#ffffff"], 5.0, 0.4, 0.8, 0.1)
+	g.add_popup(pos + Vector3(0, 2.6, 0), "DECREE!", g.GOLD, true)
+	update_decree(b, 0.0)
+
+
+# the ring grows from the president to the edge of the circle, and hurts once, when its front passes the player.
+# A jump over it, a wall between the two, or standing outside the circle keeps you safe; a dash through it is a
+# PERFECT DODGE (damage_player does that). When it is gone the president is winded, like after a slam
+func update_decree(b: Dictionary, dt: float) -> void:
+	var wp: Vector3 = b["wp"]
+	var ring: MeshInstance3D = b["ring"]
+	var r = float(b["ring_r"]) + DECREE_SPEED * dt
+	b["ring_r"] = r
+	ring.visible = true
+	ring.position = Vector3(wp.x, OPEN_MARK_Y if open_ground() else 0.04, wp.z)
+	var rs = maxf(r, 0.1)
+	ring.scale = Vector3(rs, 8.0, rs)
+	var d = boss_flat_dist(b)
+	if not b["ring_hit"] and d <= DECREE_RADIUS and absf(d - r) < DECREE_BAND:
+		b["ring_hit"] = true
+		if g.player_sys.is_hurdling():
+			g.shop_sys.add_style(10.0)
+			g.add_popup(g.player.position + Vector3(0, 1.8, 0), "DECREE JUMPED", g.ACCENT, true)
+		elif not (open_ground() and not line_clear(wp, g.player.position)):
+			g.damage_player("THE DECREE HIT YOU", "boss")
+			if g.state != "play":
+				return
+	if r >= DECREE_RADIUS:
+		hide_ring(b)
+		start_stagger(b, 1.2, false)
+
+
+func hide_ring(b: Dictionary) -> void:
+	var ring: Node3D = b["ring"]
+	if ring != null:
+		ring.visible = false
+
+
+# the arena moment of the final boss: it walks in under a golden spotlight and a burst of light, and the arena
+# shakes. `update_entrance` fades the light out over the intro
+func start_entrance(b: Dictionary) -> void:
+	var wp: Vector3 = b["wp"]
+	var pos = Vector3(wp.x, 0.4, wp.z)
+	var beam: MeshInstance3D = b["beam"]
+	beam.visible = true
+	beam.position = Vector3(wp.x, BEAM_HEIGHT * 0.5, wp.z)
+	g.shake = maxf(g.shake, 0.8)
+	g.sfx.play3d("crash", pos)
+	g.fx_sys.burst(pos, 40, ["#ffe27a", "#f2b630", "#ffffff"], 6.0, 0.6, 1.2, 0.1)
+
+
+func update_entrance(b: Dictionary) -> void:
+	var beam: MeshInstance3D = b["beam"]
+	if beam == null:
+		return
+	if b["intro"] <= 0.0:
+		beam.visible = false
+		return
+	var wp: Vector3 = b["wp"]
+	beam.position = Vector3(wp.x, BEAM_HEIGHT * 0.5, wp.z)
+	var k = clampf(b["intro"] / 3.2, 0.0, 1.0)  # 1 at the start of the intro, 0 at its end
+	var m: StandardMaterial3D = beam.material_override
+	m.albedo_color = Color(1.0, 0.85, 0.35, 0.32 * k)
 
 
 func do_volley(b: Dictionary) -> void:
@@ -871,7 +1031,13 @@ func hit_boss(b: Dictionary, dmg: int, weak: bool = false, stag: float = 14.0) -
 			g.add_note("PHASE %d" % ph, g.RED)
 			g.sfx.play("boss_intro", -4.0)
 			g.shake = 0.6
-	if k == "minister" and randf() < 0.3:
+			if k == "president" and ph == 3:
+				# the final speech: its next attack is a decree, as soon as it is close enough to give one
+				b["next_pat"] = "decree"
+				b["chase_t"] = tele_wait(b)
+				g.add_note("THE FINAL SPEECH", g.GOLD)
+				g.fx_sys.burst(c, 30, ["#ffe27a", "#f2b630", "#ffffff"], 5.0, 0.5, 1.0, 0.1)
+	if is_politician(b) and randf() < 0.3:
 		g.sfx.say("minister_hit")
 
 
@@ -891,6 +1057,10 @@ func kill_boss(b: Dictionary) -> void:
 	g.cheer = 1.0 if is_run else 2.0
 	g.shout_t = 0.0
 	hide_strip(b)
+	hide_ring(b)
+	var beam: Node3D = b["beam"]
+	if beam != null:
+		beam.visible = false
 	g.hitstop = 0.15
 	g.shop_sys.add_style(30.0)
 	g.shop_sys.add_cash(18 if is_run else 55)
@@ -914,7 +1084,7 @@ func kill_boss(b: Dictionary) -> void:
 	if is_run:
 		g.sfx.play3d("thud", bpos)
 		g.sfx.v_yelp(bpos)
-	elif b["kind"] == "minister":
+	elif is_politician(b):
 		g.sfx.play("boss_down_minister")
 	else:
 		g.sfx.play("boss_down")
@@ -926,8 +1096,8 @@ func kill_boss(b: Dictionary) -> void:
 	elif b["kind"] == "wifi":
 		cols = ["#ffffff", "#e5533d", "#cfd4da"]
 	g.fx_sys.burst(bpos, 40, cols, 6.0, 0.6, 1.1, 0.09)
-	if b["kind"] == "minister":
-		for i in range(26):
+	if is_politician(b):
+		for i in range(26 if b["kind"] == "minister" else 60):
 			g.fx_sys.spawn_particle(
 				(
 					bpos

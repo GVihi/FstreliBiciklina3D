@@ -37,10 +37,7 @@ Mostly vibe coded Godot game
 
 ## Big Design Choice
 
-### Recommended Roguelite Structure
-
-- [x] Add final boss encounter (reuses the golden president model)
-  - [ ] Give the final boss its own model, attacks and arena moment
+> Finished sections and ticked items of this section moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-11-04, under "Big Design Choice" > "Recommended Roguelite Structure". Nothing is open here.
 
 ---
 
@@ -340,7 +337,7 @@ Mostly vibe coded Godot game
 - [ ] Rogue lawnmower (model, animation, attack telegraphs)
 - [ ] Mesh wifi adapter (model, hover, animation, attack telegraphs)
 - [ ] Minister (model, animation)
-- [ ] Golden president / final boss (model, animation, intro moment)
+- [ ] Golden president / final boss (model, animation, intro moment) (a first version built in code exists, `Models.build_president` in `scripts/models.gd`, with its decree and entrance, see `docs/ROADMAP_HISTORY.md` "Give the final boss its own model, attacks and arena moment"; this item replaces the model with the proper low-poly one and keeps the attack timings and the entrance beat)
 - [ ] Angry cyclist
 - [ ] Boss health bar, weak-spot marker and defeat effects
 
