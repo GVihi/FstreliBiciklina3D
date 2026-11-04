@@ -14,6 +14,9 @@ extends SceneTree
 #   - rounds have more riders (README H1.6): Heat 0 plans exactly as before, a higher level adds the rounded-up share (at
 #     least one, never past `riders_max`), the seed's riders keep their order, the extras copy the mix in its proportions,
 #     no random stream moves, and a real round planned on the same stream at every level agrees with all of that,
+#   - runs start with fewer hearts (README H1.7): `start_hearts` is 3 at Heat 0 and 2 from H3, never below the `hearts_min`
+#     cap and never above 3, a run that is started (new, restarted, saved and loaded) has that many hearts and a MAXHEARTS
+#     to match, a Daily Run stays at 3, and practice and the title screen are not changed,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -54,6 +57,7 @@ func _initialize() -> void:
 	_check_settings()
 	_check_rider_speed()
 	_check_more_riders()
+	_check_hearts()
 	_restore_settings()
 	_finish()
 
@@ -419,6 +423,134 @@ func _check_more_riders() -> void:
 	main.plan_riders()
 	if main.rider_plan != plain or main.PER_ROUND != plain.size():
 		_fail("Heat 0 does not plan the round it planned before")
+	main.go_to_title()
+
+
+# README H1.7: `Heat.start_hearts`, then the hearts of runs that are really started
+func _check_hearts() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	if START_HEARTS != HeatScript.START_HEARTS:
+		_fail(
+			(
+				"heat.gd starts a run with %d hearts, expected %d"
+				% [HeatScript.START_HEARTS, START_HEARTS]
+			)
+		)
+	# the lookup, level by level, against the table and the cap
+	for level in range(top + 1):
+		var want = maxi(
+			int(h.caps["hearts_min"]), START_HEARTS - int(h.value("hearts_minus", level))
+		)
+		want = mini(want, START_HEARTS)
+		if h.start_hearts(level) != want:
+			_fail("Heat %d: start_hearts is %d, expected %d" % [level, h.start_hearts(level), want])
+	if h.start_hearts(0) != START_HEARTS:
+		_fail("Heat 0 starts with %d hearts, expected %d" % [h.start_hearts(0), START_HEARTS])
+	for level in range(3, top + 1):
+		if h.start_hearts(level) != 2:
+			_fail(
+				(
+					"Heat %d starts with %d hearts, docs/HEAT.md says 2 from H3"
+					% [level, h.start_hearts(level)]
+				)
+			)
+	for level in range(0, mini(3, top + 1)):
+		if h.start_hearts(level) != START_HEARTS:
+			_fail(
+				(
+					"Heat %d starts with %d hearts, expected %d"
+					% [level, h.start_hearts(level), START_HEARTS]
+				)
+			)
+	if h.start_hearts(99) != h.start_hearts(top):
+		_fail("a level past the end does not start with the hearts of the top level")
+	var keep = main.heat
+	main.heat = 3
+	if h.start_hearts() != h.start_hearts(3):
+		_fail("with no level given, start_hearts is not the one of the run's Heat (3)")
+	main.heat = keep
+	# the cap and the limits, on a table of its own so the real one is not touched
+	var own = HeatScript.new()
+	own.levels[top]["hearts_minus"] = 2
+	own.caps["hearts_min"] = 2
+	if own.start_hearts(top) != 2:
+		_fail(
+			"2 hearts taken off with a cap of 2 left %d hearts, expected 2" % own.start_hearts(top)
+		)
+	own.caps["hearts_min"] = 1
+	if own.start_hearts(top) != 1:
+		_fail(
+			"2 hearts taken off with a cap of 1 left %d hearts, expected 1" % own.start_hearts(top)
+		)
+	own.caps["hearts_min"] = 5  # a cap above the start must not give Heat more hearts than the game had
+	if own.start_hearts(0) != START_HEARTS or own.start_hearts(top) != START_HEARTS:
+		_fail("a hearts_min cap above %d raised the hearts of a run" % START_HEARTS)
+	# runs that are really started
+	main.generated_arena = true
+	for level in range(top + 1):
+		main.heat = level
+		main.start_game(false, SEED)
+		var want = h.start_hearts(level)
+		if main.MAXHEARTS != want or main.hearts != want:
+			_fail(
+				(
+					"Heat %d: a new run has %d of %d hearts, expected %d"
+					% [level, main.hearts, main.MAXHEARTS, want]
+				)
+			)
+		if level == 0 and (main.MAXHEARTS != 3 or main.hearts != 3):
+			_fail("Heat 0: a new run does not start with 3 hearts")
+	# a restarted run keeps the level and so the hearts
+	main.heat = 3
+	main.start_game(false, SEED)
+	main.hearts = 1
+	main.restart_run()
+	if main.heat != 3 or main.MAXHEARTS != 2 or main.hearts != 2:
+		_fail(
+			(
+				"a restarted run at Heat 3 has %d of %d hearts (Heat %d), expected 2 of 2"
+				% [main.hearts, main.MAXHEARTS, main.heat]
+			)
+		)
+	# a saved run gives back its own maximum, and a run on the map keeps its hearts
+	main.heat = 3
+	main.start_game(false, SEED)
+	main.hearts = 1
+	var raw = RunSave.capture(main)
+	if int(raw["max_hearts"]) != 2:
+		_fail("a run saved at Heat 3 holds max_hearts %s, expected 2" % str(raw["max_hearts"]))
+	var cleaned = RunSave.clean(raw)
+	main.reset_run()
+	main.meta.begin_run()
+	main.challenges.begin_run()
+	RunSave.apply(main, cleaned)
+	if main.MAXHEARTS != 2 or main.hearts != 1 or main.heat != 3:
+		_fail(
+			(
+				"a loaded run at Heat 3 has %d of %d hearts (Heat %d), expected 1 of 2"
+				% [main.hearts, main.MAXHEARTS, main.heat]
+			)
+		)
+	# a Daily Run is Heat 0 for everybody, so 3 hearts whatever the level chosen
+	main.heat = top
+	main.start_game(true)
+	if main.heat != 0 or main.MAXHEARTS != START_HEARTS or main.hearts != START_HEARTS:
+		_fail(
+			(
+				"a Daily Run has %d of %d hearts at Heat %d, expected %d at Heat 0"
+				% [main.hearts, main.MAXHEARTS, main.heat, START_HEARTS]
+			)
+		)
+	# reset_run (practice, the title screen, CONTINUE before the load) stays at 3 at every level
+	main.heat = top
+	main.reset_run()
+	if main.MAXHEARTS != START_HEARTS:
+		_fail(
+			"reset_run left %d hearts at Heat %d, expected %d" % [main.MAXHEARTS, top, START_HEARTS]
+		)
+	main.heat = 0
+	main.daily_mode = false
 	main.go_to_title()
 
 
