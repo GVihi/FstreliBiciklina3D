@@ -75,9 +75,34 @@ Mostly vibe coded Godot game
 
 ## Difficulty Scaling
 
+> **Heat, broken into chunks (2026-11-04).** Heat is a number the player picks before a run; Heat 0 is the game as it is today, and every step above it makes the run harder and pays more. Nothing about Heat exists in the code yet. **Order of work:** the three items below in order, and inside an item top to bottom, one chunk per session and one branch per chunk. Assumed, to tune or change by saying so: (1) a Heat level is a fixed ladder first (H1 to H5, each level adds one effect on top of the last) and becomes a set of switchable modifiers in the second item; (2) **the map, the arena and the rider mix stay exactly the same for a seed at every Heat**, so Heat is applied when a round is played (`plan_riders`, `riders.gd`, the shop, `Meta.award_run`), never in `map_gen.gd` or `map_content.gd`; (3) the Daily Run is always Heat 0 and a custom-seed run may use Heat but stays unranked, as today (`Main.ranked_run`); (4) every chunk has a check, and **a Heat 0 run must give the same numbers as before Heat** (that check is the safety net for the whole section).
+
 - [ ] Implement Heat system
+  - [ ] H1.1 Design note, no code: `docs/HEAT.md` with the ladder (what H1 to H5 each add, with first-guess numbers), which numbers each effect touches (rider speed in `riders.gd` with `RIDER_SPEED_CAP`, riders per round, hearts, rider health, boss health, shop prices, cash from drops), the caps that keep a late floor playable, and how Heat meets the Daily Run, custom seeds, run save and the leaderboards
+  - [ ] H1.2 The table and the level: `data/heat.json` (loaded by a new `scripts/heat.gd` like `data/items.json`: bad entries skipped and logged with `push_error`; documented in `data/README.md`), `g.heat` in `main.gd` (0 to the top level, 0 by default), a lookup such as `Heat.value(key, level)`. No effect yet. Check `tools/heat_check.gd`: the file loads, every level is in range, level 0 changes nothing
+  - [ ] H1.3 Save it: `heat` in the run save (`scripts/run_save.gd`, clamped on load, an old `run.json` without it loads as 0) and the last chosen level in `settings.cfg`, so CONTINUE gives the same Heat back (docs/SAVE_FILES.md updated; the heat check gets a save and load round trip)
+  - [ ] H1.4 Choose the level before a run: a HEAT entry in the title screen's menu next to CUSTOM SEED (`scripts/hud.gd`, `scripts/input.gd`; keyboard and gamepad), with what the level adds written under it. All levels open for now; not offered for the Daily Run (fixed 0); a RESTART RUN keeps the level
+  - [ ] H1.5 Effect: faster riders. The rider speed growth in `riders.gd` (`diff`) gets a Heat factor, still capped by `RIDER_SPEED_CAP`
+  - [ ] H1.6 Effect: more riders. A node's rider count (`plan_riders`) goes up by a share per level, taken from the mix in the same proportions, so the seed's mix does not change
+  - [ ] H1.7 Effect: fewer hearts, plus a rule for heart drops and PATCH UP at high Heat (decide in H1.1)
+  - [ ] H1.8 Effect: tougher riders and bosses (rider health in `riders.gd`, boss health in `bosses.gd`; a boss weak spot is still one hit of the right kind)
+  - [ ] H1.9 Effect: a tighter economy (shop prices and cash from drops in `shop.gd` and `pickups.gd`)
+  - [ ] H1.10 Show it: the Heat level in the run bar and pause menu, on the run summary, and in the run record (the `scores.json` entry gets a `heat` field, an old entry reads as 0); the split boards stay the Milestone A item "Support separate leaderboards per difficulty"
+  - [ ] H1.11 Unlock the ladder: the next level opens when a run is won at the highest open level (kept in `meta.json`, an old file reads as only H0 open and the heat check says so), with the title screen showing the locked levels
+  - [ ] H1.12 Playtest and tune with the bot balance harness (Milestone A) at H0, H3 and H5: run length, lives lost and clear rate per level
 - [ ] Allow multiple Heat modifiers
+  - [ ] H2.1 Design note in `docs/HEAT.md`: the effects of H1.5 to H1.9 become separate modifiers with ranks (for example SWIFT RIDERS 0 to 3), each rank worth some Heat points, and the Heat of a run is the sum; list the modifiers, their ranks and points, which pairs clash, and the top total
+  - [ ] H2.2 Data and code: `data/heat.json` becomes modifiers with ranks and points; `Heat` computes the total from a set of ranks; the old ladder is kept as presets (H1 to H5 each name a set), so the H1 checks still pass. Check: the total of every preset equals the Heat it names
+  - [ ] H2.3 Stacking rules: caps on the sum of each effect (rider speed, rider count, hearts never below one), clashing pairs refused, and a top total; check that the all-ranks-maxed set still starts a round and every rider speed stays under `RIDER_SPEED_CAP`
+  - [ ] H2.4 Choose modifiers: a page opened from the title screen's HEAT entry with one line per modifier (rank up and down, the Heat points of each rank and the total at the top), a PRESET row, and RESET; keyboard and gamepad, and written out for a player who cannot see colours
+  - [ ] H2.5 Save the chosen set in the run save and `settings.cfg` (old files with only a level read as the preset of that level), and show the active modifiers, not only the number, on the run bar, pause menu and run summary
+  - [ ] H2.6 Check and playtest: every modifier alone and the maxed set through the scripted run (`tools/generated_run_check.gd`), then a balance pass with the harness
 - [ ] Increase rewards for higher Heat levels
+  - [ ] H3.1 Decide the formula in `docs/HEAT.md`: a coin and XP bonus per Heat point (first guess: +10 % per point, rounded, never less than +1 coin at Heat 1 or more), whether the score itself is multiplied (first guess: no, so the boards of different Heat stay comparable once they are split), and that the bonus applies to coins from rounds, bosses and caches
+  - [ ] H3.2 Pay it: `Meta.award_run` and `XpScript.run_xp` apply the bonus (`SCORE_COINS_MAX` still caps the score part); a Heat 0 run pays exactly as before. Check `tools/heat_check.gd`: Heat 0 unchanged, a higher Heat pays more, a quit run still pays nothing
+  - [ ] H3.3 Show it: the title screen's HEAT entry says what the level pays, and the run summary has a line with the bonus
+  - [ ] H3.4 Heat rewards beyond coins: unlocks or challenges that need a Heat level (an entry in `data/unlocks.json` and `data/challenges.json`, for example "win a run at Heat 3"), first guess one of each
+  - [ ] H3.5 Tune the numbers once the harness runs (the same pass as H1.12), so a higher Heat is worth it without making Heat 0 feel like a waste
 
 ---
 
