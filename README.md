@@ -68,11 +68,6 @@ Mostly vibe coded Godot game
 
 > Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone B: Meta Currency, Unlocks & Skins". Only what is still open stays here.
 
-## Meta Unlocks
-
-- [ ] Unlock additional weapons in shop pool (wording out of date: weapons are bought and then chosen on the Loadout page, never found in the shop; see alpha A1.6)
-- [ ] Unlock cosmetics
-
 ## Difficulty Scaling
 
 > **Heat, broken into chunks (2026-11-04).** Heat is a number the player picks before a run; Heat 0 is the game as it is today, and every step above it makes the run harder and pays more. Nothing about Heat exists in the code yet. **Order of work:** the three items below in order, and inside an item top to bottom, one chunk per session and one branch per chunk. Assumed, to tune or change by saying so: (1) a Heat level is a fixed ladder first (H1 to H5, each level adds one effect on top of the last) and becomes a set of switchable modifiers in the second item; (2) **the map, the arena and the rider mix stay exactly the same for a seed at every Heat**, so Heat is applied when a round is played (`plan_riders`, `riders.gd`, the shop, `Meta.award_run`), never in `map_gen.gd` or `map_content.gd`; (3) the Daily Run is always Heat 0 and a custom-seed run may use Heat but stays unranked, as today (`Main.ranked_run`); (4) every chunk has a check, and **a Heat 0 run must give the same numbers as before Heat** (that check is the safety net for the whole section).
