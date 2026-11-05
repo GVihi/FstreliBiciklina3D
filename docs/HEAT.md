@@ -54,7 +54,8 @@ Heart drops, PATCH UP and the heal of one heart on a round clear **do not change
 - **Run save:** a `heat` key (0 to the top level), cast and clamped on load like the others. An old `run.json` without it loads as 0 (H1.3).
 - **Settings:** the level last chosen is remembered in `settings.cfg` (H1.3).
 - **Unlock:** Heat 0 is always open; Heat N+1 opens the first time a run is won at Heat N. The highest open level is kept in `meta.json`; an old file reads as only H0 open (H1.11).
-- **Leaderboards:** the local Top 10 stays one board until the split item of Milestone A is done. Each entry gets a `heat` field (an old entry reads as 0) and the list shows it, so a Heat 5 score is not mistaken for a Heat 0 one. The score record the website will take (Milestone N, `docs/WEBSITE_API.md`) has to carry `heat` as well; that file is not changed in this chunk.
+- **Leaderboards:** the local Top 10 stays one board until the split item of Milestone A is done. Each entry gets a `heat` field (an old entry reads as 0) and the list shows it, so a Heat 5 score is not mistaken for a Heat 0 one. **Built in H1.10.**
+- **Where the level is shown (H1.10):** the run bar (top centre, after the round name, from Heat 1; Heat 0 leaves the bar as it was), the pause menu (a line under the buttons, "HEAT 3  FEWER LIVES", also at Heat 0 as "HEAT 0"; not in the training room), the run summary (the same line under the title) and a HEAT column on the High Scores page. All of them use `Heat.label`. The score record the website will take (Milestone N, `docs/WEBSITE_API.md`) has to carry `heat` as well; that file is not changed in this chunk.
 
 ## What the later chunks decide
 

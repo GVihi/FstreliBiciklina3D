@@ -82,7 +82,7 @@ Mostly vibe coded Godot game
   - [x] H1.7 Effect: fewer hearts (2 instead of 3 from H3, see `docs/HEAT.md`). Heart drops, PATCH UP and the heart on a round clear stay as they are (decided in H1.1)
   - [x] H1.8 Effect: tougher riders and bosses (rider health in `riders.gd`, boss health in `bosses.gd`; a boss weak spot is still one hit of the right kind)
   - [ ] H1.9 Effect: a tighter economy (shop prices and cash from drops in `shop.gd` and `pickups.gd`)
-  - [ ] H1.10 Show it: the Heat level in the run bar and pause menu, on the run summary, and in the run record (the `scores.json` entry gets a `heat` field, an old entry reads as 0); the split boards stay the Milestone A item "Support separate leaderboards per difficulty"
+  - [x] H1.10 Show it: the Heat level in the run bar and pause menu, on the run summary, and in the run record (the `scores.json` entry gets a `heat` field, an old entry reads as 0); the split boards stay the Milestone A item "Support separate leaderboards per difficulty"
   - [ ] H1.11 Unlock the ladder: the next level opens when a run is won at the highest open level (kept in `meta.json`, an old file reads as only H0 open and the heat check says so), with the title screen showing the locked levels
   - [ ] H1.12 Playtest and tune with the bot balance harness (Milestone A) at H0, H3 and H5: run length, lives lost and clear rate per level
 - [ ] Allow multiple Heat modifiers

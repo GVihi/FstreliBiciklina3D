@@ -20,6 +20,10 @@ extends SceneTree
 #   - tougher enemies (README H1.8): a tough rider has `tough_hp_plus` more health and every other kind still has 1, a boss
 #     has `boss_hp` times its health (before the extra of the final boss), the angry cyclist follows that factor rounded
 #     up without counting the rider's bonus twice, and Heat 0 has exactly the health of the game before Heat,
+#   - the level is shown (README H1.10): `Heat.label` ("HEAT 3", with the name after it from level 1, level 0 always plain),
+#     the high score entry has a `heat` field (the level of the run, written to the file and read back, an old entry or a
+#     bad value reads as 0, a number past the limit is cut), and the run bar, pause menu, run summary and High Scores page
+#     draw at every level and two window sizes,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -62,6 +66,7 @@ func _initialize() -> void:
 	_check_more_riders()
 	_check_hearts()
 	_check_tougher()
+	await _check_show_it()
 	_restore_settings()
 	_finish()
 
@@ -715,6 +720,143 @@ func _check_tougher() -> void:
 
 
 # true when every element of `sub` is in `full`, in the same order (others may lie between)
+# README H1.10: the level is written where the player sees it, and the score record carries it
+func _check_show_it() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	var keep = main.heat
+	# the label: level 0 is plain even with the name, the others say the name when asked, -1 is the level of the run
+	if h.label(0) != "HEAT 0" or h.label(0, true) != "HEAT 0":
+		_fail(
+			(
+				'the label of level 0 is "%s" / "%s", expected "HEAT 0"'
+				% [h.label(0), h.label(0, true)]
+			)
+		)
+	for level in range(1, top + 1):
+		var want = "HEAT %d" % level
+		if h.label(level) != want:
+			_fail('the label of level %d is "%s", expected "%s"' % [level, h.label(level), want])
+		var named = want + "  " + str(h.level_info(level)["name"])
+		if h.label(level, true) != named:
+			_fail(
+				(
+					'the named label of level %d is "%s", expected "%s"'
+					% [level, h.label(level, true), named]
+				)
+			)
+	main.heat = 3
+	if h.label() != "HEAT 3" or h.label(-1, true) != "HEAT 3  FEWER LIVES":
+		_fail('the label of the run at Heat 3 is "%s" / "%s"' % [h.label(), h.label(-1, true)])
+	if h.label(top + 7) != h.label(top):
+		_fail("a level past the end should be labelled as the top level")
+	# the record: what heat_of makes of every kind of value
+	var ScoresScript = load("res://scripts/scores.gd")
+	var cases = [
+		[0, 0],
+		[3, 3],
+		[5, 5],
+		[2.9, 2],
+		[-4, 0],
+		[999, HeatScript.MAX_LEVEL],
+		["3", 0],
+		[null, 0],
+		[[1], 0],
+		[true, 0]
+	]
+	for c in cases:
+		var got = ScoresScript.heat_of(c[0])
+		if got != c[1]:
+			_fail("heat_of(%s) is %d, expected %d" % [str(c[0]), got, c[1]])
+	# the file: an old entry (no heat key), a good one, bad ones; and a run that is recorded
+	var path = main.scores.PATH
+	var had = FileAccess.file_exists(path)
+	var kept = PackedByteArray()
+	if had:
+		kept = FileAccess.get_file_as_bytes(path)
+	var base = {"name": "AAA", "round": 2, "kills": 5, "time": 100, "date": "2026-01-01"}
+	var rows = []
+	for pair in [[900, null], [800, 3], [700, "x"], [600, 999], [500, -2]]:
+		var e = base.duplicate()
+		e["score"] = pair[0]
+		if pair[1] != null:
+			e["heat"] = pair[1]
+		rows.append(e)
+	var f = FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(JSON.stringify({"version": 1, "entries": rows}))
+	f.close()
+	main.scores.load_scores()
+	var want_heat = [0, 3, 0, HeatScript.MAX_LEVEL, 0]
+	if main.scores.entries.size() != 5:
+		_fail("the scores file with 5 entries loaded %d" % main.scores.entries.size())
+	else:
+		for i in range(5):
+			if int(main.scores.entries[i].get("heat", -1)) != want_heat[i]:
+				_fail(
+					(
+						"entry %d loaded with heat %s, expected %d"
+						% [i, str(main.scores.entries[i].get("heat", "<missing>")), want_heat[i]]
+					)
+				)
+	for lvl in [0, 4]:
+		main.scores.entries = []
+		main.daily_mode = false
+		main.custom_seed_run = false
+		main.heat = lvl
+		main.score = 1234
+		if main.scores.submit_run() != 0:
+			_fail("a ranked run at Heat %d did not reach the list" % lvl)
+		main.name_entry = false
+		main.scores.load_scores()
+		if main.scores.entries.is_empty() or int(main.scores.entries[0].get("heat", -1)) != lvl:
+			_fail("a run at Heat %d was not saved with that heat" % lvl)
+	# drawn at every level and two window sizes: the run summary, the pause menu, the run bar and the High Scores page
+	main.scores.entries = [
+		{
+			"name": "AAA",
+			"score": 900,
+			"round": 2,
+			"kills": 5,
+			"time": 100,
+			"date": "2026-01-01",
+			"heat": 5
+		},
+		{"name": "OLD", "score": 800, "round": 1, "kills": 1, "time": 0, "date": "2025-01-01"}
+	]
+	for level in range(top + 1):
+		main.heat = level
+		for s in [Vector2(1280.0, 720.0), Vector2(1920.0, 1080.0)]:
+			main.hud.size = s
+			main.state = "over"
+			await _redraw()
+			main.state = "play"
+			main.paused = true
+			main.pause_page = ""
+			await _redraw()
+			main.paused = false
+			await _redraw()
+			main.go_to_title()
+			main.title_page = "scores"
+			await _redraw()
+			main.go_to_title()
+	main.hud.size = Vector2(1280.0, 720.0)
+	# put the real scores file back
+	if had:
+		var w = FileAccess.open(path, FileAccess.WRITE)
+		w.store_buffer(kept)
+		w.close()
+	elif FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	main.scores.load_scores()
+	main.heat = keep
+
+
+func _redraw() -> void:
+	for i in range(2):
+		main.hud.queue_redraw()
+		await process_frame
+
+
 func _is_subsequence(sub: Array, full: Array) -> bool:
 	var i = 0
 	for item in full:

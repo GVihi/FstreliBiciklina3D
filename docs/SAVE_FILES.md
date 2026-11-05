@@ -43,6 +43,8 @@ The Heat level (README Milestone B, `docs/HEAT.md`) is saved in two places, both
 
 No version bump for either (a new field with a default, like the other files). `tools/heat_check.gd` checks both round trips and the bad values.
 
+- **`scores.json`, `heat` in each entry:** the level the run was played at (README H1.10), a whole number from 0 up to the sanity limit (20). An entry written before Heat has no key and reads as 0; a value that is not a number (text, null, a list, true) reads as 0, a negative one as 0 and one above the limit is cut there. A new entry always gets the level of the run (`Scores.heat_of`). Only ranked runs are recorded, so a Daily Run (always Heat 0) and a custom-seed run never appear. No version bump. The one board stays one board until the split-boards item of Milestone A; the High Scores page has a HEAT column so the levels are told apart.
+
 ## Key bindings (`[keys]` in `settings.cfg`)
 
 `settings.cfg` has a `[keys]` section with one entry per rebindable control (`forward`, `left`, `back`, `right`, `sprint`, `crouch`, `jump`, `dash`, `reload`, `switch`, `gun`, `melee`, `gadget`, `map`; the list is `ACTIONS` in `scripts/keybinds.gd`). Each value is a pair of whole numbers, the key and the alternative, as Godot physical key codes (`0` = no alternative), for example `jump=[32, 0]`.
