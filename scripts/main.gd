@@ -1449,6 +1449,7 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	custom_seed_run = not daily and custom_seed >= 0
 	if daily:
 		heat = 0  # the Daily Run is Heat 0 for everybody (docs/HEAT.md); a restart of any other run keeps the level
+		heat_sys.clear_set()  # README H2.3: and no modifiers either
 		refresh_daily_seed()
 		run_seed = daily_seed
 	elif custom_seed_run:
