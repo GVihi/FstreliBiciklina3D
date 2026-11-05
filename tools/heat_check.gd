@@ -727,14 +727,24 @@ func _check_economy() -> void:
 	# the factors, level by level, against the table and the cap
 	for level in range(top + 1):
 		if not is_equal_approx(h.price_factor(level), h.value("price", level)):
-			_fail("Heat %d: price_factor is %s, the table says %s" % [level, h.price_factor(level), h.value("price", level)])
+			_fail(
+				(
+					"Heat %d: price_factor is %s, the table says %s"
+					% [level, h.price_factor(level), h.value("price", level)]
+				)
+			)
 		var want_cash = minf(1.0, maxf(h.value("cash", level), float(h.caps["cash_min"])))
 		if not is_equal_approx(h.cash_factor(level), want_cash):
-			_fail("Heat %d: cash_factor is %s, expected %s" % [level, h.cash_factor(level), want_cash])
+			_fail(
+				"Heat %d: cash_factor is %s, expected %s" % [level, h.cash_factor(level), want_cash]
+			)
 	if h.price_factor(0) != 1.0 or h.cash_factor(0) != 1.0:
 		_fail("Heat 0 has a price or cash factor that is not exactly 1.0")
 	if top >= 5:
-		if not is_equal_approx(h.price_factor(5), 1.2) or not is_equal_approx(h.cash_factor(5), 0.8):
+		if (
+			not is_equal_approx(h.price_factor(5), 1.2)
+			or not is_equal_approx(h.cash_factor(5), 0.8)
+		):
 			_fail("Heat 5 should be prices x1.2 and cash x0.8 (docs/HEAT.md)")
 		for level in range(0, 5):
 			if h.price_factor(level) != 1.0 or h.cash_factor(level) != 1.0:
@@ -789,9 +799,25 @@ func _check_economy() -> void:
 						var before = maxi(5, int(round(v / 5.0)) * 5)
 						if level == 0:
 							if main.shop_sys.shop_price(it) != before:
-								_fail("Heat 0 changed a shop price (round %d, %d buys, haggler %s, %s): %d, was %d" % [round_no, buys, haggler, it["kind"], main.shop_sys.shop_price(it), before])
+								_fail(
+									(
+										"Heat 0 changed a shop price (round %d, %d buys, haggler %s, %s): %d, was %d"
+										% [
+											round_no,
+											buys,
+											haggler,
+											it["kind"],
+											main.shop_sys.shop_price(it),
+											before
+										]
+									)
+								)
 						else:
-							var w = float(it["cost"]) * (1.0 + 0.12 * float(round_no - 1)) * (1.0 + 0.06 * float(buys))
+							var w = (
+								float(it["cost"])
+								* (1.0 + 0.12 * float(round_no - 1))
+								* (1.0 + 0.06 * float(buys))
+							)
 							if it["kind"] == "tier":
 								w *= 1.0 + 0.45 * 2.0
 							w *= h.price_factor(level)
@@ -799,7 +825,20 @@ func _check_economy() -> void:
 								w *= 0.85
 							var want = maxi(5, int(round(w / 5.0)) * 5)
 							if main.shop_sys.shop_price(it) != want:
-								_fail("Heat %d: a shop price is %d, expected %d (round %d, %d buys, haggler %s, %s)" % [level, main.shop_sys.shop_price(it), want, round_no, buys, haggler, it["kind"]])
+								_fail(
+									(
+										"Heat %d: a shop price is %d, expected %d (round %d, %d buys, haggler %s, %s)"
+										% [
+											level,
+											main.shop_sys.shop_price(it),
+											want,
+											round_no,
+											buys,
+											haggler,
+											it["kind"]
+										]
+									)
+								)
 							if main.shop_sys.shop_price(it) < 5:
 								_fail("Heat %d: a shop price is under 5" % level)
 	# a higher level never makes a price lower
@@ -812,7 +851,12 @@ func _check_economy() -> void:
 		main.heat = level
 		var p = main.shop_sys.shop_price(item)
 		if p < last_price:
-			_fail("Heat %d: the shop price %d is lower than the %d of the level below" % [level, p, last_price])
+			_fail(
+				(
+					"Heat %d: the shop price %d is lower than the %d of the level below"
+					% [level, p, last_price]
+				)
+			)
 		last_price = p
 	# cash: every amount, round and level, with and without BOUNTY
 	for level in range(top + 1):
@@ -831,9 +875,22 @@ func _check_economy() -> void:
 						v2 *= 1.35
 					var want_cash = int(round(v2))
 					if level == 0:
-						want_cash = int(round(float(n) * (1.0 + 0.08 * float(round_no - 1)) * (1.35 if bounty else 1.0)))
+						want_cash = int(
+							round(
+								(
+									float(n)
+									* (1.0 + 0.08 * float(round_no - 1))
+									* (1.35 if bounty else 1.0)
+								)
+							)
+						)
 					if main.cash != want_cash:
-						_fail("Heat %d: add_cash(%d) paid %d, expected %d (round %d, bounty %s)" % [level, n, main.cash, want_cash, round_no, bounty])
+						_fail(
+							(
+								"Heat %d: add_cash(%d) paid %d, expected %d (round %d, bounty %s)"
+								% [level, n, main.cash, want_cash, round_no, bounty]
+							)
+						)
 	# no level pays more than the one below it
 	main.round_n = 3
 	main.perks = {}
@@ -843,7 +900,12 @@ func _check_economy() -> void:
 		main.cash = 0
 		main.shop_sys.add_cash(100)
 		if main.cash > last_pay:
-			_fail("Heat %d pays %d, more than the %d of the level below" % [level, main.cash, last_pay])
+			_fail(
+				(
+					"Heat %d pays %d, more than the %d of the level below"
+					% [level, main.cash, last_pay]
+				)
+			)
 		last_pay = main.cash
 	# put the state back
 	main.heat = kept["heat"]
