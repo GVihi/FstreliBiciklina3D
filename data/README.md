@@ -334,17 +334,23 @@ The export preset includes `data/*.json`, so the file ships with the game. `tool
 
 ## `heat.json`
 
-The Heat levels (README Milestone B, "Difficulty Scaling"; the design and the numbers' reasons are in [`docs/HEAT.md`](../docs/HEAT.md)). Loaded by `scripts/heat.gd` into `Main.heat_sys`; bad entries are skipped and logged with `push_error`, so check the Godot output panel after editing. **Nothing reads the effects yet**: each one is switched on by its own chunk (README H1.5 to H1.9).
+Heat (README Milestone B, "Difficulty Scaling"; the design and the numbers' reasons are in [`docs/HEAT.md`](../docs/HEAT.md), "Modifiers"). Loaded by `scripts/heat.gd` into `Main.heat_sys`; bad entries are skipped and logged with `push_error`, so check the Godot output panel after editing. Since README H2.2 the file holds **modifiers** (each with ranks and points), **clashes** and **presets**; the ladder the game plays by (`levels`, H0 to H5) is built from the presets when the file is loaded.
 
 ```
 {
-  "version": 1,
-  "caps": {"riders_max": 16, "hearts_min": 2, "cash_min": 0.5},   // limits the ladder has to stay inside (the check tests them)
-  "levels": [ {"level": 0, "name": "NO HEAT", "desc": "..."}, {"level": 1, "name": "FASTER", "desc": "...", "rider_speed": 1.1}, ... ]
+  "version": 2,
+  "caps": {"riders_max": 16, "hearts_min": 1, "cash_min": 0.5},   // limits every set has to stay inside (the check tests them)
+  "modifiers": [ {"id": "swift", "name": "SWIFT RIDERS", "ranks": [ {"points": 1, "desc": "...", "rider_speed": 1.1}, {"points": 2, ...}, ... ]}, ... ],
+  "clashes":   [ {"a": ["lives", 2], "b": ["swift", 3], "why": "..."}, ... ],
+  "presets":   [ {"level": 0, "name": "NO HEAT", "desc": "...", "ranks": {}}, {"level": 1, "name": "FASTER", "desc": "...", "ranks": {"swift": 1}}, ... ]
 }
 ```
 
-Every level lists the value of **every** effect **at that level** (not what it adds to the level below), so a lookup is a read: `Main.heat_sys.value("rider_speed")` for the level of the run, `value("rider_speed", 3)` for level 3. A key that is left out keeps its neutral value. `Main.heat` is the level of the run being played (0 by default).
+**Modifiers.** `id` is lower case (letters, digits, `_`) and used once; `ranks` lists rank 1 first, at most 5. A rank has `points` (the points the rank is worth **in total**, whole, above the rank before it, at most 100), a `desc` and the value of every effect it sets (the effect table below). Every rank of a modifier sets the **same** effects, and an effect is set by **one** modifier only (two modifiers on one effect would need a rule to combine them). A rank off (0) is not listed: it changes nothing and is worth nothing. The Heat of a set of ranks is the sum of the points of its ranks (`Main.heat_sys.total_points`).
+
+**Clashes.** `a` and `b` are `[modifier id, rank]`: a set with `a`'s modifier at that rank **or higher** and `b`'s modifier at that rank or higher is refused, and `why` is the reason the page of H2.4 will say. `b` is the one held back (`clean_set` lowers it one rank at a time until the set is legal).
+
+**Presets.** `level` runs 0, 1, 2 ... without a gap (a level after a gap is dropped, at most 20); `ranks` is `{modifier id: rank}` (a modifier left out, or at 0, is off). The loader builds `levels[n]` from them: every effect at its neutral value, then the values of each rank, so a lookup is a read: `Main.heat_sys.value("rider_speed")` for the level of the run, `value("rider_speed", 3)` for level 3. `Main.heat` is the level of the run being played (0 by default). Each level also has `points` (the total of its ranks, which has to equal the level: `tools/heat_check.gd` proves it) and `ranks`.
 
 | key | neutral | allowed | what it is |
 |---|---|---|---|
@@ -358,10 +364,9 @@ Every level lists the value of **every** effect **at that level** (not what it a
 
 Rules the loader keeps, so a broken or hand-edited file cannot make the game worse than it was before Heat:
 
-- **Level 0 changes nothing.** It has to exist; if it is missing, or sets a key away from neutral, the game runs without Heat (or the key is set back) and says so in the log.
-- Levels run **0, 1, 2 ... without a gap**; a level after a gap is dropped. At most level 20.
-- Heat only makes the game harder, so no key goes the easy way (see "allowed").
-- Every level has a `name` and a `desc` (upper case, they are drawn on the title screen later, H1.4). The entry is skipped when a value is not a number, is out of range, or is a fraction where a whole number is needed.
-- **Keep the order and the numbers unless you mean to change them:** every level also keeps what the one below it does (speed, riders, hearts lost, health, boss health and prices never go down, cash never goes up), and `tools/heat_check.gd` tests that.
+- **Level 0 changes nothing.** It has to exist; if it is missing, or names ranks, the game runs without Heat (or its ranks are cleared) and says so in the log. A file that is not a table, or has no `modifiers` or no `presets` array, also gives level 0 only.
+- Heat only makes the game harder, so no effect goes the easy way (see "allowed"). A modifier, clash or preset is skipped when a value is not a number, is out of range, is a fraction where a whole number is needed, names a modifier or rank that does not exist, or lacks its text.
+- **Keep the numbers unless you mean to change them:** rank 1 of every modifier is what the ladder adds, every rank is harder than the one before it, every preset has the total it is named for, no preset has a clash and none leaves fewer than 2 hearts, and `tools/heat_check.gd` tests that (it also counts every combination of ranks: 432, 330 without a clash, top total 12).
+- **Nothing in the game plays a set yet.** The game plays by level (`Main.heat`) and the presets; wiring a chosen set into a run is README H2.5 (the saved set) and H2.3 (stacking caps and refusing clashes in play).
 
 The export preset includes `data/*.json`, so the file ships with the game. Check: `python tools/run_checks.py heat`.

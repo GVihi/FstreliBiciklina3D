@@ -58,7 +58,7 @@ Heart drops, PATCH UP and the heal of one heart on a round clear **do not change
 
 ## Modifiers (the second roadmap item, design note H2.1)
 
-**No modifier code exists yet**; this section fixes what H2.2 to H2.6 build. The ladder above stays and becomes five presets. All numbers are first guesses for the bot harness (H2.6, H3.5).
+**Built so far: the table and the arithmetic on sets (H2.2)**; playing a chosen set, the stacking caps, the page and the saves are H2.3 to H2.6. The ladder above stays and becomes five presets. All numbers are first guesses for the bot harness (H2.6, H3.5).
 
 ### The five modifiers
 
@@ -72,6 +72,7 @@ Each effect of H1.5 to H1.9 becomes one modifier with ranks. Rank 0 is "off" and
 | TOUGH | `tough` | tough riders +1 health, bosses x1.15 | tough riders +2, bosses x1.30 | not offered | 1 / 3 / - |
 | STINGY | `stingy` | shop prices x1.2, cash x0.8 | prices x1.4, cash x0.65 | prices x1.6, cash x0.5 | 1 / 2 / 3 |
 
+- **Built in H2.2:** `data/heat.json` (version 2) holds the modifiers, the clashes (each with the reason the page will show) and the presets; the loader builds the ladder (`Heat.levels`) from the presets, so everything that reads a level works as before. `Heat` has `total_points`, `points_of`, `max_rank`, `clashes_in`, `is_legal`, `clean_set`, `effects_of`, `preset_ranks`, `preset_points`, `modifier_ids` and `top_total`; the format is in `data/README.md`. The hearts cap in the file is now 1 (the ladder still never goes below 2, which `heat_check` tests on every preset). `tools/heat_check.gd` proves the total of every preset equals its level, that the presets build exactly the ladder of H1, and counts all 432 sets (330 legal, top total 12, two sets). The game itself still plays by level; ranks above 1 are not read by anything yet.
 - **Where each plugs in** is the table "Where each effect goes" above: the code that reads an effect (`rider_speed`, `riders_more`, `hearts_minus`, `tough_hp_plus` with `boss_hp`, `price` with `cash`) does not change. H2.2 only changes where the numbers come from (the ranks, not a level's row).
 - **TOUGH and STINGY are one modifier each**, not two, because H4 and H5 are one effect each on the ladder; splitting them (riders and bosses, prices and cash) would make H4 and H5 worth 2 points and the presets would no longer be 1 to 5.
 - **Why these steps:** speed climbs by 10 % a rank (the cap stays `RIDER_SPEED_CAP`, so rank 3 matters mostly on the early floors, as in H1.5), rank 3 is worth 4 (two more than rank 2) because x1.30 is the biggest speed step and the one the 16 rider rounds feel most. CROWD stops at rank 2 because the 16 rider cap (below) leaves rank 3 with nothing to add: +40 % is 12 to 14 riders in a normal round, 14 to 16 in an elite round (the 12 rider elite round is cut from 17 to 16, the only place the cap bites), 9 to 12 in a boss round. One heart (FEWER LIVES rank 2) is worth 4 because it is by far the biggest step: it turns a bad round into the end of the run. TOUGH rank 2 stays at +2 health and x1.30 on bosses (a round 10 president at 131 health against 101 at Heat 0 (78 from the growth per round, 101 with x1.30, x1.3 for the final boss); H2.6 checks that against the fire rate). STINGY rank 3 is the one that reaches the cash cap of 0.5.
@@ -93,7 +94,7 @@ So **the total of every preset equals the Heat it names**, which is what the che
 ### Rules for a set of ranks
 
 1. **Each modifier is at most at its top rank**, and the Heat of a set is the sum of the points of its ranks (0 to the top total below).
-2. **Clashing pairs are refused** (the page of H2.4 greys the second one out and says why, the load of a saved set drops the rank that clashes, the lower of the two):
+2. **Clashing pairs are refused** (the page of H2.4 greys the second one named out and says why; `Heat.clean_set`, used when a saved set is loaded, takes the second one named back one rank at a time until the set is legal; a clash is "this rank or higher" of both):
    - FEWER LIVES rank 2 with SWIFT RIDERS rank 3, or with CROWD rank 2: one heart against faster or more riders is a run that ends on the first mistake in round 1.
    - TOUGH rank 2 with STINGY rank 3: bosses with 30 % more health while cash is halved and every upgrade costs 60 % more means the damage upgrades cannot be bought in time.
    No preset has a clash. Every other pair is allowed.
