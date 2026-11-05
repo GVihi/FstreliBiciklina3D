@@ -455,9 +455,9 @@ func seed_start() -> void:
 func heat_adjust(d: int) -> void:
 	if g.state != "title" or g.title_page != "play":
 		return
-	var level = g.heat_sys.clamp_level(g.heat + d)
+	var level = g.heat_sys.clamp_open(g.heat + d)  # README H1.11: only the open levels can be chosen
 	if level == g.heat:
-		return  # already at the end of the ladder
+		return  # already at the end of the open levels
 	g.heat = level
 	g.settings.save_settings()
 	g.sfx.play("click")

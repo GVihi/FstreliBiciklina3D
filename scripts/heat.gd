@@ -55,6 +55,18 @@ func clamp_level(n: int) -> int:
 	return clampi(n, 0, top_level())
 
 
+# README H1.11: the highest level the player has open (`heat_open` of meta.json, 0 for a player with no win yet or an old
+# file), never past the top level of the table, so a table that lost levels cannot leave one "open" that is not there
+func open_level() -> int:
+	var open = int(g.meta.heat_open) if g != null and g.meta != null else 0
+	return clampi(open, 0, top_level())
+
+
+# a level number made valid and open: 0 up to `open_level`
+func clamp_open(n: int) -> int:
+	return clampi(n, 0, open_level())
+
+
 # a copy of the entry of `level` (name, desc and every effect), clamped like value()
 func level_info(level: int) -> Dictionary:
 	return levels[clamp_level(level)].duplicate()

@@ -1470,6 +1470,7 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	if not run_map.is_empty():
 		MAX_ROUNDS = run_map["floors"].size()  # a run is one node on every floor of the map
 	score = 0
+	heat = heat_sys.clamp_open(heat)  # README H1.11: a level that is not open yet (a remembered choice after a reset, an old settings file) plays as the highest open one
 	MAXHEARTS = heat_sys.start_hearts()  # Heat (README H1.7): 2 hearts from H3; a Daily Run is Heat 0, set above
 	hearts = MAXHEARTS
 	combo = 0

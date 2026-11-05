@@ -659,8 +659,16 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		if g.OVER_MSG.has(g.over_reason):
 			_txt(g.OVER_MSG[g.over_reason], cx, size.y * 0.22, int(20 * k), RED, 1)
 	# README H1.10: the Heat the run was played at, under the title (a line, not a table row, so the table keeps its size)
+	var heat_line = g.heat_sys.label(-1, true)
+	if g.meta.heat_unlocked > 0:  # README H1.11: this win opened the next level
+		heat_line += "   -   HEAT %d OPENED" % g.meta.heat_unlocked
 	_txt(
-		g.heat_sys.label(-1, true), cx, size.y * 0.262, int(16 * k), GOLD if g.heat > 0 else GRAY, 1
+		heat_line,
+		cx,
+		size.y * 0.262,
+		int(16 * k),
+		GOLD if g.heat > 0 or g.meta.heat_unlocked > 0 else GRAY,
+		1
 	)
 	var acc = 0
 	if g.shots_fired > 0:
@@ -1183,7 +1191,7 @@ func _draw_play_page(k: float, cx: float) -> void:
 	_txt(str(info["name"]), cx, row.position.y + 54.0 * k, int(16 * k), GOLD, 1)
 	# the arrows are dim at the ends of the ladder; they also say < and >, so colour is not the only sign
 	for d in [-1, 1]:
-		var open = g.heat_sys.clamp_level(level + d) != level
+		var open = g.heat_sys.clamp_open(level + d) != level  # README H1.11: the arrow is dim at the last open level
 		var ar = heat_arrow_rect(d)
 		draw_rect(ar, Color(0.176, 0.196, 0.22) if open else Color(0.13, 0.14, 0.16))
 		draw_rect(ar, ACCENT if open else Color(0.29, 0.31, 0.33), false, 3.0 * k)
@@ -1193,6 +1201,20 @@ func _draw_play_page(k: float, cx: float) -> void:
 			ar.position.y + 42.0 * k,
 			int(32 * k),
 			TEXT if open else GRAY,
+			1
+		)
+	# README H1.11: which levels are open and what opens the next one, written out so colour is not the only sign
+	var open_top = g.heat_sys.open_level()
+	if open_top < g.heat_sys.top_level():
+		_txt(
+			(
+				"OPEN: HEAT 0 TO %d   LOCKED: HEAT %d TO %d   (WIN A RUN AT HEAT %d TO OPEN HEAT %d)"
+				% [open_top, open_top + 1, g.heat_sys.top_level(), open_top, open_top + 1]
+			),
+			cx,
+			size.y * 0.5,
+			int(14 * k),
+			GRAY,
 			1
 		)
 	# what the level adds, written under the row; a level above 1 keeps what the levels below it add

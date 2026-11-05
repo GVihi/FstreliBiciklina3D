@@ -4,7 +4,9 @@ extends RefCounted
 # gone when the run ends, while the meta balance only ever goes up from finished runs. It will be the
 # currency for permanent unlocks, cosmetics and Heat rewards (roadmap, Milestone B).
 
-# File format: {"version": 1, "balance", "total_earned", "owned": [unlock ids], "start_perk": unlock id, "challenges", "xp"}.
+# File format: {"version": 1, "balance", "total_earned", "owned": [unlock ids], "start_perk": unlock id, "challenges", "xp",
+# "heat_open"}. "heat_open" is the highest Heat level that is open to play (README H1.11, docs/HEAT.md); a file without it
+# reads as 0, only Heat 0 open.
 # Version 0 (before versioning) had no "version" field; a file without "owned" (written before unlocks could be bought)
 # loads with nothing owned. "challenges" is {counter name: times done} for the challenges in data/challenges.json
 # (scripts/challenges.gd). "xp" is the total XP of all finished runs (scripts/xp.gd, data/xp.json); the level is worked
@@ -16,6 +18,7 @@ const WeaponSlots = preload("res://scripts/weapon_slots.gd")
 const PATH = "user://meta.json"
 const VERSION = 1
 const MAX_XP = 100000000  # sanity limit for the saved XP (far above the top level)
+const MAX_HEAT_OPEN = 20  # sanity limit for the saved Heat level that is open (the same as Heat.MAX_LEVEL)
 # Tuning knobs for what a run pays. The aim is about 40 coins for a complete run (10 floors, both bosses) and a
 # few coins for a run lost in the first rounds, so the dart gun (250) takes 6 to 7 full runs. Score pays only a
 # small, capped part: one kill is worth thousands of points, so score alone made a run lost in round 2 pay 400.
@@ -35,6 +38,8 @@ var awarded = false  # a run pays out once, however many end paths it passes thr
 var boss_coins = 0  # coins this run's boss kills are worth; paid out with the run (a quit run pays nothing)
 var cache_coins = 0  # coins the supply caches of this run held; paid out with the run, like boss_coins
 var xp = 0  # total XP over all finished runs (never spent); the level comes from it, see `xp_info`
+var heat_open = 0  # the highest Heat level that is open (README H1.11); 0 = only Heat 0, it only goes up
+var heat_unlocked = -1  # the Heat level the run that just ended opened (shown on the run summary), -1 when it opened none
 var xp_boss = 0  # XP this run's boss kills are worth; paid out with the run, like boss_coins
 var xp_earned = 0  # XP the run that just ended paid out (shown on the run summary)
 var level_before = 1  # the level when the run that just ended paid out, to tell whether it went up
@@ -53,6 +58,8 @@ func load_meta() -> void:
 	weapon_choice = {}
 	challenge_counts = {}
 	xp = 0
+	heat_open = 0
+	heat_unlocked = -1
 	if not FileAccess.file_exists(PATH):
 		return
 	var f = FileAccess.open(PATH, FileAccess.READ)
@@ -67,6 +74,9 @@ func load_meta() -> void:
 		var raw_xp = data.get("xp", 0)
 		if typeof(raw_xp) == TYPE_INT or typeof(raw_xp) == TYPE_FLOAT:
 			xp = clampi(int(raw_xp), 0, MAX_XP)  # a hand-edited number cannot crash it or pass the top level
+		var raw_heat = data.get("heat_open", 0)
+		if typeof(raw_heat) == TYPE_INT or typeof(raw_heat) == TYPE_FLOAT:
+			heat_open = clampi(int(raw_heat), 0, MAX_HEAT_OPEN)  # not a number, or below 0: only Heat 0 open
 		if typeof(data.get("start_perk", "")) == TYPE_STRING:
 			start_perk = str(data.get("start_perk", ""))
 		var wc = data.get("loadout", {})
@@ -104,7 +114,8 @@ func save_meta() -> void:
 					"start_perk": start_perk,
 					"loadout": weapon_choice,
 					"challenges": challenge_counts,
-					"xp": xp
+					"xp": xp,
+					"heat_open": heat_open
 				}
 			)
 		)
@@ -121,6 +132,8 @@ func reset_all() -> void:
 	weapon_choice = {}
 	challenge_counts = {}
 	xp = 0
+	heat_open = 0
+	heat_unlocked = -1
 	awarded = false
 	boss_coins = 0
 	cache_coins = 0
@@ -148,6 +161,7 @@ func begin_run() -> void:
 	cache_coins = 0
 	xp_boss = 0
 	xp_earned = 0
+	heat_unlocked = -1
 	g.meta_earned = 0
 
 
@@ -205,7 +219,8 @@ func award_run() -> int:
 	)
 	xp = mini(MAX_XP, xp + xp_earned)
 	var balance_before = balance
-	if n > 0 or xp_earned > 0 or g.challenges.done.size() > 0:
+	var heat_opened = unlock_heat_after_win()
+	if n > 0 or xp_earned > 0 or g.challenges.done.size() > 0 or heat_opened:
 		balance += n
 		total_earned += n
 		save_meta()
@@ -214,6 +229,21 @@ func award_run() -> int:
 	for u in UnlocksTable.newly_affordable(g.UNLOCKS, owned, balance_before, balance):
 		g.new_unlocks.append(str(u["name"]))
 	return n
+
+
+# README H1.11: a run won at the highest open Heat level opens the next one (never past the top level of the table).
+# A win at a lower level opens nothing, and neither does a run that was lost or quit. The Daily Run is always Heat 0, so
+# a win there counts as a win at Heat 0. Returns true when a level was opened; `heat_unlocked` then holds it for the summary.
+func unlock_heat_after_win() -> bool:
+	heat_unlocked = -1
+	if not g.run_won or g.practice:
+		return false
+	var open = g.heat_sys.open_level()
+	if int(g.heat) != open or open >= g.heat_sys.top_level():
+		return false
+	heat_open = open + 1
+	heat_unlocked = heat_open
+	return true
 
 
 # {"level", "into", "need", "max"} for the XP the player has now (see XpScript.info)

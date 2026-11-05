@@ -27,6 +27,11 @@ extends SceneTree
 #   - a tighter economy (README H1.9): shop prices are `price` times as high (before HAGGLER, rounded to 5, at least 5) and
 #     every cash source pays `cash` times as much (before BOUNTY, never below the `cash_min` cap), Heat 0 prices and pays
 #     exactly what the game did before Heat, and no level is cheaper or richer than the one below it,
+#   - the ladder unlocks (README H1.11): `heat_open` in meta.json (a missing key, a bad value, a negative number read as
+#     0, a number past the limit is cut, a round trip through the real file), a win at the highest open level opens the
+#     next one and nothing else does (a win at a lower level, a lost run, the top level, practice), a run starts at the
+#     highest open level at most, the picker stops there, RESET ALL PROGRESS closes the ladder again, and the PLAY page
+#     and the run summary draw with locked levels,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -49,6 +54,7 @@ var problems = []
 var main
 var kept_settings = PackedByteArray()
 var had_settings = false
+var open_before = 0
 
 
 func _initialize() -> void:
@@ -63,6 +69,8 @@ func _initialize() -> void:
 	_check_lookup()
 	_check_bad_data()
 	_keep_settings()
+	open_before = int(main.meta.heat_open)
+	main.meta.heat_open = main.heat_sys.top_level()  # the cases above play at every level: all of them open
 	_check_run_save()
 	_check_settings()
 	_check_rider_speed()
@@ -70,7 +78,9 @@ func _initialize() -> void:
 	_check_hearts()
 	_check_tougher()
 	await _check_show_it()
+	await _check_unlock()
 	_check_economy()
+	main.meta.heat_open = open_before
 	_restore_settings()
 	_finish()
 
@@ -724,6 +734,170 @@ func _check_tougher() -> void:
 
 
 # true when every element of `sub` is in `full`, in the same order (others may lie between)
+# README H1.11: the ladder opens one level at a time
+func _check_unlock() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	var keep_open = main.meta.heat_open
+	var keep_heat = main.heat
+	var path = main.meta.PATH
+	var had = FileAccess.file_exists(path)
+	var kept = PackedByteArray()
+	if had:
+		kept = FileAccess.get_file_as_bytes(path)
+	# the file: a missing key, good values and bad ones, then a real round trip
+	var cases = [
+		["<missing>", 0],
+		[3, 3],
+		[2.9, 2],
+		[0, 0],
+		[-2, 0],
+		["x", 0],
+		[null, 0],
+		[[1], 0],
+		[999, main.meta.MAX_HEAT_OPEN],
+	]
+	for c in cases:
+		var data = {"version": 1, "balance": 5, "xp": 7}
+		if not (typeof(c[0]) == TYPE_STRING and c[0] == "<missing>"):
+			data["heat_open"] = c[0]
+		var f = FileAccess.open(path, FileAccess.WRITE)
+		f.store_string(JSON.stringify(data))
+		f.close()
+		main.meta.load_meta()
+		if main.meta.heat_open != c[1]:
+			_fail(
+				(
+					"meta.json with heat_open %s loaded as %d, expected %d"
+					% [str(c[0]), main.meta.heat_open, c[1]]
+				)
+			)
+		if main.meta.balance != 5 or main.meta.xp != 7:
+			_fail("meta.json with heat_open %s lost its other fields" % str(c[0]))
+	main.meta.heat_open = top + 3  # past the table: the level in use is still the top level
+	if h.open_level() != top:
+		_fail("open_level with heat_open past the top is %d, expected %d" % [h.open_level(), top])
+	main.meta.heat_open = 3
+	main.meta.save_meta()
+	main.meta.heat_open = 0
+	main.meta.load_meta()
+	if main.meta.heat_open != 3:
+		_fail("heat_open 3 came back as %d after a save and a load" % main.meta.heat_open)
+	# the rule, at every open level
+	main.practice = false
+	for open in range(top + 1):
+		main.meta.heat_open = open
+		for level in range(top + 1):
+			main.heat = level
+			main.run_won = true
+			var opened = main.meta.unlock_heat_after_win()
+			var want_open = open + 1 if level == open and open < top else open
+			if main.meta.heat_open != want_open or opened != (want_open != open):
+				_fail(
+					(
+						"a win at Heat %d with %d open left %d open (opened %s), expected %d"
+						% [level, open, main.meta.heat_open, str(opened), want_open]
+					)
+				)
+			if opened and main.meta.heat_unlocked != want_open:
+				_fail(
+					(
+						"a win that opened Heat %d says it opened %d"
+						% [want_open, main.meta.heat_unlocked]
+					)
+				)
+			if not opened and main.meta.heat_unlocked != -1:
+				_fail("a win that opened nothing says it opened %d" % main.meta.heat_unlocked)
+			main.meta.heat_open = open
+		main.heat = open
+		main.run_won = false  # a lost or quit run opens nothing
+		if main.meta.unlock_heat_after_win() or main.meta.heat_open != open:
+			_fail(
+				(
+					"a run that was not won opened a level (%d open, was %d)"
+					% [main.meta.heat_open, open]
+				)
+			)
+	main.heat = 0
+	main.meta.heat_open = 0
+	main.run_won = true
+	main.practice = true  # the training room is no run
+	if main.meta.unlock_heat_after_win() or main.meta.heat_open != 0:
+		_fail("a win in the training room opened a level")
+	main.practice = false
+	# the real flow: a run starts at the highest open level at most, the picker stops there, and a win pays it out once
+	main.meta.heat_open = 2
+	main.heat = top
+	main.start_game(false, SEED)
+	if main.heat != 2:
+		_fail(
+			"a run chosen at Heat %d with 2 open started at Heat %d, expected 2" % [top, main.heat]
+		)
+	if main.MAXHEARTS != 3:
+		_fail("a run at Heat 2 has %d hearts, expected 3" % main.MAXHEARTS)
+	main.win_run()
+	if main.meta.heat_open != 3 or main.meta.heat_unlocked != 3:
+		_fail(
+			(
+				"winning at Heat 2 with 2 open left %d open (unlocked %d), expected 3"
+				% [main.meta.heat_open, main.meta.heat_unlocked]
+			)
+		)
+	main.meta.load_meta()
+	if main.meta.heat_open != 3:
+		_fail("the level opened by a win was not saved (the file says %d)" % main.meta.heat_open)
+	main.start_game(false, SEED)  # a new run clears the note on the summary
+	if main.meta.heat_unlocked != -1:
+		_fail("a new run still carries the level the last one opened")
+	main.heat = 3
+	main.go_to_title()
+	main.title_page = "play"
+	main.input_sys.heat_adjust(1)
+	if main.heat != 3:
+		_fail("the picker went to Heat %d with 3 open" % main.heat)
+	main.input_sys.heat_adjust(-1)
+	if main.heat != 2:
+		_fail("the picker did not step down from Heat 3 (it is %d)" % main.heat)
+	main.meta.heat_open = 0
+	main.heat = 4  # a choice remembered from before the ladder was locked
+	main.start_game(false, SEED)
+	if main.heat != 0:
+		_fail("a run chosen at Heat 4 with only Heat 0 open started at Heat %d" % main.heat)
+	# RESET ALL PROGRESS closes the ladder again
+	main.meta.heat_open = top
+	main.reset_all_progress()
+	if main.meta.heat_open != 0 or main.heat_sys.open_level() != 0:
+		_fail("RESET ALL PROGRESS left %d levels open" % main.meta.heat_open)
+	# the PLAY page and the run summary draw with locked levels, at two window sizes
+	for open in [0, 2, top]:
+		main.meta.heat_open = open
+		for s in [Vector2(1280.0, 720.0), Vector2(1920.0, 1080.0)]:
+			main.hud.size = s
+			main.heat = open
+			main.go_to_title()
+			main.title_page = "play"
+			await _redraw()
+			main.start_game(false, SEED)
+			main.heat = open
+			main.run_won = true
+			main.meta.unlock_heat_after_win()
+			main.state = "over"
+			await _redraw()
+			main.go_to_title()
+	main.hud.size = Vector2(1280.0, 720.0)
+	# put the real meta.json back
+	if had:
+		var w = FileAccess.open(path, FileAccess.WRITE)
+		w.store_buffer(kept)
+		w.close()
+	elif FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	main.meta.load_meta()
+	main.meta.heat_open = keep_open
+	main.heat = keep_heat
+	main.run_won = false
+
+
 # README H1.10: the level is written where the player sees it, and the score record carries it
 func _check_show_it() -> void:
 	var h = main.heat_sys
