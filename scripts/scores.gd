@@ -1,9 +1,11 @@
 extends RefCounted
 # Local leaderboard: the best MAX_ENTRIES runs, best first, saved to user://scores.json.
-# Every entry is {"name", "score", "round", "kills", "time", "date"}. A run is recorded once, when it ends.
+# Every entry is {"name", "score", "round", "kills", "time", "date", "heat"}. A run is recorded once, when it ends.
+# `heat` is the Heat level the run was played at (README H1.10, docs/HEAT.md); an entry written before Heat has none and reads as 0.
 # File format: {"version": 1, "entries": [...]}. Version 0 (before versioning) was the bare list of entries.
 
 const SaveUtil = preload("res://scripts/save_util.gd")
+const HeatScript = preload("res://scripts/heat.gd")
 const MAX_ENTRIES = 10
 const PATH = "user://scores.json"
 const VERSION = 1
@@ -46,12 +48,23 @@ func load_scores() -> void:
 						"round": int(e.get("round", 1)),
 						"kills": int(e.get("kills", 0)),
 						"time": int(e.get("time", 0)),
-						"date": str(e.get("date", ""))
+						"date": str(e.get("date", "")),
+						"heat": heat_of(e.get("heat"))
 					}
 				)
 	entries.sort_custom(func(a, b): return a["score"] > b["score"])
 	if entries.size() > MAX_ENTRIES:
 		entries.resize(MAX_ENTRIES)
+
+
+# README H1.10: the Heat level of a saved entry. Only a number counts, cut to 0 up to the sanity limit of the table;
+# a missing key (an entry from before Heat), null, text or anything else reads as 0. The scores are loaded before the Heat
+# table exists, so the limit is `HeatScript.MAX_LEVEL`, not the number of levels the table has (a level the table
+# lost since the run was played stays what it was).
+static func heat_of(value) -> int:
+	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
+		return clampi(int(value), 0, HeatScript.MAX_LEVEL)
+	return 0
 
 
 func save_scores() -> void:
@@ -86,7 +99,8 @@ func submit_run() -> int:
 			"round": g.round_n,
 			"kills": g.kills,
 			"time": int(g.play_time + g.shop_time),
-			"date": Time.get_date_string_from_system()
+			"date": Time.get_date_string_from_system(),
+			"heat": heat_of(g.heat)
 		}
 	)
 	if entries.size() > MAX_ENTRIES:

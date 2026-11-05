@@ -28,6 +28,7 @@ func _initialize() -> void:
 		await process_frame
 	_keep_settings()
 	main.go_to_title()
+	main.meta.heat_open = main.heat_sys.top_level()  # this check is about the picker, so every level is open (the lock is in heat_check)
 	main.heat = 0
 	_check_opens_and_goes_back()
 	_check_levels()

@@ -55,6 +55,18 @@ func clamp_level(n: int) -> int:
 	return clampi(n, 0, top_level())
 
 
+# README H1.11: the highest level the player has open (`heat_open` of meta.json, 0 for a player with no win yet or an old
+# file), never past the top level of the table, so a table that lost levels cannot leave one "open" that is not there
+func open_level() -> int:
+	var open = int(g.meta.heat_open) if g != null and g.meta != null else 0
+	return clampi(open, 0, top_level())
+
+
+# a level number made valid and open: 0 up to `open_level`
+func clamp_open(n: int) -> int:
+	return clampi(n, 0, open_level())
+
+
 # a copy of the entry of `level` (name, desc and every effect), clamped like value()
 func level_info(level: int) -> Dictionary:
 	return levels[clamp_level(level)].duplicate()
@@ -69,6 +81,20 @@ func value(key: String, level: int = -1) -> float:
 	if lv < 0:
 		lv = int(g.heat) if g != null else 0
 	return float(levels[clamp_level(lv)][key])
+
+
+# README H1.10: how a level is written where the player sees it (the run bar, the pause menu, the run summary): "HEAT 3",
+# and with `with_name` the level's name after it, "HEAT 3  FEWER LIVES". Level 0 is always plain "HEAT 0", because its
+# table name ("NO HEAT") would only say the same twice. -1 (the default) is the level of the run being played.
+func label(level: int = -1, with_name: bool = false) -> String:
+	var lv = level
+	if lv < 0:
+		lv = int(g.heat) if g != null else 0
+	lv = clamp_level(lv)
+	var text = "HEAT %d" % lv
+	if with_name and lv > 0:
+		text += "  " + str(levels[lv]["name"])
+	return text
 
 
 # README H1.7: the hearts a run starts with at `level` (-1: the level of the run). `START_HEARTS` less `hearts_minus`, but

@@ -20,9 +20,18 @@ extends SceneTree
 #   - tougher enemies (README H1.8): a tough rider has `tough_hp_plus` more health and every other kind still has 1, a boss
 #     has `boss_hp` times its health (before the extra of the final boss), the angry cyclist follows that factor rounded
 #     up without counting the rider's bonus twice, and Heat 0 has exactly the health of the game before Heat,
+#   - the level is shown (README H1.10): `Heat.label` ("HEAT 3", with the name after it from level 1, level 0 always plain),
+#     the high score entry has a `heat` field (the level of the run, written to the file and read back, an old entry or a
+#     bad value reads as 0, a number past the limit is cut), and the run bar, pause menu, run summary and High Scores page
+#     draw at every level and two window sizes,
 #   - a tighter economy (README H1.9): shop prices are `price` times as high (before HAGGLER, rounded to 5, at least 5) and
 #     every cash source pays `cash` times as much (before BOUNTY, never below the `cash_min` cap), Heat 0 prices and pays
 #     exactly what the game did before Heat, and no level is cheaper or richer than the one below it,
+#   - the ladder unlocks (README H1.11): `heat_open` in meta.json (a missing key, a bad value, a negative number read as
+#     0, a number past the limit is cut, a round trip through the real file), a win at the highest open level opens the
+#     next one and nothing else does (a win at a lower level, a lost run, the top level, practice), a run starts at the
+#     highest open level at most, the picker stops there, RESET ALL PROGRESS closes the ladder again, and the PLAY page
+#     and the run summary draw with locked levels,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -45,6 +54,7 @@ var problems = []
 var main
 var kept_settings = PackedByteArray()
 var had_settings = false
+var open_before = 0
 
 
 func _initialize() -> void:
@@ -59,13 +69,18 @@ func _initialize() -> void:
 	_check_lookup()
 	_check_bad_data()
 	_keep_settings()
+	open_before = int(main.meta.heat_open)
+	main.meta.heat_open = main.heat_sys.top_level()  # the cases above play at every level: all of them open
 	_check_run_save()
 	_check_settings()
 	_check_rider_speed()
 	_check_more_riders()
 	_check_hearts()
 	_check_tougher()
+	await _check_show_it()
+	await _check_unlock()
 	_check_economy()
+	main.meta.heat_open = open_before
 	_restore_settings()
 	_finish()
 
@@ -719,6 +734,307 @@ func _check_tougher() -> void:
 
 
 # true when every element of `sub` is in `full`, in the same order (others may lie between)
+# README H1.11: the ladder opens one level at a time
+func _check_unlock() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	var keep_open = main.meta.heat_open
+	var keep_heat = main.heat
+	var path = main.meta.PATH
+	var had = FileAccess.file_exists(path)
+	var kept = PackedByteArray()
+	if had:
+		kept = FileAccess.get_file_as_bytes(path)
+	# the file: a missing key, good values and bad ones, then a real round trip
+	var cases = [
+		["<missing>", 0],
+		[3, 3],
+		[2.9, 2],
+		[0, 0],
+		[-2, 0],
+		["x", 0],
+		[null, 0],
+		[[1], 0],
+		[999, main.meta.MAX_HEAT_OPEN],
+	]
+	for c in cases:
+		var data = {"version": 1, "balance": 5, "xp": 7}
+		if not (typeof(c[0]) == TYPE_STRING and c[0] == "<missing>"):
+			data["heat_open"] = c[0]
+		var f = FileAccess.open(path, FileAccess.WRITE)
+		f.store_string(JSON.stringify(data))
+		f.close()
+		main.meta.load_meta()
+		if main.meta.heat_open != c[1]:
+			_fail(
+				(
+					"meta.json with heat_open %s loaded as %d, expected %d"
+					% [str(c[0]), main.meta.heat_open, c[1]]
+				)
+			)
+		if main.meta.balance != 5 or main.meta.xp != 7:
+			_fail("meta.json with heat_open %s lost its other fields" % str(c[0]))
+	main.meta.heat_open = top + 3  # past the table: the level in use is still the top level
+	if h.open_level() != top:
+		_fail("open_level with heat_open past the top is %d, expected %d" % [h.open_level(), top])
+	main.meta.heat_open = 3
+	main.meta.save_meta()
+	main.meta.heat_open = 0
+	main.meta.load_meta()
+	if main.meta.heat_open != 3:
+		_fail("heat_open 3 came back as %d after a save and a load" % main.meta.heat_open)
+	# the rule, at every open level
+	main.practice = false
+	for open in range(top + 1):
+		main.meta.heat_open = open
+		for level in range(top + 1):
+			main.heat = level
+			main.run_won = true
+			var opened = main.meta.unlock_heat_after_win()
+			var want_open = open + 1 if level == open and open < top else open
+			if main.meta.heat_open != want_open or opened != (want_open != open):
+				_fail(
+					(
+						"a win at Heat %d with %d open left %d open (opened %s), expected %d"
+						% [level, open, main.meta.heat_open, str(opened), want_open]
+					)
+				)
+			if opened and main.meta.heat_unlocked != want_open:
+				_fail(
+					(
+						"a win that opened Heat %d says it opened %d"
+						% [want_open, main.meta.heat_unlocked]
+					)
+				)
+			if not opened and main.meta.heat_unlocked != -1:
+				_fail("a win that opened nothing says it opened %d" % main.meta.heat_unlocked)
+			main.meta.heat_open = open
+		main.heat = open
+		main.run_won = false  # a lost or quit run opens nothing
+		if main.meta.unlock_heat_after_win() or main.meta.heat_open != open:
+			_fail(
+				(
+					"a run that was not won opened a level (%d open, was %d)"
+					% [main.meta.heat_open, open]
+				)
+			)
+	main.heat = 0
+	main.meta.heat_open = 0
+	main.run_won = true
+	main.practice = true  # the training room is no run
+	if main.meta.unlock_heat_after_win() or main.meta.heat_open != 0:
+		_fail("a win in the training room opened a level")
+	main.practice = false
+	# the real flow: a run starts at the highest open level at most, the picker stops there, and a win pays it out once
+	main.meta.heat_open = 2
+	main.heat = top
+	main.start_game(false, SEED)
+	if main.heat != 2:
+		_fail(
+			"a run chosen at Heat %d with 2 open started at Heat %d, expected 2" % [top, main.heat]
+		)
+	if main.MAXHEARTS != 3:
+		_fail("a run at Heat 2 has %d hearts, expected 3" % main.MAXHEARTS)
+	main.win_run()
+	if main.meta.heat_open != 3 or main.meta.heat_unlocked != 3:
+		_fail(
+			(
+				"winning at Heat 2 with 2 open left %d open (unlocked %d), expected 3"
+				% [main.meta.heat_open, main.meta.heat_unlocked]
+			)
+		)
+	main.meta.load_meta()
+	if main.meta.heat_open != 3:
+		_fail("the level opened by a win was not saved (the file says %d)" % main.meta.heat_open)
+	main.start_game(false, SEED)  # a new run clears the note on the summary
+	if main.meta.heat_unlocked != -1:
+		_fail("a new run still carries the level the last one opened")
+	main.heat = 3
+	main.go_to_title()
+	main.title_page = "play"
+	main.input_sys.heat_adjust(1)
+	if main.heat != 3:
+		_fail("the picker went to Heat %d with 3 open" % main.heat)
+	main.input_sys.heat_adjust(-1)
+	if main.heat != 2:
+		_fail("the picker did not step down from Heat 3 (it is %d)" % main.heat)
+	main.meta.heat_open = 0
+	main.heat = 4  # a choice remembered from before the ladder was locked
+	main.start_game(false, SEED)
+	if main.heat != 0:
+		_fail("a run chosen at Heat 4 with only Heat 0 open started at Heat %d" % main.heat)
+	# RESET ALL PROGRESS closes the ladder again
+	main.meta.heat_open = top
+	main.reset_all_progress()
+	if main.meta.heat_open != 0 or main.heat_sys.open_level() != 0:
+		_fail("RESET ALL PROGRESS left %d levels open" % main.meta.heat_open)
+	# the PLAY page and the run summary draw with locked levels, at two window sizes
+	for open in [0, 2, top]:
+		main.meta.heat_open = open
+		for s in [Vector2(1280.0, 720.0), Vector2(1920.0, 1080.0)]:
+			main.hud.size = s
+			main.heat = open
+			main.go_to_title()
+			main.title_page = "play"
+			await _redraw()
+			main.start_game(false, SEED)
+			main.heat = open
+			main.run_won = true
+			main.meta.unlock_heat_after_win()
+			main.state = "over"
+			await _redraw()
+			main.go_to_title()
+	main.hud.size = Vector2(1280.0, 720.0)
+	# put the real meta.json back
+	if had:
+		var w = FileAccess.open(path, FileAccess.WRITE)
+		w.store_buffer(kept)
+		w.close()
+	elif FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	main.meta.load_meta()
+	main.meta.heat_open = keep_open
+	main.heat = keep_heat
+	main.run_won = false
+
+
+# README H1.10: the level is written where the player sees it, and the score record carries it
+func _check_show_it() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	var keep = main.heat
+	# the label: level 0 is plain even with the name, the others say the name when asked, -1 is the level of the run
+	if h.label(0) != "HEAT 0" or h.label(0, true) != "HEAT 0":
+		_fail(
+			(
+				'the label of level 0 is "%s" / "%s", expected "HEAT 0"'
+				% [h.label(0), h.label(0, true)]
+			)
+		)
+	for level in range(1, top + 1):
+		var want = "HEAT %d" % level
+		if h.label(level) != want:
+			_fail('the label of level %d is "%s", expected "%s"' % [level, h.label(level), want])
+		var named = want + "  " + str(h.level_info(level)["name"])
+		if h.label(level, true) != named:
+			_fail(
+				(
+					'the named label of level %d is "%s", expected "%s"'
+					% [level, h.label(level, true), named]
+				)
+			)
+	main.heat = 3
+	if h.label() != "HEAT 3" or h.label(-1, true) != "HEAT 3  FEWER LIVES":
+		_fail('the label of the run at Heat 3 is "%s" / "%s"' % [h.label(), h.label(-1, true)])
+	if h.label(top + 7) != h.label(top):
+		_fail("a level past the end should be labelled as the top level")
+	# the record: what heat_of makes of every kind of value
+	var ScoresScript = load("res://scripts/scores.gd")
+	var cases = [
+		[0, 0],
+		[3, 3],
+		[5, 5],
+		[2.9, 2],
+		[-4, 0],
+		[999, HeatScript.MAX_LEVEL],
+		["3", 0],
+		[null, 0],
+		[[1], 0],
+		[true, 0]
+	]
+	for c in cases:
+		var got = ScoresScript.heat_of(c[0])
+		if got != c[1]:
+			_fail("heat_of(%s) is %d, expected %d" % [str(c[0]), got, c[1]])
+	# the file: an old entry (no heat key), a good one, bad ones; and a run that is recorded
+	var path = main.scores.PATH
+	var had = FileAccess.file_exists(path)
+	var kept = PackedByteArray()
+	if had:
+		kept = FileAccess.get_file_as_bytes(path)
+	var base = {"name": "AAA", "round": 2, "kills": 5, "time": 100, "date": "2026-01-01"}
+	var rows = []
+	for pair in [[900, null], [800, 3], [700, "x"], [600, 999], [500, -2]]:
+		var e = base.duplicate()
+		e["score"] = pair[0]
+		if pair[1] != null:
+			e["heat"] = pair[1]
+		rows.append(e)
+	var f = FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(JSON.stringify({"version": 1, "entries": rows}))
+	f.close()
+	main.scores.load_scores()
+	var want_heat = [0, 3, 0, HeatScript.MAX_LEVEL, 0]
+	if main.scores.entries.size() != 5:
+		_fail("the scores file with 5 entries loaded %d" % main.scores.entries.size())
+	else:
+		for i in range(5):
+			if int(main.scores.entries[i].get("heat", -1)) != want_heat[i]:
+				_fail(
+					(
+						"entry %d loaded with heat %s, expected %d"
+						% [i, str(main.scores.entries[i].get("heat", "<missing>")), want_heat[i]]
+					)
+				)
+	for lvl in [0, 4]:
+		main.scores.entries = []
+		main.daily_mode = false
+		main.custom_seed_run = false
+		main.heat = lvl
+		main.score = 1234
+		if main.scores.submit_run() != 0:
+			_fail("a ranked run at Heat %d did not reach the list" % lvl)
+		main.name_entry = false
+		main.scores.load_scores()
+		if main.scores.entries.is_empty() or int(main.scores.entries[0].get("heat", -1)) != lvl:
+			_fail("a run at Heat %d was not saved with that heat" % lvl)
+	# drawn at every level and two window sizes: the run summary, the pause menu, the run bar and the High Scores page
+	main.scores.entries = [
+		{
+			"name": "AAA",
+			"score": 900,
+			"round": 2,
+			"kills": 5,
+			"time": 100,
+			"date": "2026-01-01",
+			"heat": 5
+		},
+		{"name": "OLD", "score": 800, "round": 1, "kills": 1, "time": 0, "date": "2025-01-01"}
+	]
+	for level in range(top + 1):
+		main.heat = level
+		for s in [Vector2(1280.0, 720.0), Vector2(1920.0, 1080.0)]:
+			main.hud.size = s
+			main.state = "over"
+			await _redraw()
+			main.state = "play"
+			main.paused = true
+			main.pause_page = ""
+			await _redraw()
+			main.paused = false
+			await _redraw()
+			main.go_to_title()
+			main.title_page = "scores"
+			await _redraw()
+			main.go_to_title()
+	main.hud.size = Vector2(1280.0, 720.0)
+	# put the real scores file back
+	if had:
+		var w = FileAccess.open(path, FileAccess.WRITE)
+		w.store_buffer(kept)
+		w.close()
+	elif FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	main.scores.load_scores()
+	main.heat = keep
+
+
+func _redraw() -> void:
+	for i in range(2):
+		main.hud.queue_redraw()
+		await process_frame
+
+
 # README H1.9: shop prices go up by `price` and every cash source pays `cash` times as much (shop.gd `shop_price` and
 # `add_cash`). Heat 0 prices and pays exactly what the game did before Heat; HAGGLER and BOUNTY still work on top.
 func _check_economy() -> void:

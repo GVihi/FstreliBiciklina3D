@@ -6,7 +6,7 @@ The game keeps four small files in Godot's `user://` folder (on Windows: `%APPDA
 |---|---|---|---|
 | `settings.cfg` | `scripts/settings.gd` | ConfigFile; the version is `[meta] version` | 1 |
 | `scores.json` | `scripts/scores.gd` | `{"version": 1, "entries": [...]}` | 1 |
-| `meta.json` | `scripts/meta.gd` | `{"version": 1, "balance": n, "total_earned": n, "owned": [unlock ids], "start_perk": unlock id, "loadout": {slot: weapon id}, "challenges": {counter: n}, "xp": n}` | 1 |
+| `meta.json` | `scripts/meta.gd` | `{"version": 1, "balance": n, "total_earned": n, "owned": [unlock ids], "start_perk": unlock id, "loadout": {slot: weapon id}, "challenges": {counter: n}, "xp": n, "heat_open": n}` | 1 |
 | `run.json` | `scripts/run_save.gd` | `{"version": 1, "run": {...}}`, `"run"` is `{}` when no run is saved | 1 |
 
 `hi.dat` (a plain number, the old single high score) is no longer read or written: the HI score is the best entry of `scores.json`. An old `hi.dat` in the folder does nothing and can be deleted by hand; its score is not moved to the leaderboard, because it has no name or date.
@@ -42,6 +42,9 @@ The Heat level (README Milestone B, `docs/HEAT.md`) is saved in two places, both
 - **`run.json`, `heat` in the saved run:** the level the run is played at, so CONTINUE plays on at the same Heat. A run saved before Heat has no key and was played at 0. A number past the sanity limit (20) is cut there when the file is read, and to the levels the table has when the run is put into the game; anything that is not a number reads as 0. **A saved Daily Run always loads as Heat 0**, whatever the file says, because the Daily Run is the same for everybody.
 
 No version bump for either (a new field with a default, like the other files). `tools/heat_check.gd` checks both round trips and the bad values.
+
+- **`meta.json`, `heat_open`:** the highest Heat level that is open to play (README H1.11), a whole number, 0 for a player who has not won a run yet. A file without the key (written before the ladder was locked) reads as 0, so only Heat 0 is open; a value that is not a number or is below 0 reads as 0, a number above the sanity limit (20) is cut there, and the game never uses more than the top level of `data/heat.json` (`Heat.open_level`). It only goes up: a run won at the highest open level opens the next one (`Meta.unlock_heat_after_win`, called by `award_run`) and the file is saved at once. RESET ALL PROGRESS closes the ladder again (it deletes `meta.json`); `settings.cfg` keeps the level last chosen, and a run starts at the highest open level if that level is not open (`Main.start_game`). No version bump.
+- **`scores.json`, `heat` in each entry:** the level the run was played at (README H1.10), a whole number from 0 up to the sanity limit (20). An entry written before Heat has no key and reads as 0; a value that is not a number (text, null, a list, true) reads as 0, a negative one as 0 and one above the limit is cut there. A new entry always gets the level of the run (`Scores.heat_of`). Only ranked runs are recorded, so a Daily Run (always Heat 0) and a custom-seed run never appear. No version bump. The one board stays one board until the split-boards item of Milestone A; the High Scores page has a HEAT column so the levels are told apart.
 
 ## Key bindings (`[keys]` in `settings.cfg`)
 
