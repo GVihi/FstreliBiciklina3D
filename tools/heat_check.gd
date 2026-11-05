@@ -37,6 +37,11 @@ extends SceneTree
 #     the Heat it names, no preset has a clash or fewer than 2 hearts, the arithmetic on sets (`total_points`, `is_legal`,
 #     `clean_set`, `effects_of`), and all 432 combinations of ranks: 330 without a clash, the top total 12 (two sets), and
 #     `clean_set` makes every one of them legal without making it worth more,
+#   - stacking (README H2.3): a set of ranks can be played and cleared, every clash of the table is refused (the second
+#     named goes down, the first keeps its rank), all 432 sets played are legal and within the top total with every cap
+#     holding (hearts 1 to 3, cash at least the cap, riders in a round at most the cap), the set with every rank maxed and the
+#     best sets start a real round, riders on floor 10 never aim past RIDER_SPEED_CAP and never speed up past their spawn
+#     speed, a hearts cap that reads as 0 still leaves 1 heart, and a Daily Run puts a played set away,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -86,6 +91,7 @@ func _initialize() -> void:
 	await _check_show_it()
 	await _check_unlock()
 	_check_economy()
+	_check_stacking()
 	main.meta.heat_open = open_before
 	_restore_settings()
 	_finish()
@@ -1236,6 +1242,291 @@ func _check_economy() -> void:
 	main.shop_lvl = kept["shop_lvl"]
 	main.perks = kept["perks"]
 	main.cash = kept["cash"]
+
+
+# README H2.3: stacking rules. A set of ranks can be played (`play_set`, `clear_set`), a clash is refused, and every cap of
+# the table holds for every legal set, for the set with every rank maxed, and for a set that skipped the clash rule (a
+# hand-edited save). The sets that are worth the top total, and the maxed one, start a real round with riders that never
+# aim past `RIDER_SPEED_CAP`.
+func _check_stacking() -> void:
+	var h = main.heat_sys
+	var cap = int(h.caps["riders_max"])
+	if h.has_set() or h.set_points() != 0 or not h.set_ranks.is_empty():
+		_fail("a set is played before any was chosen")
+	# play_set, clear_set and what a lookup reads
+	var asked = {"swift": 2, "crowd": 1}
+	var kept = asked.duplicate()
+	var got = h.play_set(asked)
+	if asked != kept:
+		_fail("play_set changed the set that was passed in")
+	if got != kept or not h.has_set() or h.set_points() != h.total_points(kept):
+		_fail("play_set(%s) played %s worth %d" % [str(kept), str(got), h.set_points()])
+	var want = h.effects_of(kept)
+	for key in HeatScript.NEUTRAL:
+		if not is_equal_approx(h.value(key), float(want[key])):
+			_fail("a played set: %s is %s, expected %s" % [key, h.value(key), want[key]])
+		if not is_equal_approx(h.value(key, 0), float(HeatScript.NEUTRAL[key])):
+			_fail(
+				"a played set: a level given on purpose did not read the table (%s at Heat 0)" % key
+			)
+	got.erase("swift")
+	if h.set_ranks != kept:
+		_fail("play_set gave out the played set itself, not a copy")
+	h.clear_set()
+	if h.has_set() or h.set_points() != 0 or not h.set_ranks.is_empty():
+		_fail("clear_set left a set played")
+	for key in HeatScript.NEUTRAL:
+		if not is_equal_approx(h.value(key), h.value(key, main.heat)):
+			_fail("after clear_set %s does not read the level of the run again" % key)
+	h.play_set({})
+	if not h.has_set() or h.set_points() != 0:
+		_fail("an empty set is not played as a set worth 0")
+	for key in HeatScript.NEUTRAL:
+		if not is_equal_approx(h.value(key), float(HeatScript.NEUTRAL[key])):
+			_fail("an empty set: %s is %s, Heat 0 changes nothing" % [key, h.value(key)])
+	h.clear_set()
+	# every clash is refused, and the one that is kept is the first named
+	for c in h.clashes:
+		var a = str(c["a_id"])
+		var b = str(c["b_id"])
+		var pair = {a: int(c["a_rank"]), b: int(c["b_rank"])}
+		var tag = "%s %d with %s %d" % [a, int(c["a_rank"]), b, int(c["b_rank"])]
+		if h.is_legal(pair):
+			_fail("%s is in the table as a clash but is a legal set" % tag)
+		if str(c["why"]) == "":
+			_fail("%s is refused with no reason to show" % tag)
+		var played = h.play_set(pair)
+		if not h.is_legal(played) or played != h.clean_set(pair):
+			_fail(
+				(
+					"%s: play_set played %s, which clashes or is not what clean_set says"
+					% [tag, str(played)]
+				)
+			)
+		if int(played.get(a, 0)) != int(c["a_rank"]):
+			_fail("%s: the first named lost a rank (%s)" % [tag, str(played)])
+		if int(played.get(b, 0)) >= int(c["b_rank"]):
+			_fail("%s: the second named kept its rank (%s)" % [tag, str(played)])
+		if h.set_points() >= h.total_points(pair):
+			_fail("%s: the refused set is not worth less than the one asked for" % tag)
+	h.clear_set()
+	# all 432 sets of ranks: what is played is legal, within the top total, and every cap holds
+	var sets = []
+	_all_sets(h.modifier_ids(), 0, {}, sets)
+	var seen_top = 0
+	for raw in sets:
+		var tag = "set %s" % str(raw)
+		var played = h.play_set(raw)
+		if not h.is_legal(played):
+			_fail("%s: played %s, which has a clash" % [tag, str(played)])
+		if h.is_legal(raw) and played != raw:
+			_fail("%s: a legal set was changed to %s" % [tag, str(played)])
+		var points = h.set_points()
+		if points > h.top_total:
+			_fail("%s: worth %d, over the top total %d" % [tag, points, h.top_total])
+		seen_top = maxi(seen_top, points)
+		_stack_caps(tag)
+	if seen_top != h.top_total:
+		_fail(
+			(
+				"the best set that can be played is worth %d, the top total is %d"
+				% [seen_top, h.top_total]
+			)
+		)
+	h.clear_set()
+	# the set with every rank maxed is refused down to a legal one; the best sets are played as they are
+	var all_max = {}
+	for id in h.modifier_ids():
+		all_max[id] = h.max_rank(id)
+	var best = []
+	for raw in sets:
+		if h.is_legal(raw) and h.total_points(raw) == h.top_total:
+			best.append(raw)
+	if best.is_empty():
+		_fail("no legal set is worth the top total %d" % h.top_total)
+	var runs = [["every rank maxed", all_max]]
+	for i in range(best.size()):
+		runs.append(["top total set %d of %d" % [i + 1, best.size()], best[i]])
+	# a set that skipped play_set (a hand-edited save that went round clean_set): the caps are in the code that plays
+	# each effect, so they must hold without the clash rule
+	h.set_ranks = all_max.duplicate()
+	h.set_effects = h.effects_of(all_max)
+	_stack_caps("every rank maxed with the clash rule skipped")
+	_play_round("every rank maxed with the clash rule skipped", cap)
+	h.clear_set()
+	for run in runs:
+		var played = h.play_set(run[1])
+		_stack_caps(str(run[0]))
+		_play_round("%s (%s)" % [run[0], str(played)], cap)
+		h.clear_set()
+	# hearts never below one: the table cannot take more than 2 hearts off 3 (the range of hearts_minus), and a table and a
+	# set that both went round their checks (a hearts_min cap under 1, which the loader reads as 0, and 5 hearts taken off)
+	# still leave 1
+	if int(HeatScript.RANGES["hearts_minus"][1]) >= START_HEARTS:
+		_fail(
+			(
+				"hearts_minus may take %d hearts off the %d of a run"
+				% [HeatScript.RANGES["hearts_minus"][1], START_HEARTS]
+			)
+		)
+	for silly in [0.4, 0.0]:
+		var own = HeatScript.new()
+		own.caps["hearts_min"] = silly
+		own.set_effects = own.effects_of({})
+		own.set_effects["hearts_minus"] = 5
+		if own.start_hearts() != 1:
+			_fail(
+				(
+					"a hearts_min cap of %s with 5 hearts taken off left %d hearts, expected 1"
+					% [silly, own.start_hearts()]
+				)
+			)
+	# a Daily Run is Heat 0 for everybody, so it puts a played set away
+	h.play_set(all_max)
+	main.heat = h.top_level()
+	main.start_game(true)
+	if h.has_set() or main.heat != 0 or main.MAXHEARTS != START_HEARTS:
+		_fail(
+			(
+				"a Daily Run after a set was played has set %s, Heat %d and %d hearts, expected none, 0 and %d"
+				% [h.has_set(), main.heat, main.MAXHEARTS, START_HEARTS]
+			)
+		)
+	for key in HeatScript.NEUTRAL:
+		if not is_equal_approx(h.value(key), float(HeatScript.NEUTRAL[key])):
+			_fail(
+				(
+					"a Daily Run after a set was played: %s is %s, Heat 0 changes nothing"
+					% [key, h.value(key)]
+				)
+			)
+	h.clear_set()
+	main.heat = 0
+	main.daily_mode = false
+	main.go_to_title()
+
+
+# every set of ranks of `ids` from index `i` on, added to `out` (rank 0 is left out of the dictionary)
+func _all_sets(ids: Array, i: int, cur: Dictionary, out: Array) -> void:
+	if i >= ids.size():
+		out.append(cur.duplicate())
+		return
+	var id = str(ids[i])
+	for rank in range(main.heat_sys.max_rank(id) + 1):
+		if rank > 0:
+			cur[id] = rank
+		_all_sets(ids, i + 1, cur, out)
+		cur.erase(id)
+
+
+# the caps of the table, read through the set that is played now
+func _stack_caps(tag: String) -> void:
+	var h = main.heat_sys
+	var cap = int(h.caps["riders_max"])
+	var hearts = h.start_hearts()
+	if hearts < 1 or hearts > START_HEARTS or hearts < int(h.caps["hearts_min"]):
+		_fail(
+			(
+				"%s: a run starts with %d hearts (at least %d, at most %d)"
+				% [tag, hearts, maxi(1, int(h.caps["hearts_min"])), START_HEARTS]
+			)
+		)
+	var cash = h.cash_factor()
+	if cash < float(h.caps["cash_min"]) - 0.0001 or cash > 1.0:
+		_fail("%s: cash is x%s, the cap is x%s to x1" % [tag, cash, h.caps["cash_min"]])
+	if h.price_factor() < 1.0 - 0.0001:
+		_fail("%s: prices are x%s, Heat never makes them lower" % [tag, h.price_factor()])
+	if h.boss_health(100) < 100:
+		_fail("%s: a boss of 100 health has %d" % [tag, h.boss_health(100)])
+	for mix in [
+		{"pro": 5, "sprinter": 2, "courier": 1},
+		{"pro": 6, "tough": 2, "sprinter": 2, "courier": 1},
+		{"pro": 12},
+		{"pro": cap - 1},
+		{"pro": cap},
+	]:
+		var plan = []
+		for kind in mix:
+			for k in range(int(mix[kind])):
+				plan.append(kind)
+		var res = h.with_extra_riders(plan, mix)
+		if res.size() < plan.size() or (plan.size() <= cap and res.size() > cap):
+			_fail("%s: %d riders became %d, the cap is %d" % [tag, plan.size(), res.size(), cap])
+		if not _is_subsequence(plan, res):
+			_fail("%s: the seed's riders lost their order" % tag)
+
+
+# a real run with the set that is played now: it starts with the right hearts, picks a round and begins it, and its
+# riders on late floors never aim past RIDER_SPEED_CAP (a rider that spawns faster than the cap, as late sprinters do at
+# every Heat including 0, only slows down to it)
+func _play_round(tag: String, cap: int) -> void:
+	var h = main.heat_sys
+	main.generated_arena = true
+	main.heat = 0
+	main.start_game(false, SEED)
+	var hearts = h.start_hearts()
+	if main.MAXHEARTS != hearts or main.hearts != hearts:
+		_fail(
+			(
+				"%s: a new run has %d of %d hearts, expected %d"
+				% [tag, main.hearts, main.MAXHEARTS, hearts]
+			)
+		)
+	main.pick_node(0)
+	if main.state != "play":
+		_fail("%s: could not start a round (state %s)" % [tag, main.state])
+		main.go_to_title()
+		return
+	if main.rider_plan.size() > cap or main.PER_ROUND > cap or main.rider_plan.is_empty():
+		_fail(
+			(
+				"%s: the round has %d riders (PER_ROUND %d), expected 1 to %d"
+				% [tag, main.rider_plan.size(), main.PER_ROUND, cap]
+			)
+		)
+	var state_before = main.state
+	main.round_n = 10
+	for idx in [0, 6]:
+		main.next_idx = idx
+		for k in range(8):
+			var r = main.rider_sys.spawn_rider(k % 3, 1)
+			var peak_allowed = maxf(float(r["spd"]), Riders.RIDER_SPEED_CAP) + 0.05
+			r["age"] = 1000.0
+			main.state = "check"  # nobody gets run over, and a finished rider does not end the round
+			var late = 0.0
+			var peak = 0.0
+			for i in range(240):
+				r["tgt"] = 1000.0
+				r["chg"] = 1000.0
+				main.rider_sys.update_rider(r, DT)
+				peak = maxf(peak, float(r["spd"]))
+				if i >= 180:
+					late = maxf(late, float(r["spd"]))
+			main.state = state_before
+			if late > Riders.RIDER_SPEED_CAP + 0.05:
+				_fail(
+					(
+						"%s: a %s rider on floor 10 still rides %.2f m/s after 3 s, the cap is %.1f"
+						% [tag, str(r.get("type", "?")), late, Riders.RIDER_SPEED_CAP]
+					)
+				)
+			if peak > peak_allowed:
+				_fail(
+					(
+						"%s: a %s rider sped up to %.2f m/s, from %.2f and under the cap %.1f"
+						% [
+							tag,
+							str(r.get("type", "?")),
+							peak,
+							peak_allowed - 0.05,
+							Riders.RIDER_SPEED_CAP
+						]
+					)
+				)
+			main.clear_riders()
+	main.next_idx = 0
+	main.heat = 0
+	main.go_to_title()
 
 
 func _is_subsequence(sub: Array, full: Array) -> bool:

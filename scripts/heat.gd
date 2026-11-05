@@ -43,6 +43,8 @@ var caps: Dictionary = {}
 var modifiers: Array = []  # README H2.2: {"id", "name", "keys", "ranks": [{"points", "desc", "effects"}]}, rank 1 first
 var clashes: Array = []  # {"a_id", "a_rank", "b_id", "b_rank", "why"}: two ranks that cannot be chosen together
 var top_total: int = 0  # the most points a set of ranks without a clash is worth
+var set_ranks: Dictionary = {}  # README H2.3: the legal set of ranks being played ({id: rank}); empty while a level is played
+var set_effects: Dictionary = {}  # every effect at the value of `set_ranks`; empty = no set, `value()` reads the level
 
 
 func _init(game = null) -> void:
@@ -82,13 +84,16 @@ func level_info(level: int) -> Dictionary:
 	return levels[clamp_level(level)].duplicate()
 
 
-# the value of effect `key` at `level`; -1 (the default) is the level of the run being played (`Main.heat`)
+# the value of effect `key` at `level`; -1 (the default) is the run being played: the set of ranks chosen with `play_set`
+# (README H2.3) if there is one, else the level of the run (`Main.heat`). A level given on purpose always reads the table.
 func value(key: String, level: int = -1) -> float:
 	if not NEUTRAL.has(key):
 		push_error('heat: unknown effect "%s"' % key)
 		return 0.0
 	var lv = level
 	if lv < 0:
+		if not set_effects.is_empty():
+			return float(set_effects[key])
 		lv = int(g.heat) if g != null else 0
 	return float(levels[clamp_level(lv)][key])
 
@@ -107,13 +112,16 @@ func label(level: int = -1, with_name: bool = false) -> String:
 	return text
 
 
-# README H1.7: the hearts a run starts with at `level` (-1: the level of the run). `START_HEARTS` less `hearts_minus`, but
+# README H1.7: the hearts a run starts with at `level` (-1: the run being played). `START_HEARTS` less `hearts_minus`, but
 # never below the `hearts_min` cap of the table, and never above `START_HEARTS`, so Heat 0 and a table that is hand-edited
-# the wrong way both leave the hearts at 3. MAX LIVES in shop.gd, heart drops, PATCH UP and the heart on a round clear
-# work on top of this and are not changed (docs/HEAT.md).
+# the wrong way both leave the hearts at 3. README H2.3: and never below 1. `hearts_minus` is at most 2 (RANGES), so a
+# table that loaded cannot get there; the floor is for a table or a set that skipped that check together with a
+# `hearts_min` cap under 1 (the loader accepts 0.4, which reads as 0). MAX LIVES in shop.gd, heart drops, PATCH UP and the
+# heart on a round clear work on top of this and are not changed (docs/HEAT.md).
 func start_hearts(level: int = -1) -> int:
 	var minus = int(value("hearts_minus", level))
-	return mini(START_HEARTS, maxi(int(caps["hearts_min"]), START_HEARTS - minus))
+	var least = maxi(1, int(caps["hearts_min"]))
+	return mini(START_HEARTS, maxi(least, START_HEARTS - minus))
 
 
 # README H1.9: the factor on shop prices at `level` (-1: the level of the run). 1.0 at Heat 0. It is applied in
@@ -210,8 +218,9 @@ func _extra_kinds(mix: Dictionary, n: int) -> Array:
 
 
 # ---- README H2.2: sets of ranks. A set is {modifier id: rank}, a rank of 0 (or a modifier that is left out) is off. The
-# Heat of a set is the sum of the points of its ranks. The game still plays by level (`Main.heat`, the presets); wiring a
-# chosen set into a run is H2.5, and the stacking caps and refusing clashes in play is H2.3.
+# Heat of a set is the sum of the points of its ranks. README H2.3 lets the game play a set (`play_set`, `clear_set`):
+# clashes are refused there and every cap of the table holds where the effect plays out. Nothing in the game chooses a
+# set yet (the page is H2.4, saving it H2.5), so a run plays by level (`Main.heat`, the presets) unless a set is played.
 
 
 # the ids of the modifiers, in the order of the table
@@ -311,6 +320,33 @@ func effects_of(ranks: Dictionary) -> Dictionary:
 			for key in m["ranks"][r - 1]["effects"]:
 				out[key] = m["ranks"][r - 1]["effects"][key]
 	return out
+
+
+# README H2.3: play `ranks` from now on: every lookup with no level given (`value`, `start_hearts`, `price_factor`,
+# `cash_factor`, `boss_health`, `with_extra_riders`) reads this set until `clear_set`. A set with a clash is refused the way
+# `clean_set` says (the second modifier of the clash goes down until it fits; `clashes_in(ranks)` before the call has the
+# reasons), so what is played is always legal and never worth more than `top_total`. Returns the set that is played (a copy;
+# the set that came in is not changed). An empty set is played as no ranks at all, which is Heat 0 (the neutral values).
+func play_set(ranks: Dictionary) -> Dictionary:
+	set_ranks = clean_set(ranks)
+	set_effects = effects_of(set_ranks)
+	return set_ranks.duplicate()
+
+
+# README H2.3: go back to playing by level (`Main.heat`). A Daily Run does this, because it is Heat 0 for everybody.
+func clear_set() -> void:
+	set_ranks = {}
+	set_effects = {}
+
+
+# true while a set is played (see `play_set`)
+func has_set() -> bool:
+	return not set_effects.is_empty()
+
+
+# what the set being played is worth (0 when no set is played)
+func set_points() -> int:
+	return total_points(set_ranks)
 
 
 # the set of ranks the preset `level` names (a copy), and what it is worth: for every level of the table that is the
