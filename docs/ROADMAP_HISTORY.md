@@ -128,6 +128,13 @@ an achievement is a challenge done at least once, so nothing new is saved: `meta
 - **Checked:** `gdformat` and `gdlint` on `heat.gd`, `riders.gd`, `bosses.gd` and `heat_check.gd`, clean. With Godot 4.7.2: `python tools/run_checks.py heat rider boss final_boss ambush phone_wall node_setup shop` passes except `rider_warning_check`, which says "play_warning did not add one sound player (had 5, now 5)"; it fails the same way on the branch without this change (H1.7), so it is not caused by it, and it is probably the headless sound setup (not looked into). With each of the three effects switched off on purpose, `heat_check` fails, so it sees all three. **A person still has to play it:** whether 3 or 4 health on a tough rider and 15 % more on a boss feel like a step and not a wall at H4, with the fire rate (H1.12 tunes this with the bot harness).
 - **Not covered:** prices and cash (H1.9), showing the level (H1.10), the unlock ladder (H1.11), and the `rider_warning_check` failure.
 
+### Allow multiple Heat modifiers › H2.1 Design note
+
+- **Built:** no code. `docs/HEAT.md` has a new section "Modifiers": five modifiers (SWIFT RIDERS 0 to 3, CROWD 0 to 2, FEWER LIVES 0 to 2, TOUGH 0 to 2, STINGY 0 to 3) with what each rank does and the points each rank is worth in total (swift 1/2/4, crowd 1/2, lives 1/4, tough 1/3, stingy 1/2/3), the five presets H1 to H5 as sets of rank 1 (totals 1 to 5), the rules for a set (top rank, three clashing pairs, the caps, hearts at least 1), and the top total of 12.
+- **Decisions:** TOUGH (riders and bosses) and STINGY (prices and cash) stay one modifier each, so the presets keep totals 1 to 5. Rank 1 of every modifier is exactly the ladder's value, so every H1 check keeps passing. The clashing pairs are lives 2 with swift 3, lives 2 with crowd 2, and tough 2 with stingy 3. Open for the owner: whether custom sets open by total up to the highest open level (assumed, one rule in H2.4) or only after the top preset is won.
+- **Checked:** the combinations were counted by script: 432 sets of ranks, 330 without a clash, top total 12 (two sets), the totals of H1 to H5 are 1 to 5 and none has a clash, and the extra rider counts at CROWD ranks 1 and 2 against the 16 rider cap. Nothing in the game changed, so no Godot check was needed. **Not checked:** whether the points feel right; H2.6 and H3.5 tune them with the bot harness.
+- **Not covered:** everything that builds it (H2.2 to H2.6) and the rewards per point (H3).
+
 ## Milestone C: Weapon System Expansion › Weapon Slots
 
 ### Add primary weapon slot
