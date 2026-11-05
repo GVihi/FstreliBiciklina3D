@@ -108,7 +108,9 @@ func label(level: int = -1, with_name: bool = false) -> String:
 	lv = clamp_level(lv)
 	var text = "HEAT %d" % lv
 	if with_name and lv > 0:
-		text += "  " + str(levels[lv]["name"])
+		# README H2.4: the run being played with a set of the player's own is not the preset of its level, so it says CUSTOM
+		var own = level == -1 and not custom_set().is_empty()
+		text += "  " + ("CUSTOM" if own else str(levels[lv]["name"]))
 	return text
 
 
@@ -357,6 +359,161 @@ func preset_ranks(level: int) -> Dictionary:
 
 func preset_points(level: int) -> int:
 	return int(levels[clamp_level(level)]["points"])
+
+
+# ---- README H2.4: the rules of the modifiers page. The page (hud.gd, input.gd) only draws and clicks; what a rank change
+# may do, what a set is called and which set is played is decided here, so `tools/heat_mods_check.gd` can test it.
+
+
+# the level whose preset is exactly `ranks` (rank 0 and a missing id are the same), or -1 for a set of the player's own
+func preset_matching(ranks: Dictionary) -> int:
+	for lv in range(levels.size()):
+		var p = levels[lv]["ranks"]
+		var same = true
+		for id in modifier_ids():
+			if int(p.get(id, 0)) != int(ranks.get(id, 0)):
+				same = false
+				break
+		if same:
+			return lv
+	return -1
+
+
+# the set of the player's own that is chosen: `Main.heat_ranks` if it is legal, has a rank in it, is worth exactly the level of
+# the run (`Main.heat`, which is always the total of a chosen set) and is not just a preset; else {} (play by level)
+func custom_set() -> Dictionary:
+	if g == null or typeof(g.get("heat_ranks")) != TYPE_DICTIONARY:
+		return {}
+	var ranks = clean_set(g.heat_ranks)
+	if (
+		ranks.is_empty()
+		or total_points(ranks) != clamp_level(int(g.heat))
+		or preset_matching(ranks) >= 0
+	):
+		return {}
+	return ranks
+
+
+# the set the page shows and changes: the player's own set, or the preset of the level when there is none
+func chosen_ranks() -> Dictionary:
+	var own = custom_set()
+	if not own.is_empty():
+		return own
+	return preset_ranks(int(g.heat) if g != null else 0)
+
+
+# can modifier `id` of `ranks` move by `d` ranks (+1 or -1) when sets worth up to `open_total` points can be played? Returns
+# {"ok": bool, "ranks": the set after the change (a copy; the same set when it is refused), "why": the reason in capitals
+# when it is refused, "" when it is not, "kind": "top", "off", "clash", "open" or "" for the short tag the page writes}. Going down is always allowed above rank 0. Going up is refused at the top rank, for
+# a clash (with the reason written in the table), and when the set would be worth more than `open_total` (README H2.4, docs/HEAT.md:
+# a set can be played when its total is at most the highest open level).
+func try_step(ranks: Dictionary, id: String, d: int, open_total: int) -> Dictionary:
+	var out = {"ok": false, "ranks": ranks.duplicate(), "why": "", "kind": ""}
+	var top = max_rank(id)
+	var now = int(ranks.get(id, 0))
+	if top == 0:
+		out["why"] = "NO SUCH MODIFIER"
+		return out
+	var to = now + (1 if d > 0 else -1)
+	if to < 0:
+		out["why"] = "ALREADY OFF"
+		out["kind"] = "off"
+		return out
+	if to > top:
+		out["why"] = "ALREADY AT THE TOP RANK"
+		out["kind"] = "top"
+		return out
+	var next = ranks.duplicate()
+	if to == 0:
+		next.erase(id)
+	else:
+		next[id] = to
+	if d > 0:
+		var hit = clashes_in(next)
+		if not hit.is_empty():
+			out["why"] = str(hit[0]["why"])
+			out["kind"] = "clash"
+			return out
+		if total_points(next) > open_total:
+			out["why"] = (
+				"HEAT %d IS NOT OPEN YET (OPEN UP TO HEAT %d): WIN A RUN AT HEAT %d TO OPEN HEAT %d"
+				% [total_points(next), open_total, open_total, open_total + 1]
+			)
+			out["kind"] = "open"
+			return out
+	out["ok"] = true
+	out["ranks"] = next
+	return out
+
+
+# the level of the preset one step from `ranks` (d = -1 down, 1 up) among the levels 0 to `open_total`, or -1 when there is none.
+# A set that is a preset steps from its own level; a set of the player's own counts as sitting at its total, so down goes to the
+# preset worth the same Heat and up to the next one.
+func preset_step(ranks: Dictionary, d: int, open_total: int) -> int:
+	var at = preset_matching(ranks)
+	var to = at + (1 if d > 0 else -1)
+	if at < 0:
+		var total = total_points(ranks)
+		to = total + 1 if d > 0 else total
+	if to < 0 or to > mini(open_total, top_level()):
+		return -1
+	return to
+
+
+# README H2.4: the set that `Main` keeps after the page chose `ranks`. A set that is exactly a preset is kept as that level
+# (`Main.heat` = the level, no own set), so it plays by level exactly as the picker of H1.4 does; any other set is the player's
+# own (`Main.heat_ranks`) and `Main.heat` is its total, so the Heat number is always what the set is worth. Returns
+# {"heat": int, "ranks": Dictionary} ({} when the set is a preset).
+func settle(ranks: Dictionary) -> Dictionary:
+	var legal = clean_set(ranks)
+	var lv = preset_matching(legal)
+	if lv >= 0:
+		return {"heat": lv, "ranks": {}}
+	return {"heat": clamp_level(total_points(legal)), "ranks": legal}
+
+
+# a rank written out: "OFF" or "RANK 2 OF 3" (the page never says a rank with a colour alone)
+func rank_text(id: String, rank: int) -> String:
+	if rank <= 0:
+		return "OFF"
+	return "RANK %d OF %d" % [rank, max_rank(id)]
+
+
+# what rank `rank` of modifier `id` does, in capitals, or what rank 0 does
+func rank_desc(id: String, rank: int) -> String:
+	if rank <= 0:
+		return "OFF: ADDS NOTHING"
+	for m in modifiers:
+		if m["id"] == id:
+			return str(m["ranks"][mini(rank, m["ranks"].size()) - 1]["desc"])
+	return ""
+
+
+# the points of every rank of `id` in a line, the current rank in brackets: "1 / [2] / 4"; rank 0 is "[0] / 1 / 2 / 4"
+func points_line(id: String, rank: int) -> String:
+	var parts = []
+	for r in range(0, max_rank(id) + 1):
+		var p = str(points_of(id, r))
+		parts.append("[%s]" % p if r == rank else p)
+	return " / ".join(parts)
+
+
+# the name of the modifier `id`
+func modifier_name(id: String) -> String:
+	for m in modifiers:
+		if m["id"] == id:
+			return str(m["name"])
+	return id
+
+
+# the modifiers of a set in the order of the table, written for one line: "SWIFT RIDERS 2, CROWD 1"; "" for no ranks
+func set_text(ranks: Dictionary) -> String:
+	var parts = []
+	for id in modifier_ids():
+		var r = int(ranks.get(id, 0))
+		if r > 0:
+			parts.append("%s %d" % [modifier_name(id), r])
+	return ", ".join(parts)
 
 
 # true when `level` changes nothing (level 0 always does, the table loader makes sure)

@@ -97,6 +97,8 @@ func handle_input(event: InputEvent) -> void:
 		elif kc == KEY_V:
 			if g.state == "play":
 				g.player_sys.try_dash()  # dash moved here from Space (Milestone L); voices are toggled in the settings only
+		elif kc == KEY_M:
+			heat_mods_open()  # M on the PLAY page opens the Heat modifiers page (README H2.4); the map key works in a round only
 		elif kc == KEY_TAB:
 			if g.state == "title":
 				g.title_page = "" if g.title_page == "settings" else "settings"
@@ -288,6 +290,8 @@ func on_pad_button(btn: int) -> void:
 			menu_confirm()
 	elif btn == JOY_BUTTON_B and g.state == "title":
 		title_back()
+	elif btn == JOY_BUTTON_X and g.state == "title" and g.title_page == "play":
+		heat_mods_open()  # X on the PLAY page opens the Heat modifiers page (README H2.4)
 	elif btn == JOY_BUTTON_X and g.state == "title":
 		scores_reset_open()
 	elif btn == JOY_BUTTON_Y and g.state == "title":
@@ -453,14 +457,107 @@ func seed_start() -> void:
 # one, Enter / A / a click on START begin the run. The level is Main.heat itself and is saved with the settings at
 # every change, so the next start of the game (and the next visit to this page) opens on it.
 func heat_adjust(d: int) -> void:
+	if g.state == "title" and g.title_page == "heat_mods":
+		heat_mods_adjust(d)  # README H2.4: on the modifiers page Left / Right change the rank of the highlighted row
+		return
 	if g.state != "title" or g.title_page != "play":
 		return
 	var level = g.heat_sys.clamp_open(g.heat + d)  # README H1.11: only the open levels can be chosen
 	if level == g.heat:
 		return  # already at the end of the open levels
 	g.heat = level
+	g.heat_ranks = {}  # README H2.4: a level is a preset, so a set of the player's own is left behind
 	g.settings.save_settings()
 	g.sfx.play("click")
+
+
+# ---- HEAT MODIFIERS page (README H2.4). The rules are in heat.gd (`try_step`, `preset_step`, `settle`); these only apply them.
+func heat_mods_open() -> void:
+	if g.state != "title" or g.title_page != "play":
+		return
+	g.title_page = "heat_mods"
+	g.heat_sel = 0
+	g.sfx.play("click")
+
+
+# keep what the page chose: the set becomes the level (a preset) or the player's own set, and the level is saved with the settings
+func heat_mods_commit(ranks: Dictionary) -> void:
+	var kept = g.heat_sys.settle(ranks)
+	g.heat = int(kept["heat"])
+	g.heat_ranks = kept["ranks"]
+	g.settings.save_settings()
+	g.sfx.play("click")
+
+
+# move the highlighted row by d ranks (a modifier), or to the previous / next preset; a refused change only plays the error sound
+func heat_mods_adjust(d: int) -> void:
+	if g.state != "title" or g.title_page != "heat_mods":
+		return
+	var rows = g.hud.heat_mods_rows()
+	var row = rows[clampi(g.heat_sel, 0, rows.size() - 1)]
+	var hs = g.heat_sys
+	var ranks = hs.chosen_ranks()
+	if row["kind"] == "mod":
+		var step = hs.try_step(ranks, str(row["id"]), d, hs.open_level())
+		if step["ok"]:
+			heat_mods_commit(step["ranks"])
+		else:
+			g.sfx.play("error")
+	elif row["kind"] == "preset":
+		var lv = hs.preset_step(ranks, d, hs.open_level())
+		if lv >= 0:
+			heat_mods_commit(hs.preset_ranks(lv))
+		else:
+			g.sfx.play("error")
+
+
+# Enter / A / a click on the highlighted row: a modifier goes up a rank (from the top rank back to off), PRESET takes the next
+# preset (after the last open one back to Heat 0), RESET goes back to Heat 0 with no modifiers
+func heat_mods_activate() -> void:
+	if g.state != "title" or g.title_page != "heat_mods":
+		return
+	var rows = g.hud.heat_mods_rows()
+	var row = rows[clampi(g.heat_sel, 0, rows.size() - 1)]
+	var hs = g.heat_sys
+	var ranks = hs.chosen_ranks()
+	if row["kind"] == "reset":
+		heat_mods_commit({})
+	elif row["kind"] == "preset":
+		var lv = hs.preset_step(ranks, 1, hs.open_level())
+		heat_mods_commit(hs.preset_ranks(maxi(lv, 0)))
+	else:
+		var id = str(row["id"])
+		var step = hs.try_step(ranks, id, 1, hs.open_level())
+		if step["ok"]:
+			heat_mods_commit(step["ranks"])
+		elif step["kind"] == "top":
+			var next = ranks.duplicate()
+			next.erase(id)  # at the top rank Enter wraps round to off, so a keyboard player never gets stuck
+			heat_mods_commit(next)
+		else:
+			g.sfx.play("error")  # a clash or a Heat that is not open: the reason is written under the list
+
+
+# a click on the modifiers page: an arrow changes the rank (or the preset), RESET resets, any other click on a row only
+# highlights it, and a click outside the page goes back
+func heat_mods_click(mp: Vector2) -> void:
+	var rows = g.hud.heat_mods_rows()
+	for i in range(rows.size()):
+		if rows[i]["kind"] != "reset":
+			for d in [-1, 1]:
+				if g.hud.heat_mods_arrow_rect(i, d).has_point(mp):
+					g.heat_sel = i
+					heat_mods_adjust(d)
+					return
+	var at = g.hud.heat_mods_at(mp)
+	if at >= 0:
+		g.heat_sel = at
+		if rows[at]["kind"] == "reset":
+			heat_mods_activate()
+		else:
+			g.sfx.play("click")
+	elif not g.hud.heat_mods_panel_rect().has_point(mp):
+		title_back()
 
 
 func play_start() -> void:
@@ -544,6 +641,10 @@ func title_move(d: int) -> void:
 	elif g.state == "title" and g.title_page == "unlocks" and not g.UNLOCKS.is_empty():
 		g.unlock_sel = posmod(g.unlock_sel + d, g.UNLOCKS.size())
 		g.sfx.play("click")
+	elif g.state == "title" and g.title_page == "heat_mods":
+		var n = g.hud.heat_mods_rows().size()
+		g.heat_sel = posmod(clampi(g.heat_sel, 0, n - 1) + d, n)  # README H2.4: the rows wrap round
+		g.sfx.play("click")
 
 
 func title_back() -> void:
@@ -555,6 +656,8 @@ func title_back() -> void:
 		elif g.title_page == "reset_confirm" or g.title_page == "keys":
 			g.title_page = "settings"
 			g.keys_capture = false
+		elif g.title_page == "heat_mods":
+			g.title_page = "play"  # README H2.4: the modifiers page goes back to the PLAY page it was opened from
 		else:
 			g.title_page = ""
 		g.sfx.play("click")
@@ -578,6 +681,9 @@ func title_activate(i: int) -> void:
 		return
 	if g.title_page == "play":
 		play_start()  # Enter / A start the run at the chosen Heat; Left / Right change it, Esc / B go back
+		return
+	if g.title_page == "heat_mods":
+		heat_mods_activate()  # Enter / A go up a rank, take the next preset or reset; Left / Right change it, Esc / B go back
 		return
 	if g.title_page != "":
 		title_back()
@@ -1086,9 +1192,13 @@ func on_click() -> void:
 				seed_start()
 			else:
 				title_back()
+		elif g.title_page == "heat_mods":
+			heat_mods_click(mp)
 		elif g.title_page == "play":
 			if g.hud.play_start_rect().has_point(mp):
 				play_start()
+			elif g.hud.heat_mods_button_rect().has_point(mp):
+				heat_mods_open()
 			elif g.hud.heat_arrow_rect(-1).has_point(mp):
 				heat_adjust(-1)
 			elif g.hud.heat_arrow_rect(1).has_point(mp):
