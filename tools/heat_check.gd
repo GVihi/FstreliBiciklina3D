@@ -24,6 +24,9 @@ extends SceneTree
 #     the high score entry has a `heat` field (the level of the run, written to the file and read back, an old entry or a
 #     bad value reads as 0, a number past the limit is cut), and the run bar, pause menu, run summary and High Scores page
 #     draw at every level and two window sizes,
+#   - a tighter economy (README H1.9): shop prices are `price` times as high (before HAGGLER, rounded to 5, at least 5) and
+#     every cash source pays `cash` times as much (before BOUNTY, never below the `cash_min` cap), Heat 0 prices and pays
+#     exactly what the game did before Heat, and no level is cheaper or richer than the one below it,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -67,6 +70,7 @@ func _initialize() -> void:
 	_check_hearts()
 	_check_tougher()
 	await _check_show_it()
+	_check_economy()
 	_restore_settings()
 	_finish()
 
@@ -855,6 +859,203 @@ func _redraw() -> void:
 	for i in range(2):
 		main.hud.queue_redraw()
 		await process_frame
+
+
+# README H1.9: shop prices go up by `price` and every cash source pays `cash` times as much (shop.gd `shop_price` and
+# `add_cash`). Heat 0 prices and pays exactly what the game did before Heat; HAGGLER and BOUNTY still work on top.
+func _check_economy() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	# the factors, level by level, against the table and the cap
+	for level in range(top + 1):
+		if not is_equal_approx(h.price_factor(level), h.value("price", level)):
+			_fail(
+				(
+					"Heat %d: price_factor is %s, the table says %s"
+					% [level, h.price_factor(level), h.value("price", level)]
+				)
+			)
+		var want_cash = minf(1.0, maxf(h.value("cash", level), float(h.caps["cash_min"])))
+		if not is_equal_approx(h.cash_factor(level), want_cash):
+			_fail(
+				"Heat %d: cash_factor is %s, expected %s" % [level, h.cash_factor(level), want_cash]
+			)
+	if h.price_factor(0) != 1.0 or h.cash_factor(0) != 1.0:
+		_fail("Heat 0 has a price or cash factor that is not exactly 1.0")
+	if top >= 5:
+		if (
+			not is_equal_approx(h.price_factor(5), 1.2)
+			or not is_equal_approx(h.cash_factor(5), 0.8)
+		):
+			_fail("Heat 5 should be prices x1.2 and cash x0.8 (docs/HEAT.md)")
+		for level in range(0, 5):
+			if h.price_factor(level) != 1.0 or h.cash_factor(level) != 1.0:
+				_fail("Heat %d changes prices or cash, docs/HEAT.md says only H5 does" % level)
+	if h.price_factor(99) != h.price_factor(top) or h.cash_factor(99) != h.cash_factor(top):
+		_fail("a level past the end does not use the factors of the top level")
+	var keep = main.heat
+	main.heat = 5 if top >= 5 else top
+	if h.price_factor() != h.price_factor(main.heat) or h.cash_factor() != h.cash_factor(main.heat):
+		_fail("with no level given, the factors are not the ones of the run's Heat")
+	main.heat = keep
+	# the cap, on a table of its own so the real one is not touched
+	var own = HeatScript.new()
+	own.levels[top]["cash"] = 0.1
+	own.caps["cash_min"] = 0.5
+	if not is_equal_approx(own.cash_factor(top), 0.5):
+		_fail("cash 0.1 with a cap of 0.5 gave %s, expected 0.5" % own.cash_factor(top))
+	own.caps["cash_min"] = 2.0  # a cap above 1 must not make Heat pay more than the game did
+	if own.cash_factor(top) != 1.0 or own.cash_factor(0) != 1.0:
+		_fail("a cash_min cap above 1 made cash pay more than at Heat 0")
+	# the real shop and the real cash, with the state they read kept and put back
+	var kept = {
+		"heat": main.heat,
+		"round_n": main.round_n,
+		"shop_buys": main.shop_buys,
+		"shop_lvl": main.shop_lvl.duplicate(),
+		"perks": main.perks.duplicate(),
+		"cash": main.cash,
+	}
+	var item = {"id": "check", "kind": "perk", "cost": 100}
+	var tier = {"id": "check_tier", "kind": "tier", "cost": 100}
+	for level in range(top + 1):
+		for round_no in [1, 4, 9]:
+			for buys in [0, 3]:
+				for haggler in [false, true]:
+					main.heat = level
+					main.round_n = round_no
+					main.shop_buys = buys
+					main.shop_lvl = {"check_tier": 2}
+					main.perks = {"haggler": true} if haggler else {}
+					# the price as the game had it before Heat, times the factor, rounded to 5
+					for it in [item, tier]:
+						var v = (
+							float(it["cost"])
+							* (1.0 + 0.12 * float(round_no - 1))
+							* (1.0 + 0.06 * float(buys))
+						)
+						if it["kind"] == "tier":
+							v *= 1.0 + 0.45 * 2.0
+						if level == 0 and haggler:
+							v *= 0.85
+						var before = maxi(5, int(round(v / 5.0)) * 5)
+						if level == 0:
+							if main.shop_sys.shop_price(it) != before:
+								_fail(
+									(
+										"Heat 0 changed a shop price (round %d, %d buys, haggler %s, %s): %d, was %d"
+										% [
+											round_no,
+											buys,
+											haggler,
+											it["kind"],
+											main.shop_sys.shop_price(it),
+											before
+										]
+									)
+								)
+						else:
+							var w = (
+								float(it["cost"])
+								* (1.0 + 0.12 * float(round_no - 1))
+								* (1.0 + 0.06 * float(buys))
+							)
+							if it["kind"] == "tier":
+								w *= 1.0 + 0.45 * 2.0
+							w *= h.price_factor(level)
+							if haggler:
+								w *= 0.85
+							var want = maxi(5, int(round(w / 5.0)) * 5)
+							if main.shop_sys.shop_price(it) != want:
+								_fail(
+									(
+										"Heat %d: a shop price is %d, expected %d (round %d, %d buys, haggler %s, %s)"
+										% [
+											level,
+											main.shop_sys.shop_price(it),
+											want,
+											round_no,
+											buys,
+											haggler,
+											it["kind"]
+										]
+									)
+								)
+							if main.shop_sys.shop_price(it) < 5:
+								_fail("Heat %d: a shop price is under 5" % level)
+	# a higher level never makes a price lower
+	main.round_n = 4
+	main.shop_buys = 1
+	main.shop_lvl = {}
+	main.perks = {}
+	var last_price = 0
+	for level in range(top + 1):
+		main.heat = level
+		var p = main.shop_sys.shop_price(item)
+		if p < last_price:
+			_fail(
+				(
+					"Heat %d: the shop price %d is lower than the %d of the level below"
+					% [level, p, last_price]
+				)
+			)
+		last_price = p
+	# cash: every amount, round and level, with and without BOUNTY
+	for level in range(top + 1):
+		for round_no in [1, 3, 8]:
+			for bounty in [false, true]:
+				for n in [2, 5, 12, 13, 15, 18, 36, 55, 80]:
+					main.heat = level
+					main.round_n = round_no
+					main.perks = {"bounty": true} if bounty else {}
+					main.cash = 0
+					main.shop_sys.add_cash(n)
+					var v2 = float(n) * (1.0 + 0.08 * float(round_no - 1))
+					if level != 0:
+						v2 *= h.cash_factor(level)
+					if bounty:
+						v2 *= 1.35
+					var want_cash = int(round(v2))
+					if level == 0:
+						want_cash = int(
+							round(
+								(
+									float(n)
+									* (1.0 + 0.08 * float(round_no - 1))
+									* (1.35 if bounty else 1.0)
+								)
+							)
+						)
+					if main.cash != want_cash:
+						_fail(
+							(
+								"Heat %d: add_cash(%d) paid %d, expected %d (round %d, bounty %s)"
+								% [level, n, main.cash, want_cash, round_no, bounty]
+							)
+						)
+	# no level pays more than the one below it
+	main.round_n = 3
+	main.perks = {}
+	var last_pay = 1000000
+	for level in range(top + 1):
+		main.heat = level
+		main.cash = 0
+		main.shop_sys.add_cash(100)
+		if main.cash > last_pay:
+			_fail(
+				(
+					"Heat %d pays %d, more than the %d of the level below"
+					% [level, main.cash, last_pay]
+				)
+			)
+		last_pay = main.cash
+	# put the state back
+	main.heat = kept["heat"]
+	main.round_n = kept["round_n"]
+	main.shop_buys = kept["shop_buys"]
+	main.shop_lvl = kept["shop_lvl"]
+	main.perks = kept["perks"]
+	main.cash = kept["cash"]
 
 
 func _is_subsequence(sub: Array, full: Array) -> bool:

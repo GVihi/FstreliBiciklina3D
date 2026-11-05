@@ -209,6 +209,7 @@ func style_mul() -> float:
 
 func add_cash(n: int) -> void:
 	var v = float(n) * (1.0 + 0.08 * float(g.round_n - 1))  # pay grows a little every round, like the shop prices
+	v *= g.heat_sys.cash_factor()  # Heat (README H1.9): x0.8 at H5, before BOUNTY; 1.0 at Heat 0
 	if g.perks.has("bounty"):
 		v *= 1.35
 	g.cash += int(round(v))
@@ -271,6 +272,7 @@ func shop_price(it: Dictionary) -> int:
 	)
 	if it["kind"] == "tier":
 		v *= 1.0 + 0.45 * float(g.shop_lvl.get(it["id"], 0))
+	v *= g.heat_sys.price_factor()  # Heat (README H1.9): x1.2 at H5, before HAGGLER; 1.0 at Heat 0
 	if g.perks.has("haggler"):
 		v *= 0.85
 	return maxi(5, int(round(v / 5.0)) * 5)

@@ -81,7 +81,7 @@ Mostly vibe coded Godot game
   - [x] H1.6 Effect: more riders. A node's rider count (`plan_riders`) goes up by a share per level, taken from the mix in the same proportions, so the seed's mix does not change
   - [x] H1.7 Effect: fewer hearts (2 instead of 3 from H3, see `docs/HEAT.md`). Heart drops, PATCH UP and the heart on a round clear stay as they are (decided in H1.1)
   - [x] H1.8 Effect: tougher riders and bosses (rider health in `riders.gd`, boss health in `bosses.gd`; a boss weak spot is still one hit of the right kind)
-  - [ ] H1.9 Effect: a tighter economy (shop prices and cash from drops in `shop.gd` and `pickups.gd`)
+  - [x] H1.9 Effect: a tighter economy (shop prices and cash from drops in `shop.gd` and `pickups.gd`). `shop_price` gets the `price` factor (x1.2 at H5, before HAGGLER) and `add_cash`, the one place every cash source goes through, the `cash` factor (x0.8 at H5, before BOUNTY, never below the `cash_min` cap); the reroll cost is not a shop price and stays as it is
   - [x] H1.10 Show it: the Heat level in the run bar and pause menu, on the run summary, and in the run record (the `scores.json` entry gets a `heat` field, an old entry reads as 0); the split boards stay the Milestone A item "Support separate leaderboards per difficulty"
   - [ ] H1.11 Unlock the ladder: the next level opens when a run is won at the highest open level (kept in `meta.json`, an old file reads as only H0 open and the heat check says so), with the title screen showing the locked levels
   - [ ] H1.12 Playtest and tune with the bot balance harness (Milestone A) at H0, H3 and H5: run length, lives lost and clear rate per level
