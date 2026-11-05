@@ -343,6 +343,9 @@ var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / 
 var pause_page = ""  # "" = pause menu, "settings" = settings panel, "controls", "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
 var setting_sel = 0  # highlighted row of the settings panel (keyboard / gamepad / mouse hover)
+var heat_ranks = {}  # README H2.4: the set of Heat modifier ranks the player chose on the modifiers page ({id: rank}); {} = no set of their own, play by level `heat`. Only a set that is not a preset is kept here, and `heat` is then its total (heat.gd `settle`, `custom_set`). Held for the session: saving it is README H2.5
+var own_heat_set_played = false  # true while the set in `heat_ranks` is the one being played (set by `start_game`, put away by `reset_run`)
+var heat_sel = 0  # highlighted row of the Heat modifiers page (a modifier, then PRESET, then RESET)
 var keys_sel = 0  # highlighted row of the REBIND KEYS page (the last row is RESET TO DEFAULTS)
 var keys_col = 0  # 0 = the key of that control, 1 = its alternative
 var keys_capture = false  # the page is waiting for the key that becomes the new binding
@@ -1292,6 +1295,9 @@ func reset_run() -> void:
 	pump_base = float(primary_stats()["pump_start"])
 	pump_dur = 0.2
 	MAXHEARTS = 3
+	if own_heat_set_played:  # README H2.4: a set the page chose is played by `start_game` only; a continued, practice or restarted run lets it go first
+		heat_sys.clear_set()
+		own_heat_set_played = false
 	melee = false
 	swing_t = 0.0
 	swing_cd = 0.0
@@ -1450,6 +1456,7 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 	if daily:
 		heat = 0  # the Daily Run is Heat 0 for everybody (docs/HEAT.md); a restart of any other run keeps the level
 		heat_sys.clear_set()  # README H2.3: and no modifiers either
+		heat_ranks = {}  # README H2.4: nor a set of the player's own (it goes with the level, which is 0 now)
 		refresh_daily_seed()
 		run_seed = daily_seed
 	elif custom_seed_run:
@@ -1472,6 +1479,10 @@ func start_game(daily: bool = false, custom_seed: int = -1) -> void:
 		MAX_ROUNDS = run_map["floors"].size()  # a run is one node on every floor of the map
 	score = 0
 	heat = heat_sys.clamp_open(heat)  # README H1.11: a level that is not open yet (a remembered choice after a reset, an old settings file) plays as the highest open one
+	var own_set = heat_sys.custom_set()  # README H2.4: the modifiers the player chose on the page, when it is not just a preset
+	if not daily and not own_set.is_empty():
+		heat_sys.play_set(own_set)  # the set is legal and worth `heat` (custom_set checks both); H2.3 plays it
+		own_heat_set_played = true  # so `reset_run` lets it go; a set played by other code (a check) is left alone
 	MAXHEARTS = heat_sys.start_hearts()  # Heat (README H1.7): 2 hearts from H3; a Daily Run is Heat 0, set above
 	hearts = MAXHEARTS
 	combo = 0

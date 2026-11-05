@@ -1184,11 +1184,19 @@ func _draw_play_page(k: float, cx: float) -> void:
 	_txt("CHOOSE HOW HOT THE RUN IS.", cx, size.y * 0.29, int(20 * k), TEXT, 1)
 	var info = g.heat_sys.level_info(g.heat)
 	var level = int(info["level"])
+	var own = g.heat_sys.custom_set()  # README H2.4: a set of the player's own is called CUSTOM and lists its modifiers
 	var row = heat_row_rect()
 	draw_rect(row, Color(0.13, 0.14, 0.16))
 	draw_rect(row, ACCENT, false, 3.0 * k)
 	_txt("HEAT %d" % level, cx, row.position.y + 29.0 * k, int(26 * k), TEXT, 1)
-	_txt(str(info["name"]), cx, row.position.y + 54.0 * k, int(16 * k), GOLD, 1)
+	_txt(
+		"CUSTOM" if not own.is_empty() else str(info["name"]),
+		cx,
+		row.position.y + 54.0 * k,
+		int(16 * k),
+		GOLD,
+		1
+	)
 	# the arrows are dim at the ends of the ladder; they also say < and >, so colour is not the only sign
 	for d in [-1, 1]:
 		var open = g.heat_sys.clamp_open(level + d) != level  # README H1.11: the arrow is dim at the last open level
@@ -1218,27 +1226,265 @@ func _draw_play_page(k: float, cx: float) -> void:
 			1
 		)
 	# what the level adds, written under the row; a level above 1 keeps what the levels below it add
-	_txt(str(info["desc"]), cx, size.y * 0.54, int(20 * k), TEXT, 1)
-	if level > 1:
+	_txt(
+		g.heat_sys.set_text(own) if not own.is_empty() else str(info["desc"]),
+		cx,
+		size.y * 0.54,
+		int(20 * k),
+		TEXT,
+		1
+	)
+	if level > 1 and own.is_empty():
 		_txt("AND EVERYTHING THE LEVELS BELOW IT ADD", cx, size.y * 0.585, int(14 * k), GRAY, 1)
 	var r = play_start_rect()
 	draw_rect(r, Color(0.176, 0.196, 0.22))
 	draw_rect(r, ACCENT, false, 3.0 * k)
 	_txt("START", cx, r.position.y + 32.0 * k, int(24 * k), TEXT, 1)
-	_txt("THE DAILY RUN IS ALWAYS HEAT 0.", cx, size.y * 0.74, int(14 * k), GRAY, 1)
+	# README H2.4: the button that opens the modifiers page (also M on the keyboard and X on the gamepad)
+	var mb = heat_mods_button_rect()
+	draw_rect(mb, Color(0.176, 0.196, 0.22))
+	draw_rect(mb, ACCENT, false, 3.0 * k)
+	_txt("MODIFIERS", cx, mb.position.y + 27.0 * k, int(18 * k), TEXT, 1)
+	_txt("THE DAILY RUN IS ALWAYS HEAT 0.", cx, size.y * 0.815, int(14 * k), GRAY, 1)
 	_txt(
-		"GAMEPAD: LEFT / RIGHT CHANGES THE HEAT, A STARTS, B GOES BACK",
+		"GAMEPAD: LEFT / RIGHT CHANGES THE HEAT, A STARTS, X OPENS THE MODIFIERS, B GOES BACK",
 		cx,
-		size.y * 0.78,
+		size.y * 0.855,
 		int(14 * k),
 		GRAY,
 		1
 	)
 	_txt(
-		"LEFT / RIGHT CHANGES THE HEAT   ENTER OR CLICK START   ESC TO GO BACK",
+		"LEFT / RIGHT CHANGES THE HEAT   ENTER OR CLICK START   M MODIFIERS   ESC TO GO BACK",
 		cx,
-		size.y * 0.84,
+		size.y * 0.915,
 		int(18 * k),
+		GRAY,
+		1
+	)
+
+
+func heat_mods_button_rect() -> Rect2:
+	var k = size.y / 720.0
+	return Rect2(size.x * 0.5 - 130.0 * k, size.y * 0.72, 260.0 * k, 38.0 * k)
+
+
+# ---------------------------------------------------------------- HEAT MODIFIERS page (README H2.4)
+# Opened from the PLAY page: one row per modifier (rank down and up, what the rank does, the Heat points of every rank), a
+# PRESET row and a RESET row, the Heat of the set at the top. Everything that matters is written out, so colour is never the
+# only sign: the selected row has a ">" mark, a rank that cannot be raised says why in words (a tag on the row and the full
+# reason under the list). The rules are in heat.gd (`try_step`, `preset_step`, `settle`); input.gd does the changes.
+func heat_mods_rows() -> Array:
+	var rows = []
+	for id in g.heat_sys.modifier_ids():
+		rows.append({"kind": "mod", "id": id})
+	rows.append({"kind": "preset"})
+	rows.append({"kind": "reset"})
+	return rows
+
+
+func heat_mods_row_rect(i: int) -> Rect2:
+	var k = size.y / 720.0
+	return Rect2(size.x * 0.5 - 400.0 * k, (144.0 + 62.0 * i) * k, 800.0 * k, 56.0 * k)
+
+
+# the arrow on the left (d = -1) or right (d = 1) of the rank control of row i (the modifier and PRESET rows have one)
+func heat_mods_arrow_rect(i: int, d: int) -> Rect2:
+	var k = size.y / 720.0
+	var r = heat_mods_row_rect(i)
+	var x = r.size.x - (330.0 if d < 0 else 56.0)
+	return Rect2(r.position + Vector2(x * k, 6.0 * k), Vector2(44.0 * k, 44.0 * k))
+
+
+# all the rows with a little room round them: a click inside the page and outside every control only selects a row,
+# a click outside it goes back
+func heat_mods_panel_rect() -> Rect2:
+	var k = size.y / 720.0
+	var first = heat_mods_row_rect(0)
+	var last = heat_mods_row_rect(heat_mods_rows().size() - 1)
+	return Rect2(
+		first.position - Vector2(36.0 * k, 10.0 * k),
+		Vector2(first.size.x + 72.0 * k, last.end.y - first.position.y + 20.0 * k)
+	)
+
+
+# the row under a point, or -1
+func heat_mods_at(p: Vector2) -> int:
+	for i in range(heat_mods_rows().size()):
+		if heat_mods_row_rect(i).has_point(p):
+			return i
+	return -1
+
+
+# the Heat line at the top: the Heat of the chosen set, what it is called, how far the open levels go
+func heat_mods_total_text() -> String:
+	var hs = g.heat_sys
+	var ranks = hs.chosen_ranks()
+	var lv = hs.preset_matching(ranks)
+	return (
+		"HEAT %d   %s   OPEN UP TO HEAT %d   HIGHEST POSSIBLE %d"
+		% [
+			hs.total_points(ranks),
+			"CUSTOM" if lv < 0 else str(hs.level_info(lv)["name"]),
+			hs.open_level(),
+			hs.top_total
+		]
+	)
+
+
+# the short written tag on a modifier row when it cannot go up: "TOP RANK", "CLASH" or "NOT OPEN YET" ("" when it can)
+func heat_mods_tag(id: String) -> String:
+	var hs = g.heat_sys
+	var step = hs.try_step(hs.chosen_ranks(), id, 1, hs.open_level())
+	if step["ok"]:
+		return ""
+	match str(step["kind"]):
+		"top":
+			return "TOP RANK"
+		"clash":
+			return "CLASH"
+		"open":
+			return "NOT OPEN YET"
+	return ""
+
+
+# the line under the list for row i: what going up does, or why it cannot; for PRESET and RESET what the keys do
+func heat_mods_status(i: int) -> String:
+	var hs = g.heat_sys
+	var rows = heat_mods_rows()
+	var row = rows[clampi(i, 0, rows.size() - 1)]
+	if row["kind"] == "preset":
+		return (
+			"LEFT / RIGHT STEP THROUGH THE PRESETS (HEAT 0 TO %d ARE OPEN); ENTER OR A TAKES THE NEXT ONE"
+			% mini(hs.open_level(), hs.top_level())
+		)
+	if row["kind"] == "reset":
+		return "ENTER, A OR A CLICK: BACK TO HEAT 0 WITH NO MODIFIERS"
+	var id = str(row["id"])
+	var ranks = hs.chosen_ranks()
+	var step = hs.try_step(ranks, id, 1, hs.open_level())
+	if step["ok"]:
+		var next = int(step["ranks"].get(id, 0))
+		return (
+			"NEXT RANK: %s (HEAT +%d)"
+			% [
+				hs.rank_desc(id, next),
+				hs.points_of(id, next) - hs.points_of(id, int(ranks.get(id, 0)))
+			]
+		)
+	return "CANNOT GO UP: " + str(step["why"])
+
+
+func _draw_heat_mods_arrow(r: Rect2, d: int, ok: bool, k: float) -> void:
+	draw_rect(r, Color(0.176, 0.196, 0.22) if ok else Color(0.13, 0.14, 0.16))
+	draw_rect(r, ACCENT if ok else Color(0.29, 0.31, 0.33), false, 3.0 * k)
+	_txt(
+		"<" if d < 0 else ">",
+		r.position.x + r.size.x * 0.5,
+		r.position.y + 32.0 * k,
+		int(28 * k),
+		TEXT if ok else GRAY,
+		1
+	)
+
+
+func _draw_heat_mods_page(k: float, cx: float) -> void:
+	var hs = g.heat_sys
+	var ranks = hs.chosen_ranks()
+	var open_top = hs.open_level()
+	var rows = heat_mods_rows()
+	var sel = clampi(g.heat_sel, 0, rows.size() - 1)
+	_txt("HEAT MODIFIERS", cx, 64.0 * k, int(40 * k), GOLD, 1)
+	_txt(heat_mods_total_text(), cx, 108.0 * k, int(18 * k), TEXT, 1)
+	for i in range(rows.size()):
+		var row = rows[i]
+		var r = heat_mods_row_rect(i)
+		var x = r.position.x + 16.0 * k
+		draw_rect(r, Color(0.13, 0.14, 0.16))
+		draw_rect(r, GOLD if i == sel else ACCENT, false, (4.0 if i == sel else 2.0) * k)
+		if i == sel:
+			_txt(">", r.position.x - 24.0 * k, r.position.y + 38.0 * k, int(30 * k), GOLD, 0)
+		var mid = r.end.x - 171.0 * k  # the middle of the rank control
+		if row["kind"] == "mod":
+			var id = str(row["id"])
+			var rank = int(ranks.get(id, 0))
+			_txt(hs.modifier_name(id), x, r.position.y + 24.0 * k, int(20 * k), TEXT, 0)
+			_txt(
+				hs.rank_desc(id, rank),
+				x,
+				r.position.y + 46.0 * k,
+				int(13 * k),
+				GOLD if rank > 0 else GRAY,
+				0
+			)
+			var tag = heat_mods_tag(id)
+			if tag != "":
+				_txt(
+					"[%s]" % tag, r.end.x - 345.0 * k, r.position.y + 24.0 * k, int(13 * k), RED, 2
+				)
+			for d in [-1, 1]:
+				_draw_heat_mods_arrow(
+					heat_mods_arrow_rect(i, d), d, hs.try_step(ranks, id, d, open_top)["ok"], k
+				)
+			_txt(hs.rank_text(id, rank), mid, r.position.y + 24.0 * k, int(18 * k), TEXT, 1)
+			_txt(
+				"HEAT POINTS " + hs.points_line(id, rank),
+				mid,
+				r.position.y + 46.0 * k,
+				int(12 * k),
+				GRAY,
+				1
+			)
+		elif row["kind"] == "preset":
+			var lv = hs.preset_matching(ranks)
+			_txt("PRESET", x, r.position.y + 24.0 * k, int(20 * k), TEXT, 0)
+			_txt(
+				"YOUR OWN SET" if lv < 0 else str(hs.level_info(lv)["desc"]),
+				x,
+				r.position.y + 46.0 * k,
+				int(13 * k),
+				GOLD if lv >= 0 else GRAY,
+				0
+			)
+			for d in [-1, 1]:
+				_draw_heat_mods_arrow(
+					heat_mods_arrow_rect(i, d), d, hs.preset_step(ranks, d, open_top) >= 0, k
+				)
+			_txt(
+				"CUSTOM" if lv < 0 else "HEAT %d" % lv,
+				mid,
+				r.position.y + 24.0 * k,
+				int(18 * k),
+				TEXT,
+				1
+			)
+			_txt(
+				"" if lv < 0 else str(hs.level_info(lv)["name"]),
+				mid,
+				r.position.y + 46.0 * k,
+				int(12 * k),
+				GRAY,
+				1
+			)
+		else:
+			_txt("RESET", x, r.position.y + 24.0 * k, int(20 * k), TEXT, 0)
+			_txt(
+				"BACK TO HEAT 0 WITH NO MODIFIERS", x, r.position.y + 46.0 * k, int(13 * k), GRAY, 0
+			)
+	_txt(heat_mods_status(sel), cx, 604.0 * k, int(16 * k), TEXT, 1)
+	_txt(
+		"UP / DOWN CHOOSE A ROW   LEFT / RIGHT CHANGE THE RANK   ENTER GOES UP A RANK (BACK TO OFF AT THE TOP)   ESC GOES BACK",
+		cx,
+		648.0 * k,
+		int(14 * k),
+		GRAY,
+		1
+	)
+	_txt(
+		"GAMEPAD: D-PAD CHOOSES AND CHANGES, A GOES UP A RANK, B GOES BACK   A SET WORTH MORE THAN THE OPEN HEAT CANNOT BE CHOSEN",
+		cx,
+		674.0 * k,
+		int(14 * k),
 		GRAY,
 		1
 	)
@@ -1772,6 +2018,9 @@ func _draw_title_page(k: float, cx: float) -> void:
 		return
 	if g.title_page == "play":
 		_draw_play_page(k, cx)
+		return
+	if g.title_page == "heat_mods":
+		_draw_heat_mods_page(k, cx)
 		return
 	if g.title_page == "controls":
 		_draw_controls(k, cx)
