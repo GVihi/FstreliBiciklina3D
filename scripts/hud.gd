@@ -669,8 +669,6 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		int(16 * k),
 		GOLD if g.heat > 0 or g.meta.heat_unlocked > 0 else GRAY,
 		1
-	_txt(
-		g.heat_sys.label(-1, true), cx, size.y * 0.262, int(16 * k), GOLD if g.heat > 0 else GRAY, 1
 	)
 	var acc = 0
 	if g.shots_fired > 0:
