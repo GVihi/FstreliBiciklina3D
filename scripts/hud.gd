@@ -658,6 +658,10 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		_txt("RUN OVER", cx, size.y * 0.15, int(66 * k), RED, 1)
 		if g.OVER_MSG.has(g.over_reason):
 			_txt(g.OVER_MSG[g.over_reason], cx, size.y * 0.22, int(20 * k), RED, 1)
+	# README H1.10: the Heat the run was played at, under the title (a line, not a table row, so the table keeps its size)
+	_txt(
+		g.heat_sys.label(-1, true), cx, size.y * 0.262, int(16 * k), GOLD if g.heat > 0 else GRAY, 1
+	)
 	var acc = 0
 	if g.shots_fired > 0:
 		acc = int(round(100.0 * g.shots_hit / g.shots_fired))
@@ -1034,13 +1038,15 @@ func _draw_scores_page(k: float, cx: float) -> void:
 	var c_rank = cx - 300.0 * k
 	var c_name = cx - 262.0 * k
 	var c_score = cx + 20.0 * k
-	var c_round = cx + 100.0 * k
-	var c_kills = cx + 170.0 * k
-	var c_time = cx + 255.0 * k
-	var c_date = cx + 365.0 * k
+	var c_heat = cx + 85.0 * k  # README H1.10: the Heat level of the run, so a Heat 5 score is not mistaken for a Heat 0 one
+	var c_round = cx + 150.0 * k
+	var c_kills = cx + 215.0 * k
+	var c_time = cx + 295.0 * k
+	var c_date = cx + 395.0 * k
 	_txt("#", c_rank, y0, int(14 * k), GRAY)
 	_txt("NAME", c_name, y0, int(14 * k), GRAY)
 	_txt("SCORE", c_score, y0, int(14 * k), GRAY, 2)
+	_txt("HEAT", c_heat, y0, int(14 * k), GRAY, 2)
 	_txt("ROUND", c_round, y0, int(14 * k), GRAY, 2)
 	_txt("KILLS", c_kills, y0, int(14 * k), GRAY, 2)
 	_txt("TIME", c_time, y0, int(14 * k), GRAY, 2)
@@ -1069,6 +1075,7 @@ func _draw_scores_page(k: float, cx: float) -> void:
 		var nm = str(e.get("name", ""))
 		_txt(nm if nm != "" else "-", c_name, y, int(20 * k), col)
 		_txt(str(e["score"]).pad_zeros(6), c_score, y, int(22 * k), col, 2)
+		_txt(str(int(e.get("heat", 0))), c_heat, y, int(20 * k), col, 2)  # an old entry has no heat: 0
 		_txt(str(e["round"]), c_round, y, int(20 * k), col, 2)
 		_txt(str(e["kills"]), c_kills, y, int(20 * k), col, 2)
 		# runs saved before the time was kept (or with no time) show a dash
@@ -1999,6 +2006,15 @@ func _draw_pause_menu(k: float, cx: float) -> void:
 			r.position.y + 31.0 * k,
 			int(22 * k),
 			TEXT if on else GRAY,
+			1
+		)
+	if not g.practice:  # README H1.10: the Heat of the run being played, with what the level is called
+		_txt(
+			g.heat_sys.label(-1, true),
+			cx,
+			size.y * 0.76,
+			int(18 * k),
+			GOLD if g.heat > 0 else GRAY,
 			1
 		)
 	_txt("ESC TO RESUME", cx, size.y * 0.80, int(16 * k), GRAY, 1)
@@ -2948,6 +2964,8 @@ func _draw_hud_top(k: float) -> void:
 		round_label += "  DAILY"
 	elif g.custom_seed_run:
 		round_label += "  SEED"
+	if g.heat > 0 and not g.practice:  # README H1.10: the Heat level shows from Heat 1; Heat 0 keeps the bar as it was
+		round_label += "  " + g.heat_sys.label()
 	var fs = int(14 * k)
 	var seg_w = 20.0 * k
 	var seg_gap = 4.0 * k
