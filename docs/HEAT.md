@@ -53,13 +53,64 @@ Heart drops, PATCH UP and the heal of one heart on a round clear **do not change
 - **Restart run** keeps the level; **Continue** gives it back.
 - **Run save:** a `heat` key (0 to the top level), cast and clamped on load like the others. An old `run.json` without it loads as 0 (H1.3).
 - **Settings:** the level last chosen is remembered in `settings.cfg` (H1.3).
-- **Unlock:** Heat 0 is always open; Heat N+1 opens the first time a run is won at Heat N. The highest open level is kept in `meta.json`; an old file reads as only H0 open (H1.11).
-- **Leaderboards:** the local Top 10 stays one board until the split item of Milestone A is done. Each entry gets a `heat` field (an old entry reads as 0) and the list shows it, so a Heat 5 score is not mistaken for a Heat 0 one. The score record the website will take (Milestone N, `docs/WEBSITE_API.md`) has to carry `heat` as well; that file is not changed in this chunk.
+- **Unlock:** Heat 0 is always open; Heat N+1 opens the first time a run is won at Heat N. The highest open level is kept in `meta.json`; an old file reads as only H0 open (H1.11). **Built in H1.11:** `heat_open` in `meta.json`, `Meta.unlock_heat_after_win` (called by `award_run`), `Heat.open_level` and `Heat.clamp_open`. Only a win at the highest open level opens the next one (a win at a lower level, a lost or quit run, and the training room open nothing); a Daily Run is always Heat 0, so a win there counts as a win at Heat 0. The PLAY page stops at the highest open level, says which levels are open and locked and what opens the next one, and the run summary adds "HEAT n OPENED" to its Heat line. A run starts at the highest open level at most.
+- **Leaderboards:** the local Top 10 stays one board until the split item of Milestone A is done. Each entry gets a `heat` field (an old entry reads as 0) and the list shows it, so a Heat 5 score is not mistaken for a Heat 0 one. **Built in H1.10.**
+- **Where the level is shown (H1.10):** the run bar (top centre, after the round name, from Heat 1; Heat 0 leaves the bar as it was), the pause menu (a line under the buttons, "HEAT 3  FEWER LIVES", also at Heat 0 as "HEAT 0"; not in the training room), the run summary (the same line under the title) and a HEAT column on the High Scores page. All of them use `Heat.label`. The score record the website will take (Milestone N, `docs/WEBSITE_API.md`) has to carry `heat` as well; that file is not changed in this chunk.
+
+## Modifiers (the second roadmap item, design note H2.1)
+
+**Built so far: the table and the arithmetic on sets (H2.2)**; playing a chosen set, the stacking caps, the page and the saves are H2.3 to H2.6. The ladder above stays and becomes five presets. All numbers are first guesses for the bot harness (H2.6, H3.5).
+
+### The five modifiers
+
+Each effect of H1.5 to H1.9 becomes one modifier with ranks. Rank 0 is "off" and changes nothing; rank 1 is exactly what the ladder adds, so a preset is just a set of rank 1s. The points are what the rank is worth **in total** (not per step), and the Heat of a run is the sum of the points of its ranks.
+
+| Modifier | Id | Rank 1 | Rank 2 | Rank 3 | Points (rank 1 / 2 / 3) |
+|---|---|---|---|---|---|
+| SWIFT RIDERS | `swift` | riders ride x1.10 | x1.20 | x1.30 | 1 / 2 / 4 |
+| CROWD | `crowd` | +20 % riders in a round | +40 % | not offered | 1 / 2 / - |
+| FEWER LIVES | `lives` | 2 hearts | 1 heart | not offered | 1 / 4 / - |
+| TOUGH | `tough` | tough riders +1 health, bosses x1.15 | tough riders +2, bosses x1.30 | not offered | 1 / 3 / - |
+| STINGY | `stingy` | shop prices x1.2, cash x0.8 | prices x1.4, cash x0.65 | prices x1.6, cash x0.5 | 1 / 2 / 3 |
+
+- **Built in H2.2:** `data/heat.json` (version 2) holds the modifiers, the clashes (each with the reason the page will show) and the presets; the loader builds the ladder (`Heat.levels`) from the presets, so everything that reads a level works as before. `Heat` has `total_points`, `points_of`, `max_rank`, `clashes_in`, `is_legal`, `clean_set`, `effects_of`, `preset_ranks`, `preset_points`, `modifier_ids` and `top_total`; the format is in `data/README.md`. The hearts cap in the file is now 1 (the ladder still never goes below 2, which `heat_check` tests on every preset). `tools/heat_check.gd` proves the total of every preset equals its level, that the presets build exactly the ladder of H1, and counts all 432 sets (330 legal, top total 12, two sets). The game itself still plays by level; ranks above 1 are not read by anything yet.
+- **Where each plugs in** is the table "Where each effect goes" above: the code that reads an effect (`rider_speed`, `riders_more`, `hearts_minus`, `tough_hp_plus` with `boss_hp`, `price` with `cash`) does not change. H2.2 only changes where the numbers come from (the ranks, not a level's row).
+- **TOUGH and STINGY are one modifier each**, not two, because H4 and H5 are one effect each on the ladder; splitting them (riders and bosses, prices and cash) would make H4 and H5 worth 2 points and the presets would no longer be 1 to 5.
+- **Why these steps:** speed climbs by 10 % a rank (the cap stays `RIDER_SPEED_CAP`, so rank 3 matters mostly on the early floors, as in H1.5), rank 3 is worth 4 (two more than rank 2) because x1.30 is the biggest speed step and the one the 16 rider rounds feel most. CROWD stops at rank 2 because the 16 rider cap (below) leaves rank 3 with nothing to add: +40 % is 12 to 14 riders in a normal round, 14 to 16 in an elite round (the 12 rider elite round is cut from 17 to 16, the only place the cap bites), 9 to 12 in a boss round. One heart (FEWER LIVES rank 2) is worth 4 because it is by far the biggest step: it turns a bad round into the end of the run. TOUGH rank 2 stays at +2 health and x1.30 on bosses (a round 10 president at 131 health against 101 at Heat 0 (78 from the growth per round, 101 with x1.30, x1.3 for the final boss); H2.6 checks that against the fire rate). STINGY rank 3 is the one that reaches the cash cap of 0.5.
+- **MAX LIVES** in `shop.gd` adds 1 heart while `MAXHEARTS < 4`, so at FEWER LIVES rank 2 it can be bought up to three times (1 to 4). That is a soft spot for H2.6 to look at, not a reason to change the shop.
+
+### The presets (H1 to H5 stay as they are)
+
+| Preset | Set of ranks | Total |
+|---|---|---|
+| H0 | none | 0 |
+| H1 FASTER | swift 1 | 1 |
+| H2 CROWDED | swift 1, crowd 1 | 2 |
+| H3 FEWER LIVES | swift 1, crowd 1, lives 1 | 3 |
+| H4 TOUGH | swift 1, crowd 1, lives 1, tough 1 | 4 |
+| H5 STINGY | swift 1, crowd 1, lives 1, tough 1, stingy 1 | 5 |
+
+So **the total of every preset equals the Heat it names**, which is what the check of H2.2 proves, and every H1 check keeps passing because a preset gives the same effect values as its row of `data/heat.json` does today.
+
+### Rules for a set of ranks
+
+1. **Each modifier is at most at its top rank**, and the Heat of a set is the sum of the points of its ranks (0 to the top total below).
+2. **Clashing pairs are refused** (the page of H2.4 greys the second one named out and says why; `Heat.clean_set`, used when a saved set is loaded, takes the second one named back one rank at a time until the set is legal; a clash is "this rank or higher" of both):
+   - FEWER LIVES rank 2 with SWIFT RIDERS rank 3, or with CROWD rank 2: one heart against faster or more riders is a run that ends on the first mistake in round 1.
+   - TOUGH rank 2 with STINGY rank 3: bosses with 30 % more health while cash is halved and every upgrade costs 60 % more means the damage upgrades cannot be bought in time.
+   No preset has a clash. Every other pair is allowed.
+3. **Caps on the sum of each effect** stay the ones of "Caps that keep a late floor playable": riders in a round at most 16, rider speed at `RIDER_SPEED_CAP`, cash factor at least 0.5, prices rounded to 5 and at least 5, and now **hearts at least 1** (the ladder never goes below 2, which FEWER LIVES rank 1 respects). One-hit kills stay: pro, sprinter and courier riders keep 1 health at every set.
+4. **Top total: 12.** There are 432 combinations of ranks, 330 of them have no clash, and the highest total among those is 12, reached by two sets only: swift 2, crowd 1, lives 2, tough 2, stingy 2, and swift 3, crowd 2, lives 1, tough 2, stingy 2 (checked by counting them all, not by hand). The totals in between are 1 (5 sets), 2 (13), 3 (24), 4 (36), 5 (47), 6 (52), 7 (50), 8 (42), 9 (31), 10 (19), 11 (8). The same total from two different sets is not the same run, so the leaderboard shows the total and the set (H2.5) and the split boards stay a Milestone A item.
+5. The rules that hold at every level still hold for every set: a seed gives the same map, arena and rider mix; Heat 0 (no ranks) is the game as it is today; score is not multiplied by Heat.
+
+### How the ladder's unlock meets modifiers (to confirm)
+
+H1.11 opens Heat N+1 when a run is won at the highest open level. Assumed for the modifier page (H2.4): **a set can be played when its total is at most the highest open level**, and the open level keeps rising by one per win at the highest open level, now up to the top total 12 instead of 5. So a player who has opened Heat 5 can pick any set worth 5 points or less (the preset or one of their own), and a win at Heat 5 opens Heat 6, where the presets end and only sets of their own can be picked. The alternative is to keep custom sets locked behind the top preset; that is one condition in H2.4 and does not change the data. Say if it should be that.
 
 ## What the later chunks decide
 
 - H1.12 and H3.5 tune every number above with the bot harness; none of them is final.
-- The second item replaces "level" with "a set of ranks and points" and keeps H1 to H5 as presets (H2.1 lists the modifiers, ranks, points and clashing pairs).
+- The second item replaces "level" with "a set of ranks and points" and keeps H1 to H5 as presets (H2.1 lists the modifiers, ranks, points and clashing pairs, in "Modifiers" above; H2.2 to H2.6 build it).
 - The third item decides what the levels pay (H3.1); until then Heat pays nothing extra.
 
 ## Checks

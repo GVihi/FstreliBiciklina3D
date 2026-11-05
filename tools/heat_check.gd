@@ -20,9 +20,23 @@ extends SceneTree
 #   - tougher enemies (README H1.8): a tough rider has `tough_hp_plus` more health and every other kind still has 1, a boss
 #     has `boss_hp` times its health (before the extra of the final boss), the angry cyclist follows that factor rounded
 #     up without counting the rider's bonus twice, and Heat 0 has exactly the health of the game before Heat,
+#   - the level is shown (README H1.10): `Heat.label` ("HEAT 3", with the name after it from level 1, level 0 always plain),
+#     the high score entry has a `heat` field (the level of the run, written to the file and read back, an old entry or a
+#     bad value reads as 0, a number past the limit is cut), and the run bar, pause menu, run summary and High Scores page
+#     draw at every level and two window sizes,
 #   - a tighter economy (README H1.9): shop prices are `price` times as high (before HAGGLER, rounded to 5, at least 5) and
 #     every cash source pays `cash` times as much (before BOUNTY, never below the `cash_min` cap), Heat 0 prices and pays
 #     exactly what the game did before Heat, and no level is cheaper or richer than the one below it,
+#   - the ladder unlocks (README H1.11): `heat_open` in meta.json (a missing key, a bad value, a negative number read as
+#     0, a number past the limit is cut, a round trip through the real file), a win at the highest open level opens the
+#     next one and nothing else does (a win at a lower level, a lost run, the top level, practice), a run starts at the
+#     highest open level at most, the picker stops there, RESET ALL PROGRESS closes the ladder again, and the PLAY page
+#     and the run summary draw with locked levels,
+#   - the modifiers (README H2.2): the five of docs/HEAT.md with strictly rising points and no effect set twice, the
+#     presets built from them give exactly the ladder of H1 (every effect at every level), the total of every preset is
+#     the Heat it names, no preset has a clash or fewer than 2 hearts, the arithmetic on sets (`total_points`, `is_legal`,
+#     `clean_set`, `effects_of`), and all 432 combinations of ranks: 330 without a clash, the top total 12 (two sets), and
+#     `clean_set` makes every one of them legal without making it worth more,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -45,6 +59,7 @@ var problems = []
 var main
 var kept_settings = PackedByteArray()
 var had_settings = false
+var open_before = 0
 
 
 func _initialize() -> void:
@@ -55,17 +70,23 @@ func _initialize() -> void:
 	_check_table()
 	_check_neutral()
 	_check_ladder()
+	_check_modifiers()
 	_check_caps()
 	_check_lookup()
 	_check_bad_data()
 	_keep_settings()
+	open_before = int(main.meta.heat_open)
+	main.meta.heat_open = main.heat_sys.top_level()  # the cases above play at every level: all of them open
 	_check_run_save()
 	_check_settings()
 	_check_rider_speed()
 	_check_more_riders()
 	_check_hearts()
 	_check_tougher()
+	await _check_show_it()
+	await _check_unlock()
 	_check_economy()
+	main.meta.heat_open = open_before
 	_restore_settings()
 	_finish()
 
@@ -719,6 +740,307 @@ func _check_tougher() -> void:
 
 
 # true when every element of `sub` is in `full`, in the same order (others may lie between)
+# README H1.11: the ladder opens one level at a time
+func _check_unlock() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	var keep_open = main.meta.heat_open
+	var keep_heat = main.heat
+	var path = main.meta.PATH
+	var had = FileAccess.file_exists(path)
+	var kept = PackedByteArray()
+	if had:
+		kept = FileAccess.get_file_as_bytes(path)
+	# the file: a missing key, good values and bad ones, then a real round trip
+	var cases = [
+		["<missing>", 0],
+		[3, 3],
+		[2.9, 2],
+		[0, 0],
+		[-2, 0],
+		["x", 0],
+		[null, 0],
+		[[1], 0],
+		[999, main.meta.MAX_HEAT_OPEN],
+	]
+	for c in cases:
+		var data = {"version": 1, "balance": 5, "xp": 7}
+		if not (typeof(c[0]) == TYPE_STRING and c[0] == "<missing>"):
+			data["heat_open"] = c[0]
+		var f = FileAccess.open(path, FileAccess.WRITE)
+		f.store_string(JSON.stringify(data))
+		f.close()
+		main.meta.load_meta()
+		if main.meta.heat_open != c[1]:
+			_fail(
+				(
+					"meta.json with heat_open %s loaded as %d, expected %d"
+					% [str(c[0]), main.meta.heat_open, c[1]]
+				)
+			)
+		if main.meta.balance != 5 or main.meta.xp != 7:
+			_fail("meta.json with heat_open %s lost its other fields" % str(c[0]))
+	main.meta.heat_open = top + 3  # past the table: the level in use is still the top level
+	if h.open_level() != top:
+		_fail("open_level with heat_open past the top is %d, expected %d" % [h.open_level(), top])
+	main.meta.heat_open = 3
+	main.meta.save_meta()
+	main.meta.heat_open = 0
+	main.meta.load_meta()
+	if main.meta.heat_open != 3:
+		_fail("heat_open 3 came back as %d after a save and a load" % main.meta.heat_open)
+	# the rule, at every open level
+	main.practice = false
+	for open in range(top + 1):
+		main.meta.heat_open = open
+		for level in range(top + 1):
+			main.heat = level
+			main.run_won = true
+			var opened = main.meta.unlock_heat_after_win()
+			var want_open = open + 1 if level == open and open < top else open
+			if main.meta.heat_open != want_open or opened != (want_open != open):
+				_fail(
+					(
+						"a win at Heat %d with %d open left %d open (opened %s), expected %d"
+						% [level, open, main.meta.heat_open, str(opened), want_open]
+					)
+				)
+			if opened and main.meta.heat_unlocked != want_open:
+				_fail(
+					(
+						"a win that opened Heat %d says it opened %d"
+						% [want_open, main.meta.heat_unlocked]
+					)
+				)
+			if not opened and main.meta.heat_unlocked != -1:
+				_fail("a win that opened nothing says it opened %d" % main.meta.heat_unlocked)
+			main.meta.heat_open = open
+		main.heat = open
+		main.run_won = false  # a lost or quit run opens nothing
+		if main.meta.unlock_heat_after_win() or main.meta.heat_open != open:
+			_fail(
+				(
+					"a run that was not won opened a level (%d open, was %d)"
+					% [main.meta.heat_open, open]
+				)
+			)
+	main.heat = 0
+	main.meta.heat_open = 0
+	main.run_won = true
+	main.practice = true  # the training room is no run
+	if main.meta.unlock_heat_after_win() or main.meta.heat_open != 0:
+		_fail("a win in the training room opened a level")
+	main.practice = false
+	# the real flow: a run starts at the highest open level at most, the picker stops there, and a win pays it out once
+	main.meta.heat_open = 2
+	main.heat = top
+	main.start_game(false, SEED)
+	if main.heat != 2:
+		_fail(
+			"a run chosen at Heat %d with 2 open started at Heat %d, expected 2" % [top, main.heat]
+		)
+	if main.MAXHEARTS != 3:
+		_fail("a run at Heat 2 has %d hearts, expected 3" % main.MAXHEARTS)
+	main.win_run()
+	if main.meta.heat_open != 3 or main.meta.heat_unlocked != 3:
+		_fail(
+			(
+				"winning at Heat 2 with 2 open left %d open (unlocked %d), expected 3"
+				% [main.meta.heat_open, main.meta.heat_unlocked]
+			)
+		)
+	main.meta.load_meta()
+	if main.meta.heat_open != 3:
+		_fail("the level opened by a win was not saved (the file says %d)" % main.meta.heat_open)
+	main.start_game(false, SEED)  # a new run clears the note on the summary
+	if main.meta.heat_unlocked != -1:
+		_fail("a new run still carries the level the last one opened")
+	main.heat = 3
+	main.go_to_title()
+	main.title_page = "play"
+	main.input_sys.heat_adjust(1)
+	if main.heat != 3:
+		_fail("the picker went to Heat %d with 3 open" % main.heat)
+	main.input_sys.heat_adjust(-1)
+	if main.heat != 2:
+		_fail("the picker did not step down from Heat 3 (it is %d)" % main.heat)
+	main.meta.heat_open = 0
+	main.heat = 4  # a choice remembered from before the ladder was locked
+	main.start_game(false, SEED)
+	if main.heat != 0:
+		_fail("a run chosen at Heat 4 with only Heat 0 open started at Heat %d" % main.heat)
+	# RESET ALL PROGRESS closes the ladder again
+	main.meta.heat_open = top
+	main.reset_all_progress()
+	if main.meta.heat_open != 0 or main.heat_sys.open_level() != 0:
+		_fail("RESET ALL PROGRESS left %d levels open" % main.meta.heat_open)
+	# the PLAY page and the run summary draw with locked levels, at two window sizes
+	for open in [0, 2, top]:
+		main.meta.heat_open = open
+		for s in [Vector2(1280.0, 720.0), Vector2(1920.0, 1080.0)]:
+			main.hud.size = s
+			main.heat = open
+			main.go_to_title()
+			main.title_page = "play"
+			await _redraw()
+			main.start_game(false, SEED)
+			main.heat = open
+			main.run_won = true
+			main.meta.unlock_heat_after_win()
+			main.state = "over"
+			await _redraw()
+			main.go_to_title()
+	main.hud.size = Vector2(1280.0, 720.0)
+	# put the real meta.json back
+	if had:
+		var w = FileAccess.open(path, FileAccess.WRITE)
+		w.store_buffer(kept)
+		w.close()
+	elif FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	main.meta.load_meta()
+	main.meta.heat_open = keep_open
+	main.heat = keep_heat
+	main.run_won = false
+
+
+# README H1.10: the level is written where the player sees it, and the score record carries it
+func _check_show_it() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	var keep = main.heat
+	# the label: level 0 is plain even with the name, the others say the name when asked, -1 is the level of the run
+	if h.label(0) != "HEAT 0" or h.label(0, true) != "HEAT 0":
+		_fail(
+			(
+				'the label of level 0 is "%s" / "%s", expected "HEAT 0"'
+				% [h.label(0), h.label(0, true)]
+			)
+		)
+	for level in range(1, top + 1):
+		var want = "HEAT %d" % level
+		if h.label(level) != want:
+			_fail('the label of level %d is "%s", expected "%s"' % [level, h.label(level), want])
+		var named = want + "  " + str(h.level_info(level)["name"])
+		if h.label(level, true) != named:
+			_fail(
+				(
+					'the named label of level %d is "%s", expected "%s"'
+					% [level, h.label(level, true), named]
+				)
+			)
+	main.heat = 3
+	if h.label() != "HEAT 3" or h.label(-1, true) != "HEAT 3  FEWER LIVES":
+		_fail('the label of the run at Heat 3 is "%s" / "%s"' % [h.label(), h.label(-1, true)])
+	if h.label(top + 7) != h.label(top):
+		_fail("a level past the end should be labelled as the top level")
+	# the record: what heat_of makes of every kind of value
+	var ScoresScript = load("res://scripts/scores.gd")
+	var cases = [
+		[0, 0],
+		[3, 3],
+		[5, 5],
+		[2.9, 2],
+		[-4, 0],
+		[999, HeatScript.MAX_LEVEL],
+		["3", 0],
+		[null, 0],
+		[[1], 0],
+		[true, 0]
+	]
+	for c in cases:
+		var got = ScoresScript.heat_of(c[0])
+		if got != c[1]:
+			_fail("heat_of(%s) is %d, expected %d" % [str(c[0]), got, c[1]])
+	# the file: an old entry (no heat key), a good one, bad ones; and a run that is recorded
+	var path = main.scores.PATH
+	var had = FileAccess.file_exists(path)
+	var kept = PackedByteArray()
+	if had:
+		kept = FileAccess.get_file_as_bytes(path)
+	var base = {"name": "AAA", "round": 2, "kills": 5, "time": 100, "date": "2026-01-01"}
+	var rows = []
+	for pair in [[900, null], [800, 3], [700, "x"], [600, 999], [500, -2]]:
+		var e = base.duplicate()
+		e["score"] = pair[0]
+		if pair[1] != null:
+			e["heat"] = pair[1]
+		rows.append(e)
+	var f = FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(JSON.stringify({"version": 1, "entries": rows}))
+	f.close()
+	main.scores.load_scores()
+	var want_heat = [0, 3, 0, HeatScript.MAX_LEVEL, 0]
+	if main.scores.entries.size() != 5:
+		_fail("the scores file with 5 entries loaded %d" % main.scores.entries.size())
+	else:
+		for i in range(5):
+			if int(main.scores.entries[i].get("heat", -1)) != want_heat[i]:
+				_fail(
+					(
+						"entry %d loaded with heat %s, expected %d"
+						% [i, str(main.scores.entries[i].get("heat", "<missing>")), want_heat[i]]
+					)
+				)
+	for lvl in [0, 4]:
+		main.scores.entries = []
+		main.daily_mode = false
+		main.custom_seed_run = false
+		main.heat = lvl
+		main.score = 1234
+		if main.scores.submit_run() != 0:
+			_fail("a ranked run at Heat %d did not reach the list" % lvl)
+		main.name_entry = false
+		main.scores.load_scores()
+		if main.scores.entries.is_empty() or int(main.scores.entries[0].get("heat", -1)) != lvl:
+			_fail("a run at Heat %d was not saved with that heat" % lvl)
+	# drawn at every level and two window sizes: the run summary, the pause menu, the run bar and the High Scores page
+	main.scores.entries = [
+		{
+			"name": "AAA",
+			"score": 900,
+			"round": 2,
+			"kills": 5,
+			"time": 100,
+			"date": "2026-01-01",
+			"heat": 5
+		},
+		{"name": "OLD", "score": 800, "round": 1, "kills": 1, "time": 0, "date": "2025-01-01"}
+	]
+	for level in range(top + 1):
+		main.heat = level
+		for s in [Vector2(1280.0, 720.0), Vector2(1920.0, 1080.0)]:
+			main.hud.size = s
+			main.state = "over"
+			await _redraw()
+			main.state = "play"
+			main.paused = true
+			main.pause_page = ""
+			await _redraw()
+			main.paused = false
+			await _redraw()
+			main.go_to_title()
+			main.title_page = "scores"
+			await _redraw()
+			main.go_to_title()
+	main.hud.size = Vector2(1280.0, 720.0)
+	# put the real scores file back
+	if had:
+		var w = FileAccess.open(path, FileAccess.WRITE)
+		w.store_buffer(kept)
+		w.close()
+	elif FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	main.scores.load_scores()
+	main.heat = keep
+
+
+func _redraw() -> void:
+	for i in range(2):
+		main.hud.queue_redraw()
+		await process_frame
+
+
 # README H1.9: shop prices go up by `price` and every cash source pays `cash` times as much (shop.gd `shop_price` and
 # `add_cash`). Heat 0 prices and pays exactly what the game did before Heat; HAGGLER and BOUNTY still work on top.
 func _check_economy() -> void:
@@ -958,62 +1280,426 @@ func _restore_settings() -> void:
 	main.settings.load_settings()
 
 
+# the table of data/heat.json as the H1 chunks left it: every effect at every level of the ladder (README H1.5 to H1.9).
+# The modifiers of H2.2 build the levels, and this is what proves they build the same ones.
+const LADDER = [
+	{},
+	{"rider_speed": 1.1},
+	{"rider_speed": 1.1, "riders_more": 0.2},
+	{"rider_speed": 1.1, "riders_more": 0.2, "hearts_minus": 1},
+	{
+		"rider_speed": 1.1,
+		"riders_more": 0.2,
+		"hearts_minus": 1,
+		"tough_hp_plus": 1,
+		"boss_hp": 1.15
+	},
+	{
+		"rider_speed": 1.1,
+		"riders_more": 0.2,
+		"hearts_minus": 1,
+		"tough_hp_plus": 1,
+		"boss_hp": 1.15,
+		"price": 1.2,
+		"cash": 0.8
+	},
+]
+
+
+# README H2.2: the modifiers, their ranks and points, the clashing pairs and the presets that name sets of ranks
+func _check_modifiers() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	var ids = h.modifier_ids()
+	if ids != ["swift", "crowd", "lives", "tough", "stingy"]:
+		_fail("the modifiers are %s, expected the five of docs/HEAT.md" % str(ids))
+	# every rank is worth more than the one before it, sets effects of its own, and stays inside the allowed range
+	var owner = {}
+	for m in h.modifiers:
+		var last = 0
+		for r in range(m["ranks"].size()):
+			var rank = m["ranks"][r]
+			if int(rank["points"]) <= last:
+				_fail(
+					(
+						"%s rank %d is worth %d, not more than the rank before it"
+						% [m["id"], r + 1, int(rank["points"])]
+					)
+				)
+			last = int(rank["points"])
+			for key in rank["effects"]:
+				if not HeatScript.NEUTRAL.has(key):
+					_fail("%s rank %d sets %s, which is not an effect" % [m["id"], r + 1, key])
+				if r > 0:
+					var before = float(m["ranks"][r - 1]["effects"][key])
+					var now = float(rank["effects"][key])
+					var harder = now <= before + 0.0001 if key == "cash" else now >= before - 0.0001
+					if not harder:
+						_fail(
+							(
+								"%s rank %d makes %s easier than the rank before (%s after %s)"
+								% [m["id"], r + 1, key, now, before]
+							)
+						)
+				if owner.has(key) and owner[key] != m["id"]:
+					_fail("%s is set by both %s and %s" % [key, owner[key], m["id"]])
+				owner[key] = m["id"]
+	# the presets: the ladder is built from them, and the total of every preset is the Heat it names
+	if h.levels.size() != LADDER.size():
+		_fail("the table has %d levels, expected %d" % [h.levels.size(), LADDER.size()])
+	var before_ranks = {}
+	for level in range(mini(h.levels.size(), LADDER.size())):
+		if h.preset_points(level) != level:
+			_fail(
+				(
+					"preset %d is worth %d points, it has to be worth %d"
+					% [level, h.preset_points(level), level]
+				)
+			)
+		var ranks = h.preset_ranks(level)
+		if h.total_points(ranks) != level:
+			_fail(
+				"the total of preset %d is %d, expected %d" % [level, h.total_points(ranks), level]
+			)
+		if not h.is_legal(ranks):
+			_fail("preset %d is not a legal set (a clash, or a rank out of range)" % level)
+		for id in before_ranks:
+			if int(ranks.get(id, 0)) < int(before_ranks[id]):
+				_fail("preset %d has less of %s than preset %d" % [level, id, level - 1])
+		before_ranks = ranks
+		var fx = h.effects_of(ranks)
+		for key in HeatScript.NEUTRAL:
+			var want = float(LADDER[level].get(key, HeatScript.NEUTRAL[key]))
+			if not is_equal_approx(h.value(key, level), want):
+				_fail(
+					(
+						"level %d has %s %s, the ladder of H1 had %s"
+						% [level, key, h.value(key, level), want]
+					)
+				)
+			if not is_equal_approx(float(fx[key]), want):
+				_fail(
+					"the effects of preset %d have %s %s, expected %s" % [level, key, fx[key], want]
+				)
+		if level > 0 and h.preset_ranks(level).size() != level:
+			_fail(
+				(
+					"preset %d names %d modifiers, expected %d (each level adds one at rank 1)"
+					% [level, h.preset_ranks(level).size(), level]
+				)
+			)
+		if h.start_hearts(level) < 2:
+			_fail(
+				(
+					"preset %d leaves %d hearts, the ladder never goes below 2"
+					% [level, h.start_hearts(level)]
+				)
+			)
+	# the arithmetic on sets
+	if h.total_points({}) != 0 or h.total_points({"swift": 0}) != 0:
+		_fail("an empty set is not worth 0 points")
+	if h.total_points({"swift": 3, "lives": 2}) != 8:
+		_fail(
+			(
+				"swift 3 and lives 2 are worth %d points, expected 8"
+				% h.total_points({"swift": 3, "lives": 2})
+			)
+		)
+	if h.total_points({"nothing": 2, "swift": -1, "crowd": 9}) != 2:
+		_fail(
+			(
+				"an unknown id and a negative rank should count 0 and a rank past the end the top rank (expected 2, got %d)"
+				% h.total_points({"nothing": 2, "swift": -1, "crowd": 9})
+			)
+		)
+	if h.points_of("swift", 2) != 2 or h.points_of("swift", 3) != 4 or h.points_of("lives", 2) != 4:
+		_fail("the points of swift 2, swift 3 or lives 2 are not 2, 4 and 4")
+	if h.max_rank("swift") != 3 or h.max_rank("crowd") != 2 or h.max_rank("nothing") != 0:
+		_fail("max_rank is not 3 for swift, 2 for crowd and 0 for an id that does not exist")
+	# clashes: found, refused, and a set made legal by holding the second modifier of the clash back one rank at a time
+	var bad = {"lives": 2, "swift": 3}
+	if h.is_legal(bad) or h.clashes_in(bad).size() != 1 or h.clashes_in(bad)[0]["why"] == "":
+		_fail("lives 2 with swift 3 should be one clash with a reason")
+	if (
+		not h.is_legal({"lives": 2, "swift": 2, "crowd": 1})
+		or not h.is_legal({"lives": 1, "swift": 3, "crowd": 2})
+	):
+		_fail(
+			"lives 2 with swift 2 and crowd 1, or lives 1 with swift 3 and crowd 2, should be legal"
+		)
+	if (
+		h.is_legal({"swift": 4})
+		or h.is_legal({"swift": -1})
+		or h.is_legal({"nothing": 1})
+		or h.is_legal({"swift": 1.0})
+	):
+		_fail(
+			"a rank past the end, a negative rank, an unknown id and a rank that is not a whole number should not be legal"
+		)
+	var messy = {"lives": 2, "swift": 3, "crowd": 2, "tough": 2, "stingy": 3}
+	var fixed = h.clean_set(messy)
+	if fixed != {"lives": 2, "swift": 2, "crowd": 1, "tough": 2, "stingy": 2}:
+		_fail("clean_set of every clash at once gave %s" % str(fixed))
+	if messy != {"lives": 2, "swift": 3, "crowd": 2, "tough": 2, "stingy": 3}:
+		_fail("clean_set changed the set it was given")
+	var cast = h.clean_set(
+		{
+			"swift": 2.9,
+			"crowd": 9,
+			"lives": -1,
+			"tough": "x",
+			"stingy": null,
+			"nothing": 1,
+			"extra": 0
+		}
+	)
+	if cast != {"swift": 2, "crowd": 2}:
+		_fail("clean_set of bad values gave %s, expected swift 2 and crowd 2" % str(cast))
+	# every combination of ranks: 432 of them, 330 without a clash, none worth more than the top total, and clean_set
+	# makes every one of them legal without going over
+	var counts = [
+		h.max_rank("swift"),
+		h.max_rank("crowd"),
+		h.max_rank("lives"),
+		h.max_rank("tough"),
+		h.max_rank("stingy")
+	]
+	var every = 0
+	var legal = 0
+	var best = 0
+	var at_best = 0
+	var worst_cash = 1.0
+	for a in range(counts[0] + 1):
+		for b in range(counts[1] + 1):
+			for c in range(counts[2] + 1):
+				for d in range(counts[3] + 1):
+					for e in range(counts[4] + 1):
+						var combo = {"swift": a, "crowd": b, "lives": c, "tough": d, "stingy": e}
+						every += 1
+						var cleaned = h.clean_set(combo)
+						if not h.is_legal(cleaned):
+							_fail("clean_set of %s is not legal: %s" % [str(combo), str(cleaned)])
+						if h.total_points(cleaned) > h.total_points(combo):
+							_fail("clean_set of %s is worth more than the set" % str(combo))
+						if h.is_legal(combo):
+							legal += 1
+							var total = h.total_points(combo)
+							if cleaned != h.clean_set(cleaned) or h.total_points(cleaned) != total:
+								_fail("clean_set changed the legal set %s" % str(combo))
+							if total > best:
+								best = total
+								at_best = 0
+							if total == best:
+								at_best += 1
+							var fx = h.effects_of(combo)
+							var hearts = START_HEARTS - int(fx["hearts_minus"])
+							if hearts < int(h.caps["hearts_min"]):
+								_fail(
+									(
+										"%s leaves %d hearts, the cap is %d"
+										% [str(combo), hearts, int(h.caps["hearts_min"])]
+									)
+								)
+							if float(fx["cash"]) < float(h.caps["cash_min"]) - 0.0001:
+								_fail(
+									(
+										"%s pays %s of the cash, the cap is %s"
+										% [str(combo), fx["cash"], h.caps["cash_min"]]
+									)
+								)
+							worst_cash = minf(worst_cash, float(fx["cash"]))
+	if every != 432 or legal != 330:
+		_fail(
+			(
+				"there are %d sets of ranks of which %d have no clash, expected 432 and 330"
+				% [every, legal]
+			)
+		)
+	if best != h.top_total or best != 12 or at_best != 2:
+		_fail(
+			(
+				"the top total is %d (table says %d) with %d sets, expected 12 with 2"
+				% [best, h.top_total, at_best]
+			)
+		)
+	if h.top_total < top:
+		_fail("the top total %d is below the top level %d" % [h.top_total, top])
+
+
 func _check_bad_data() -> void:
-	var good0 = {"level": 0, "name": "A", "desc": "B"}
-	var good1 = {"level": 1, "name": "C", "desc": "D", "rider_speed": 1.2}
-	# not a table at all, or no levels: level 0 only
-	for bad in [null, [], {}, {"levels": "x"}]:
+	var rank_a1 = {"points": 1, "desc": "X", "rider_speed": 1.2}
+	var rank_a2 = {"points": 3, "desc": "Y", "rider_speed": 1.4}
+	var mod_a = {"id": "a", "name": "A", "ranks": [rank_a1, rank_a2]}
+	var mod_b = {"id": "b", "name": "B", "ranks": [{"points": 1, "desc": "X", "cash": 0.8}]}
+	var clash_ab = {"a": ["a", 2], "b": ["b", 1], "why": "BECAUSE"}
+	var p0 = {"level": 0, "name": "A", "desc": "B", "ranks": {}}
+	var p1 = {"level": 1, "name": "C", "desc": "D", "ranks": {"a": 1}}
+	var good = {"modifiers": [mod_a, mod_b], "clashes": [clash_ab], "presets": [p0, p1]}
+	# not a table at all, or no modifiers or presets: level 0 only
+	for bad in [null, [], {}, {"modifiers": "x", "presets": []}, {"modifiers": [], "presets": "x"}]:
 		var t = HeatScript.parse(bad)
 		if (
 			t["levels"].size() != 1
+			or not t["modifiers"].is_empty()
 			or not is_equal_approx(float(t["levels"][0]["rider_speed"]), 1.0)
 		):
 			_fail("a table that is not valid should give level 0 only (%s)" % str(bad))
 	# a good table
-	var t = HeatScript.parse({"levels": [good0, good1]})
+	var t = HeatScript.parse(good)
 	if t["levels"].size() != 2 or not is_equal_approx(float(t["levels"][1]["rider_speed"]), 1.2):
 		_fail("a good table did not load")
-	if not is_equal_approx(float(t["levels"][1]["cash"]), 1.0):
-		_fail("a key that is left out should keep its neutral value")
+	elif not is_equal_approx(float(t["levels"][1]["cash"]), 1.0):
+		_fail("an effect that no rank of the preset sets should keep its neutral value")
+	elif int(t["levels"][1]["points"]) != 1 or t["levels"][1]["ranks"] != {"a": 1}:
+		_fail("the level made from a preset has the wrong points or ranks")
+	if t["modifiers"].size() != 2 or t["clashes"].size() != 1 or int(t["top_total"]) != 3:
+		_fail(
+			(
+				"a good table has %d modifiers, %d clashes and top total %s, expected 2, 1 and 3"
+				% [t["modifiers"].size(), t["clashes"].size(), str(t["top_total"])]
+			)
+		)
 	# level 0 missing: the game runs without Heat
-	t = HeatScript.parse({"levels": [good1]})
+	t = HeatScript.parse({"modifiers": [mod_a], "presets": [p1]})
 	if t["levels"].size() != 1:
 		_fail(
 			"a table without level 0 should give level 0 only, got %d levels" % t["levels"].size()
 		)
-	# level 0 that changes something is set back
+	# level 0 that names ranks is set back to nothing
 	t = HeatScript.parse(
-		{"levels": [{"level": 0, "name": "A", "desc": "B", "rider_speed": 1.5}, good1]}
+		{
+			"modifiers": [mod_a],
+			"presets": [{"level": 0, "name": "A", "desc": "B", "ranks": {"a": 2}}, p1]
+		}
 	)
-	if not is_equal_approx(float(t["levels"][0]["rider_speed"]), 1.0):
-		_fail("level 0 that changed rider_speed was not set back to 1.0")
+	if (
+		not is_equal_approx(float(t["levels"][0]["rider_speed"]), 1.0)
+		or not t["levels"][0]["ranks"].is_empty()
+	):
+		_fail("level 0 that named a rank was not set back to nothing")
 	# a gap: the level after it is dropped
-	var good3 = {"level": 3, "name": "E", "desc": "F"}
-	t = HeatScript.parse({"levels": [good0, good1, good3]})
+	var p3 = {"level": 3, "name": "E", "desc": "F", "ranks": {}}
+	t = HeatScript.parse({"modifiers": [mod_a], "presets": [p0, p1, p3]})
 	if t["levels"].size() != 2:
 		_fail("a level after a gap should be dropped, got %d levels" % t["levels"].size())
-	# a duplicate, a bad type, a number out of its range, a fraction where a whole number is needed, a missing text
-	var bad_entries = [
-		{"level": 1, "name": "X", "desc": "Y"},
-		{"level": 2, "name": "X", "desc": "Y", "rider_speed": "fast"},
-		{"level": 2, "name": "X", "desc": "Y", "rider_speed": 0.5},
-		{"level": 2, "name": "X", "desc": "Y", "cash": 1.5},
-		{"level": 2, "name": "X", "desc": "Y", "hearts_minus": 3},
-		{"level": 2, "name": "X", "desc": "Y", "hearts_minus": 0.5},
-		{"level": 2, "name": "X", "desc": "Y", "tough_hp_plus": 1.5},
-		{"level": 2, "name": "", "desc": "Y"},
-		{"level": 2, "name": "X"},
-		{"level": 1.5, "name": "X", "desc": "Y"},
-		{"name": "X", "desc": "Y"},
-		{"level": 99, "name": "X", "desc": "Y"},
+	# a preset that is refused: a duplicate, an unknown modifier, a rank out of range or not whole, a missing text
+	var bad_presets = [
+		{"level": 1, "name": "X", "desc": "Y", "ranks": {}},
+		{"level": 2, "name": "X", "desc": "Y", "ranks": {"nothing": 1}},
+		{"level": 2, "name": "X", "desc": "Y", "ranks": {"a": 3}},
+		{"level": 2, "name": "X", "desc": "Y", "ranks": {"a": -1}},
+		{"level": 2, "name": "X", "desc": "Y", "ranks": {"a": 1.5}},
+		{"level": 2, "name": "X", "desc": "Y", "ranks": {"a": "1"}},
+		{"level": 2, "name": "X", "desc": "Y", "ranks": [1]},
+		{"level": 2, "name": "", "desc": "Y", "ranks": {}},
+		{"level": 2, "name": "X", "ranks": {}},
+		{"level": 1.5, "name": "X", "desc": "Y", "ranks": {}},
+		{"name": "X", "desc": "Y", "ranks": {}},
+		{"level": 99, "name": "X", "desc": "Y", "ranks": {}},
 		"not an object",
 	]
-	for i in range(bad_entries.size()):
-		t = HeatScript.parse({"levels": [good0, good1, bad_entries[i]]})
+	for i in range(bad_presets.size()):
+		t = HeatScript.parse({"modifiers": [mod_a], "presets": [p0, p1, bad_presets[i]]})
 		if t["levels"].size() != 2:
-			_fail("bad entry %d was not refused (%s)" % [i, str(bad_entries[i])])
+			_fail("bad preset %d was not refused (%s)" % [i, str(bad_presets[i])])
+	# a rank of 0 is the same as leaving the modifier out
+	t = HeatScript.parse(
+		{
+			"modifiers": [mod_a],
+			"presets": [p0, {"level": 1, "name": "X", "desc": "Y", "ranks": {"a": 0}}]
+		}
+	)
+	if t["levels"].size() != 2 or not t["levels"][1]["ranks"].is_empty():
+		_fail("a rank of 0 should be the same as leaving the modifier out")
+	# a modifier that is refused (it must not stop the good one next to it from loading)
+	var bad_mods = [
+		{"id": "a", "name": "AGAIN", "ranks": [rank_a1]},
+		{"id": "Big", "name": "X", "ranks": [rank_a1]},
+		{"id": "has space", "name": "X", "ranks": [rank_a1]},
+		{"name": "X", "ranks": [rank_a1]},
+		{"id": "c", "ranks": [{"points": 1, "desc": "X", "price": 1.2}]},
+		{"id": "c", "name": "", "ranks": [{"points": 1, "desc": "X", "price": 1.2}]},
+		{"id": "c", "name": "C"},
+		{"id": "c", "name": "C", "ranks": []},
+		{
+			"id": "c",
+			"name": "C",
+			"ranks":
+			[
+				{"points": 1, "desc": "X", "price": 1.2},
+				{"points": 2, "desc": "X", "price": 1.3},
+				{"points": 3, "desc": "X", "price": 1.4},
+				{"points": 4, "desc": "X", "price": 1.5},
+				{"points": 5, "desc": "X", "price": 1.6},
+				{"points": 6, "desc": "X", "price": 1.7}
+			]
+		},
+		{
+			"id": "c",
+			"name": "C",
+			"ranks":
+			[{"points": 2, "desc": "X", "price": 1.2}, {"points": 2, "desc": "X", "price": 1.3}]
+		},
+		{"id": "c", "name": "C", "ranks": [{"points": 0, "desc": "X", "price": 1.2}]},
+		{"id": "c", "name": "C", "ranks": [{"points": 1.5, "desc": "X", "price": 1.2}]},
+		{"id": "c", "name": "C", "ranks": [{"points": 101, "desc": "X", "price": 1.2}]},
+		{"id": "c", "name": "C", "ranks": [{"points": 1, "price": 1.2}]},
+		{"id": "c", "name": "C", "ranks": [{"points": 1, "desc": "X", "speed": 1.2}]},
+		{"id": "c", "name": "C", "ranks": [{"points": 1, "desc": "X"}]},
+		{"id": "c", "name": "C", "ranks": [{"points": 1, "desc": "X", "price": "high"}]},
+		{"id": "c", "name": "C", "ranks": [{"points": 1, "desc": "X", "price": 0.5}]},
+		{"id": "c", "name": "C", "ranks": [{"points": 1, "desc": "X", "cash": 1.5}]},
+		{"id": "c", "name": "C", "ranks": [{"points": 1, "desc": "X", "tough_hp_plus": 1.5}]},
+		{
+			"id": "c",
+			"name": "C",
+			"ranks":
+			[{"points": 1, "desc": "X", "price": 1.2}, {"points": 2, "desc": "X", "cash": 0.9}]
+		},
+		{"id": "c", "name": "C", "ranks": [{"points": 1, "desc": "X", "rider_speed": 1.2}]},
+		{"id": "c", "name": "C", "ranks": ["not an object"]},
+		"not an object",
+	]
+	for i in range(bad_mods.size()):
+		t = HeatScript.parse({"modifiers": [mod_a, bad_mods[i], mod_b], "presets": [p0]})
+		if t["modifiers"].size() != 2:
+			_fail("bad modifier %d was not refused (%s)" % [i, str(bad_mods[i])])
+	# a clash that is refused: an unknown modifier, a rank out of range, one modifier twice, no reason, not an object
+	var bad_clashes = [
+		{"a": ["nothing", 1], "b": ["b", 1], "why": "X"},
+		{"a": ["a", 3], "b": ["b", 1], "why": "X"},
+		{"a": ["a", 0], "b": ["b", 1], "why": "X"},
+		{"a": ["a", 1.5], "b": ["b", 1], "why": "X"},
+		{"a": ["a", 1], "b": ["a", 2], "why": "X"},
+		{"a": ["a", 1], "b": ["b", 1]},
+		{"a": ["a", 1], "b": ["b", 1], "why": ""},
+		{"a": ["a", 1], "why": "X"},
+		{"a": "a", "b": ["b", 1], "why": "X"},
+		{"a": [1, 1], "b": ["b", 1], "why": "X"},
+		"not an object",
+	]
+	for i in range(bad_clashes.size()):
+		t = HeatScript.parse(
+			{"modifiers": [mod_a, mod_b], "clashes": [clash_ab, bad_clashes[i]], "presets": [p0]}
+		)
+		if t["clashes"].size() != 1:
+			_fail("bad clash %d was not refused (%s)" % [i, str(bad_clashes[i])])
+	t = HeatScript.parse({"modifiers": [mod_a, mod_b], "clashes": "x", "presets": [p0]})
+	if t["modifiers"].size() != 2 or not t["clashes"].is_empty():
+		_fail(
+			"clashes that are not an array should load as no clashes and leave the modifiers alone"
+		)
+	# the top total follows the clashes: a and b together are 3 + 1, a clash between rank 2 of a and b makes it 3
+	t = HeatScript.parse({"modifiers": [mod_a, mod_b], "clashes": [], "presets": [p0]})
+	if int(t["top_total"]) != 4:
+		_fail("with no clash the top total is %s, expected 4" % str(t["top_total"]))
+	t = HeatScript.parse({"modifiers": [mod_a, mod_b], "clashes": [clash_ab], "presets": [p0]})
+	if int(t["top_total"]) != 3:
+		_fail("with the clash the top total is %s, expected 3" % str(t["top_total"]))
 	# caps: a bad number falls back to the default, a good one is taken
-	t = HeatScript.parse({"levels": [good0], "caps": {"riders_max": -1, "hearts_min": 1}})
+	t = HeatScript.parse(
+		{"modifiers": [], "presets": [p0], "caps": {"riders_max": -1, "hearts_min": 1}}
+	)
 	if int(t["caps"]["riders_max"]) != int(HeatScript.CAP_DEFAULTS["riders_max"]):
 		_fail("a bad riders_max cap was not replaced by the default")
 	if int(t["caps"]["hearts_min"]) != 1:

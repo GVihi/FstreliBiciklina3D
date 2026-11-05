@@ -1,12 +1,41 @@
 {
-  "version": 1,
-  "caps": {"riders_max": 16, "hearts_min": 2, "cash_min": 0.5},
-  "levels": [
-    {"level": 0, "name": "NO HEAT", "desc": "THE GAME AS IT IS"},
-    {"level": 1, "name": "FASTER", "desc": "RIDERS RIDE 10% FASTER", "rider_speed": 1.1},
-    {"level": 2, "name": "CROWDED", "desc": "20% MORE RIDERS IN A ROUND", "rider_speed": 1.1, "riders_more": 0.2},
-    {"level": 3, "name": "FEWER LIVES", "desc": "2 HEARTS INSTEAD OF 3", "rider_speed": 1.1, "riders_more": 0.2, "hearts_minus": 1},
-    {"level": 4, "name": "TOUGH", "desc": "TOUGH RIDERS +1 HEALTH, BOSSES 15% MORE", "rider_speed": 1.1, "riders_more": 0.2, "hearts_minus": 1, "tough_hp_plus": 1, "boss_hp": 1.15},
-    {"level": 5, "name": "STINGY", "desc": "SHOP PRICES 20% UP, CASH 20% DOWN", "rider_speed": 1.1, "riders_more": 0.2, "hearts_minus": 1, "tough_hp_plus": 1, "boss_hp": 1.15, "price": 1.2, "cash": 0.8}
+  "version": 2,
+  "caps": {"riders_max": 16, "hearts_min": 1, "cash_min": 0.5},
+  "modifiers": [
+    {"id": "swift", "name": "SWIFT RIDERS", "ranks": [
+      {"points": 1, "desc": "RIDERS RIDE 10% FASTER", "rider_speed": 1.1},
+      {"points": 2, "desc": "RIDERS RIDE 20% FASTER", "rider_speed": 1.2},
+      {"points": 4, "desc": "RIDERS RIDE 30% FASTER", "rider_speed": 1.3}
+    ]},
+    {"id": "crowd", "name": "CROWD", "ranks": [
+      {"points": 1, "desc": "20% MORE RIDERS IN A ROUND", "riders_more": 0.2},
+      {"points": 2, "desc": "40% MORE RIDERS IN A ROUND", "riders_more": 0.4}
+    ]},
+    {"id": "lives", "name": "FEWER LIVES", "ranks": [
+      {"points": 1, "desc": "2 HEARTS INSTEAD OF 3", "hearts_minus": 1},
+      {"points": 4, "desc": "ONE HEART", "hearts_minus": 2}
+    ]},
+    {"id": "tough", "name": "TOUGH", "ranks": [
+      {"points": 1, "desc": "TOUGH RIDERS +1 HEALTH, BOSSES 15% MORE", "tough_hp_plus": 1, "boss_hp": 1.15},
+      {"points": 3, "desc": "TOUGH RIDERS +2 HEALTH, BOSSES 30% MORE", "tough_hp_plus": 2, "boss_hp": 1.3}
+    ]},
+    {"id": "stingy", "name": "STINGY", "ranks": [
+      {"points": 1, "desc": "SHOP PRICES 20% UP, CASH 20% DOWN", "price": 1.2, "cash": 0.8},
+      {"points": 2, "desc": "SHOP PRICES 40% UP, CASH 35% DOWN", "price": 1.4, "cash": 0.65},
+      {"points": 3, "desc": "SHOP PRICES 60% UP, CASH HALVED", "price": 1.6, "cash": 0.5}
+    ]}
+  ],
+  "clashes": [
+    {"a": ["lives", 2], "b": ["swift", 3], "why": "ONE HEART AND RIDERS 30% FASTER ENDS A RUN ON THE FIRST MISTAKE"},
+    {"a": ["lives", 2], "b": ["crowd", 2], "why": "ONE HEART AND 40% MORE RIDERS ENDS A RUN ON THE FIRST MISTAKE"},
+    {"a": ["tough", 2], "b": ["stingy", 3], "why": "TOUGH BOSSES WITH HALF THE CASH LEAVE NO WAY TO BUY DAMAGE IN TIME"}
+  ],
+  "presets": [
+    {"level": 0, "name": "NO HEAT", "desc": "THE GAME AS IT IS", "ranks": {}},
+    {"level": 1, "name": "FASTER", "desc": "RIDERS RIDE 10% FASTER", "ranks": {"swift": 1}},
+    {"level": 2, "name": "CROWDED", "desc": "20% MORE RIDERS IN A ROUND", "ranks": {"swift": 1, "crowd": 1}},
+    {"level": 3, "name": "FEWER LIVES", "desc": "2 HEARTS INSTEAD OF 3", "ranks": {"swift": 1, "crowd": 1, "lives": 1}},
+    {"level": 4, "name": "TOUGH", "desc": "TOUGH RIDERS +1 HEALTH, BOSSES 15% MORE", "ranks": {"swift": 1, "crowd": 1, "lives": 1, "tough": 1}},
+    {"level": 5, "name": "STINGY", "desc": "SHOP PRICES 20% UP, CASH 20% DOWN", "ranks": {"swift": 1, "crowd": 1, "lives": 1, "tough": 1, "stingy": 1}}
   ]
 }
