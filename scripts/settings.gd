@@ -239,6 +239,11 @@ func load_settings() -> void:
 	var heat_saved = cf.get_value("game", "heat", g.heat)
 	if typeof(heat_saved) == TYPE_INT or typeof(heat_saved) == TYPE_FLOAT:
 		g.heat = g.heat_sys.clamp_level(int(heat_saved))
+	# README H2.5: the set of modifiers of the player's own, saved next to the level. A file with only a level (written before
+	# H2.5) has none and reads as the preset of that level; `Heat.load_saved` makes a hand-edited set legal.
+	var heat_kept = g.heat_sys.load_saved(g.heat, cf.get_value("game", "heat_set", {}))
+	g.heat = heat_kept["heat"]
+	g.heat_ranks = heat_kept["ranks"]
 	_muted = bool(cf.get_value("game", "muted", _muted))
 	_voices = bool(cf.get_value("game", "voices", _voices))
 	# the RIDER WARNING choice: a whole number 0 to 2; anything else loads as the default (NORMAL)
@@ -274,6 +279,9 @@ func save_settings() -> void:
 	cf.set_value("game", "fx_scale", g.fx_scale)
 	cf.set_value("game", "quality", g.quality)
 	cf.set_value("game", "heat", g.heat)
+	var heat_own = g.heat_sys.custom_set()  # README H2.5: only a set that is not a preset is written, the level says the rest
+	if not heat_own.is_empty():
+		cf.set_value("game", "heat_set", heat_own)
 	cf.set_value("game", "muted", g.sfx.muted)
 	cf.set_value("game", "voices", g.sfx.voices_on)
 	cf.set_value("game", "rider_warning", g.warn_level)

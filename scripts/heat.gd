@@ -221,8 +221,8 @@ func _extra_kinds(mix: Dictionary, n: int) -> Array:
 
 # ---- README H2.2: sets of ranks. A set is {modifier id: rank}, a rank of 0 (or a modifier that is left out) is off. The
 # Heat of a set is the sum of the points of its ranks. README H2.3 lets the game play a set (`play_set`, `clear_set`):
-# clashes are refused there and every cap of the table holds where the effect plays out. Nothing in the game chooses a
-# set yet (the page is H2.4, saving it H2.5), so a run plays by level (`Main.heat`, the presets) unless a set is played.
+# clashes are refused there and every cap of the table holds where the effect plays out. The page that chooses a set is
+# H2.4 and the saves are H2.5 (`load_saved`); a run plays by level (`Main.heat`, the presets) unless a set is played.
 
 
 # the ids of the modifiers, in the order of the table
@@ -514,6 +514,41 @@ func set_text(ranks: Dictionary) -> String:
 		if r > 0:
 			parts.append("%s %d" % [modifier_name(id), r])
 	return ", ".join(parts)
+
+
+# ---- README H2.5: saving the set and showing it. `settings.cfg` and `run.json` keep the set of the player's own next to
+# the level (`heat_set`, {modifier id: rank}); the rules for reading it back live here so both files read it the same way
+# and `tools/heat_save_check.gd` can test them without a file.
+
+
+# the set of ranks the run being played has: the player's own set when there is one, else the preset of its level ({} at Heat 0)
+func played_ranks() -> Dictionary:
+	var own = custom_set()
+	if not own.is_empty():
+		return own
+	return preset_ranks(int(g.heat) if g != null else 0)
+
+
+# the modifiers of the run being played in one line for the run bar, the pause menu and the run summary, in the order of the
+# table: "SWIFT RIDERS 2, CROWD 1"; "" at Heat 0, where there is nothing to list
+func modifiers_line() -> String:
+	return set_text(played_ranks())
+
+
+# what a save file says about the chosen set. `level` is the Heat level saved next to it and `raw` whatever the file held under
+# `heat_set` (nothing, for a file written before H2.5). Returns {"heat": int, "ranks": Dictionary} the way `settle` does.
+# A file with no set, or one that is not a set ({id: rank}), reads as the preset of its level, so an old file plays exactly as
+# before. A set is made legal first (`clean_set`: unknown ids dropped, ranks kept to the table, a clash resolved); one that is
+# empty after that, or is worth more than the top level of the ladder (what the page can hold, see docs/HEAT.md), is
+# ignored and the saved level is used. Otherwise the set wins over the level, so the Heat number is always what the set is worth.
+func load_saved(level: int, raw) -> Dictionary:
+	var lv = clamp_level(level)
+	if typeof(raw) != TYPE_DICTIONARY:
+		return {"heat": lv, "ranks": {}}
+	var legal = clean_set(raw)
+	if legal.is_empty() or total_points(legal) > top_level():
+		return {"heat": lv, "ranks": {}}
+	return settle(legal)
 
 
 # true when `level` changes nothing (level 0 always does, the table loader makes sure)

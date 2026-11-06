@@ -15,6 +15,7 @@ const VERSION = 1
 # a check sets this to another file, so it never touches the player's own saved run (empty = the real file)
 static var test_path = ""
 const MAX_ROUNDS_SAVED = 100  # sanity limit for the round lists and counters
+const MAX_SAVED_SET = 20  # sanity limit for the modifiers of a saved Heat set (the table has five)
 const MAX_NUMBER = 1000000000.0  # sanity limit for a saved number (score, cash, time)
 # the shape of the saved run, name -> the value it falls back to. `capture` writes exactly these keys.
 const NUMBER_KEYS = {
@@ -129,6 +130,7 @@ static func capture(g) -> Dictionary:
 	return {
 		"run_seed": g.run_seed,
 		"heat": g.heat,
+		"heat_set": {} if g.daily_mode else g.heat_sys.custom_set(),  # README H2.5: the player's own modifiers, {} when the level is a preset
 		"daily": g.daily_mode,
 		"custom": g.custom_seed_run,
 		"daily_date": g.daily_date,
@@ -207,6 +209,9 @@ static func clean(raw: Dictionary) -> Dictionary:
 	# the table of the game is not known here, so only the sanity limit; `apply` keeps it to the levels there are.
 	# A Daily Run is always Heat 0 (docs/HEAT.md), whatever a hand-edited file says
 	out["heat"] = 0 if out["daily"] else clampi(out["heat"], 0, HeatScript.MAX_LEVEL)
+	# README H2.5: the saved set of modifiers, as plain data ({} for a run saved before H2.5, which plays as the preset of its
+	# level, and for a Daily Run); `Heat.load_saved` makes it legal when the run is put into the game
+	out["heat_set"] = {} if out["daily"] else _rank_dict(raw.get("heat_set", {}))
 	out["round_n"] = clampi(out["round_n"], 1, MAX_ROUNDS_SAVED)
 	out["map_floor"] = clampi(out["map_floor"], -1, MAX_ROUNDS_SAVED)
 	out["map_lane"] = clampi(out["map_lane"], 0, MAX_ROUNDS_SAVED)
@@ -247,7 +252,14 @@ static func clean(raw: Dictionary) -> Dictionary:
 # the saved run does not hold starts from its usual value.
 static func apply(g, data: Dictionary) -> void:
 	g.run_seed = data["run_seed"]
-	g.heat = g.heat_sys.clamp_level(int(data["heat"]))
+	# README H2.5: a run saved with a set of the player's own plays on with it; a run saved before has none and plays as the
+	# preset of its level. `reset_run` has put away the set of the run before, so this one is played from here.
+	var kept = g.heat_sys.load_saved(int(data["heat"]), data.get("heat_set", {}))
+	g.heat = kept["heat"]
+	g.heat_ranks = kept["ranks"]
+	if not data["daily"] and not kept["ranks"].is_empty():
+		g.heat_sys.play_set(kept["ranks"])
+		g.own_heat_set_played = true
 	g.daily_mode = data["daily"]
 	g.custom_seed_run = data["custom"]
 	g.daily_date = data["daily_date"] if data["daily_date"] != "" else g.daily_date
@@ -369,6 +381,20 @@ static func _text_list(v) -> Array:
 		for x in v:
 			if typeof(x) == TYPE_STRING and str(x) != "" and out.size() < 200:
 				out.append(str(x))
+	return out
+
+
+# a saved Heat set ({modifier id: rank}) as plain data: text ids with whole ranks 1 up to the sanity limit, nothing else. Which
+# ids exist and whether the set is legal is `Heat.load_saved`'s job, the table of the game is not known here.
+static func _rank_dict(v) -> Dictionary:
+	var out = {}
+	if v is Dictionary:
+		for key in v:
+			if out.size() >= MAX_SAVED_SET:
+				break
+			var r = clampi(_int(v[key], 0), 0, HeatScript.MAX_MODIFIER_RANKS)
+			if r > 0:
+				out[str(key)] = r
 	return out
 
 
