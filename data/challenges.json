@@ -54,6 +54,39 @@
 			"target": 1200,
 			"reward": 4,
 			"counter": "fast_runs"
+		},
+		{
+			"id": "heat_win_1",
+			"name": "WARMING UP",
+			"icon": "star",
+			"desc": "Win a run at Heat 1 or higher",
+			"condition": "run_won_at_heat",
+			"scope": "run",
+			"target": 1,
+			"reward": 3,
+			"counter": "heat_1_wins"
+		},
+		{
+			"id": "heat_win_3",
+			"name": "HOT STUFF",
+			"icon": "star",
+			"desc": "Win a run at Heat 3 or higher",
+			"condition": "run_won_at_heat",
+			"scope": "run",
+			"target": 3,
+			"reward": 6,
+			"counter": "heat_3_wins"
+		},
+		{
+			"id": "heat_win_5",
+			"name": "FIRE WALKER",
+			"icon": "star",
+			"desc": "Win a run at Heat 5",
+			"condition": "run_won_at_heat",
+			"scope": "run",
+			"target": 5,
+			"reward": 10,
+			"counter": "heat_5_wins"
 		}
 	]
 }

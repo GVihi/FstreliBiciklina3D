@@ -1027,8 +1027,9 @@ func _draw_challenges_page(k: float, cx: float) -> void:
 	var left = cx - 330.0 * k
 	var right = cx + 330.0 * k
 	var y0 = size.y * 0.3
-	var step = 62.0 * k
 	var table = g.challenges.table
+	# 62 px a row, closer together when the list is long enough that the last row would reach the footer (README H3.4: 8 rows)
+	var step = minf(62.0 * k, (size.y * 0.91 - y0) / maxf(1.0, float(table.size())))
 	if table.is_empty():
 		_txt("NO CHALLENGES LOADED", cx, size.y * 0.5, int(22 * k), GRAY, 1)
 	for i in range(table.size()):
