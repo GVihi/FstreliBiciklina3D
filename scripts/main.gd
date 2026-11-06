@@ -343,7 +343,7 @@ var title_page = ""  # "" = main menu, otherwise settings / loadout / unlocks / 
 var pause_page = ""  # "" = pause menu, "settings" = settings panel, "controls", "confirm" = restart / quit confirmation
 var pause_sel = 0  # highlighted pause-menu entry (keyboard / gamepad)
 var setting_sel = 0  # highlighted row of the settings panel (keyboard / gamepad / mouse hover)
-var heat_ranks = {}  # README H2.4: the set of Heat modifier ranks the player chose on the modifiers page ({id: rank}); {} = no set of their own, play by level `heat`. Only a set that is not a preset is kept here, and `heat` is then its total (heat.gd `settle`, `custom_set`). Held for the session: saving it is README H2.5
+var heat_ranks = {}  # README H2.4: the set of Heat modifier ranks the player chose on the modifiers page ({id: rank}); {} = no set of their own, play by level `heat`. Only a set that is not a preset is kept here, and `heat` is then its total (heat.gd `settle`, `custom_set`). Saved with the settings (`heat_set` in `settings.cfg`) and in the run save (`heat_set` in `run.json`), README H2.5
 var own_heat_set_played = false  # true while the set in `heat_ranks` is the one being played (set by `start_game`, put away by `reset_run`)
 var heat_sel = 0  # highlighted row of the Heat modifiers page (a modifier, then PRESET, then RESET)
 var keys_sel = 0  # highlighted row of the REBIND KEYS page (the last row is RESET TO DEFAULTS)

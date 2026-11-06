@@ -711,6 +711,10 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		_txt(rows[i][0], lx, y, int(20 * k), GRAY)
 		_txt(rows[i][1], rx, y, int(24 * k), rows[i][2], 2)
 	var uy = y0 + rows.size() * step + 14.0 * k
+	var mods = g.heat_sys.modifiers_line()  # README H2.5: the modifiers the run was played with, under the table
+	if mods != "":
+		_txt("MODIFIERS  " + mods, cx, uy, int(14 * k), Color(GOLD, 0.85), 1)
+		uy += 24.0 * k
 	for line in _challenge_summary_lines():
 		_txt(line[0], cx, uy, int(18 * k), line[1], 1)
 		uy += 24.0 * k
@@ -2279,6 +2283,7 @@ func _draw_pause_menu(k: float, cx: float) -> void:
 			TEXT if on else GRAY,
 			1
 		)
+	var esc_y = 0.80
 	if not g.practice:  # README H1.10: the Heat of the run being played, with what the level is called
 		_txt(
 			g.heat_sys.label(-1, true),
@@ -2288,7 +2293,11 @@ func _draw_pause_menu(k: float, cx: float) -> void:
 			GOLD if g.heat > 0 else GRAY,
 			1
 		)
-	_txt("ESC TO RESUME", cx, size.y * 0.80, int(16 * k), GRAY, 1)
+		var mods = g.heat_sys.modifiers_line()  # README H2.5: and the modifiers it is made of, with their ranks
+		if mods != "":
+			_txt(mods, cx, size.y * 0.79, int(14 * k), Color(GOLD, 0.85), 1)
+			esc_y = 0.84
+	_txt("ESC TO RESUME", cx, size.y * esc_y, int(16 * k), GRAY, 1)
 
 
 # ---------------------------------------------------------------- arena map, shown while M is held (explore_map.gd)
@@ -3241,9 +3250,15 @@ func _draw_hud_top(k: float) -> void:
 	var seg_w = 20.0 * k
 	var seg_gap = 4.0 * k
 	var row_w = g.PER_ROUND * (seg_w + seg_gap) - seg_gap
-	var pw = maxf(_text_w(round_label, fs), row_w) + 28.0 * k
-	_hud_panel(Rect2(cx - pw * 0.5, 6.0 * k, pw, 42.0 * k))
+	# README H2.5: the modifiers of the run, small, under the segments (written out, with their ranks); Heat 0 and the training
+	# room leave the bar as it was
+	var mods = g.heat_sys.modifiers_line() if g.heat > 0 and not g.practice else ""
+	var mfs = int(11 * k)
+	var pw = maxf(maxf(_text_w(round_label, fs), row_w), _text_w(mods, mfs)) + 28.0 * k
+	_hud_panel(Rect2(cx - pw * 0.5, 6.0 * k, pw, (56.0 if mods != "" else 42.0) * k))
 	_txt(round_label, cx, 26.0 * k, fs, GOLD, 1)
+	if mods != "":
+		_txt(mods, cx, 54.0 * k, mfs, Color(GOLD, 0.85), 1)
 	for i in range(g.PER_ROUND):
 		var st = g.hits[i] if i < g.hits.size() else null
 		var col = Color(TEXT, 0.55)
