@@ -167,6 +167,42 @@ func reward_bonus(base: int, points: int = -1) -> int:
 	return maxi(int(rewards["min"]), scaled)
 
 
+# README H3.3: the bonus of `points` Heat points as a percent of the base pay (0 at Heat 0), for the PLAY page. The points are
+# kept inside the table like in `reward_bonus`. -1 is the run being played, read the same way. The PLAY page gives the
+# points of the level or set on the page on purpose: the set of a run that just ended may still be "played" there.
+func reward_percent(points: int = -1) -> int:
+	var pts = points
+	if pts < 0:
+		if has_set():
+			pts = set_points()
+		else:
+			pts = int(g.heat) if g != null else 0
+	pts = clampi(pts, 0, total_cap())
+	return pts * int(rewards["pct_per_point"])
+
+
+# README H3.3: what `points` Heat points pay, written for the PLAY page: "PAYS 30% MORE COINS AND XP", or "PAYS NO BONUS" at Heat
+# 0 (and when the table pays nothing per point)
+func reward_text(points: int = -1) -> String:
+	var pct = reward_percent(points)
+	if pct <= 0:
+		return "PAYS NO BONUS"
+	return "PAYS %d%% MORE COINS AND XP" % pct
+
+
+# README H3.3: the line of the run summary with what the Heat of the run paid on top, "HEAT BONUS  +10 COINS  +146 XP" (a part
+# that is 0 is left out, and "" when both are, so a Heat 0 run keeps its summary as it was)
+func paid_line(coins: int, xp: int) -> String:
+	var parts = []
+	if coins > 0:
+		parts.append("+%d %s" % [coins, "COIN" if coins == 1 else "COINS"])
+	if xp > 0:
+		parts.append("+%d XP" % xp)
+	if parts.is_empty():
+		return ""
+	return "HEAT BONUS  " + "  ".join(parts)
+
+
 # the most Heat points a run can have: the top total of a set, or the top level when that is higher (a table of presets
 # only). Keeps a bad number from a save from paying more than the table can ever ask for.
 func total_cap() -> int:

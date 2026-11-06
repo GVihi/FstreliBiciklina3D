@@ -48,6 +48,9 @@ extends SceneTree
 #     default, and a real run paid through `Meta.award_run` gets the bonus on the coins of rounds, bosses and caches and on
 #     the XP of rounds, kills, a win and bosses but not on the score, its coins and XP, Heat 0 pays what it did before Heat,
 #     a higher Heat pays more, a run that earned nothing is paid nothing, and a run is paid once,
+#   - the rewards are shown (README H3.3): `reward_percent`, `reward_text` and `paid_line` say what a level pays and what a
+#     run was paid (nothing for Heat 0), and the PLAY page and the run summary draw at every level and two window sizes with
+#     a Heat bonus on the run,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -99,6 +102,7 @@ func _initialize() -> void:
 	_check_economy()
 	_check_stacking()
 	_check_rewards()
+	await _check_rewards_shown()
 	main.meta.heat_open = open_before
 	_restore_settings()
 	_finish()
@@ -2264,6 +2268,77 @@ func _check_rewards() -> void:
 	main.round_n = keep_state[2]
 	main.run_won = keep_state[3]
 	main.meta.begin_run()
+
+
+# README H3.3: the rewards are written where the player sees them. The words, and the PLAY page and the run summary drawn at
+# every level and two window sizes (with a bonus on the run, and with none).
+func _check_rewards_shown() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	var keep_heat = main.heat
+	var pct = int(h.rewards["pct_per_point"])
+	# the percent: 0 at Heat 0, per point after that, kept inside the table, and -1 reads the run
+	for pts in [0, 1, 3, 5, 12]:
+		if h.reward_percent(pts) != pts * pct:
+			_fail("reward_percent(%d) is %d, expected %d" % [pts, h.reward_percent(pts), pts * pct])
+	if h.reward_percent(999) != h.total_cap() * pct:
+		_fail(
+			(
+				"reward_percent(999) is %d, expected the top total's %d"
+				% [h.reward_percent(999), h.total_cap() * pct]
+			)
+		)
+	main.heat = 3
+	if h.reward_percent() != 3 * pct:
+		_fail("reward_percent() at Heat 3 is %d, expected %d" % [h.reward_percent(), 3 * pct])
+	main.heat = 0
+	# the words
+	if h.reward_text(0) != "PAYS NO BONUS":
+		_fail('reward_text(0) is "%s", expected "PAYS NO BONUS"' % h.reward_text(0))
+	if pct == 10 and h.reward_text(3) != "PAYS 30% MORE COINS AND XP":
+		_fail('reward_text(3) is "%s", expected "PAYS 30%% MORE COINS AND XP"' % h.reward_text(3))
+	for level in range(1, top + 1):
+		var want = "PAYS %d%% MORE COINS AND XP" % (level * pct)
+		if h.reward_text(level) != want:
+			_fail('reward_text(%d) is "%s", expected "%s"' % [level, h.reward_text(level), want])
+	var lines = [
+		[10, 146, "HEAT BONUS  +10 COINS  +146 XP"],
+		[1, 0, "HEAT BONUS  +1 COIN"],
+		[0, 49, "HEAT BONUS  +49 XP"],
+		[0, 0, ""],
+		[-3, -9, ""],
+	]
+	for c in lines:
+		if h.paid_line(c[0], c[1]) != c[2]:
+			_fail(
+				(
+					'paid_line(%d, %d) is "%s", expected "%s"'
+					% [c[0], c[1], h.paid_line(c[0], c[1]), c[2]]
+				)
+			)
+	# a run that was paid at Heat 3 keeps its bonus for the summary, and a new run starts without one
+	main.meta.begin_run()
+	if main.meta.heat_coins != 0 or h.paid_line(main.meta.heat_coins, main.meta.heat_xp) != "":
+		_fail("a new run starts with a Heat bonus to show")
+	# the PLAY page and the run summary, drawn at every level and two window sizes
+	for level in range(top + 1):
+		for paid in [false, true]:
+			for s in [Vector2(1280.0, 720.0), Vector2(1920.0, 1080.0)]:
+				main.hud.size = s
+				main.heat = level
+				main.meta.heat_coins = 10 if paid and level > 0 else 0
+				main.meta.heat_xp = 146 if paid and level > 0 else 0
+				main.go_to_title()
+				main.title_page = "play"
+				await _redraw()
+				main.go_to_title()
+				main.state = "over"
+				await _redraw()
+				main.go_to_title()
+	main.hud.size = Vector2(1280.0, 720.0)
+	main.meta.heat_coins = 0
+	main.meta.heat_xp = 0
+	main.heat = keep_heat
 
 
 # pays one run through the real `Meta.award_run` at Heat `level` and says what it paid. `o` may hold round, won, kills,
