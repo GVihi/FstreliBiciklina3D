@@ -12,7 +12,8 @@ const CONDITIONS = [
 	"all_caches_before_last_rider",
 	"perfect_dodge_streak",
 	"round_no_life_lost",
-	"run_time_under"
+	"run_time_under",
+	"run_won_at_heat"
 ]
 const SCOPES = ["round", "run"]
 # the small badge drawn for each challenge by hud.gd (_draw_badge); "star" is used when an entry has no icon
@@ -162,10 +163,13 @@ func on_round_cleared() -> void:
 			_complete(c)
 
 
-# the whole run was won, in `seconds` of fighting and shopping
+# the whole run was won, in `seconds` of fighting and shopping, at the Heat of the run (`g.heat`, README H3.4: a win at a
+# higher Heat also counts for the lower ones; a Daily Run is Heat 0, so it counts for none)
 func on_run_won(seconds: float) -> void:
 	for c in table:
 		if c["condition"] == "run_time_under" and seconds < float(c["target"]):
+			_complete(c)
+		elif c["condition"] == "run_won_at_heat" and int(g.heat) >= c["target"]:
 			_complete(c)
 
 

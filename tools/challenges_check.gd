@@ -11,7 +11,16 @@ extends SceneTree
 # Exits with status 1 and prints the problems when a check fails.
 
 const ChallengesScript = preload("res://scripts/challenges.gd")
-const IDS = ["no_gun_round", "all_caches", "dodge_streak", "no_life_lost", "fast_run"]
+const IDS = [
+	"no_gun_round",
+	"all_caches",
+	"dodge_streak",
+	"no_life_lost",
+	"fast_run",
+	"heat_win_1",
+	"heat_win_3",
+	"heat_win_5"
+]
 
 var problems = []
 var main
@@ -29,6 +38,7 @@ func _initialize() -> void:
 	_check_round_conditions()
 	_check_streak()
 	_check_run_time()
+	_check_heat_wins()
 	_check_award()
 	_check_meta_file()
 	await _check_screens()
@@ -215,6 +225,50 @@ func _check_run_time() -> void:
 	main.challenges.on_run_won(1200.0)
 	if main.challenges.done.has("fast_run"):
 		_fail("a run won in exactly 1200 s counted as under 20 minutes")
+
+
+# README H3.4: a won run counts for every Heat challenge up to its Heat; Heat 0 counts for none
+func _check_heat_wins() -> void:
+	var expected = {
+		0: [],
+		1: ["heat_win_1"],
+		2: ["heat_win_1"],
+		3: ["heat_win_1", "heat_win_3"],
+		4: ["heat_win_1", "heat_win_3"],
+		5: ["heat_win_1", "heat_win_3", "heat_win_5"]
+	}
+	for heat in expected.keys():
+		_new_run()
+		main.heat = heat
+		main.challenges.on_run_won(5000.0)  # slow on purpose, so fast_run stays out
+		if _done_ids() != expected[heat]:
+			_fail(
+				(
+					"a run won at Heat %d did %s, expected %s"
+					% [heat, str(_done_ids()), str(expected[heat])]
+				)
+			)
+	# the coins and the counters of a Heat 5 win: 3 + 6 + 10, one count each
+	_new_run()
+	main.heat = 5
+	main.challenges.on_run_won(5000.0)
+	var coins = main.challenges.award()
+	if coins != 19:
+		_fail("a run won at Heat 5 paid %d challenge coins, expected 19" % coins)
+	for counter in ["heat_1_wins", "heat_3_wins", "heat_5_wins"]:
+		if int(main.meta.challenge_counts.get(counter, 0)) != 1:
+			_fail(
+				(
+					"%s is %s after one win at Heat 5"
+					% [counter, str(main.meta.challenge_counts.get(counter))]
+				)
+			)
+	# a run that was lost or quit never calls on_run_won, so it does nothing
+	_new_run()
+	main.heat = 5
+	if not _done_ids().is_empty():
+		_fail("a new run at Heat 5 started with challenges done: %s" % str(_done_ids()))
+	main.heat = 0
 
 
 # coins, counters, NEW and paying once

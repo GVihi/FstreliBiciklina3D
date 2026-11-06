@@ -231,7 +231,9 @@ func award_run() -> int:
 		save_meta()
 	# what this run's coins put within reach, for the summary screen (names only; the Unlocks page sells them)
 	g.new_unlocks = []
-	for u in UnlocksTable.newly_affordable(g.UNLOCKS, owned, balance_before, balance):
+	for u in UnlocksTable.newly_affordable(
+		g.UNLOCKS, owned, balance_before, balance, g.heat_sys.open_level()
+	):
 		g.new_unlocks.append(str(u["name"]))
 	return n
 
@@ -270,9 +272,10 @@ func owns(id: String) -> bool:
 
 
 # Buys an unlock with meta coins and saves at once. Returns "bought", or why not: "owned", "soon" (its target is not in
-# the game yet) or "locked" (not enough coins). Nothing is spent unless it returns "bought".
+# the game yet), "heat" (it needs a Heat level that is not open yet, README H3.4) or "locked" (not enough coins).
+# Nothing is spent unless it returns "bought".
 func buy(u: Dictionary) -> String:
-	var state = UnlocksTable.state_of(u, owns(u["id"]), balance)
+	var state = UnlocksTable.state_of(u, owns(u["id"]), balance, g.heat_sys.open_level())
 	if state != "afford":
 		return state
 	balance -= int(u["cost"])

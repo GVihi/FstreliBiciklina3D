@@ -287,6 +287,8 @@ Every entry has `id` (unique), `kind`, `target` and `tier` (1 to the length of t
 | `weapon` | a weapon id: a new id for a weapon that does not exist yet (`planned`), or an existing weapon that is held back until bought (`dart_gun`, and `melee`, the gummy worm: a new player's melee slot starts empty) | `name` and `desc` are written in the entry | the weapon can be chosen on the Loadout page for its slot once bought (Milestone C); it does not join the shop pool |
 | `cosmetic` | a new id | `name` and `desc` are written in the entry | the skin can be equipped (Milestone B); no entries yet, each one is added with its art |
 
+An entry can also set `heat` (a whole number from 0 to 20, default 0 = none; README H3.4): the Heat level that has to be **open** (`heat_open` of `meta.json`, see "Unlock the ladder" in `docs/HEAT.md`) before the unlock can be bought. Until then the Unlocks page shows `HEAT n` on the row and `NEEDS HEAT n` on the button, `Meta.buy` returns `"heat"` and spends nothing, and the run summary does not list it as newly affordable. The state comes after `owned` and `planned` and before the coins (`state_of` in `scripts/unlocks.gd`). **No entry uses it yet**; to gate one, add for example `"heat": 3`. `tools/unlocks_check.gd` fails when an entry asks for a level the Heat table does not have.
+
 `planned: true` marks an entry whose target is not in the game yet (the four new weapons of Milestone C today; the dart gun exists and is not planned); the Unlocks page should show those as coming soon or leave them out. It is refused on a perk or an item, which exist. A thing can be unlocked once.
 
 **Anything that is not listed is available from the first run.** So the table only holds what is held back: today all 14 perks as starting perks, six shop items (POCKET MAGNET, HYPE PACK, LUCKY CHARM, HYPE MACHINE, SHIELD PACK, THICK SKIN), the gummy worm (`weapon_gummy_worm`, tier 1 with its own `cost` of 30 coins, the cheapest purchase: a new player starts with the dart pistol only), the dart gun (`weapon_dart_gun`, tier 3, so 250 coins) and the weapons of Milestone C.
@@ -312,7 +314,7 @@ The meta challenges: small goals that pay meta coins (Milestone B, "Earn from ch
 | `desc` | the goal in plain words, shown on the page and the run summary |
 | `condition` | what the game watches, one of the keys below; a new key needs code in `challenges.gd` |
 | `scope` | `round` (checked at the end of each round) or `run` (checked across the run, or at its end) |
-| `target` | the number to reach: 1 for yes or no goals, 5 riders in a row for `perfect_dodge_streak`, and a maximum of seconds for `run_time_under` (1200 is 20 minutes) |
+| `target` | the number to reach: 1 for yes or no goals, 5 riders in a row for `perfect_dodge_streak`, a maximum of seconds for `run_time_under` (1200 is 20 minutes) and the Heat level for `run_won_at_heat` |
 | `reward` | meta coins paid when the challenge is done |
 | `counter` | name of the field in the save file (`meta.json`) that counts how many times the challenge was done; a new field with a default needs no version bump, see [`docs/SAVE_FILES.md`](../docs/SAVE_FILES.md) |
 
@@ -323,12 +325,13 @@ The meta challenges: small goals that pay meta coins (Milestone B, "Earn from ch
 | `perfect_dodge_streak` | `target` perfect dodges happen with no life lost in between (a lost life ends the streak) |
 | `round_no_life_lost` | a round is cleared with no life lost in it |
 | `run_time_under` | the run is won in fewer than `target` seconds (fighting and shopping, the RUN TIME of the summary) |
+| `run_won_at_heat` | the run is won (the last round cleared) at Heat `target` or higher, so a win at Heat 5 also counts for the challenges of Heat 1 and 3; a Daily Run is Heat 0 and a lost or quit run is not a win. A custom set of modifiers counts by its total points (`Main.heat`). README H3.4 |
 
 Achievements are the same list: a challenge done at least once, ever, is an unlocked achievement (the badge turns gold and the page counts them), so they need no save field of their own.
 
 The coins are paid when the run ends, together with the score and boss coins (a run that is quit pays nothing). Challenges done in a run are counted in `meta.json` under `challenges`, by `counter`; the run summary marks a challenge NEW the first time it is ever done.
 
-How the numbers were chosen, so they are easy to change: a boss pays 5 coins and the final boss 20, so the easy goals pay 3 to 5 and the 20 minute run pays 10. A challenge pays at most once per run (the counter still counts every run it was done in), so it cannot be farmed inside one run. Both are first guesses to tune once the challenges can be played.
+How the numbers were chosen, so they are easy to change: a boss pays 5 coins and the final boss 20, so the easy goals pay 3 to 5 and the 20 minute run pays 10. The three Heat challenges (README H3.4) pay 3, 6 and 10 for a win at Heat 1, 3 and 5; their coins are not bonused, like every challenge. A challenge pays at most once per run (the counter still counts every run it was done in), so it cannot be farmed inside one run. Both are first guesses to tune once the challenges can be played.
 
 The export preset includes `data/*.json`, so the file ships with the game. `tools\run_challenges_check.bat` checks the loader, every condition, the payout and the save file.
 

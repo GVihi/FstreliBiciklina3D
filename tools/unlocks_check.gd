@@ -14,6 +14,7 @@ extends SceneTree
 const UnlocksTable = preload("res://scripts/unlocks.gd")
 const PerksTable = preload("res://scripts/perks.gd")
 const ItemsTable = preload("res://scripts/items.gd")
+const HeatScript = preload("res://scripts/heat.gd")
 
 const CHEAPEST_MAX = 100  # coins: the cheapest unlock must be within reach of one short run (score / 100 plus boss coins)
 
@@ -26,6 +27,7 @@ func _initialize() -> void:
 	_check_perks(table)
 	_check_names_and_prices(table)
 	_check_bad_entries()
+	_check_heat_gate(table)
 	_finish(table)
 
 
@@ -129,6 +131,63 @@ func _check_names_and_prices(table: Dictionary) -> void:
 			)
 		if u["planned"] and (u["kind"] == "starting_perk" or u["kind"] == "shop_item"):
 			_fail("%s is planned, but its target exists" % u["id"])
+
+
+# README H3.4: an unlock can name a Heat level that has to be open before it can be bought. No unlock uses it yet, so
+# this feeds entries in by hand.
+func _check_heat_gate(table: Dictionary) -> void:
+	var top = HeatScript.new().top_level()
+	for u in table["unlocks"]:
+		if u["heat"] < 0 or u["heat"] > top:
+			_fail("%s needs Heat %d, but the Heat table ends at %d" % [u["id"], u["heat"], top])
+	var curve = [60, 120]
+	var known = {"items": {}, "perks": {"steady": {"id": "steady", "name": "STEADY", "desc": "d"}}}
+	var plain = {"id": "a", "kind": "starting_perk", "target": "steady", "tier": 1}
+	var u0 = UnlocksTable.clean_unlock(plain, curve, known, {}, {})
+	if u0.size() == 0 or u0["heat"] != 0:
+		_fail("an entry with no heat key should read as heat 0: %s" % str(u0))
+	var gated = plain.duplicate()
+	gated["heat"] = 3
+	var u3 = UnlocksTable.clean_unlock(gated, curve, known, {}, {})
+	if u3.size() == 0 or u3["heat"] != 3:
+		_fail("an entry with heat 3 was refused or read wrong: %s" % str(u3))
+	for bad_heat in [-1, HeatScript.MAX_LEVEL + 1, 2.5, "3", true, null]:
+		var bad = plain.duplicate()
+		bad["heat"] = bad_heat
+		if UnlocksTable.clean_unlock(bad, curve, known, {}, {}).size() > 0:
+			_fail("a bad heat was accepted: %s" % str(bad_heat))
+	# the state: Heat is judged after owned and planned, before the coins
+	if UnlocksTable.state_of(u3, false, 9999, 2) != "heat":
+		_fail("an unlock that needs Heat 3 was not 'heat' with Heat 2 open and plenty of coins")
+	if UnlocksTable.state_of(u3, false, 9999, 3) != "afford":
+		_fail("an unlock that needs Heat 3 was not 'afford' with Heat 3 open and enough coins")
+	if UnlocksTable.state_of(u3, false, 10, 3) != "locked":
+		_fail("an unlock that needs Heat 3 was not 'locked' with Heat 3 open and too few coins")
+	if UnlocksTable.state_of(u3, true, 0, 0) != "owned":
+		_fail("an owned unlock stopped being 'owned' because of its Heat")
+	var planned = u3.duplicate()
+	planned["planned"] = true
+	if UnlocksTable.state_of(planned, false, 9999, 0) != "soon":
+		_fail("a planned unlock stopped being 'soon' because of its Heat")
+	if (
+		UnlocksTable.state_of(u0, false, 9999) != "afford"
+		or UnlocksTable.state_of(u0, false, 0) != "locked"
+	):
+		_fail("an unlock with no Heat changed with the new heat_open argument left out")
+	# what a run's coins put within reach leaves out what its Heat still holds back
+	var list = [u0, u3]
+	u0["id"] = "a0"
+	u3["id"] = "a3"
+	var names = []
+	for u in UnlocksTable.newly_affordable(list, {}, 0, 100, 2):
+		names.append(u["id"])
+	if names != ["a0"]:
+		_fail("newly_affordable with Heat 2 open gave %s, expected [a0]" % str(names))
+	names = []
+	for u in UnlocksTable.newly_affordable(list, {}, 0, 100, 3):
+		names.append(u["id"])
+	if names != ["a0", "a3"]:
+		_fail("newly_affordable with Heat 3 open gave %s, expected [a0, a3]" % str(names))
 
 
 func _check_bad_entries() -> void:
