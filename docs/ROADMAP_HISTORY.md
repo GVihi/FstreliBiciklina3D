@@ -914,6 +914,18 @@ The first version only lifted the camera; the owner asked for the **whole player
 
 ## Tooling & QA
 
+### Bot playthrough balance harness
+
+`tools/bot_run.gd` — a headless SceneTree script that plays whole runs on many seeds and logs, for every round, the time, lives lost, kills, caches taken and whether the round was cleared. A per-seed table and a cross-seed summary give real numbers for the 10-round difficulty curve and balance passes (H1.12, H2.6, H3.5 and the Milestone K height work).
+
+**What it does:** starts a generated-arena run with `start_game(false, seed)`, picks the first map node at every map screen, leaves shops and rest stops immediately (rest picks heart refill first; upgrades are accepted so the run does not get stuck on the upgrade screen). In a round the bot aims at the nearest non-hidden, non-gone rider each frame and fires every 18 frames; when an incoming phone's target ring is within 2.5 m it dashes perpendicular to the phone; when no rider is close it walks toward the nearest cache, and once the extraction point opens it walks there.
+
+**Usage:** `godot --headless --path . --script res://tools/bot_run.gd` (8 seeds, Heat 0 by default). `--seeds N`, `--heat N`, `--full` (20 seeds), `--seed HEX` (one fixed seed), `--out PATH`. Writes `bot_run_summary.txt` and also prints to stdout. Exit 0 = no scripted errors; exit 1 = at least one round timed out.
+
+**Decisions:** (1) the bot buys the first offered upgrade at upgrade screens so the run does not freeze, but skips the shop (no items bought) so economy stays comparable across seeds; (2) rest stop always refills hearts first, takes the extra upgrade only when hearts are full; (3) fire rate is 18 frames (one shot every 0.3 s at 60 fps) — the bot is not good, only consistent; (4) `force_captured = true` is set so the headless session does not count as paused; (5) a round that runs for more than 180 s or a whole run past 1200 s is aborted and noted as a problem.
+
+**Not covered:** `run_checks.py bot_run` does not exist yet (no `.gd` file named `*_check.gd`); this harness is run directly. No in-game test possible headless. Needs a real Godot binary to run.
+
 ### CI check on every pull request: GDScript lint / format (gdtoolkit) and a headless Godot project load
 
 `.github/workflows/ci.yml`, three jobs: `gdlint` uses the rules in `.gdlintrc`; `gdformat --check` fails if a script is not formatted (fix with `gdformat scripts/ tools/viewer/`); the Godot job imports the project and runs it headless for 120 frames, and fails on any script or load error, since Godot exits with 0 even when a script does not parse. Tested here with Godot 4.7 against a clean copy and a copy with a syntax error; the workflow itself has not run on GitHub yet
