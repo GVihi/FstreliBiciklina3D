@@ -1296,8 +1296,8 @@ func heat_mods_row_rect(i: int) -> Rect2:
 func heat_mods_arrow_rect(i: int, d: int) -> Rect2:
 	var k = size.y / 720.0
 	var r = heat_mods_row_rect(i)
-	var x = r.size.x - (330.0 if d < 0 else 56.0)
-	return Rect2(r.position + Vector2(x * k, 6.0 * k), Vector2(44.0 * k, 44.0 * k))
+	var x = r.size.x - (330.0 if d < 0 else 56.0) * k  # the row width is already scaled by k, only the offset from its right edge is not
+	return Rect2(r.position + Vector2(x, 6.0 * k), Vector2(44.0 * k, 44.0 * k))
 
 
 # all the rows with a little room round them: a click inside the page and outside every control only selects a row,
