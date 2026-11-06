@@ -42,6 +42,12 @@ extends SceneTree
 #     holding (hearts 1 to 3, cash at least the cap, riders in a round at most the cap), the set with every rank maxed and the
 #     best sets start a real round, riders on floor 10 never aim past RIDER_SPEED_CAP and never speed up past their spawn
 #     speed, a hearts cap that reads as 0 still leaves 1 heart, and a Daily Run puts a played set away,
+#   - the rewards (README H3.2; docs/HEAT.md, "Rewards"): `reward_bonus` is 10 % of the base per point in whole numbers
+#     (the worked examples of the note, at least +1 from Heat 1 up, 0 at Heat 0 and for a base of 0, a set of ranks pays by
+#     its total, a bad number of points is kept inside the table), the table's `rewards` entry loads and a bad one keeps the
+#     default, and a real run paid through `Meta.award_run` gets the bonus on the coins of rounds, bosses and caches and on
+#     the XP of rounds, kills, a win and bosses but not on the score, its coins and XP, Heat 0 pays what it did before Heat,
+#     a higher Heat pays more, a run that earned nothing is paid nothing, and a run is paid once,
 #   - bad data is refused the way data/README.md says: a table that is not valid, a missing level 0, a level 0 that
 #     changes something, a gap in the levels, a duplicate, a bad number, a number out of its range.
 # The "heat: ..." errors printed while it runs come from the bad data it feeds in on purpose.
@@ -92,6 +98,7 @@ func _initialize() -> void:
 	await _check_unlock()
 	_check_economy()
 	_check_stacking()
+	_check_rewards()
 	main.meta.heat_open = open_before
 	_restore_settings()
 	_finish()
@@ -1999,6 +2006,289 @@ func _check_bad_data() -> void:
 	t = HeatScript.load_table("res://data/no_such_heat_table.json")
 	if t["levels"].size() != 1:
 		_fail("a missing file should give level 0 only")
+
+
+# README H3.2: what Heat pays (docs/HEAT.md, "Rewards"). The arithmetic of `reward_bonus` against the worked examples of the
+# note, the table entry, and runs paid through the real `Meta.award_run`. The real meta.json is kept and put back.
+func _check_rewards() -> void:
+	var h = main.heat_sys
+	var top = h.top_level()
+	var XpScript = load("res://scripts/xp.gd")
+	var keep_heat = main.heat
+	var keep_state = [main.score, main.kills, main.round_n, main.run_won]
+	var path = main.meta.PATH
+	var had = FileAccess.file_exists(path)
+	var kept = PackedByteArray()
+	if had:
+		kept = FileAccess.get_file_as_bytes(path)
+	# the table entry and its defaults
+	if int(h.rewards["pct_per_point"]) != 10 or int(h.rewards["min"]) != 1:
+		_fail(
+			(
+				"the rewards entry is %s, expected 10 percent per point and a minimum of 1"
+				% str(h.rewards)
+			)
+		)
+	var raw = JSON.parse_string(FileAccess.get_file_as_string(HeatScript.PATH))
+	var kept_rewards = raw["rewards"]
+	for bad in [
+		{"pct_per_point": -5},
+		{"pct_per_point": 250},
+		{"pct_per_point": "x"},
+		{"min": 2.5},
+		{"min": -1}
+	]:
+		raw["rewards"] = bad
+		var t = HeatScript.parse(raw)
+		if t["rewards"] != HeatScript.REWARD_DEFAULTS:
+			_fail(
+				(
+					"a bad rewards entry %s was not replaced by the defaults, got %s"
+					% [str(bad), str(t["rewards"])]
+				)
+			)
+	raw["rewards"] = "text"
+	if HeatScript.parse(raw)["rewards"] != HeatScript.REWARD_DEFAULTS:
+		_fail("a rewards entry that is not an object was not replaced by the defaults")
+	raw.erase("rewards")
+	if HeatScript.parse(raw)["rewards"] != HeatScript.REWARD_DEFAULTS:
+		_fail("a table with no rewards entry did not get the defaults")
+	raw["rewards"] = {"pct_per_point": 20, "min": 2}
+	var custom = HeatScript.parse(raw)["rewards"]
+	if int(custom["pct_per_point"]) != 20 or int(custom["min"]) != 2:
+		_fail("a good rewards entry was not taken, got %s" % str(custom))
+	raw["rewards"] = kept_rewards
+	# the arithmetic against the worked examples of the note
+	var examples = [
+		[33, {0: 0, 1: 3, 2: 7, 3: 10, 4: 13, 5: 17, 12: 40}],
+		[4, {0: 0, 1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 12: 5}],
+		[2, {0: 0, 1: 1, 3: 1, 5: 1, 7: 1, 12: 2}],
+		[485, {0: 0, 1: 49, 3: 146, 5: 243, 12: 582}],
+		[0, {0: 0, 1: 0, 5: 0, 12: 0}],
+		[-7, {0: 0, 5: 0}],
+	]
+	for e in examples:
+		for pts in e[1]:
+			var got = h.reward_bonus(int(e[0]), int(pts))
+			if got != e[1][pts]:
+				_fail("reward_bonus(%d, %d) is %d, the note says %d" % [e[0], pts, got, e[1][pts]])
+	# never negative, never less than +1 from Heat 1 up on a base above 0, and more points never pay less
+	for base in range(0, 61):
+		var last = 0
+		for pts in range(0, 13):
+			var b = h.reward_bonus(base, pts)
+			if b < last:
+				_fail(
+					(
+						"base %d: %d points pay %d, less than the %d of the point below"
+						% [base, pts, b, last]
+					)
+				)
+			if pts >= 1 and base >= 1 and b < 1:
+				_fail("base %d at %d points pays less than 1" % [base, pts])
+			if (pts == 0 or base == 0) and b != 0:
+				_fail("base %d at %d points pays %d, expected 0" % [base, pts, b])
+			last = b
+	# points past the table are kept to what the table can ask for
+	if h.reward_bonus(33, 999) != h.reward_bonus(33, h.total_cap()):
+		_fail("999 points do not pay the same as the top total")
+	# -1 is the run being played: the level of the run, or the set of ranks played, which wins
+	main.heat = 3
+	if h.reward_bonus(33) != 10:
+		_fail("reward_bonus(33) at Heat 3 is %d, expected 10" % h.reward_bonus(33))
+	main.heat = 0
+	if h.reward_bonus(33) != 0:
+		_fail("reward_bonus(33) at Heat 0 is %d, expected 0" % h.reward_bonus(33))
+	h.play_set({"swift": 2, "crowd": 1, "lives": 1})  # 2 + 1 + 1 = 4 points
+	main.heat = 4
+	if h.reward_bonus(33) != 13 or h.reward_bonus(33) != h.reward_bonus(33, 4):
+		_fail("a set worth 4 points pays %d on 33, expected 13" % h.reward_bonus(33))
+	h.clear_set()
+	# runs paid through the real award_run
+	# every round cleared, a boss, the final boss and 2 cache coins: 33 with the 10 rounds of the note
+	var base_coins = (
+		main.MAX_ROUNDS * main.meta.COINS_PER_ROUND
+		+ main.meta.COINS_PER_BOSS
+		+ main.meta.COINS_FINAL_BOSS
+		+ 2
+	)
+	var won_run = {
+		"round": main.MAX_ROUNDS,
+		"won": true,
+		"kills": 120,
+		"bosses": [["boss", false], ["any", true]],
+		"caches": 2
+	}
+	var xp_table = XpScript.table
+	var bonusable = (
+		120 * int(xp_table["per_kill"])
+		+ main.MAX_ROUNDS * int(xp_table["per_round"])
+		+ int(xp_table["run_won"])
+		+ int(xp_table["boss"]["boss"])
+		+ int(xp_table["boss"]["final"])
+	)
+	var last_coins = -1
+	var last_xp = -1
+	for level in range(top + 1):
+		var r = _reward_run(level, won_run)
+		var want_bonus = h.reward_bonus(base_coins, level)
+		var want_xp_bonus = h.reward_bonus(bonusable, level)
+		if base_coins == 33 and level <= 5:
+			var doc = {0: 0, 1: 3, 2: 7, 3: 10, 4: 13, 5: 17}
+			if r["coins"] != doc[level]:
+				_fail(
+					(
+						"a won run at Heat %d paid %d bonus coins, the note says %d"
+						% [level, r["coins"], doc[level]]
+					)
+				)
+		if (
+			r["coins"] != want_bonus
+			or r["n"] != base_coins + want_bonus
+			or main.meta_earned != r["n"]
+		):
+			_fail(
+				(
+					"Heat %d: the won run paid %d coins (bonus %d), expected %d (bonus %d)"
+					% [level, r["n"], r["coins"], base_coins + want_bonus, want_bonus]
+				)
+			)
+		if r["xp_heat"] != want_xp_bonus or r["xp"] != bonusable + want_xp_bonus:
+			_fail(
+				(
+					"Heat %d: the won run paid %d XP (bonus %d), expected %d (bonus %d)"
+					% [level, r["xp"], r["xp_heat"], bonusable + want_xp_bonus, want_xp_bonus]
+				)
+			)
+		if (
+			level == 0
+			and (
+				r["coins"] != 0 or r["xp_heat"] != 0 or r["n"] != base_coins or r["xp"] != bonusable
+			)
+		):
+			_fail(
+				(
+					"Heat 0 pays %d coins and %d XP, expected %d and %d as before Heat"
+					% [r["n"], r["xp"], base_coins, bonusable]
+				)
+			)
+		if r["n"] <= last_coins or r["xp"] <= last_xp:
+			_fail(
+				(
+					"Heat %d pays %d coins and %d XP, not more than the level below"
+					% [level, r["n"], r["xp"]]
+				)
+			)
+		last_coins = r["n"]
+		last_xp = r["xp"]
+	# the score and its coins and XP are not multiplied: the cap of 5 coins stays 5, and the score XP is added once
+	var scored = won_run.duplicate()
+	scored["score"] = main.meta.SCORE_PER_COIN * 40
+	var r5 = _reward_run(5, scored)
+	var bonus5 = h.reward_bonus(base_coins, 5)
+	if r5["n"] != main.meta.SCORE_COINS_MAX + base_coins + bonus5:
+		_fail(
+			(
+				"a Heat 5 run with a huge score paid %d coins, expected %d"
+				% [r5["n"], main.meta.SCORE_COINS_MAX + base_coins + bonus5]
+			)
+		)
+	var score_xp = floori(float(scored["score"]) / float(xp_table["score_per_xp"]))
+	if (
+		r5["xp_heat"] != h.reward_bonus(bonusable, 5)
+		or r5["xp"] != score_xp + bonusable + r5["xp_heat"]
+	):
+		_fail(
+			(
+				"a Heat 5 run with a big score paid %d XP with a bonus of %d, the score XP must not be in the bonus"
+				% [r5["xp"], r5["xp_heat"]]
+			)
+		)
+	# a lost run is paid in proportion; a run that earned nothing is paid nothing at any Heat
+	var lost = _reward_run(4, {"round": 3})  # two rounds cleared: 4 coins
+	if lost["n"] != 4 + h.reward_bonus(4, 4) or lost["coins"] != 2:
+		_fail(
+			(
+				"a run lost in round 3 at Heat 4 paid %d coins (bonus %d), expected 6 (bonus 2)"
+				% [lost["n"], lost["coins"]]
+			)
+		)
+	for level in range(top + 1):
+		var nothing = _reward_run(level, {"round": 1})
+		if (
+			nothing["n"] != 0
+			or nothing["coins"] != 0
+			or nothing["xp"] != 0
+			or nothing["xp_heat"] != 0
+		):
+			_fail("a run that earned nothing paid %s at Heat %d" % [str(nothing), level])
+	# a run pays once, and a quit run (award_run is never called for it) pays nothing
+	var once = _reward_run(5, won_run)
+	var again = main.meta.award_run()
+	if again != 0 or main.meta.heat_coins != once["coins"]:
+		_fail(
+			(
+				"paying the run a second time paid %d coins or changed the Heat coins to %d"
+				% [again, main.meta.heat_coins]
+			)
+		)
+	main.heat = 5
+	main.meta.begin_run()
+	main.score = 999999
+	main.round_n = 6
+	if main.meta_earned != 0 or main.meta.heat_coins != 0 or main.meta.heat_xp != 0:
+		_fail("a new run did not start with no Heat pay")
+	# a set of the player's own pays by its total
+	h.play_set({"swift": 2, "crowd": 1, "lives": 1})
+	var own = _reward_run(4, won_run)
+	h.clear_set()
+	if own["coins"] != h.reward_bonus(base_coins, 4):
+		_fail(
+			(
+				"a set worth 4 points paid %d bonus coins, expected %d"
+				% [own["coins"], h.reward_bonus(base_coins, 4)]
+			)
+		)
+	# put everything back, and the real meta.json
+	if had:
+		var w = FileAccess.open(path, FileAccess.WRITE)
+		w.store_buffer(kept)
+		w.close()
+	elif FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	main.meta.load_meta()
+	main.meta.heat_open = top
+	main.heat = keep_heat
+	main.score = keep_state[0]
+	main.kills = keep_state[1]
+	main.round_n = keep_state[2]
+	main.run_won = keep_state[3]
+	main.meta.begin_run()
+
+
+# pays one run through the real `Meta.award_run` at Heat `level` and says what it paid. `o` may hold round, won, kills,
+# score, bosses ([[kind, final], ...]) and caches. Returns {"n": coins, "coins": the Heat coins, "xp", "xp_heat"}.
+func _reward_run(level: int, o: Dictionary) -> Dictionary:
+	main.heat = level
+	main.meta.xp = 0
+	main.meta.begin_run()
+	main.challenges.begin_run()
+	main.score = int(o.get("score", 0))
+	main.kills = int(o.get("kills", 0))
+	main.round_n = int(o.get("round", 1))
+	main.run_won = bool(o.get("won", false))
+	main.round_lives_lost = 0
+	for b in o.get("bosses", []):
+		main.meta.add_boss_kill(str(b[0]), bool(b[1]))
+	for i in range(int(o.get("caches", 0))):
+		main.meta.add_cache_coin()
+	var n = main.meta.award_run()
+	return {
+		"n": n,
+		"coins": main.meta.heat_coins,
+		"xp": main.meta.xp_earned,
+		"xp_heat": main.meta.heat_xp
+	}
 
 
 func _finish() -> void:

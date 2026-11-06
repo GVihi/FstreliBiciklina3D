@@ -72,19 +72,34 @@ static func boss_xp(kind: String, final: bool) -> int:
 	return int(table["boss"]["boss"])
 
 
-# XP a finished run is worth: score, kills, cleared rounds, a won run, challenges done in it and the boss XP
-# collected while it ran (Meta.xp_boss)
-static func run_xp(
-	score: int, kills: int, rounds_cleared: int, won: bool, challenges_done: int, boss: int
-) -> int:
-	var n = floori(float(maxi(0, score)) / float(table["score_per_xp"]))
-	n += maxi(0, kills) * int(table["per_kill"])
+# README H3.2: the part of a run's XP that the Heat bonus is paid on (docs/HEAT.md, "Rewards"): cleared rounds, kills, a
+# won run and the boss XP. The XP of the score and of challenges is not in it, so score is not multiplied by Heat and a
+# challenge's printed reward stays what it says.
+static func bonusable_xp(kills: int, rounds_cleared: int, won: bool, boss: int) -> int:
+	var n = maxi(0, kills) * int(table["per_kill"])
 	n += maxi(0, rounds_cleared) * int(table["per_round"])
 	if won:
 		n += int(table["run_won"])
-	n += maxi(0, challenges_done) * int(table["per_challenge"])
 	n += maxi(0, boss)
 	return n
+
+
+# XP a finished run is worth: score, kills, cleared rounds, a won run, challenges done in it and the boss XP
+# collected while it ran (Meta.xp_boss), plus `heat_bonus`, the Heat bonus on `bonusable_xp` that the caller worked out
+# with `Heat.reward_bonus` (0 at Heat 0, which is also the default, so a run without Heat pays what it did before Heat)
+static func run_xp(
+	score: int,
+	kills: int,
+	rounds_cleared: int,
+	won: bool,
+	challenges_done: int,
+	boss: int,
+	heat_bonus: int = 0
+) -> int:
+	var n = floori(float(maxi(0, score)) / float(table["score_per_xp"]))
+	n += bonusable_xp(kills, rounds_cleared, won, boss)
+	n += maxi(0, challenges_done) * int(table["per_challenge"])
+	return n + maxi(0, heat_bonus)
 
 
 # XP needed to go from `level` to the next one (level 1 is the start)

@@ -36,10 +36,15 @@ const RANGES = {
 }
 const WHOLE_KEYS = ["hearts_minus", "tough_hp_plus"]  # these take whole numbers only
 const CAP_DEFAULTS = {"riders_max": 16, "hearts_min": 2, "cash_min": 0.5}  # see "Caps" in docs/HEAT.md
+# README H3.1: what a Heat point pays on top of a run's base pay (docs/HEAT.md, "Rewards"): a share of the base in percent per
+# point, and the least a run that earned any base pay gets from Heat 1 up
+const REWARD_DEFAULTS = {"pct_per_point": 10, "min": 1}
+const MAX_REWARD_PCT = 100  # sanity limit for the percent per point
 
 var g = null
 var levels: Array = []  # one dict per level, index = level; always has level 0
 var caps: Dictionary = {}
+var rewards: Dictionary = {}  # README H3.1: {"pct_per_point", "min"}, see `reward_bonus`
 var modifiers: Array = []  # README H2.2: {"id", "name", "keys", "ranks": [{"points", "desc", "effects"}]}, rank 1 first
 var clashes: Array = []  # {"a_id", "a_rank", "b_id", "b_rank", "why"}: two ranks that cannot be chosen together
 var top_total: int = 0  # the most points a set of ranks without a clash is worth
@@ -52,6 +57,7 @@ func _init(game = null) -> void:
 	var t = load_table()
 	levels = t["levels"]
 	caps = t["caps"]
+	rewards = t["rewards"]
 	modifiers = t["modifiers"]
 	clashes = t["clashes"]
 	top_total = t["top_total"]
@@ -137,6 +143,34 @@ func price_factor(level: int = -1) -> float:
 # nothing). It is applied in `Shop.add_cash` before BOUNTY, the one place every cash source goes through.
 func cash_factor(level: int = -1) -> float:
 	return minf(1.0, maxf(value("cash", level), float(caps["cash_min"])))
+
+
+# README H3.2: the Heat bonus on a run's `base` pay (docs/HEAT.md, "Rewards"), in whole numbers, for `points` Heat points
+# (-1, the default, is the run being played: the points of the set of ranks played, or else the level of the run). It is
+# `pct_per_point` percent of `base` per point, rounded to the nearest whole number (a half goes up), and at least `min`
+# from Heat 1 up. It is 0 at Heat 0 and 0 when `base` is 0, so a run that earned nothing is paid nothing and Heat 0 pays
+# exactly what it did before Heat. The sum is whole numbers until the one division, because `base * 0.10 * points` as a
+# float may land a half on either side (16.5 as 16.499999 or 16.500001). `Meta.award_run` calls it for the coins and for the
+# XP, so this is the only place that works the bonus out.
+func reward_bonus(base: int, points: int = -1) -> int:
+	var pts = points
+	if pts < 0:
+		if has_set():
+			pts = set_points()
+		else:
+			pts = int(g.heat) if g != null else 0
+	pts = clampi(pts, 0, total_cap())
+	if pts <= 0 or base <= 0:
+		return 0
+	var pct = int(rewards["pct_per_point"])
+	var scaled = floori(float(base * pts * pct + 50) / 100.0)
+	return maxi(int(rewards["min"]), scaled)
+
+
+# the most Heat points a run can have: the top total of a set, or the top level when that is higher (a table of presets
+# only). Keeps a bad number from a save from paying more than the table can ever ask for.
+func total_cap() -> int:
+	return maxi(top_total, top_level())
 
 
 # README H1.8: a boss's health with the Heat factor of `level` (-1: the level of the run). `hp` is the health the boss has
@@ -570,7 +604,7 @@ static func neutral_level() -> Dictionary:
 
 
 # reads the table file; always returns {"levels": Array with at least level 0, "caps": Dictionary, "modifiers": Array,
-# "clashes": Array, "top_total": int}
+# "clashes": Array, "top_total": int, "rewards": Dictionary}
 static func load_table(path: String = PATH) -> Dictionary:
 	if not FileAccess.file_exists(path):
 		push_error(
@@ -593,6 +627,7 @@ static func parse(data) -> Dictionary:
 	var out = {
 		"levels": [neutral_level()],
 		"caps": CAP_DEFAULTS.duplicate(),
+		"rewards": REWARD_DEFAULTS.duplicate(),
 		"modifiers": [],
 		"clashes": [],
 		"top_total": 0,
@@ -614,6 +649,19 @@ static func parse(data) -> Dictionary:
 					out["caps"][key] = raw_caps[key]
 				else:
 					push_error('heat: cap "%s" needs a number above 0' % key)
+	# README H3.1: the rewards. A missing or bad entry keeps the default, so Heat 0 still pays as before (0 percent of anything)
+	var raw_rewards = data.get("rewards", {})
+	if typeof(raw_rewards) == TYPE_DICTIONARY:
+		for key in REWARD_DEFAULTS:
+			if raw_rewards.has(key):
+				var v = raw_rewards[key]
+				var top = MAX_REWARD_PCT if key == "pct_per_point" else MAX_POINTS
+				if _is_whole(v) and int(v) >= 0 and int(v) <= top:
+					out["rewards"][key] = int(v)
+				else:
+					push_error('heat: reward "%s" needs a whole number from 0 to %d' % [key, top])
+	else:
+		push_error('heat: "rewards" has to be an object')
 	# the modifiers: an id is used once, and so is an effect key (two modifiers on one key would need a rule to combine)
 	var mods = []
 	var ids = {}

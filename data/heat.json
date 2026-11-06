@@ -1,6 +1,7 @@
 {
   "version": 2,
   "caps": {"riders_max": 16, "hearts_min": 1, "cash_min": 0.5},
+  "rewards": {"pct_per_point": 10, "min": 1},
   "modifiers": [
     {"id": "swift", "name": "SWIFT RIDERS", "ranks": [
       {"points": 1, "desc": "RIDERS RIDE 10% FASTER", "rider_speed": 1.1},

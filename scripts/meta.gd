@@ -42,6 +42,8 @@ var heat_open = 0  # the highest Heat level that is open (README H1.11); 0 = onl
 var heat_unlocked = -1  # the Heat level the run that just ended opened (shown on the run summary), -1 when it opened none
 var xp_boss = 0  # XP this run's boss kills are worth; paid out with the run, like boss_coins
 var xp_earned = 0  # XP the run that just ended paid out (shown on the run summary)
+var heat_coins = 0  # README H3.2: the coins of the run that just ended that came from its Heat (part of `g.meta_earned`, shown on the run summary in H3.3)
+var heat_xp = 0  # the XP of the run that just ended that came from its Heat (part of `xp_earned`)
 var level_before = 1  # the level when the run that just ended paid out, to tell whether it went up
 
 
@@ -139,6 +141,8 @@ func reset_all() -> void:
 	cache_coins = 0
 	xp_boss = 0
 	xp_earned = 0
+	heat_coins = 0
+	heat_xp = 0
 	level_before = 1
 
 
@@ -161,6 +165,8 @@ func begin_run() -> void:
 	cache_coins = 0
 	xp_boss = 0
 	xp_earned = 0
+	heat_coins = 0
+	heat_xp = 0
 	heat_unlocked = -1
 	g.meta_earned = 0
 
@@ -205,17 +211,16 @@ func award_run() -> int:
 	# rounds cleared: the round reached minus the one the run ended in, plus that one when the run was won, and
 	# minus the shop nodes walked through on the way (a shop node is a screen, not a round: alpha B2.4)
 	var cleared = maxi(0, g.round_n - 1 - g.screens_passed()) + (1 if g.run_won else 0)
-	var n = (
-		reward_for_score(g.score)
-		+ reward_for_rounds(cleared)
-		+ boss_coins
-		+ cache_coins
-		+ challenge_coins
-	)
+	# README H3.2 (docs/HEAT.md, "Rewards"): the Heat bonus is paid on the coins of rounds, bosses and caches. The coins the
+	# score pays and the coins of challenges are not in it, so the score cap and a challenge's reward stay what they say.
+	var heat_base = reward_for_rounds(cleared) + boss_coins + cache_coins
+	heat_coins = g.heat_sys.reward_bonus(heat_base)
+	var n = reward_for_score(g.score) + heat_base + heat_coins + challenge_coins
 	g.meta_earned = n
 	level_before = int(xp_info()["level"])
+	heat_xp = g.heat_sys.reward_bonus(XpScript.bonusable_xp(g.kills, cleared, g.run_won, xp_boss))
 	xp_earned = XpScript.run_xp(
-		g.score, g.kills, cleared, g.run_won, g.challenges.done.size(), xp_boss
+		g.score, g.kills, cleared, g.run_won, g.challenges.done.size(), xp_boss, heat_xp
 	)
 	xp = mini(MAX_XP, xp + xp_earned)
 	var balance_before = balance
