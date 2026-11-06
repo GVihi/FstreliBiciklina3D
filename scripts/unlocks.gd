@@ -6,6 +6,7 @@ extends RefCounted
 
 const ItemsTable = preload("res://scripts/items.gd")
 const PerksTable = preload("res://scripts/perks.gd")
+const HeatScript = preload("res://scripts/heat.gd")
 
 const PATH = "res://data/unlocks.json"
 const KINDS = ["starting_perk", "shop_item", "weapon", "cosmetic"]
@@ -15,7 +16,8 @@ const FROM_TARGET = ["starting_perk", "shop_item"]
 
 # returns {"price_curve": Array of int (coins for tier 1, 2, ...), "unlocks": Array of dicts in file order,
 # "skipped": how many entries were unusable and left out}
-# every unlock is {id, kind, target, name, desc, tier, cost, planned}
+# every unlock is {id, kind, target, name, desc, tier, cost, planned, heat}; `heat` is the Heat level that has to be open
+# before it can be bought (README H3.4), 0 when it needs none
 static func load_table() -> Dictionary:
 	var out = {"price_curve": [], "unlocks": [], "skipped": 0}
 	if not FileAccess.file_exists(PATH):
@@ -124,6 +126,20 @@ static func clean_unlock(
 			push_error('unlocks: %s has a "cost" that is not a whole number from 0' % id)
 			return {}
 		cost = int(c)
+	# README H3.4: an optional Heat level that has to be open before the unlock can be bought (0 or no key: none)
+	var heat = 0
+	if raw.has("heat"):
+		var h = raw["heat"]
+		var h_ok = typeof(h) == TYPE_FLOAT or typeof(h) == TYPE_INT
+		if not h_ok or float(h) != floorf(float(h)) or int(h) < 0 or int(h) > HeatScript.MAX_LEVEL:
+			push_error(
+				(
+					'unlocks: %s has a "heat" that is not a whole number from 0 to %d'
+					% [id, HeatScript.MAX_LEVEL]
+				)
+			)
+			return {}
+		heat = int(h)
 	return {
 		"id": id,
 		"kind": kind,
@@ -132,7 +148,8 @@ static func clean_unlock(
 		"desc": desc,
 		"tier": tier,
 		"cost": cost,
-		"planned": bool(raw.get("planned", false))
+		"planned": bool(raw.get("planned", false)),
+		"heat": heat
 	}
 
 
@@ -148,11 +165,14 @@ static func _source_of(kind: String, target: String, known: Dictionary) -> Dicti
 
 # The unlocks that the coins of one run put within reach for the first time: not owned, not planned, and the meta
 # balance went from below the price to the price or above it. `table` is the "unlocks" array, `owned` the owned ids
-# as keys, `before` and `after` the balance around the payout. Returns the entries in table order.
-static func newly_affordable(table: Array, owned: Dictionary, before: int, after: int) -> Array:
+# as keys, `before` and `after` the balance around the payout, `heat_open` the highest open Heat level (an unlock that
+# needs a higher one is not within reach, README H3.4). Returns the entries in table order.
+static func newly_affordable(
+	table: Array, owned: Dictionary, before: int, after: int, heat_open: int = 0
+) -> Array:
 	var out = []
 	for u in table:
-		if owned.has(u["id"]) or u["planned"]:
+		if owned.has(u["id"]) or u["planned"] or int(u.get("heat", 0)) > heat_open:
 			continue
 		var cost = int(u["cost"])
 		if before < cost and cost <= after:
@@ -160,13 +180,16 @@ static func newly_affordable(table: Array, owned: Dictionary, before: int, after
 	return out
 
 
-# how an unlock shows on the Unlocks page: "owned", "soon" (its target is not in the game yet), "afford" (the
-# balance covers the price) or "locked"
-static func state_of(u: Dictionary, owned: bool, balance: int) -> String:
+# how an unlock shows on the Unlocks page: "owned", "soon" (its target is not in the game yet), "heat" (it needs a Heat
+# level that is not open yet, README H3.4; `heat_open` is the highest open one), "afford" (the balance covers the
+# price) or "locked"
+static func state_of(u: Dictionary, owned: bool, balance: int, heat_open: int = 0) -> String:
 	if owned:
 		return "owned"
 	if u["planned"]:
 		return "soon"
+	if int(u.get("heat", 0)) > heat_open:
+		return "heat"
 	if balance >= u["cost"]:
 		return "afford"
 	return "locked"

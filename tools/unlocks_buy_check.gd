@@ -109,6 +109,24 @@ func _check_buy() -> void:
 	main.meta.balance = 100000
 	if main.meta.buy(p) != "soon" or main.meta.balance != 100000 or main.meta.owns(p["id"]):
 		_fail("a planned unlock could be bought")
+	# README H3.4: an unlock that needs a Heat level that is not open is refused with plenty of coins, then bought once
+	# the level is open. No unlock of the table needs Heat yet, so this one is a copy of the first that can be bought.
+	var gated = u.duplicate()
+	gated["id"] = "heat_gate_test"
+	gated["heat"] = 3
+	var kept_open = main.meta.heat_open
+	main.meta.heat_open = 2
+	_fresh(cost * 3)
+	if (
+		main.meta.buy(gated) != "heat"
+		or main.meta.balance != cost * 3
+		or main.meta.owns(gated["id"])
+	):
+		_fail("an unlock that needs Heat 3 could be bought with only Heat 2 open")
+	main.meta.heat_open = 3
+	if main.meta.buy(gated) != "bought" or main.meta.balance != cost * 2:
+		_fail("an unlock that needs Heat 3 was not bought with Heat 3 open")
+	main.meta.heat_open = kept_open
 
 
 func _check_save_and_load() -> void:

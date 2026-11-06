@@ -781,6 +781,7 @@ const UNLOCK_MESSAGES = {
 	"bought": "BOUGHT",
 	"owned": "YOU ALREADY OWN THIS",
 	"soon": "NOT IN THE GAME YET",
+	"heat": "NEEDS A HIGHER HEAT",
 	"locked": "NOT ENOUGH COINS"
 }
 

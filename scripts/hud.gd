@@ -1959,7 +1959,9 @@ func _draw_unlocks(k: float, cx: float) -> void:
 	for i in range(g.UNLOCKS.size()):
 		var u = g.UNLOCKS[i]
 		var r = lay["rows"][i]
-		var st = UnlocksTable.state_of(u, g.meta.owns(u["id"]), g.meta.balance)
+		var st = UnlocksTable.state_of(
+			u, g.meta.owns(u["id"]), g.meta.balance, g.heat_sys.open_level()
+		)
 		var on = g.unlock_sel == i  # the mouse updates unlock_sel in input.gd (hover_menu)
 		if on:
 			draw_rect(r, Color(0.176, 0.196, 0.22))
@@ -1974,9 +1976,13 @@ func _draw_unlocks(k: float, cx: float) -> void:
 			tag_col = GOLD
 		elif st == "soon":
 			tag = "SOON"
+		elif st == "heat":
+			tag = "HEAT %d" % u["heat"]  # README H3.4: the Heat level it needs
 		_txt(tag, r.position.x + r.size.x - 10.0 * k, base, int(14 * k), tag_col, 2)
 	var cur = g.UNLOCKS[clampi(g.unlock_sel, 0, g.UNLOCKS.size() - 1)]
-	var cur_st = UnlocksTable.state_of(cur, g.meta.owns(cur["id"]), g.meta.balance)
+	var cur_st = UnlocksTable.state_of(
+		cur, g.meta.owns(cur["id"]), g.meta.balance, g.heat_sys.open_level()
+	)
 	var y = size.y * 0.8
 	_txt(cur["name"], cx, y, int(26 * k), TEXT, 1)
 	_txt(cur["desc"], cx, y + 28.0 * k, int(16 * k), TEXT, 1)
@@ -1990,6 +1996,8 @@ func _draw_unlocks(k: float, cx: float) -> void:
 		label = "OWNED"
 	elif cur_st == "soon":
 		label = "COMING SOON"
+	elif cur_st == "heat":
+		label = "NEEDS HEAT %d" % cur["heat"]
 	elif cur_st == "locked":
 		label = "NEED %d MORE" % (cur["cost"] - g.meta.balance)
 	_txt(label, cx, br.position.y + 22.0 * k, int(18 * k), TEXT if can_buy else GRAY, 1)
