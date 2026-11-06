@@ -340,6 +340,7 @@ Heat (README Milestone B, "Difficulty Scaling"; the design and the numbers' reas
 {
   "version": 2,
   "caps": {"riders_max": 16, "hearts_min": 1, "cash_min": 0.5},   // limits every set has to stay inside (the check tests them)
+  "rewards": {"pct_per_point": 10, "min": 1},   // README H3.2: what a Heat point pays on top of a run's base pay
   "modifiers": [ {"id": "swift", "name": "SWIFT RIDERS", "ranks": [ {"points": 1, "desc": "...", "rider_speed": 1.1}, {"points": 2, ...}, ... ]}, ... ],
   "clashes":   [ {"a": ["lives", 2], "b": ["swift", 3], "why": "..."}, ... ],
   "presets":   [ {"level": 0, "name": "NO HEAT", "desc": "...", "ranks": {}}, {"level": 1, "name": "FASTER", "desc": "...", "ranks": {"swift": 1}}, ... ]
@@ -347,6 +348,8 @@ Heat (README Milestone B, "Difficulty Scaling"; the design and the numbers' reas
 ```
 
 **Modifiers.** `id` is lower case (letters, digits, `_`) and used once; `ranks` lists rank 1 first, at most 5. A rank has `points` (the points the rank is worth **in total**, whole, above the rank before it, at most 100), a `desc` and the value of every effect it sets (the effect table below). Every rank of a modifier sets the **same** effects, and an effect is set by **one** modifier only (two modifiers on one effect would need a rule to combine them). A rank off (0) is not listed: it changes nothing and is worth nothing. The Heat of a set of ranks is the sum of the points of its ranks (`Main.heat_sys.total_points`).
+
+**Rewards.** `pct_per_point` is the share of a run's base pay that each Heat point adds, in percent (whole, 0 to 100), and `min` is the least bonus a run gets from Heat 1 up when it earned any base pay (whole, 0 to 100). `Main.heat_sys.reward_bonus(base)` works the bonus out in whole numbers (`docs/HEAT.md`, "Rewards"); `Meta.award_run` pays it on the coins of rounds, bosses and caches and on the XP of rounds, kills, a win and bosses, never on the score or on challenges. A missing or bad entry keeps the default, which is the pay of the note, and Heat 0 is a bonus of 0 whatever the numbers say.
 
 **Clashes.** `a` and `b` are `[modifier id, rank]`: a set with `a`'s modifier at that rank **or higher** and `b`'s modifier at that rank or higher is refused, and `why` is the reason the page of H2.4 will say. `b` is the one held back (`clean_set` lowers it one rank at a time until the set is legal).
 

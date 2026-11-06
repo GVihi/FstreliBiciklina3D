@@ -93,9 +93,9 @@ Mostly vibe coded Godot game
   - [x] H2.5 Save the chosen set in the run save and `settings.cfg` (old files with only a level read as the preset of that level), and show the active modifiers, not only the number, on the run bar, pause menu and run summary (note in `docs/ROADMAP_HISTORY.md`; waits for an in-game look by the owner)
   - [ ] H2.6 Check and playtest: every modifier alone and the maxed set through the scripted run (`tools/generated_run_check.gd`), then a balance pass with the harness
 - [ ] Increase rewards for higher Heat levels
-  - [ ] H3.1 Decide the formula in `docs/HEAT.md`: a coin and XP bonus per Heat point (first guess: +10 % per point, rounded, never less than +1 coin at Heat 1 or more), whether the score itself is multiplied (first guess: no, so the boards of different Heat stay comparable once they are split), and that the bonus applies to coins from rounds, bosses and caches
-  - [ ] H3.2 Pay it: `Meta.award_run` and `XpScript.run_xp` apply the bonus (`SCORE_COINS_MAX` still caps the score part); a Heat 0 run pays exactly as before. Check `tools/heat_check.gd`: Heat 0 unchanged, a higher Heat pays more, a quit run still pays nothing
-  - [ ] H3.3 Show it: the title screen's HEAT entry says what the level pays, and the run summary has a line with the bonus
+  - [x] H3.1 Decide the formula in `docs/HEAT.md`: a coin and XP bonus per Heat point (first guess: +10 % per point, rounded, never less than +1 coin at Heat 1 or more), whether the score itself is multiplied (first guess: no, so the boards of different Heat stay comparable once they are split), and that the bonus applies to coins from rounds, bosses and caches
+  - [x] H3.2 Pay it: `Meta.award_run` and `XpScript.run_xp` apply the bonus (`SCORE_COINS_MAX` still caps the score part); a Heat 0 run pays exactly as before. Check `tools/heat_check.gd`: Heat 0 unchanged, a higher Heat pays more, a quit run still pays nothing
+  - [x] H3.3 Show it: the title screen's HEAT entry says what the level pays, and the run summary has a line with the bonus
   - [ ] H3.4 Heat rewards beyond coins: unlocks or challenges that need a Heat level (an entry in `data/unlocks.json` and `data/challenges.json`, for example "win a run at Heat 3"), first guess one of each
   - [ ] H3.5 Tune the numbers once the harness runs (the same pass as H1.12), so a higher Heat is worth it without making Heat 0 feel like a waste
 

@@ -117,11 +117,79 @@ H1.11 opens Heat N+1 when a run is won at the highest open level. Assumed for th
 
 The cap of 18 m/s is a limit on what riders aim for (`riders.gd`, the line that eases a rider's speed towards its target), while `spawn_rider` starts every rider at its full base speed. On late floors that base is over the cap for sprinters even at Heat 0, so a rider comes out of the tunnel faster than the cap for under two seconds, and the higher the SWIFT RIDERS rank the faster and the longer. If the cap should be a hard limit, start riders at `minf(base, RIDER_SPEED_CAP)`: one line, but it changes late sprinters at Heat 0 too, so it is not done without a yes. `tools/heat_check.gd` checks what holds today (after 3 s no rider rides over the cap, and none speeds up past its spawn speed).
 
+## Rewards (the third roadmap item, design note H3.1)
+
+**Decided in H3.1 and built in H3.2 (the pay, see "Built in H3.2" below); showing it is H3.3 and the unlocks and challenges that need Heat are H3.4.** Until H3.3 the player sees the bonus only in the coins and XP the run pays. All numbers are first guesses for H3.5 to tune with the bot harness.
+
+"Coins" here are the **meta coins** that `Meta.award_run` pays when a run ends and the Unlocks page spends, and XP is the XP of `XpScript.run_xp`. The cash of a round (shop money, `add_cash`) is a different thing: it stays as H1.9 made it (STINGY lowers it) and the formula below never touches it.
+
+### The formula
+
+Let `H` be the Heat of the run: the level, or the total points of a set of the player's own (the same number `Main.heat` holds, so a set pays by what it is worth, not by its name).
+
+1. **The bonus is 10 % of the base pay per Heat point**: `bonus = max(1, (base * H * 10 + 50) / 100)` in whole-number arithmetic, which is `base * 0.10 * H` rounded to the nearest whole number (a half goes up). The 10 is `rewards.pct_per_point` in `data/heat.json`, so H3.5 changes one number and no code.
+2. **It is worked out once per run, on the sum**, never per kill or per round. A bonus of 10 % on 2 coins rounds to nothing, and a bonus per source would pay 0 at every low Heat.
+3. **At least +1.** From Heat 1 up a run that earned any base pay gets at least one extra coin (and at least one extra XP), so Heat 1 is never a level that pays exactly like Heat 0. A run with no base pay gets no bonus (`base` of 0 gives 0).
+4. **Heat 0 pays exactly as before.** `H` of 0 gives a bonus of 0 and nothing else in `award_run` or `run_xp` changes.
+5. **Linear in points, the same for every modifier.** The points of a modifier rank were already chosen to say how much harder it is (FEWER LIVES rank 2 is 4 points because it is the biggest step), so a point pays the same whichever modifier it came from. At the top of the ladder (H5) the bonus is +50 %; the top total of 12 would give +120 %, which only matters once the open Heat rises past the presets (see "How the ladder's unlock meets modifiers").
+
+### What the bonus is paid on
+
+| Part of the pay | Heat bonus? | Why |
+|---|---|---|
+| Coins for rounds cleared (`reward_for_rounds`) | yes | the base of the bonus |
+| Coins for bosses (`boss_coins`, including the cyclist and the final boss) | yes | |
+| Coins from caches (`cache_coins`) | yes | |
+| Coins the score pays (`reward_for_score`, capped by `SCORE_COINS_MAX`) | **no** | **score is not multiplied by Heat** (rule 5 above), and the cap keeps meaning what it says |
+| Coins from challenges (`challenges.award()`) | **no** | a challenge shows a fixed reward in its list; a bonus would make that number wrong, and H3.4 gives Heat its own challenges instead |
+| XP for rounds cleared, kills, a won run and the boss XP | yes | the base of the XP bonus |
+| XP from the score (`score_per_xp`) | **no** | the same reason as the score coins |
+| XP from challenges (`per_challenge`) | **no** | the same reason as the challenge coins |
+
+So `base` for coins is rounds + bosses + caches, and `base` for XP is rounds + kills + the win + boss XP. The two bonuses are two separate sums with the same rule, each paid on top of the plain pay.
+
+### Which runs it applies to
+
+- **A run that ended through `award_run`** (won, or lost to the riders or another reason), the same runs that pay at all today. A quit run does not reach `award_run`, so it still pays nothing, and the bonus is not a reason to change that.
+- **A lost run is paid in proportion**: the bonus follows what the run earned, so dying in round 3 at Heat 5 pays a little more than at Heat 0 and not the bonus of a won run. Heat is not a reason to play a run to lose.
+- **The Daily Run** is Heat 0, so it pays no bonus. **A custom-seed run** may use Heat and pays the bonus like any run (it already pays coins and XP; it stays unranked, as before).
+
+### Worked examples (to check H3.2 against)
+
+A won run with 10 rounds cleared, the mid boss and the final boss, and 2 cache coins has a coin `base` of 20 + 3 + 8 + 2 = 33 (the score coins, up to 5, and any challenge coins come on top and are not bonused):
+
+| Heat | 0 | 1 | 2 | 3 | 4 | 5 | 12 |
+|---|---|---|---|---|---|---|---|
+| Bonus coins on a base of 33 | 0 | 3 | 7 | 10 | 13 | 17 | 40 |
+
+A run lost after 2 rounds has a coin `base` of 4: the bonus is 0 at H0, then 1 at H1 to H3, 2 at H4 and H5 (it is the minimum of 1 that decides H1 to H3), and 5 at the top total of 12. A run that cleared one round (base 2) gets 1 at every Heat from 1 to 7 (the minimum of 1 is what pays at H1 and H2) and 2 at the top total of 12.
+
+XP, for a won run with 120 kills, 10 rounds, the win, and the mid and final boss: 100 + 120 + 150 + 15 + 100 = 485 bonusable XP. The bonus is 0, 49, 146, 243 and 582 at Heat 0, 1, 3, 5 and 12 (the XP of the score and of challenges is not in that sum). The kills and the boss are only guesses for a typical run; the rule, not these two numbers, is what H3.2 must match.
+
+### Built in H3.2
+
+- **`data/heat.json`** has a `rewards` entry, `{"pct_per_point": 10, "min": 1}`. The loader keeps a missing or bad value at that default (a whole number, 0 to 100) and says so in the log.
+- **`Heat.reward_bonus(base, points = -1)`** does the arithmetic above and is the only place that does it. `points` of -1 is the run being played: the points of the set of ranks played, or else `Main.heat`. Points past what the table can ask for (`Heat.total_cap()`, the top total or the top level) are kept to it, so a bad number from a save cannot pay more than the table allows. The sum is whole numbers until one division, because `base * 0.10 * points` as a float may land a half on either side.
+- **`Meta.award_run`** works out `heat_base` (the coins of rounds cleared, bosses and caches), pays `heat_coins = reward_bonus(heat_base)` on top, and leaves the coins of the score and of challenges as they were. For XP it calls `XpScript.bonusable_xp` (kills, rounds, the win, boss XP), takes `heat_xp = reward_bonus(...)` of that and passes it to `XpScript.run_xp` as its new last argument, `heat_bonus` (default 0, so every old caller pays what it did). `Meta.heat_coins` and `Meta.heat_xp` keep the two bonuses for the run summary of H3.3; both are part of `meta_earned` and `xp_earned`, not extra, and both start at 0 with every new run.
+- **`tools/heat_check.gd`** (`_check_rewards`) checks: the table entry and a bad one, every worked example above, the rules (0 at Heat 0 and for a base of 0, at least 1 from Heat 1, never less for more points), a set of ranks paying by its total, runs paid through the real `award_run` at every level (the won run of the note, Heat 0 exactly as before Heat, more coins and XP at every level up, the score cap and the score XP left out of the bonus, a lost run paid in proportion, a run that earned nothing paid nothing at every level, a second `award_run` paying nothing) and that a new run starts with no Heat pay. The check keeps the real `meta.json` and puts it back.
+- **Not covered:** the bonus is not shown anywhere yet (H3.3), and `award_run` is still the only reader of `Heat.reward_bonus`. A custom-seed run pays the bonus and no check plays one through `award_run` yet.
+
+### Built in H3.3
+
+- **The PLAY page** says what the level pays in a line under the description of the level, above START: "PAYS 30% MORE COINS AND XP" (gold) from Heat 1 up, "PAYS NO BONUS" (grey) at Heat 0. It reads the Heat points on the page (`Main.heat`: the level, or the total of a set of the player's own), through `Heat.reward_text(points)`, `Heat.reward_percent(points)`. It gives the points on purpose: the set of a run that just ended may still count as "played" on that page. The percent is the points times `rewards.pct_per_point`, so tuning that number in H3.5 changes the page too.
+- **The run summary** has a line of its own under the table, above the MODIFIERS line: "HEAT BONUS  +17 COINS  +243 XP" (`Heat.paid_line(Meta.heat_coins, Meta.heat_xp)`). A part that is 0 is left out and the whole line is left out when both are, so a Heat 0 run keeps its summary as it was. The coin and XP rows still show the totals, bonus included.
+- **The percent is the headline, not a promise for every run:** the bonus is on rounds, bosses and caches (coins) and on rounds, kills, a win and bosses (XP), never on the score or challenges, and a small run gets at least +1 coin, so the line of the summary is what a run was really paid.
+- **Checked:** `_check_rewards_shown` in `tools/heat_check.gd` (the words for every level, the line with and without parts, a new run starting with nothing to show, and the PLAY page and run summary drawn at every level with and without a bonus at 1280x720 and 1920x1080). Screenshots of the PLAY page at Heat 0 and 3 and of a won Heat 5 summary were rendered in Godot 4.7 under Xvfb and looked at at 1280x720.
+
+### Why these first guesses
+
++10 % a point is small enough that Heat 1 and 2 are a nudge and large enough that the top preset pays about half as much again: on a won run that is 17 extra coins at H5 on top of about 38, so the dart gun (250 coins) needs about four and a half full runs at H5 against about six and a half at H0. It does not pay in proportion to how hard the level is, on purpose: H5 has 2 hearts, a crowd, faster and tougher riders and a stingier shop, so a player who clears it has earned more than 50 %, and H3.5 should look at that first. The score is left out so the boards of different Heat stay comparable. The minimum of 1 is there because at low Heat the rounding would otherwise make a harder level pay exactly the same as an easy one.
+
 ## What the later chunks decide
 
 - H1.12 and H3.5 tune every number above with the bot harness; none of them is final.
 - The second item replaces "level" with "a set of ranks and points" and keeps H1 to H5 as presets (H2.1 lists the modifiers, ranks, points and clashing pairs, in "Modifiers" above; H2.2 to H2.6 build it).
-- The third item decides what the levels pay (H3.1); until then Heat pays nothing extra.
+- The third item decides what the levels pay (H3.1, "Rewards" above) and builds it in H3.2 to H3.4; H3.2 pays it, H3.3 shows it and H3.4 adds the unlocks and challenges that need Heat.
 
 ## Checks
 

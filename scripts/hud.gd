@@ -711,6 +711,11 @@ func _draw_run_summary(k: float, cx: float, blink: bool) -> void:
 		_txt(rows[i][0], lx, y, int(20 * k), GRAY)
 		_txt(rows[i][1], rx, y, int(24 * k), rows[i][2], 2)
 	var uy = y0 + rows.size() * step + 14.0 * k
+	# README H3.3: what the Heat of the run paid on top, a line of its own (nothing at Heat 0 or when it paid nothing)
+	var paid = g.heat_sys.paid_line(g.meta.heat_coins, g.meta.heat_xp)
+	if paid != "":
+		_txt(paid, cx, uy, int(16 * k), GOLD, 1)
+		uy += 22.0 * k
 	var mods = g.heat_sys.modifiers_line()  # README H2.5: the modifiers the run was played with, under the table
 	if mods != "":
 		_txt("MODIFIERS  " + mods, cx, uy, int(14 * k), Color(GOLD, 0.85), 1)
@@ -1240,6 +1245,16 @@ func _draw_play_page(k: float, cx: float) -> void:
 	)
 	if level > 1 and own.is_empty():
 		_txt("AND EVERYTHING THE LEVELS BELOW IT ADD", cx, size.y * 0.585, int(14 * k), GRAY, 1)
+	# README H3.3: what the level pays, from the Heat points on the page (`g.heat`: a level, or the total of a set of the
+	# player's own), so it also says so at Heat 0 instead of leaving the player to wonder
+	_txt(
+		g.heat_sys.reward_text(int(g.heat)),
+		cx,
+		size.y * 0.622,
+		int(18 * k),
+		GOLD if g.heat > 0 else GRAY,
+		1
+	)
 	var r = play_start_rect()
 	draw_rect(r, Color(0.176, 0.196, 0.22))
 	draw_rect(r, ACCENT, false, 3.0 * k)
