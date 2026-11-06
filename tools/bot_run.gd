@@ -235,7 +235,7 @@ func _play_round(main, run_t_offset: float, frame_offset: int) -> Dictionary:
 
 		# --- aim and fire ---
 		var target = _nearest_rider(main)
-		if target != null:
+		if not target.is_empty():
 			var to: Vector3 = target["pos"] + Vector3(0.0, 1.0, 0.0) - main.cam.global_position
 			main.yaw = atan2(-to.x, -to.z)
 			main.pitch = atan2(to.y, Vector2(to.x, to.z).length())
