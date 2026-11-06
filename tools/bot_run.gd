@@ -43,6 +43,7 @@ var problems: Array = []
 
 # ------------------------------------------------------------------ main
 
+
 func _initialize() -> void:
 	var args = OS.get_cmdline_user_args()
 	var num_seeds = DEFAULT_SEEDS
@@ -119,6 +120,7 @@ func _initialize() -> void:
 
 # ------------------------------------------------------------------ one full run
 
+
 func _play_run(seed_value: int, heat_level: int) -> Dictionary:
 	var tag = "seed %08X heat %d" % [seed_value, heat_level]
 	var main = load(MAIN_SCENE).instantiate()
@@ -176,7 +178,7 @@ func _play_run(seed_value: int, heat_level: int) -> Dictionary:
 			# pick the first offered upgrade so the bot has at least some progression
 			main.shop_sys.pick_upgrade(0)
 		elif s == "play":
-			var round_result = await _play_round(main, run_t, frame)
+			var round_result = await _play_round(main)
 			run["rounds"].append(round_result)
 			run["total_lives_lost"] += round_result["lives_lost"]
 			run["total_kills"] += round_result["kills"]
@@ -210,7 +212,8 @@ func _play_run(seed_value: int, heat_level: int) -> Dictionary:
 
 # ------------------------------------------------------------------ one round
 
-func _play_round(main, run_t_offset: float, frame_offset: int) -> Dictionary:
+
+func _play_round(main) -> Dictionary:
 	var round_n = main.round_n
 	var result: Dictionary = {
 		"round_n": round_n,
@@ -255,7 +258,7 @@ func _play_round(main, run_t_offset: float, frame_offset: int) -> Dictionary:
 
 		var move_target = _pick_move_target(main, target)
 		if move_target != Vector3.ZERO:
-			var to_tgt = (move_target - main.player.position)
+			var to_tgt = move_target - main.player.position
 			to_tgt.y = 0.0
 			if to_tgt.length() > 0.5:
 				var step = to_tgt.normalized() * 4.0 * DT
@@ -268,9 +271,12 @@ func _play_round(main, run_t_offset: float, frame_offset: int) -> Dictionary:
 	# fill in deltas
 	result["kills"] = main.kills - kills_before
 	result["caches"] = main.objective_sys.taken - caches_before
-	result["reached_extraction"] = main.objective_sys.taken >= 0 and (
-		main.state != "play" and main.round_n > round_n
-		or (main.state == "over" and main.run_won and main.round_n >= main.MAX_ROUNDS)
+	result["reached_extraction"] = (
+		main.objective_sys.taken >= 0
+		and (
+			main.state != "play" and main.round_n > round_n
+			or (main.state == "over" and main.run_won and main.round_n >= main.MAX_ROUNDS)
+		)
 	)
 	var cleared_hits = main.count_hits() >= main.hits_needed()
 	result["cleared"] = cleared_hits
@@ -278,13 +284,16 @@ func _play_round(main, run_t_offset: float, frame_offset: int) -> Dictionary:
 	if result["time"] >= ROUND_TIMEOUT:
 		result["aborted"] = true
 		problems.append(
-			"%s round %d: bot timed out after %.0f s (state %s)"
-			% [main.run_seed, round_n, result["time"], main.state]
+			(
+				"%s round %d: bot timed out after %.0f s (state %s)"
+				% [main.run_seed, round_n, result["time"], main.state]
+			)
 		)
 	return result
 
 
 # ------------------------------------------------------------------ bot helpers
+
 
 func _nearest_rider(main) -> Dictionary:
 	var best = {}
@@ -325,9 +334,10 @@ func _pick_move_target(main, nearest_rider) -> Vector3:
 		return main.objective_sys.goal.get("pos", Vector3.ZERO)
 
 	# if a cache is close and no rider is right on top of us, walk to the nearest cache
-	if nearest_rider.is_empty() or Vector2(
-		nearest_rider["pos"].x - pp.x, nearest_rider["pos"].z - pp.z
-	).length() > 8.0:
+	if (
+		nearest_rider.is_empty()
+		or Vector2(nearest_rider["pos"].x - pp.x, nearest_rider["pos"].z - pp.z).length() > 8.0
+	):
 		var best_cache_pos = Vector3.ZERO
 		var best_cd = INF
 		for c in main.objective_sys.caches:
@@ -344,9 +354,9 @@ func _pick_move_target(main, nearest_rider) -> Vector3:
 	# when fighting, orbit around the arena centre at a moderate distance
 	if not nearest_rider.is_empty():
 		# keep roughly facing the rider while circling: strafe sideways
-		var to_rider = Vector3(
-			nearest_rider["pos"].x - pp.x, 0.0, nearest_rider["pos"].z - pp.z
-		).normalized()
+		var to_rider = (
+			Vector3(nearest_rider["pos"].x - pp.x, 0.0, nearest_rider["pos"].z - pp.z).normalized()
+		)
 		var strafe = Vector3(-to_rider.z, 0.0, to_rider.x)
 		return pp + strafe * 4.0
 
@@ -355,30 +365,40 @@ func _pick_move_target(main, nearest_rider) -> Vector3:
 
 # ------------------------------------------------------------------ output
 
+
 func _print_run_summary(run: Dictionary) -> void:
 	print(_run_lines(run))
 
 
 func _run_lines(run: Dictionary) -> String:
 	var lines: PackedStringArray = PackedStringArray()
-	var status = "WON" if run["won"] else ("ABORT: " + run["abort"] if run["abort"] != "" else "LOST")
-	lines.append(
-		"\n%s — %s  total %.0f s  kills %d  caches %d  lives lost %d"
-		% [
-			run["tag"],
-			status,
-			run["total_time"],
-			run["total_kills"],
-			run["total_caches"],
-			run["total_lives_lost"],
-		]
+	var status = (
+		"WON" if run["won"] else ("ABORT: " + run["abort"] if run["abort"] != "" else "LOST")
+	)
+	(
+		lines
+		. append(
+			(
+				"\n%s — %s  total %.0f s  kills %d  caches %d  lives lost %d"
+				% [
+					run["tag"],
+					status,
+					run["total_time"],
+					run["total_kills"],
+					run["total_caches"],
+					run["total_lives_lost"],
+				]
+			)
+		)
 	)
 	lines.append("  rnd  time   kills  caches  lives_lost  cleared")
 	for r in run["rounds"]:
 		var cleared_str = "YES" if r["cleared"] else "no "
 		lines.append(
-			"  %3d  %5.1f  %5d  %6d  %10d  %s"
-			% [r["round_n"], r["time"], r["kills"], r["caches"], r["lives_lost"], cleared_str]
+			(
+				"  %3d  %5.1f  %5d  %6d  %10d  %s"
+				% [r["round_n"], r["time"], r["kills"], r["caches"], r["lives_lost"], cleared_str]
+			)
 		)
 	return "\n".join(lines)
 
@@ -422,30 +442,38 @@ func _cross_seed_summary(all_runs: Array, heat_level: int) -> String:
 
 	var lines: PackedStringArray = PackedStringArray()
 	lines.append("=== cross-seed summary: %d run(s), Heat %d ===" % [n, heat_level])
-	lines.append(
-		"  won %d / %d (%.0f %%)   avg time %.0f s   avg kills %.1f   avg caches %.1f   avg lives lost %.1f"
-		% [
-			won,
-			n,
-			100.0 * float(won) / float(n),
-			total_time_sum / float(n),
-			float(total_kills_sum) / float(n),
-			float(total_caches_sum) / float(n),
-			float(total_lives_sum) / float(n),
-		]
+	(
+		lines
+		. append(
+			(
+				"  won %d / %d (%.0f %%)   avg time %.0f s   avg kills %.1f   avg caches %.1f   avg lives lost %.1f"
+				% [
+					won,
+					n,
+					100.0 * float(won) / float(n),
+					total_time_sum / float(n),
+					float(total_kills_sum) / float(n),
+					float(total_caches_sum) / float(n),
+					float(total_lives_sum) / float(n),
+				]
+			)
+		)
 	)
-	lines.append(
-		"  rounds played %.1f avg   cleared %.1f avg (%.0f %%)"
-		% [
-			float(rounds_played_sum) / float(n),
-			float(rounds_cleared_sum) / float(n),
-			100.0 * float(rounds_cleared_sum) / float(maxi(1, rounds_played_sum)),
-		]
+	(
+		lines
+		. append(
+			(
+				"  rounds played %.1f avg   cleared %.1f avg (%.0f %%)"
+				% [
+					float(rounds_played_sum) / float(n),
+					float(rounds_cleared_sum) / float(n),
+					100.0 * float(rounds_cleared_sum) / float(maxi(1, rounds_played_sum)),
+				]
+			)
+		)
 	)
 	lines.append("")
-	lines.append(
-		"  per-round (across runs that reached that round):"
-	)
+	lines.append("  per-round (across runs that reached that round):")
 	lines.append("  rnd  plays  avg_time  avg_lives  clear%")
 	for idx in range(MAX_ROUNDS):
 		var plays = round_time[idx].size()
@@ -463,8 +491,5 @@ func _cross_seed_summary(all_runs: Array, heat_level: int) -> String:
 		for c in round_clear[idx]:
 			clr += c
 		var clr_pct = 100.0 * float(clr) / float(plays)
-		lines.append(
-			"  %3d  %5d  %8.1f  %9.2f  %5.0f"
-			% [idx + 1, plays, avg_t, avg_lv, clr_pct]
-		)
+		lines.append("  %3d  %5d  %8.1f  %9.2f  %5.0f" % [idx + 1, plays, avg_t, avg_lv, clr_pct])
 	return "\n".join(lines)
