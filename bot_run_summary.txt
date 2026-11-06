@@ -1,0 +1,14 @@
+bot_run: 1 seed(s), Heat 0, 2026-11-06T12:58:04
+
+
+seed 00017CFB heat 0 — LOST  total 1200 s  kills 11  caches 0  lives lost 0
+  rnd  time   kills  caches  lives_lost  cleared
+    1   97.7     11       0           0  YES
+
+=== cross-seed summary: 1 run(s), Heat 0 ===
+  won 0 / 1 (0 %)   avg time 1200 s   avg kills 11.0   avg caches 0.0   avg lives lost 0.0
+  rounds played 1.0 avg   cleared 1.0 avg (100 %)
+
+  per-round (across runs that reached that round):
+  rnd  plays  avg_time  avg_lives  clear%
+    1      1      97.7       0.00    100
