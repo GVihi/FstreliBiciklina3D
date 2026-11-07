@@ -477,8 +477,8 @@ func _check_content_text(rules: Dictionary) -> void:
 
 # README MD5.2: the `night` modifier row. Its `forces_theme` is the NIGHT theme, and while its weight is 0 it moves
 # nothing: every map of a seed is exactly the map the rules give with no night row at all (the modifier roll is
-# always drawn, and a weight of 0 takes no share of it). When the weight is turned on (MD5.6) the second part no
-# longer applies and is skipped.
+# always drawn, and a weight of 0 takes no share of it). With the weight on (MD5.6, now 20) the second part is
+# skipped and the check is that night does turn up.
 func _check_night_rule(rules: Dictionary, count: int) -> void:
 	var types = rules["content"]["modifiers"]["types"]
 	if not types.has("night"):
@@ -495,6 +495,23 @@ func _check_night_rule(rules: Dictionary, count: int) -> void:
 	if int(row["min_floor"]) < 1:
 		problems.append("night rule: min_floor must be 1 or more")
 	if int(row["weight"]) != 0:
+		# README MD5.6: with the weight on, night turns up on some nodes of the maps (the per-node rules, a first floor,
+		# fights only, never on its own theme, one modifier at most, are checked for every node above)
+		var night_nodes = 0
+		for n in range(mini(count, 400)):
+			var seed_value = (n * 2654435761 + 12345) & 0xFFFFFFFF
+			var map = MapGen.generate(seed_value, rules, _gates_for(seed_value))
+			for fl in map["floors"]:
+				for node in fl:
+					if node.get("content", {}).get("modifiers", []).has("night"):
+						night_nodes += 1
+		if night_nodes == 0:
+			problems.append(
+				(
+					"night rule: the weight is %d but no node of %d maps has night"
+					% [int(row["weight"]), mini(count, 400)]
+				)
+			)
 		return
 	var without = rules.duplicate(true)
 	without["content"]["modifiers"]["types"].erase("night")

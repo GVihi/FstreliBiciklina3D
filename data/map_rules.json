@@ -44,7 +44,7 @@
       "types": {
         "rain": {"weight": 0, "min_floor": 3},
         "double_riders": {"weight": 50, "min_floor": 4},
-        "night": {"weight": 0, "min_floor": 3, "forces_theme": 3}
+        "night": {"weight": 20, "min_floor": 3, "forces_theme": 3}
       }
     }
   }
