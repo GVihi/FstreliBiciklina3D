@@ -35,7 +35,7 @@ Each node on a free floor takes a type from `types` by weighted draw, skipping a
 | shop | 10 | 2 | no limit |
 | rest | 10 | 2 | no limit |
 
-**Event nodes are off for the alpha (README alpha B5):** the `event` weight is 0, so the draw never picks one (a type with weight 0 stays in the table, its code and its `seed` content are kept for Milestone D "Event"). The `rain` round modifier is off the same way (weight 0 under `content.modifiers.types`, see below), because nothing draws or does rain yet; `double_riders` stays on. `version` in `map_rules.json` went from 2 to 3 because changing the weights changes every seed's map (the draws divide by the weight total). `tools/map_check.gd` fails if a node of a weight-0 type, or a weight-0 modifier, shows up in any of its 2,000 maps. To bring events or rain back, give them a weight again and bump `version`.
+**Event nodes are off for the alpha (README alpha B5):** the `event` weight is 0, so the draw never picks one (a type with weight 0 stays in the table, its code and its `seed` content are kept for Milestone D "Event"). The `rain` round modifier is off the same way (weight 0 under `content.modifiers.types`, see below), because nothing draws or does rain yet; `double_riders` stays on. `version` in `map_rules.json` went from 2 to 3 because changing the weights changes every seed's map (the draws divide by the weight total). `tools/map_check.gd` fails if a node of a weight-0 type, or a weight-0 modifier, shows up in any of its 2,000 maps. To bring events or rain back, give them a weight again and bump `version`. The `night` modifier (Milestone D, see "Night modifier" below) is in the table the same way, at weight 0 and `min_floor` 3; adding a weight-0 entry moves no seed (the weights add up to the same total), so `version` stayed at 3 for it.
 
 `no_repeat_along_edge`: two nodes joined by an edge never have the same type if that type is `elite`, `shop`, `rest` or `event` (no shop straight into a shop, no elite straight into an elite). A draw that would break this is redrawn; if it keeps failing, the node becomes `normal`.
 
@@ -54,7 +54,7 @@ One run has **one arena layout** (`scripts/arena_gen.gd`, from the same run seed
 | node | content |
 |---|---|
 | all | `theme`: index into `Content.THEMES` (a boss node uses the fixed theme of its boss, `boss_theme`) |
-| normal, elite, boss | `riders` (`count` and a `mix` of pro / sprinter / courier / tough that adds up to the count), `gates` (sorted indexes of the arena gates riders may enter by, at least `min_open`), `modifiers` (0 or 1 of `rain`, `double_riders`) |
+| normal, elite, boss | `riders` (`count` and a `mix` of pro / sprinter / courier / tough that adds up to the count), `gates` (sorted indexes of the arena gates riders may enter by, at least `min_open`), `modifiers` (0 or 1 of `rain`, `night`, `double_riders`; `night` is in the table at weight 0 until MD5.6) |
 | boss | `boss` (`mower`, `wifi` or `minister`; the final boss is always `minister` in the map, and the fight spawns the golden president (`president`) for the node with `final: true`) and `final: true` on the last one |
 | shop, rest, event | `seed`: a 32-bit number for what Milestone D draws later (offers, event choice) |
 
@@ -94,7 +94,7 @@ A run starts on the **map screen** (state `map`): it shows the whole map, floor 
 
 The title screen has a CUSTOM SEED page: 8 hex digits at most, the same text the game shows as "RUN SEED". It plays exactly that seed, so the map, the arena and the riders are the ones `tools/viewer/map_viewer.tscn` and `tools/viewer/arena_viewer.tscn` show for it. Such a run is **not ranked** (no normal high score, no Top 10, like a Daily Run) and a restart replays the same seed.
 
-## Night modifier (Milestone D, MD5.1: design, no code yet)
+## Night modifier (Milestone D, MD5.1 design, MD5.2 the entry in the data; the effect comes in MD5.3)
 
 **What is there today.** `theme_count` is 4 in `data/map_rules.json` (DAY 0, GOLDEN HOUR 1, DUSK 2, NIGHT 3 in `content.gd`). `_node_content` draws a node's theme first (`rng.randi() % theme_count`), the mid boss is DUSK and the final boss NIGHT, and `Main.round_theme()` plays the node's theme. So about a quarter of all fights already **look** like night, with no rule attached. The round modifiers are a separate draw (0 or 1 per fight, `modifiers.types`), read through `has_modifier`.
 
@@ -106,6 +106,8 @@ The title screen has a CUSTOM SEED page: 8 hex digits at most, the same text the
 4. **Where it can appear.** Normal and elite fights through the existing chance (`modifiers.chance`: normal 0.2, elite 0.5, boss 0.0), `min_floor` 3 like rain, never on a boss (the final boss is already a NIGHT theme).
 
 **Seeds.** Adding `night` to `modifiers.types` with weight 0 changes no map: `_pick` adds the weights up and a weight of 0 adds nothing (`tools/map_check.gd` proves a seed gives the same map, MD5.2). **Turning the weight on changes which modifier some nodes of a seed get**, so a seed typed in before the update plays a different map after it; there is no stored Daily Run board to break yet (Milestone A, "daily scoreboard"), so this is only noted, and it is done once, in MD5.6.
+
+**MD5.2, done.** `data/map_rules.json` has `"night": {"weight": 0, "min_floor": 3}` under `content.modifiers.types`, after `rain`; nothing plays or shows it yet and no map holds it. `_check_night_modifier` in `tools/map_check.gd` checks, on 200 seeds, that the maps are byte for byte the same (a) without the entry, (b) with it at weight 0 and (c) with it at weight 0 first in the table, and that switching the weight on (a copy of the rules at 20) changes only the `modifiers` of nodes (riders, gates, boss kind, theme and the map itself are the same, because the modifier roll is always drawn) and puts `night` only on normal and elite fights from floor 3 on, never on a boss. It runs on copies of the rules, so turning the shipped weight on in MD5.6 does not need a change in the check; the shipped weight is held to the rules by `_check_modifiers`, as for every modifier. Checked on 2026-11-07 with Godot 4.7-stable headless: `map_check` passes on 2,000 seeds, and with the draw deliberately broken so that a weight of 0 counts, the new check fails.
 
 **Readability.** No rule of `docs/ART_DIRECTION.md` section 6 changes. Riders, phones and pedestrians are checked at distance under NIGHT in a screenshot (MD5.4), and the frame time stays inside `docs/PERFORMANCE_BUDGET.md`.
 

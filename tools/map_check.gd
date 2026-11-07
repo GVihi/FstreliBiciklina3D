@@ -47,6 +47,7 @@ func _init() -> void:
 	_check_validator(rules)
 	_check_retry(rules)
 	_check_content_streams(rules)
+	_check_night_modifier(rules)
 	_check_content_text(rules)
 	if problems.is_empty():
 		print(
@@ -443,6 +444,78 @@ func _shape(map: Dictionary) -> Array:
 			row.append([node["type"], node["next"]])
 		out.append(row)
 	return out
+
+
+# The night modifier (README MD5.2). The entry is in the rules and starts on floor 3, and a weight of 0 moves
+# nothing: the same seeds give exactly the same maps without the entry, with it at weight 0 and with it first in
+# the table (the draw adds the weights up in table order). The modifier roll is always drawn, so switching the
+# weight on changes only the "modifiers" of nodes, and `night` then shows up on normal and elite fights from
+# floor 3 on and never on a boss. Those two parts run on copies of the rules (weight 0 and weight 20), so this
+# check does not have to change when the shipped weight does (MD5.6); the shipped weight is held to the rules
+# by _check_modifiers above.
+func _check_night_modifier(rules: Dictionary) -> void:
+	var shipped = rules["content"]["modifiers"]["types"].get("night")
+	if shipped == null:
+		_fail(0, "the rules have no 'night' modifier")
+		return
+	if int(shipped["min_floor"]) != 3:
+		_fail(0, "'night' starts on floor %s, not 3" % shipped["min_floor"])
+	var without = _rules_with_night(rules, null, false)
+	var zero = _rules_with_night(rules, {"weight": 0, "min_floor": 3}, false)
+	var zero_first = _rules_with_night(rules, {"weight": 0, "min_floor": 3}, true)
+	var on = _rules_with_night(rules, {"weight": 20, "min_floor": 3}, false)
+	var drawn = 0
+	for n in range(200):
+		var seed_value = (n * 40503 + 7) & 0xFFFFFFFF
+		var gates = _gates_for(seed_value)
+		var base = MapGen.generate(seed_value, without, gates)
+		if base.is_empty():
+			_fail(seed_value, "no map without the 'night' entry")
+			continue
+		var base_text = JSON.stringify(base)
+		if JSON.stringify(MapGen.generate(seed_value, zero, gates)) != base_text:
+			_fail(seed_value, "'night' at weight 0 changed the map")
+		if JSON.stringify(MapGen.generate(seed_value, zero_first, gates)) != base_text:
+			_fail(seed_value, "'night' at weight 0, first in the table, changed the map")
+		var lit = MapGen.generate(seed_value, on, gates)
+		if lit.is_empty():
+			_fail(seed_value, "no map with 'night' at weight 20")
+			continue
+		if JSON.stringify(_without_modifiers(lit)) != JSON.stringify(_without_modifiers(base)):
+			_fail(seed_value, "switching 'night' on changed more than the modifiers")
+		_check_content(seed_value, lit, on, gates)
+		for floor_nodes in lit["floors"]:
+			for node in floor_nodes:
+				if node.get("content", {}).get("modifiers", []).has("night"):
+					drawn += 1
+	if drawn == 0:
+		_fail(0, "'night' at weight 20 was never drawn in 200 seeds, so the check proves nothing")
+
+
+# a copy of the rules with the `night` modifier set to `row` (null takes it out), last in the table or first
+func _rules_with_night(rules: Dictionary, row, first: bool) -> Dictionary:
+	var copy = rules.duplicate(true)
+	var old = copy["content"]["modifiers"]["types"]
+	var types = {}
+	if row != null and first:
+		types["night"] = row
+	for t in old:
+		if t != "night":
+			types[t] = old[t]
+	if row != null and not first:
+		types["night"] = row
+	copy["content"]["modifiers"]["types"] = types
+	return copy
+
+
+# the map without the "modifiers" of its nodes
+func _without_modifiers(map: Dictionary) -> Dictionary:
+	var copy = map.duplicate(true)
+	for floor_nodes in copy["floors"]:
+		for node in floor_nodes:
+			if node.has("content"):
+				node["content"].erase("modifiers")
+	return copy
 
 
 # content_text prints one line per node

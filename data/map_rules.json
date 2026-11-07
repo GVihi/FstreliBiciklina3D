@@ -43,6 +43,7 @@
       "chance": {"normal": 0.2, "elite": 0.5, "boss": 0.0},
       "types": {
         "rain": {"weight": 0, "min_floor": 3},
+        "night": {"weight": 0, "min_floor": 3},
         "double_riders": {"weight": 50, "min_floor": 4}
       }
     }

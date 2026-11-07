@@ -10,7 +10,7 @@ extends RefCounted
 #   fights      "riders"     {"count": n, "mix": {"pro": a, "sprinter": b, "courier": c, "tough": d}}, the
 #   (normal,                 numbers in "mix" add up to "count" and only use rider types allowed on that floor
 #   elite,      "gates"      sorted indexes into the arena layout's "gates" list that riders may enter by
-#   boss):      "modifiers"  0 or 1 round modifiers from the rules ("rain", "double_riders"), in an Array
+#   boss):      "modifiers"  0 or 1 round modifiers from the rules ("rain", "night", "double_riders"), in an Array
 #   boss nodes: "boss"       the boss kind ("mower", "wifi", "minister"), and "final": true for the last boss
 #   others      "seed"       a 32-bit number for whatever shop, rest or event needs to draw later (Milestone D)
 #                            (shop, rest, event)
