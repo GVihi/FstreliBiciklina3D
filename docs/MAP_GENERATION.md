@@ -94,6 +94,23 @@ A run starts on the **map screen** (state `map`): it shows the whole map, floor 
 
 The title screen has a CUSTOM SEED page: 8 hex digits at most, the same text the game shows as "RUN SEED". It plays exactly that seed, so the map, the arena and the riders are the ones `tools/viewer/map_viewer.tscn` and `tools/viewer/arena_viewer.tscn` show for it. Such a run is **not ranked** (no normal high score, no Top 10, like a Daily Run) and a restart replays the same seed.
 
+## Night modifier (Milestone D, MD5.1: design, no code yet)
+
+**What is there today.** `theme_count` is 4 in `data/map_rules.json` (DAY 0, GOLDEN HOUR 1, DUSK 2, NIGHT 3 in `content.gd`). `_node_content` draws a node's theme first (`rng.randi() % theme_count`), the mid boss is DUSK and the final boss NIGHT, and `Main.round_theme()` plays the node's theme. So about a quarter of all fights already **look** like night, with no rule attached. The round modifiers are a separate draw (0 or 1 per fight, `modifiers.types`), read through `has_modifier`.
+
+**Decisions** (assumed, change by saying so):
+
+1. **The modifier is a dark round that also plays by one rule; the NIGHT theme alone stays a look.** Making the theme itself carry the rule would make a quarter of all nodes and the final boss harder without a label on the map; and taking NIGHT out of the theme draw (`theme_count` 4 to 3) would change the theme of every node of every seed. Neither moves anything here. The cost: a node whose theme is NIGHT and that also carries the modifier looks the same as one without it, and only the rule and the map label tell them apart.
+2. **The rule: a shorter radar.** At night the radar reaches 60 % of its usual range (`RADAR_RANGE_STREET` and `RADAR_RANGE_OPEN` in `threats.gd`, through one factor so the old numbers are the factor 1.0). A rider farther out is not drawn on the radar, and it is not squeezed onto the rim either. **The threat arrows at the screen edge are not touched**, so nothing in the arena can hide from the player (rule 6 in `docs/ART_DIRECTION.md`, "no area may hide a rider or a telegraph in the dark"); the modifier takes away the early warning, not the warning. The objectives' sense range (`explore_map.gd`, kept equal to the radar range so far) is left as it is, and MD5.4 looks at whether the radar then misses a cache the player already senses.
+3. **The theme is forced for the round.** A round with the modifier plays under NIGHT whatever theme the node drew; the next round goes back to its own. The node's stored `theme` is not changed, so the map of a seed is the same. **Order matters:** `start_round` calls `round_theme()` *before* `plan_riders()` fills `round_modifiers`, so `has_modifier` is still the previous round's answer at that point. `round_theme()` has to read the modifiers from `node_setup()["modifiers"]` itself (MD5.3), not from `has_modifier`.
+4. **Where it can appear.** Normal and elite fights through the existing chance (`modifiers.chance`: normal 0.2, elite 0.5, boss 0.0), `min_floor` 3 like rain, never on a boss (the final boss is already a NIGHT theme).
+
+**Seeds.** Adding `night` to `modifiers.types` with weight 0 changes no map: `_pick` adds the weights up and a weight of 0 adds nothing (`tools/map_check.gd` proves a seed gives the same map, MD5.2). **Turning the weight on changes which modifier some nodes of a seed get**, so a seed typed in before the update plays a different map after it; there is no stored Daily Run board to break yet (Milestone A, "daily scoreboard"), so this is only noted, and it is done once, in MD5.6.
+
+**Readability.** No rule of `docs/ART_DIRECTION.md` section 6 changes. Riders, phones and pedestrians are checked at distance under NIGHT in a screenshot (MD5.4), and the frame time stays inside `docs/PERFORMANCE_BUDGET.md`.
+
+**Questions for the owner.** (a) Is a shorter radar the rule you want, or something else (for example riders that carry headlights and no rule at all)? (b) Should a node whose theme is NIGHT also get the rule, so every dark round is a "night" round? That is the harder game and moves no seed, but it makes a quarter of all fights harder at once.
+
 ## Open points for Milestone D and balance
 
 - A fight now gives an upgrade pick and no shop (alpha B1); the shop is a node, so it appears on only some paths and the cash from a round waits for it (the map screen shows the cash). The economy and the upgrade pacing need a balance pass (alpha D2, D3; compare the Milestone I balance item). A run without a map has no shop nodes, so it keeps the old order: upgrade pick, then shop.
