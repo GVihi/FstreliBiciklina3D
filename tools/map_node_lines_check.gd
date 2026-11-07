@@ -87,6 +87,20 @@ func _check_layout() -> void:
 			_fail("%s: the line starts too close to the style line" % tag)
 		if round_line + 6.0 * k > cash_line - 24.0 * k:
 			_fail("%s: the ROUND line touches the cash line" % tag)
+		# README MD5.5: the modifier text sits on the ROUND line, right of "ROUND 10", and fits the panel for every
+		# modifier there is (and for two at once, which no node has today)
+		var round_w = (
+			hud.font.get_string_size("ROUND 10", HORIZONTAL_ALIGNMENT_LEFT, -1, int(18 * k)).x
+		)
+		if round_w + 4.0 * k > hud.MAP_MODIFIER_DX * k:
+			_fail("%s: the modifier text starts on top of the ROUND line (%f)" % [tag, round_w])
+		for combo in [["night"], ["double_riders"], ["rain"], ["double_riders", "night"]]:
+			var mt = hud.map_modifier_text(combo)
+			var mw = hud.font.get_string_size(mt, HORIZONTAL_ALIGNMENT_LEFT, -1, int(18 * k)).x
+			if hud.MAP_MODIFIER_DX * k + mw > w:
+				_fail("%s: the modifier text '%s' is %f wide, the panel has %f" % [tag, mt, mw, w])
+		if hud.map_modifier_text([]) != "":
+			_fail("%s: a node with no modifier has a modifier text" % tag)
 		for t in TYPES:
 			for last in [false, true]:
 				if last and t != "boss":

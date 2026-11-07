@@ -1590,6 +1590,19 @@ func plan_riders() -> void:
 	PER_ROUND = rider_plan.size()
 
 
+# The written names of round modifiers, for the map screen, the round start note and the pause menu (README MD5.5).
+# A modifier that is not in the table is written in capitals with its underscores as spaces, so a new one shows up
+# even before it gets a line here.
+const MODIFIER_NAMES = {"double_riders": "DOUBLE RIDERS", "rain": "RAIN", "night": "NIGHT"}
+
+
+func modifier_names(mods: Array) -> Array:
+	var out = []
+	for m in mods:
+		out.append(str(MODIFIER_NAMES.get(str(m), str(m).replace("_", " ").to_upper())))
+	return out
+
+
 # true if the node being played has this round modifier
 func has_modifier(name: String) -> bool:
 	return round_modifiers.has(name)
@@ -1803,8 +1816,8 @@ func start_round() -> void:
 	state_t = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	sfx.say("round_start")
-	if has_modifier("double_riders"):
-		add_note("DOUBLE RIDERS", GOLD)
+	for label in modifier_names(round_modifiers):
+		add_note(label, GOLD)  # README MD5.5: every modifier of the node says so when the round starts
 
 
 func count_hits() -> int:

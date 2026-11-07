@@ -276,6 +276,7 @@ func _check_bosses_and_modifiers(tag: String) -> void:
 	first["modifiers"] = saved
 	main.clear_riders()
 	_check_night_theme(tag, first)
+	_check_modifier_names(tag, first)
 
 
 # README MD5.3: a node with the night modifier plays under NIGHT whatever theme it drew, a node without it keeps its
@@ -334,5 +335,42 @@ func _check_night_theme(tag: String, first: Dictionary) -> void:
 			)
 		second["modifiers"] = second_mods
 	first["theme"] = own_theme
+	first["modifiers"] = saved
+	main.clear_riders()
+
+
+# README MD5.5: the written names of the modifiers, and the note at the start of a round. A node with no modifier shows
+# no modifier note; a night node shows NIGHT; an unknown modifier is still written in capitals.
+func _check_modifier_names(tag: String, first: Dictionary) -> void:
+	if main.modifier_names([]) != []:
+		bad.append("%s: no modifier gave a name" % tag)
+	if main.modifier_names(["night"]) != ["NIGHT"]:
+		bad.append("%s: night is written %s" % [tag, str(main.modifier_names(["night"]))])
+	if main.modifier_names(["double_riders"]) != ["DOUBLE RIDERS"]:
+		bad.append(
+			"%s: double riders is written %s" % [tag, str(main.modifier_names(["double_riders"]))]
+		)
+	if main.modifier_names(["fog_bank"]) != ["FOG BANK"]:
+		bad.append(
+			"%s: an unknown modifier is written %s" % [tag, str(main.modifier_names(["fog_bank"]))]
+		)
+	var saved = first["modifiers"]
+	for mods in [[], ["night"], ["double_riders"]]:
+		first["modifiers"] = mods
+		main.notes.clear()
+		_play_node(0, 0)
+		var seen = []
+		for n in main.notes:
+			seen.append(str(n["txt"]))
+		for want in main.modifier_names(mods):
+			if not seen.has(want):
+				bad.append(
+					(
+						"%s: the round with %s has no '%s' note (notes: %s)"
+						% [tag, str(mods), want, str(seen)]
+					)
+				)
+		if mods.is_empty() and (seen.has("NIGHT") or seen.has("DOUBLE RIDERS")):
+			bad.append("%s: a round with no modifier has a modifier note (%s)" % [tag, str(seen)])
 	first["modifiers"] = saved
 	main.clear_riders()

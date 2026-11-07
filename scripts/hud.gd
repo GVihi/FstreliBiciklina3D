@@ -2092,6 +2092,16 @@ const MAP_LINES = {
 const MAP_BOSS_LINE = "A BOSS GUARDS THIS FLOOR."
 const MAP_FINAL_LINE = "THE FINAL BOSS."
 
+# README MD5.5: where the modifier of a node is written on the map screen, on the ROUND line of the info panel (the
+# offset is from the panel's left edge, past "ROUND 10"), and its text. "" for a node with no modifier.
+const MAP_MODIFIER_DX = 110.0
+
+
+func map_modifier_text(mods: Array) -> String:
+	if mods.is_empty():
+		return ""
+	return "MODIFIER  " + ", ".join(g.modifier_names(mods))
+
 
 # the line that says what a node of type t does; last_floor is true for the node on the final floor
 func map_node_line(t: String, last_floor: bool) -> String:
@@ -2228,6 +2238,9 @@ func _draw_map_screen(k: float, cx: float) -> void:
 			_txt(ln, px, ly, int(18 * k), TEXT)
 			ly += 24.0 * k
 		_txt("ROUND %d" % (next_f + 1), px, size.y * 0.57, int(18 * k), TEXT)
+		var mod_text = map_modifier_text(node.get("content", {}).get("modifiers", []))
+		if mod_text != "":  # README MD5.5: written out, gold like the round start note
+			_txt(mod_text, px + MAP_MODIFIER_DX * k, size.y * 0.57, int(18 * k), GOLD)
 	# the cash waits for a shop node (README alpha B1.2): show what the player has to spend
 	_txt("CASH  $%d" % g.cash, px, size.y * 0.62, int(24 * k), GOLD)
 	_txt("SPEND IT AT A SHOP NODE", px, size.y * 0.67, int(14 * k), GRAY)
@@ -2308,6 +2321,9 @@ func _draw_pause_menu(k: float, cx: float) -> void:
 			1
 		)
 	var esc_y = 0.80
+	if not g.practice and g.state == "play" and not g.round_modifiers.is_empty():
+		# README MD5.5: the modifier of the round being played, between the buttons and the Heat line
+		_txt(map_modifier_text(g.round_modifiers), cx, size.y * 0.725, int(16 * k), GOLD, 1)
 	if not g.practice:  # README H1.10: the Heat of the run being played, with what the level is called
 		_txt(
 			g.heat_sys.label(-1, true),
