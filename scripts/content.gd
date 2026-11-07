@@ -76,6 +76,16 @@ static var THEMES = [
 		"lit": 1.0
 	}
 ]
+
+
+# the index in THEMES of the theme with this name ("NIGHT"), or -1 when there is none
+static func theme_index(theme_name: String) -> int:
+	for i in range(THEMES.size()):
+		if THEMES[i]["name"] == theme_name:
+			return i
+	return -1
+
+
 static var BOSS_KINDS = ["mower", "wifi", "minister"]
 static var BOSS_INFO = {
 	"mower":

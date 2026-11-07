@@ -194,7 +194,7 @@ var over_reason = ""
 var hits = []
 var next_idx = 0
 var riders = []
-var round_modifiers: Array = []  # the node's round modifiers ("rain", "double_riders"), see plan_riders
+var round_modifiers: Array = []  # the node's round modifiers ("rain", "night", "double_riders"), see plan_riders
 var rider_plan: Array = []  # the kind of each rider of this round when the node plans them (plan_riders)
 var civs = []
 var bosses = []
@@ -1548,9 +1548,17 @@ func node_setup() -> Dictionary:
 	return current_node().get("content", {})
 
 
-# the theme of the round: the node's, where it has one, otherwise the old rule (round number and run seed)
+# The theme of the round: the node's, where it has one, otherwise the old rule (round number and run seed). A node
+# with the "night" modifier plays under NIGHT whatever theme it drew, for this round only (docs/MAP_GENERATION.md,
+# "Night modifier"); the node's stored theme is not changed. The modifiers are read from the node's own content and
+# not through has_modifier: start_round calls this before plan_riders fills round_modifiers, so has_modifier would
+# still answer for the previous round here.
 func round_theme() -> int:
 	var setup = node_setup()
+	if setup.get("modifiers", []).has("night"):
+		var night = Content.theme_index("NIGHT")
+		if night >= 0:
+			return night
 	if setup.has("theme"):
 		return int(setup["theme"]) % THEMES.size()
 	return (round_n - 1 + seed_shift(THEMES.size())) % THEMES.size()

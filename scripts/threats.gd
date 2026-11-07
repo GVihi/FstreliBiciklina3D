@@ -20,6 +20,7 @@ const MIN_STRENGTH = 0.15
 const MAX_ARROWS = 8
 const RADAR_RANGE_STREET = 26.0  # metres from the centre to the rim of the radar on the roundabout
 const RADAR_RANGE_OPEN = 60.0  # the same on open ground, where riders start up to 96 m off
+const NIGHT_RADAR_FACTOR = 0.6  # a round with the "night" modifier: the radar reaches this share of its range
 const ASSIST_CONE_DEG = 8.0  # stick aim assist: how far off the crosshair a target may be and still pull it
 const ASSIST_REACH = 2.0  # on open ground the pull is limited to targets within this many metres of the crosshair
 const SIGHT_STEP = 1.0  # metres between the points sampled along a line of sight
@@ -53,14 +54,33 @@ static func ranked(list: Array, open_ground: bool) -> Array:
 	return out
 
 
+# The share of its usual range the radar reaches: NIGHT_RADAR_FACTOR in a round with the "night" modifier (README
+# MD5.3), otherwise 1.0, which leaves every number below exactly as it was. The only place the 0.6 lives.
+static func radar_factor(night: bool) -> float:
+	return NIGHT_RADAR_FACTOR if night else 1.0
+
+
+# metres from the radar's centre to its rim; `factor` is radar_factor of the round
+static func radar_range(open_ground: bool, factor: float = 1.0) -> float:
+	return (RADAR_RANGE_OPEN if open_ground else RADAR_RANGE_STREET) * factor
+
+
+# true when something dist metres away is left off the radar. Only a shortened radar (factor below 1.0) leaves
+# anything off, and it leaves off whatever is beyond its range: a night radar does not pin a far rider on its rim.
+# At factor 1.0 nothing is left off, what is farther than the range sits on the rim, as it always did.
+static func radar_hides(dist: float, open_ground: bool, factor: float = 1.0) -> bool:
+	return factor < 1.0 and dist > radar_range(open_ground, factor)
+
+
 # how far from the radar's centre a threat dist metres away is drawn, 0 (on top of the player) to 1 (the rim).
 # The roundabout is as it always was: a straight scale out to RADAR_RANGE_STREET, everything farther on the rim.
 # On open ground the scale reaches RADAR_RANGE_OPEN and is squeezed (square root), so the riders close by, which
 # matter most, still have room between them and the far ones are on the radar instead of piled on its rim.
-static func radar_fraction(dist: float, open_ground: bool) -> float:
+# `factor` (radar_factor) shortens the range of both scales; the default 1.0 gives the numbers of every day round.
+static func radar_fraction(dist: float, open_ground: bool, factor: float = 1.0) -> float:
 	if not open_ground:
-		return minf(dist / RADAR_RANGE_STREET, 1.0)
-	return sqrt(minf(dist / RADAR_RANGE_OPEN, 1.0))
+		return minf(dist / radar_range(false, factor), 1.0)
+	return sqrt(minf(dist / radar_range(true, factor), 1.0))
 
 
 # the half angle in radians of the stick aim assist's cone for a target dist metres away. The roundabout keeps
