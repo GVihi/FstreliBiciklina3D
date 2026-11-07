@@ -288,7 +288,7 @@ Mostly vibe coded Godot game
 ## Round Modifiers
 
 - [ ] Night modifier (the NIGHT theme exists and nodes use it, but not as a modifier a node can add)
-  - [ ] MD5.1 Design note in `docs/MAP_GENERATION.md`: night as a modifier means a node carries `night` in its `modifiers` (still 0 or 1 per node) and the round plays under the NIGHT theme whatever theme the node drew; what it changes for the player (first guess: darker, riders keep their lights so they are easy to see and hard to place); that it must stay readable by the rules of `docs/ART_DIRECTION.md`
+  - [x] MD5.1 Design note in `docs/MAP_GENERATION.md` (note in `docs/ROADMAP_HISTORY.md`)
   - [ ] MD5.2 The rule in the data: a `night` entry in `modifiers.types` of `data/map_rules.json` with weight 0 and `min_floor` 3; check with `tools/map_check.gd` that every map of a seed is exactly the same as before (a weight of 0 must move nothing, the modifier roll is always drawn)
   - [ ] MD5.3 Apply the theme: when `has_modifier("night")` the round takes the NIGHT theme from `content.gd`, and the next round goes back to its own; check: a round with the modifier plays under NIGHT, a round without it keeps its theme, and the theme of a map's nodes is unchanged
   - [ ] MD5.4 What it feels like: window glow, lamp posts and rider lights at night (`world_dress.gd` already glows windows at dusk and night); a before/after screenshot, riders, phones and pickups still readable, and the frame time inside the budget in `docs/PERFORMANCE_BUDGET.md` on both renderers

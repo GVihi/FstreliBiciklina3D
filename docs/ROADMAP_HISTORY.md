@@ -313,6 +313,12 @@ Checked: new `tools/gadget_check.gd` (the data and unlock, buying at 74 and 75 c
 
 a run starts on a map screen and walks the generated map one node per round: pick the next node (Left / Right or mouse, Enter or click, 1-3), play it, upgrade and shop, back to the map, until the final boss floor; the floor number is the round number so difficulty scaling is unchanged, and `MAX_ROUNDS` follows the map; a run without a map still goes in a line; `enter_map` / `pick_node` / `next_round` in `scripts/main.gd`, `_draw_map_screen` in `scripts/hud.gd`, see `docs/MAP_GENERATION.md`. What each node type DOES is the list below and still open: for now every node plays the ordinary round and the type is only shown. Headless check run 2026-10-27 with Godot 4.7: `map_walk_check` PASSED (`python tools/run_checks.py map_walk`). A person still has to play a run
 
+## Milestone D: Run Map, Relics & Modifiers › Round Modifiers
+
+### MD5.1 Design note for the night modifier (Night modifier)
+
+Built: a design note only, no code: "Round modifiers: night" in `docs/MAP_GENERATION.md`. Decisions: night is one of the node's 0 or 1 modifiers, so it never meets rain or double riders (this answers MD6.6 for night); the round plays under the NIGHT theme whatever theme the node drew, while the node's own `theme` stays in its content, so maps and saves read as before; `round_theme()` in `main.gd` is the one place that changes and it reads `node_setup()` itself, because `plan_riders()` may not have run yet when `start_round` asks for the theme; boss nodes are excluded (their modifier chance is 0.0); the effect is look only, with the existing NIGHT row and no darker value, and riders and bosses keep their rim glow. Open for MD5.2: skip `night` on a node whose theme is already NIGHT (first guess yes, the roll and pick still drawn the same number of times). Checked: nothing run, no code changed; the facts in the note were read from `map_content.gd`, `data/map_rules.json`, `content.gd`, `main.gd` and `docs/ART_DIRECTION.md`.
+
 ## Milestone E: Polish & Accessibility › Onboarding
 
 ### Training room map for the tutorial and for trying a weapon before buying it

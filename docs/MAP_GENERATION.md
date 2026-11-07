@@ -94,6 +94,26 @@ A run starts on the **map screen** (state `map`): it shows the whole map, floor 
 
 The title screen has a CUSTOM SEED page: 8 hex digits at most, the same text the game shows as "RUN SEED". It plays exactly that seed, so the map, the arena and the riders are the ones `tools/viewer/map_viewer.tscn` and `tools/viewer/arena_viewer.tscn` show for it. Such a run is **not ranked** (no normal high score, no Top 10, like a Daily Run) and a restart replays the same seed.
 
+## Round modifiers: night (README MD5.1, design only, nothing of this is built yet)
+
+Today a node carries 0 or 1 modifier from `modifiers.types` in `data/map_rules.json` (`rain` weight 0, `double_riders` weight 50), rolled in `_modifiers` of `scripts/map_content.gd` and read in play with `has_modifier(name)` (`round_modifiers` in `main.gd`). The NIGHT theme is the last row of `Content.THEMES`, and a node already draws a theme of its own (`content["theme"]`), so a node can be night today, but only by chance of the theme draw and the player cannot see it coming as a rule. Night as a modifier makes it a named, shown property of a node.
+
+**What it is.**
+- A node carries `"night"` in its `modifiers` (still 0 or 1 per node, so night never meets rain or double riders, which settles the question of MD6.6 for night). The round then plays under the NIGHT theme **whatever theme the node drew**. The node's own `theme` stays in its content untouched, so the map, the Daily Run and every saved run read the same as before; only the round's theme is replaced.
+- `round_theme()` in `main.gd` is the one place that changes. It reads the modifiers from `node_setup()` itself and does not rely on `round_modifiers`, because `start_round` calls `round_theme()` and `plan_riders()` is not guaranteed to have run first. The theme is found by its name `"NIGHT"` in `Content.THEMES`, not by a fixed index.
+- Not on boss nodes: the boss `chance` in `modifiers` is 0.0, and boss nodes keep the fixed theme of their boss (`boss_theme`). That stays.
+
+**What it changes for the player.** Look only, no rule: the NIGHT theme's own values (dark blue sky, cool ambient light, street lamps on, windows fully lit). Rider speed, rider count, pickups, pay and score are exactly those of the same node without the modifier. First guess for what makes it hard: foes are harder to place in the dark. What keeps it fair: riders and bosses keep their rim glow (`scripts/rim.gd`, `Rim.FOE`), which is the same glow they have in every theme, and no new light or darker value is added.
+
+**Readability rules it must keep** (`docs/ART_DIRECTION.md`): NIGHT stays readable with a medium-dark blue sky and not black, with warm lamps, lit windows and glowing gameplay accents (rule on DUSK and NIGHT); pedestrians against riders are checked at distance in NIGHT (the pedestrian rule); the far visibility of foes and thrown phones (README F5) must still hold. The modifier uses the existing NIGHT row and never a darker one, so these rules are already the ones the theme was checked against; MD5.4 looks at it again in play.
+
+**Open points, with a first guess each.**
+1. A node whose drawn theme is already NIGHT would get a modifier that changes nothing. First guess: such a node is not offered `night` (the modifier is skipped in the allowed list for that node, while the roll and the pick are still drawn the same number of times, so no other node moves). Decided in MD5.2, with the check.
+2. Whether night should also dim the arena a little more than the theme (no, first guess: not in this item; "no pitch black" stays true and a deeper night is a later modifier idea for MD7.1).
+3. Frame time: the theme only swaps lights and colours, so the cost should be that of a NIGHT-themed node today; MD5.4 measures it on both renderers against `docs/PERFORMANCE_BUDGET.md`.
+
+**Order of the next steps.** MD5.2 adds the data entry with weight 0 (a weight of 0 must move no map of any seed), MD5.3 applies the theme, MD5.4 is the look and the screenshot, MD5.5 shows NIGHT on the map screen, the round banner and the pause menu, MD5.6 turns the weight on (first guess 20, `min_floor` 3).
+
 ## Open points for Milestone D and balance
 
 - A fight now gives an upgrade pick and no shop (alpha B1); the shop is a node, so it appears on only some paths and the cash from a round waits for it (the map screen shows the cash). The economy and the upgrade pacing need a balance pass (alpha D2, D3; compare the Milestone I balance item). A run without a map has no shop nodes, so it keeps the old order: upgrade pick, then shop.
