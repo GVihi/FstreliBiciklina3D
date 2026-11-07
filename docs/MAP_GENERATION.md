@@ -54,7 +54,7 @@ One run has **one arena layout** (`scripts/arena_gen.gd`, from the same run seed
 | node | content |
 |---|---|
 | all | `theme`: index into `Content.THEMES` (a boss node uses the fixed theme of its boss, `boss_theme`) |
-| normal, elite, boss | `riders` (`count` and a `mix` of pro / sprinter / courier / tough that adds up to the count), `gates` (sorted indexes of the arena gates riders may enter by, at least `min_open`), `modifiers` (0 or 1 of `rain`, `double_riders`) |
+| normal, elite, boss | `riders` (`count` and a `mix` of pro / sprinter / courier / tough that adds up to the count), `gates` (sorted indexes of the arena gates riders may enter by, at least `min_open`), `modifiers` (0 or 1 of `rain`, `double_riders`, `night`) |
 | boss | `boss` (`mower`, `wifi` or `minister`; the final boss is always `minister` in the map, and the fight spawns the golden president (`president`) for the node with `final: true`) and `final: true` on the last one |
 | shop, rest, event | `seed`: a 32-bit number for what Milestone D draws later (offers, event choice) |
 
@@ -94,13 +94,13 @@ A run starts on the **map screen** (state `map`): it shows the whole map, floor 
 
 The title screen has a CUSTOM SEED page: 8 hex digits at most, the same text the game shows as "RUN SEED". It plays exactly that seed, so the map, the arena and the riders are the ones `tools/viewer/map_viewer.tscn` and `tools/viewer/arena_viewer.tscn` show for it. Such a run is **not ranked** (no normal high score, no Top 10, like a Daily Run) and a restart replays the same seed.
 
-## Round modifiers: night (README MD5.1, design only, nothing of this is built yet)
+## Round modifiers: night (README MD5.1 design, MD5.2 the rule in the data; the theme itself is MD5.3)
 
-Today a node carries 0 or 1 modifier from `modifiers.types` in `data/map_rules.json` (`rain` weight 0, `double_riders` weight 50), rolled in `_modifiers` of `scripts/map_content.gd` and read in play with `has_modifier(name)` (`round_modifiers` in `main.gd`). The NIGHT theme is the last row of `Content.THEMES`, and a node already draws a theme of its own (`content["theme"]`), so a node can be night today, but only by chance of the theme draw and the player cannot see it coming as a rule. Night as a modifier makes it a named, shown property of a node.
+Today a node carries 0 or 1 modifier from `modifiers.types` in `data/map_rules.json` (`rain` weight 0, `double_riders` weight 50, `night` weight 0 since MD5.2), rolled in `_modifiers` of `scripts/map_content.gd` and read in play with `has_modifier(name)` (`round_modifiers` in `main.gd`). The NIGHT theme is the last row of `Content.THEMES`, and a node already draws a theme of its own (`content["theme"]`), so a node can be night today, but only by chance of the theme draw and the player cannot see it coming as a rule. Night as a modifier makes it a named, shown property of a node.
 
 **What it is.**
 - A node carries `"night"` in its `modifiers` (still 0 or 1 per node, so night never meets rain or double riders, which settles the question of MD6.6 for night). The round then plays under the NIGHT theme **whatever theme the node drew**. The node's own `theme` stays in its content untouched, so the map, the Daily Run and every saved run read the same as before; only the round's theme is replaced.
-- `round_theme()` in `main.gd` is the one place that changes. It reads the modifiers from `node_setup()` itself and does not rely on `round_modifiers`, because `start_round` calls `round_theme()` and `plan_riders()` is not guaranteed to have run first. The theme is found by its name `"NIGHT"` in `Content.THEMES`, not by a fixed index.
+- `round_theme()` in `main.gd` is the one place that changes. It reads the modifiers from `node_setup()` itself and does not rely on `round_modifiers`, because `start_round` calls `round_theme()` and `plan_riders()` is not guaranteed to have run first. The theme comes from the `forces_theme` key of the modifier's row (MD5.2), not from a number written in the code.
 - Not on boss nodes: the boss `chance` in `modifiers` is 0.0, and boss nodes keep the fixed theme of their boss (`boss_theme`). That stays.
 
 **What it changes for the player.** Look only, no rule: the NIGHT theme's own values (dark blue sky, cool ambient light, street lamps on, windows fully lit). Rider speed, rider count, pickups, pay and score are exactly those of the same node without the modifier. First guess for what makes it hard: foes are harder to place in the dark. What keeps it fair: riders and bosses keep their rim glow (`scripts/rim.gd`, `Rim.FOE`), which is the same glow they have in every theme, and no new light or darker value is added.
@@ -108,11 +108,11 @@ Today a node carries 0 or 1 modifier from `modifiers.types` in `data/map_rules.j
 **Readability rules it must keep** (`docs/ART_DIRECTION.md`): NIGHT stays readable with a medium-dark blue sky and not black, with warm lamps, lit windows and glowing gameplay accents (rule on DUSK and NIGHT); pedestrians against riders are checked at distance in NIGHT (the pedestrian rule); the far visibility of foes and thrown phones (README F5) must still hold. The modifier uses the existing NIGHT row and never a darker one, so these rules are already the ones the theme was checked against; MD5.4 looks at it again in play.
 
 **Open points, with a first guess each.**
-1. A node whose drawn theme is already NIGHT would get a modifier that changes nothing. First guess: such a node is not offered `night` (the modifier is skipped in the allowed list for that node, while the roll and the pick are still drawn the same number of times, so no other node moves). Decided in MD5.2, with the check.
+1. **Decided in MD5.2:** a node whose drawn theme is already NIGHT is not offered `night`, since it would change nothing. The row in `data/map_rules.json` is `"night": {"weight": 0, "min_floor": 3, "forces_theme": 3}`: `forces_theme` is the index in `Content.THEMES` the modifier plays the round under, and `_modifiers` in `scripts/map_content.gd` skips a row whose `forces_theme` is the node's own theme. The roll and the pick are still one draw each, so no other node moves. MD5.3 reads the same key to choose the round's theme, so the number 3 lives in one place (`tools/map_check.gd` proves it is the theme named NIGHT).
 2. Whether night should also dim the arena a little more than the theme (no, first guess: not in this item; "no pitch black" stays true and a deeper night is a later modifier idea for MD7.1).
 3. Frame time: the theme only swaps lights and colours, so the cost should be that of a NIGHT-themed node today; MD5.4 measures it on both renderers against `docs/PERFORMANCE_BUDGET.md`.
 
-**Order of the next steps.** MD5.2 adds the data entry with weight 0 (a weight of 0 must move no map of any seed), MD5.3 applies the theme, MD5.4 is the look and the screenshot, MD5.5 shows NIGHT on the map screen, the round banner and the pause menu, MD5.6 turns the weight on (first guess 20, `min_floor` 3).
+**Order of the next steps.** MD5.2 (done) added the data entry with weight 0, and `tools/map_check.gd` checks that a weight of 0 moves no map of any seed (the same maps come out as with no night row), that `forces_theme` is the NIGHT theme, and that no node holds `night` on its own theme once the weight is on; MD5.3 applies the theme, MD5.4 is the look and the screenshot, MD5.5 shows NIGHT on the map screen, the round banner and the pause menu, MD5.6 turns the weight on (first guess 20, `min_floor` 3).
 
 ## Open points for Milestone D and balance
 

@@ -47,6 +47,7 @@ func _init() -> void:
 	_check_validator(rules)
 	_check_retry(rules)
 	_check_content_streams(rules)
+	_check_night_rule(rules, count)
 	_check_content_text(rules)
 	if problems.is_empty():
 		print(
@@ -183,7 +184,9 @@ func _check_content(seed_value: int, map: Dictionary, rules: Dictionary, gates: 
 				_fail(seed_value, "%s is a fight but has a seed" % where)
 			_check_riders(seed_value, where, f + 1, t, c.get("riders", {}), crules)
 			_check_gates(seed_value, where, c.get("gates", []), gates, crules)
-			_check_modifiers(seed_value, where, f + 1, t, c.get("modifiers", []), crules)
+			_check_modifiers(
+				seed_value, where, f + 1, t, c.get("modifiers", []), int(c.get("theme", -1)), crules
+			)
 			_check_boss(seed_value, where, f + 1, t, c, crules)
 
 
@@ -232,7 +235,13 @@ func _check_gates(
 
 
 func _check_modifiers(
-	seed_value: int, where: String, floor_no: int, t: String, mods: Array, crules: Dictionary
+	seed_value: int,
+	where: String,
+	floor_no: int,
+	t: String,
+	mods: Array,
+	theme: int,
+	crules: Dictionary
 ) -> void:
 	var mrules = crules["modifiers"]
 	if mods.size() > 1:
@@ -248,6 +257,14 @@ func _check_modifiers(
 			_fail(
 				seed_value,
 				"%s has '%s' before floor %s" % [where, m, mrules["types"][m]["min_floor"]]
+			)
+		elif (
+			mrules["types"][m].has("forces_theme")
+			and int(mrules["types"][m]["forces_theme"]) == theme
+		):
+			_fail(
+				seed_value,
+				"%s has '%s' on the theme it forces (it would change nothing)" % [where, m]
 			)
 
 
@@ -456,3 +473,40 @@ func _check_content_text(rules: Dictionary) -> void:
 		_fail(99, "content_text printed %d lines for %d nodes" % [lines.size(), nodes])
 	if not lines[lines.size() - 1].contains("minister FINAL"):
 		_fail(99, "content_text does not end with the final boss")
+
+
+# README MD5.2: the `night` modifier row. Its `forces_theme` is the NIGHT theme, and while its weight is 0 it moves
+# nothing: every map of a seed is exactly the map the rules give with no night row at all (the modifier roll is
+# always drawn, and a weight of 0 takes no share of it). When the weight is turned on (MD5.6) the second part no
+# longer applies and is skipped.
+func _check_night_rule(rules: Dictionary, count: int) -> void:
+	var types = rules["content"]["modifiers"]["types"]
+	if not types.has("night"):
+		problems.append(
+			"night rule: there is no night row in modifiers.types of data/map_rules.json"
+		)
+		return
+	var row = types["night"]
+	var theme = int(row.get("forces_theme", -1))
+	if theme < 0 or theme >= Content.THEMES.size() or str(Content.THEMES[theme]["name"]) != "NIGHT":
+		problems.append(
+			"night rule: forces_theme %d is not the NIGHT theme of Content.THEMES" % theme
+		)
+	if int(row["min_floor"]) < 1:
+		problems.append("night rule: min_floor must be 1 or more")
+	if int(row["weight"]) != 0:
+		return
+	var without = rules.duplicate(true)
+	without["content"]["modifiers"]["types"].erase("night")
+	for n in range(mini(count, 400)):
+		var seed_value = (n * 2654435761 + 12345) & 0xFFFFFFFF
+		var a = JSON.stringify(MapGen.generate(seed_value, rules, _gates_for(seed_value)), "", true)
+		var b = JSON.stringify(
+			MapGen.generate(seed_value, without, _gates_for(seed_value)), "", true
+		)
+		if a != b:
+			_fail(
+				seed_value,
+				"night has weight 0 but the map differs from the one without a night row"
+			)
+			return
