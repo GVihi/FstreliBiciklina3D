@@ -296,7 +296,7 @@ Mostly vibe coded Godot game
   - [ ] MD5.6 Turn it on: the weight goes from 0 to a first guess of 20, `docs/MAP_GENERATION.md` and the numbers in `tools/map_check.gd` follow; a run with the bot harness on 8 seeds still ends **Status 2026-11-07: weight set to 20, docs and `tools/map_check.gd` done; the box stays open until the bot harness has played 8 seeds (`godot --headless --path . --script res://tools/bot_run.gd -- --seeds 8`; no Godot in the session that did the rest) and `python tools/run_checks.py map` has passed once**
 
 - [ ] Rain modifier (nodes can carry it, but it has no effect; switched off in alpha B5)
-  - [ ] MD6.1 Design note in `docs/MAP_GENERATION.md`: what rain does (first guess: rain and wet look, a rain sound, and one small rule such as a longer dash slide or slower riders at corners; no effect that makes a round unfair), checked against `docs/ART_DIRECTION.md`
+  - [x] MD6.1 Design note in `docs/MAP_GENERATION.md` (note in `docs/ROADMAP_HISTORY.md`)
   - [ ] MD6.2 The look: rain drawn over the generated arena (particles near the camera, a darker sky and a wet ground), one scene part that is switched off with no rain; a screenshot, and the frame time inside the budget on both renderers
   - [ ] MD6.3 The sound: a rain loop made with `tools/bake_audio.py`, started and stopped with the round (a loop is stopped on every way out of a round: clear, death, quit, practice); check that no loop plays after the round
   - [ ] MD6.4 The rule: the small effect of MD6.1 applied in one place, read through `has_modifier("rain")`; check: it changes only in a rain round and a round without rain is exactly as before
