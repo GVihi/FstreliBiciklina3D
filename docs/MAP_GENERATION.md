@@ -142,7 +142,9 @@ A node can already carry `rain` (`modifiers.types` in `data/map_rules.json`, wei
 3. Splashes where the rain hits the ground, and wet reflections of lamps, are left out of this item.
 4. Weight and first floor: MD6.5 turns it on at a first guess of 20 with `min_floor` 3 (as night), next to `double_riders` 50 and `night` 20, so a rain node is about 22% of the modifiers from floor 4 and 50% of them on floor 3 beside night (before `forces_theme` skips, which only concern night).
 
-**Order of the next steps.** MD6.2 the look, MD6.3 the sound, MD6.4 the rule, MD6.5 the names on the map screen, banner and pause menu (already built generically in MD5.5, so only the weight and the docs are left) and the weight, MD6.6 closed by this note.
+**MD6.4 status:** built as designed. `pursuit_accel()` in `scripts/riders.gd` returns `PURSUIT_ACCEL` times `RAIN_GRIP` (0.8) when `has_modifier("rain")`, and the three places that read the sideways acceleration use it; `tools/rider_pursuit_check.gd` (`_check_rain`) checks that nothing else changes, that the turn rate and the give-up speed follow it, and runs the chase, post and give-up checks again in rain.
+
+**Order of the next steps.** MD6.2 the look, MD6.3 the sound, MD6.4 the rule (done), MD6.5 the names on the map screen, banner and pause menu (already built generically in MD5.5, so only the weight and the docs are left) and the weight, MD6.6 closed by this note.
 
 ## Open points for Milestone D and balance
 

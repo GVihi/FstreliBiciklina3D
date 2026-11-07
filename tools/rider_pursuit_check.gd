@@ -54,6 +54,7 @@ func _init() -> void:
 	summary += _check_give_up()
 	summary += _check_give_up_close()
 	summary += _check_roundabout_unchanged()
+	summary += _check_rain()
 	_finish(summary)
 
 
@@ -430,3 +431,53 @@ func _check_roundabout_unchanged() -> String:
 	if round_arena.rider_speed_at(Vector3(3.0, 0.0, 4.0)) != 1.0:
 		bad.append("the roundabout changed a rider's speed on open ground")
 	return "\n  roundabout: still lane steering"
+
+
+# README MD6.4: the rain modifier. Only the sideways acceleration changes (RAIN_GRIP of PURSUIT_ACCEL, read through
+# riders.pursuit_accel()), only in a round with "rain": another modifier or none gives exactly the dry numbers, the
+# turn rate, the speed cap of a rider that gave up and the look for obstacles follow it, and a rider in rain still
+# chases, passes, turns back, avoids a post and gives up the way a dry one does (the same checks, run again).
+func _check_rain() -> String:
+	var rs = main.rider_sys
+	var saved = main.round_modifiers
+	for mods in [[], ["double_riders"], ["night"]]:
+		main.round_modifiers = mods
+		if rs.pursuit_accel() != rs.PURSUIT_ACCEL:
+			bad.append("rain: modifiers %s changed the sideways acceleration" % str(mods))
+		if rs.pursuit_turn_rate(10.0) != minf(rs.PURSUIT_MAX_TURN, rs.PURSUIT_ACCEL / 10.0):
+			bad.append("rain: modifiers %s changed the turn rate" % str(mods))
+	main.round_modifiers = ["rain"]
+	var want = rs.PURSUIT_ACCEL * rs.RAIN_GRIP
+	if absf(rs.pursuit_accel() - want) > 0.0001:
+		bad.append(
+			"rain: the sideways acceleration is %f, expected %f" % [rs.pursuit_accel(), want]
+		)
+	if rs.RAIN_GRIP >= 1.0 or rs.RAIN_GRIP <= 0.3:
+		bad.append(
+			"rain: RAIN_GRIP %f is not a small loss of grip (more than 0.3, under 1)" % rs.RAIN_GRIP
+		)
+	var dry_rate = minf(rs.PURSUIT_MAX_TURN, rs.PURSUIT_ACCEL / 12.0)
+	if not rs.pursuit_turn_rate(12.0) < dry_rate:
+		bad.append("rain: a rider at 12 m/s turns no wider in rain than dry")
+	var r = _new_rider(0)
+	r["pos"] = Vector3(-10.0, 0.0, 0.0)
+	r["away_gate"] = 0
+	var wet_cap = rs.away_speed_cap(r)
+	main.round_modifiers = []
+	var dry_cap = rs.away_speed_cap(r)
+	main.round_modifiers = ["rain"]
+	if wet_cap > dry_cap + 0.0001:
+		bad.append(
+			(
+				"rain: a rider that gave up may go faster in rain (%f) than dry (%f)"
+				% [wet_cap, dry_cap]
+			)
+		)
+	main.riders.erase(r)
+	main.free_rider(r)
+	var out = ""
+	out += _check_chase().replace("chase:", "chase in rain:")
+	out += _check_avoidance().replace("post:", "post in rain:")
+	out += _check_give_up().replace("give up:", "give up in rain:")
+	main.round_modifiers = saved
+	return out

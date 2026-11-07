@@ -299,7 +299,7 @@ Mostly vibe coded Godot game
   - [x] MD6.1 Design note in `docs/MAP_GENERATION.md` (note in `docs/ROADMAP_HISTORY.md`)
   - [ ] MD6.2 The look: rain drawn over the generated arena (particles near the camera, a darker sky and a wet ground), one scene part that is switched off with no rain; a screenshot, and the frame time inside the budget on both renderers
   - [ ] MD6.3 The sound: a rain loop made with `tools/bake_audio.py`, started and stopped with the round (a loop is stopped on every way out of a round: clear, death, quit, practice); check that no loop plays after the round
-  - [ ] MD6.4 The rule: the small effect of MD6.1 applied in one place, read through `has_modifier("rain")`; check: it changes only in a rain round and a round without rain is exactly as before
+  - [x] MD6.4 The rule (note in `docs/ROADMAP_HISTORY.md`; written in a session without Godot, only gdformat and gdlint were run, so run `python tools/run_checks.py rider_pursuit round_clear` once; the factor 0.8 is a first guess for the harness)
   - [ ] MD6.5 Show it and turn it on: RAIN on the map screen, the banner and the pause menu; the weight in `data/map_rules.json` goes from 0 to a first guess of 20 (`min_floor` 3 stays), docs and `tools/map_check.gd` numbers follow
   - [ ] MD6.6 Night and rain together: decide whether a node can carry two modifiers (today 0 or 1, in `map_content.gd`); first guess is no, so MD5 and MD6 never meet, and the answer goes in `docs/MAP_GENERATION.md`
 
