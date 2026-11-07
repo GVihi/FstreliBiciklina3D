@@ -234,26 +234,82 @@ Mostly vibe coded Godot game
 
 > Finished sections and ticked items of this milestone moved to [`docs/COMPLETED_MILESTONES.md`](docs/COMPLETED_MILESTONES.md) on 2026-10-29, under "Milestone D: Run Map, Relics & Modifiers". Only what is still open stays here.
 
+> **Broken into chunks (2026-11-07).** Every open item below is split into steps with ids MD1 to MD7 (to tell them from the alpha ids D1 to D3 in `docs/ALPHA_ROADMAP.md`). One chunk per session and one branch per chunk, top to bottom inside an item. **Suggested order of work:** Round Modifiers first (MD5 night, MD6 rain, MD7 more modifiers: small, no new screens), then Relics (MD2, MD3), then Curses (MD4: a curse is a relic with a price), and Event (MD1) last, because its choices hand out relics, curses, coins and hearts. The items stay in the order of the file; the ids say which belongs to which. Assumed, to tune or change by saying so: (1) everything a run draws here (relic offers, curses, the event of a node) comes from its own stream of the run seed (`DailyScript.stream_seed`), so a seed gives the same offers every time and no stream of the map, the arena or the riders moves; (2) the Daily Run gets all of it, and stays Heat 0; (3) what a run holds (relics, curses) is saved in `run.json` (`docs/SAVE_FILES.md`), an old file reads as holding none; (4) every chunk has a check (`tools/<name>_check.gd`, picked up by `python tools/run_checks.py`), and **a run with no relic, no curse, no event and no new modifier must give the same numbers as before** (that check is the safety net for the whole milestone); (5) tables go in `data/*.json` like `data/perks.json`, with the format in `data/README.md`, so adding one later is an edit of a file.
+
 ## Run Structure
 
 ### Map Nodes
 
 - [ ] Event (left out of the alpha, event weight set to 0 in alpha B5)
+  - [ ] MD1.1 Design note, no code (`docs/EVENTS.md`): an event node is a screen like the shop and the rest node (`SCREEN_NODES` in `main.gd`, no arena, no riders), with a short text and 2 to 3 choices that each show their cost and reward in plain words; the first list of about 6 events, one line each (a trade, a gamble, a free pick with a catch); which rewards exist before relics and curses do (cash, a heart, ammo) and which wait for MD2 and MD4; whether a choice can be refused (assumed: a LEAVE button always exists)
+  - [ ] MD1.2 The table: `data/events.json` (format in `data/README.md`), `scripts/events.gd` loads and cleans it the way `heat.gd` does (a bad entry is dropped with a message); `tools/events_check.gd` reads the shipped file and a made-up bad one (no choice, unknown effect, a cost nobody can pay)
+  - [ ] MD1.3 Pick the event of a node: from the node's own `seed` (already in its content, see `docs/MAP_GENERATION.md`), the floor and what the run holds, so the same node shows the same event every time and a node never offers a choice the player cannot make; check over many seeds: the same event twice, no event twice on one map where the table has enough
+  - [ ] MD1.4 The screen: a new state "event" entered by `pick_node` next to `enter_shop` and `enter_rest`, drawn in `hud.gd`, keyboard, gamepad and mouse like the rest node (note: written in a session without Godot means one in-game look by the owner); check in the style of `tools/rest_node_check.gd`, and the screen rendered at 1280x720 and looked at
+  - [ ] MD1.5 The effects: a choice changes cash, hearts or ammo in one function (`events.gd`), never in the screen code; effects that need relics or curses are listed in the table but refused until MD2 and MD4 exist; check: every effect of the file changes exactly what it says and nothing else
+  - [ ] MD1.6 Leave the node: the event ends on the map screen, whose checkpoint is what a saved run continues from (same as the rest node); check with `tools/run_save_check.gd` that CONTINUE after an event node gives the run back
+  - [ ] MD1.7 Turn it on: the `event` weight in `data/map_rules.json` goes from 0 to a first guess of 10 (its `min_floor` 2 and `max_per_map` 3 stay), `docs/MAP_GENERATION.md` and the numbers in `tools/map_check.gd` follow; extend `tools/node_types_run_check.gd` so a run through an event node still continues; `docs/ALPHA_NOTES.md` stops saying event nodes are off
+  - [ ] MD1.8 Playtest: a whole run with the bot harness (it leaves an event with the LEAVE button) at the new weight, and the in-game look at the `?` node on the map screen
 
 ## Relics
 
 - [ ] Implement relic system
+  - [ ] MD2.1 Design note, no code (`docs/RELICS.md`): what a relic is next to a perk (`data/perks.json`, chosen before a run) and an upgrade (`Content.UPGRADES`, picked after a round): assumed a relic lasts the whole run, is found and not bought, and has a rarity; where they come from (first guess: a pick after an elite node and after a boss, later events and the shop); how many can be held (assumed no limit at first); that no relic is offered twice in a run; the effects a relic may have in this item (numbers only, the rule changers are MD3); the questions for the owner at the end
+  - [ ] MD2.2 The table and the holder: `data/relics.json` (id, name, one line of text, rarity, effects), `scripts/relics.gd` loads it, `Main.relics` holds the ids of the run (cleared in `reset_run`), `has_relic(id)`; this is also the item "Make relic additions easier" under "Technical Refactor, Future-Proofing" at the end of this file (tick both); `tools/relics_check.gd` reads the shipped file and a made-up bad one
+  - [ ] MD2.3 One lookup for numbers: `Relics.factor(key)` returns the product of the relics that change that key and 1.0 with none, the way `Heat.value` does, so each effect is applied where it plays out and nowhere else; check: with no relic every key is neutral
+  - [ ] MD2.4 The offers: 3 relics drawn with `offer_shuffle` (depends only on the run seed, the round and a part name, here "relic"), never one the run holds, never past the table; check: the same seed gives the same three, the Daily Run gives everybody the same three
+  - [ ] MD2.5 The pick: a relic screen after an elite node and after a boss, reusing the upgrade screen (`state = "upgrade"` with `upgrade_part = "relic"`, the way an elite's second pick works), with keyboard, gamepad and mouse; check: a pick adds exactly one relic and leaves on the map; nothing is offered when the table is out
+  - [ ] MD2.6 The first set: 6 to 8 relics that only change numbers (for example dart damage, dash cooldown, cash from drops, heart drop chance), each one a line in the file and one effect applied through `Relics.factor`; check: for every relic of the file the value it names is no longer neutral and a run with it plays clean on 4 seeds (`tools/generated_run_check.gd` style)
+  - [ ] MD2.7 Show them: the relics on the run bar and the pause menu as short text chips (written out, not only an icon or a colour), a line on the run summary, and the relic named on the pick screen; in-game look by the owner
+  - [ ] MD2.8 Save them: `relics` in `run.json` and `docs/SAVE_FILES.md`, an old file reads as none; check in `tools/run_save_check.gd`: CONTINUE gives the same relics back and an offer made before saving is the same after
+  - [ ] MD2.9 Playtest: the bot harness takes the first relic offered (a `--relics` argument, off by default so the old numbers stay comparable) and the table of a run with and without relics is looked at
+
 - [ ] Add rule-changing relic effects
+  - [ ] MD3.1 Design note in `docs/RELICS.md`: 10 to 12 ideas, one line each, of relics that change a rule and not a number (for example a dash that hurts what it passes through, a dart that bounces, a heart on a streak); which hook each one needs; the first 4 to build; which pairs fight each other
+  - [ ] MD3.2 The hooks: one small dispatcher in `relics.gd` that the game calls at a few named moments (round start, a kill, damage taken, a dash, a round clear), so no relic code is scattered through `combat.gd`, `riders.gd` and `player.gd`; check: with no relic the dispatcher does nothing, and each hook is called exactly once per moment
+  - [ ] MD3.3 First rule-changing relic: the hook it needs, the entry in the file, its check
+  - [ ] MD3.4 Second rule-changing relic, the same way
+  - [ ] MD3.5 Third rule-changing relic, the same way
+  - [ ] MD3.6 Fourth rule-changing relic, the same way
+  - [ ] MD3.7 Clashing pairs: two relics that cannot be held together are listed in the file with the reason (like the Heat clashes) and the offer draw skips the second one; check over many seeds that no run holds a clashing pair
+  - [ ] MD3.8 Check and playtest: every relic of the file alone and all of them in one run through the scripted run, no script error and every rider and boss still finite; then a balance pass with the bot harness (and the numbers of MD2.9)
 
 ## Curses
 
 - [ ] Add risk/reward curse system
+  - [ ] MD4.1 Design note, no code (`docs/CURSES.md`): what a curse is (assumed: a downside the player takes on purpose for a reward, held until the run ends or it is lifted); where it comes from (first guess: a third choice on the relic pick, "TAKE A CURSE, GET A BETTER RELIC", and event choices); whether and how one is lifted (assumed a rest node choice or a shop item, to decide); a cap on curses held; that curses do not count as Heat (Heat is chosen before the run, a curse during it), to confirm; the questions for the owner
+  - [ ] MD4.2 The table and the holder: `data/curses.json`, `Main.curses` (cleared in `reset_run`), `Curses.factor(key)` neutral with none, the same shape as relics so the two can share code; `tools/curses_check.gd`
+  - [ ] MD4.3 The first 4 curses, numbers only (for example fewer darts from drops, a higher shop price, a faster rider), each applied where it plays out; check: every curse of the file changes the value it names and a run with it plays clean
+  - [ ] MD4.4 Take one for a reward: the third choice on the relic pick (MD2.5) offers a better relic (a rarity up) for a curse, both shown in full on the button; check: taking it adds exactly one relic and one curse, refusing adds neither
+  - [ ] MD4.5 Lift one: the way chosen in MD4.1 (a rest node choice or a shop item), with its price; check: the curse is gone, the price is paid once, nothing is offered when there is no curse
+  - [ ] MD4.6 Show and save them: curses on the run bar, pause menu and run summary written out and told apart from relics by their text, not only by colour; `curses` in `run.json`, an old file reads as none; check in `tools/run_save_check.gd`
+  - [ ] MD4.7 Event hook: the event effects of MD1.5 that give or take a curse are switched on (needs MD1 and MD4.2)
+  - [ ] MD4.8 Playtest: the bot harness takes the curse option (`--curses`, off by default) and the table with and without curses is looked at, so a curse is a real risk and a real reward
 
 ## Round Modifiers
 
 - [ ] Night modifier (the NIGHT theme exists and nodes use it, but not as a modifier a node can add)
+  - [ ] MD5.1 Design note in `docs/MAP_GENERATION.md`: night as a modifier means a node carries `night` in its `modifiers` (still 0 or 1 per node) and the round plays under the NIGHT theme whatever theme the node drew; what it changes for the player (first guess: darker, riders keep their lights so they are easy to see and hard to place); that it must stay readable by the rules of `docs/ART_DIRECTION.md`
+  - [ ] MD5.2 The rule in the data: a `night` entry in `modifiers.types` of `data/map_rules.json` with weight 0 and `min_floor` 3; check with `tools/map_check.gd` that every map of a seed is exactly the same as before (a weight of 0 must move nothing, the modifier roll is always drawn)
+  - [ ] MD5.3 Apply the theme: when `has_modifier("night")` the round takes the NIGHT theme from `content.gd`, and the next round goes back to its own; check: a round with the modifier plays under NIGHT, a round without it keeps its theme, and the theme of a map's nodes is unchanged
+  - [ ] MD5.4 What it feels like: window glow, lamp posts and rider lights at night (`world_dress.gd` already glows windows at dusk and night); a before/after screenshot, riders, phones and pickups still readable, and the frame time inside the budget in `docs/PERFORMANCE_BUDGET.md` on both renderers
+  - [ ] MD5.5 Show it: a node with the modifier says NIGHT on the map screen, in the round start banner and in the pause menu; in-game look by the owner
+  - [ ] MD5.6 Turn it on: the weight goes from 0 to a first guess of 20, `docs/MAP_GENERATION.md` and the numbers in `tools/map_check.gd` follow; a run with the bot harness on 8 seeds still ends
+
 - [ ] Rain modifier (nodes can carry it, but it has no effect; switched off in alpha B5)
+  - [ ] MD6.1 Design note in `docs/MAP_GENERATION.md`: what rain does (first guess: rain and wet look, a rain sound, and one small rule such as a longer dash slide or slower riders at corners; no effect that makes a round unfair), checked against `docs/ART_DIRECTION.md`
+  - [ ] MD6.2 The look: rain drawn over the generated arena (particles near the camera, a darker sky and a wet ground), one scene part that is switched off with no rain; a screenshot, and the frame time inside the budget on both renderers
+  - [ ] MD6.3 The sound: a rain loop made with `tools/bake_audio.py`, started and stopped with the round (a loop is stopped on every way out of a round: clear, death, quit, practice); check that no loop plays after the round
+  - [ ] MD6.4 The rule: the small effect of MD6.1 applied in one place, read through `has_modifier("rain")`; check: it changes only in a rain round and a round without rain is exactly as before
+  - [ ] MD6.5 Show it and turn it on: RAIN on the map screen, the banner and the pause menu; the weight in `data/map_rules.json` goes from 0 to a first guess of 20 (`min_floor` 3 stays), docs and `tools/map_check.gd` numbers follow
+  - [ ] MD6.6 Night and rain together: decide whether a node can carry two modifiers (today 0 or 1, in `map_content.gd`); first guess is no, so MD5 and MD6 never meet, and the answer goes in `docs/MAP_GENERATION.md`
+
 - [ ] Additional modifier ideas
+  - [ ] MD7.1 Collect the ideas in `docs/MODIFIERS.md`: 10 one-liners, each with what it does, which rule it touches, how the player counters it and a rough cost to build (for example fog, a rider swarm from one gate, a round with no pickups, a round with a timer, slippery ground); the first 3 to build
+  - [ ] MD7.2 Write down how a modifier is added (in `docs/MAP_GENERATION.md`): an entry in `modifiers.types`, one read through `has_modifier` where it plays out, a banner line, a check; list the hooks that exist today (`double_riders` in `plan_riders`, `riders.gd`) so a new one needs no change in the map code
+  - [ ] MD7.3 First modifier from the list of MD7.1: the rule, the banner, its check, weight 0 until MD7.6
+  - [ ] MD7.4 Second modifier, the same way
+  - [ ] MD7.5 Third modifier, the same way
+  - [ ] MD7.6 Turn them on: weights and `min_floor` in `data/map_rules.json`, docs and `tools/map_check.gd` numbers; a run through every modifier alone on the scripted run (`tools/generated_run_check.gd`) and a balance pass with the bot harness
 
 ---
 
