@@ -290,7 +290,7 @@ Mostly vibe coded Godot game
 - [ ] Night modifier (the NIGHT theme exists and nodes use it, but not as a modifier a node can add)
   - [x] MD5.1 Design note in `docs/MAP_GENERATION.md` (note in `docs/ROADMAP_HISTORY.md`)
   - [x] MD5.2 The rule in the data (note in `docs/ROADMAP_HISTORY.md`; not run here, no Godot: run `python tools/run_checks.py map` once)
-  - [ ] MD5.3 Apply the theme: when `has_modifier("night")` the round takes the NIGHT theme from `content.gd`, and the next round goes back to its own; check: a round with the modifier plays under NIGHT, a round without it keeps its theme, and the theme of a map's nodes is unchanged
+  - [x] MD5.3 Apply the theme (note in `docs/ROADMAP_HISTORY.md`; not run here, no Godot: run `python tools/run_checks.py node_setup` once)
   - [ ] MD5.4 What it feels like: window glow, lamp posts and rider lights at night (`world_dress.gd` already glows windows at dusk and night); a before/after screenshot, riders, phones and pickups still readable, and the frame time inside the budget in `docs/PERFORMANCE_BUDGET.md` on both renderers
   - [ ] MD5.5 Show it: a node with the modifier says NIGHT on the map screen, in the round start banner and in the pause menu; in-game look by the owner
   - [ ] MD5.6 Turn it on: the weight goes from 0 to a first guess of 20, `docs/MAP_GENERATION.md` and the numbers in `tools/map_check.gd` follow; a run with the bot harness on 8 seeds still ends

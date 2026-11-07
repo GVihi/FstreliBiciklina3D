@@ -94,7 +94,7 @@ A run starts on the **map screen** (state `map`): it shows the whole map, floor 
 
 The title screen has a CUSTOM SEED page: 8 hex digits at most, the same text the game shows as "RUN SEED". It plays exactly that seed, so the map, the arena and the riders are the ones `tools/viewer/map_viewer.tscn` and `tools/viewer/arena_viewer.tscn` show for it. Such a run is **not ranked** (no normal high score, no Top 10, like a Daily Run) and a restart replays the same seed.
 
-## Round modifiers: night (README MD5.1 design, MD5.2 the rule in the data; the theme itself is MD5.3)
+## Round modifiers: night (README MD5.1 design, MD5.2 the rule in the data, MD5.3 the theme in play)
 
 Today a node carries 0 or 1 modifier from `modifiers.types` in `data/map_rules.json` (`rain` weight 0, `double_riders` weight 50, `night` weight 0 since MD5.2), rolled in `_modifiers` of `scripts/map_content.gd` and read in play with `has_modifier(name)` (`round_modifiers` in `main.gd`). The NIGHT theme is the last row of `Content.THEMES`, and a node already draws a theme of its own (`content["theme"]`), so a node can be night today, but only by chance of the theme draw and the player cannot see it coming as a rule. Night as a modifier makes it a named, shown property of a node.
 
@@ -112,7 +112,7 @@ Today a node carries 0 or 1 modifier from `modifiers.types` in `data/map_rules.j
 2. Whether night should also dim the arena a little more than the theme (no, first guess: not in this item; "no pitch black" stays true and a deeper night is a later modifier idea for MD7.1).
 3. Frame time: the theme only swaps lights and colours, so the cost should be that of a NIGHT-themed node today; MD5.4 measures it on both renderers against `docs/PERFORMANCE_BUDGET.md`.
 
-**Order of the next steps.** MD5.2 (done) added the data entry with weight 0, and `tools/map_check.gd` checks that a weight of 0 moves no map of any seed (the same maps come out as with no night row), that `forces_theme` is the NIGHT theme, and that no node holds `night` on its own theme once the weight is on; MD5.3 applies the theme, MD5.4 is the look and the screenshot, MD5.5 shows NIGHT on the map screen, the round banner and the pause menu, MD5.6 turns the weight on (first guess 20, `min_floor` 3).
+**Order of the next steps.** MD5.2 (done) added the data entry with weight 0, and `tools/map_check.gd` checks that a weight of 0 moves no map of any seed (the same maps come out as with no night row), that `forces_theme` is the NIGHT theme, and that no node holds `night` on its own theme once the weight is on; MD5.3 (done) applies the theme: `round_theme()` in `main.gd` asks `MapContent.forced_theme` (the `forces_theme` of the node's modifier) and falls back to the node's own theme, and `tools/node_setup_check.gd` checks both, that the node's content is never changed and that the next node is back on its own theme; MD5.4 is the look and the screenshot, MD5.5 shows NIGHT on the map screen, the round banner and the pause menu, MD5.6 turns the weight on (first guess 20, `min_floor` 3).
 
 ## Open points for Milestone D and balance
 

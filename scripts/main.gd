@@ -50,6 +50,7 @@ const RunSave = preload("res://scripts/run_save.gd")
 const ProgressReset = preload("res://scripts/progress_reset.gd")
 const ArenaRoundaboutScript = preload("res://scripts/arena_roundabout.gd")
 const MapGenScript = preload("res://scripts/map_gen.gd")
+const MapContentScript = preload("res://scripts/map_content.gd")
 const ArenaGenScript = preload("res://scripts/arena_gen.gd")
 const GeneratedArenaScript = preload("res://scripts/arena_generated.gd")
 const WorldGeneratedScript = preload("res://scripts/world_generated.gd")
@@ -142,6 +143,7 @@ var daily_seed = 0  # same for every player on that date (daily.gd); a Daily Run
 var daily_label = ""  # title-screen text for the above
 var daily_arena = ""  # the arena style of the daily seed, shown under it on the title screen
 var arena_rules_cache = {}  # `data/arena_rules.json`, read on first use by `arena_style_text`
+var map_rules_cache = {}  # `data/map_rules.json`, read on first use by `round_theme` (README MD5.3)
 var daily_mode = false  # true while a Daily Run is in progress (own scoreboard later, no normal high score)
 var custom_seed_run = false  # true while a run with a seed typed in on the title screen is in progress (kept off the normal high score and Top 10, like a Daily Run; a restart replays the same seed)
 var heat = 0  # the Heat level of this run, 0 to heat_sys.top_level() (heat.gd, docs/HEAT.md); 0 is the game as it was before Heat. Chosen on the PLAY page of the title screen (input.gd `heat_adjust`, README H1.4); start_game sets it to 0 for a Daily Run. Read by the rider speed (H1.5), the rider count (H1.6), the starting hearts (H1.7), the rider and boss health (H1.8) and the shop prices and cash (H1.9)
@@ -1548,9 +1550,19 @@ func node_setup() -> Dictionary:
 	return current_node().get("content", {})
 
 
-# the theme of the round: the node's, where it has one, otherwise the old rule (round number and run seed)
+# the theme of the round: the one a round modifier of the node forces (night, README MD5.3), else the node's own
+# theme, where it has one, otherwise the old rule (round number and run seed). The node's content is never changed,
+# so the next round, which has its own node, goes back to its own theme. It reads the modifiers from the node itself
+# and not from `round_modifiers`, because `start_round` asks for the theme before `plan_riders` has run.
 func round_theme() -> int:
 	var setup = node_setup()
+	var mods: Array = setup.get("modifiers", [])
+	if not mods.is_empty():
+		if map_rules_cache.is_empty():
+			map_rules_cache = MapGenScript.load_rules()
+		var forced = MapContentScript.forced_theme(mods, map_rules_cache)
+		if forced >= 0:
+			return forced % THEMES.size()
 	if setup.has("theme"):
 		return int(setup["theme"]) % THEMES.size()
 	return (round_n - 1 + seed_shift(THEMES.size())) % THEMES.size()

@@ -151,6 +151,17 @@ static func _modifiers(
 	return [_pick(allowed, total, rng)]
 
 
+# The theme a node's modifiers force on the round (the `forces_theme` of the modifier's row, README MD5.3), or -1 when
+# none does. `rules` are the whole map rules (data/map_rules.json); a modifier that is not in them forces nothing.
+static func forced_theme(mods: Array, rules: Dictionary) -> int:
+	var types = rules.get("content", {}).get("modifiers", {}).get("types", {})
+	for m in mods:
+		var row = types.get(str(m), {})
+		if row.has("forces_theme"):
+			return int(row["forces_theme"])
+	return -1
+
+
 # weighted draw from {name: weight}, in the order of the keys
 static func _pick(weights: Dictionary, total: int, rng: RandomNumberGenerator) -> String:
 	var roll = rng.randi() % total

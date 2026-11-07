@@ -12,7 +12,9 @@ extends SceneTree
 #   - a boss node has its boss only after every rider is down and only once, and the boss is the node's kind (the
 #     last node's is the final president); a fight node without a boss never asks for one, even where the old rule
 #     would have (after 4 riders);
-#   - the "double_riders" modifier makes every wave a pair of riders.
+#   - the "double_riders" modifier makes every wave a pair of riders;
+#   - the "night" modifier plays the round under the NIGHT theme whatever theme the node drew, a round without it keeps
+#     its theme, and the node's own theme is never changed (README MD5.3).
 # On the roundabout (the arena the game starts with) none of it applies: node_setup() is empty, a round has 10
 # riders, no plan, and the theme follows the old rule (round number and run seed).
 
@@ -271,5 +273,66 @@ func _check_bosses_and_modifiers(tag: String) -> void:
 		bad.append(
 			"%s: a wave with double riders has %d riders, expected 2" % [tag, main.riders.size()]
 		)
+	first["modifiers"] = saved
+	main.clear_riders()
+	_check_night_theme(tag, first)
+
+
+# README MD5.3: a node with the night modifier plays under NIGHT whatever theme it drew, a node without it keeps its
+# theme, the node's own theme is untouched, and the next round (its own node) is back on its own theme.
+func _check_night_theme(tag: String, first: Dictionary) -> void:
+	var night = -1
+	for i in range(main.THEMES.size()):
+		if str(main.THEMES[i]["name"]) == "NIGHT":
+			night = i
+	if night < 0:
+		bad.append("%s: there is no NIGHT theme in Content.THEMES" % tag)
+		return
+	var own_theme = int(first["theme"])
+	var saved = first["modifiers"]
+	for own in range(main.THEMES.size()):
+		first["theme"] = own
+		first["modifiers"] = []
+		_play_node(0, 0)
+		if main.theme_idx != own % main.THEMES.size():
+			bad.append(
+				(
+					"%s: with no modifier the round has theme %d, the node says %d"
+					% [tag, main.theme_idx, own]
+				)
+			)
+		first["modifiers"] = ["night"]
+		_play_node(0, 0)
+		if main.theme_idx != night:
+			bad.append(
+				(
+					"%s: with night on a theme-%d node the round has theme %d, not NIGHT (%d)"
+					% [tag, own, main.theme_idx, night]
+				)
+			)
+		if int(first["theme"]) != own:
+			bad.append("%s: the night modifier changed the node's own theme %d" % [tag, own])
+	# the next fight node, on floor 2, plays its own theme again after a night round
+	var lane2 = -1
+	var floor2: Array = main.run_map["floors"][1]
+	for k in range(floor2.size()):
+		if lane2 < 0 and floor2[k]["content"].has("modifiers"):
+			lane2 = k
+	if lane2 >= 0:
+		var second: Dictionary = floor2[lane2]["content"]
+		var second_mods = second["modifiers"]
+		second["modifiers"] = []
+		first["modifiers"] = ["night"]
+		_play_node(0, 0)
+		_play_node(1, lane2)
+		if main.theme_idx != int(second["theme"]) % main.THEMES.size():
+			bad.append(
+				(
+					"%s: the round after a night round has theme %d, its node says %d"
+					% [tag, main.theme_idx, int(second["theme"])]
+				)
+			)
+		second["modifiers"] = second_mods
+	first["theme"] = own_theme
 	first["modifiers"] = saved
 	main.clear_riders()
