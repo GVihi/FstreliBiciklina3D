@@ -19,4 +19,6 @@ Set on 2026-11-03. The numbers live in `data/performance_budget.json` and `pytho
 
 **Changing a number:** raise it only after a frame time on the minimum-spec machine says there is room (`tools/baseline.gd` plays the generated arena; see `tools/BASELINE.md`), then edit `data/performance_budget.json` and this table together.
 
+**Rain (README MD6.2, not measured; `tools/baseline.gd` has the `+ RAIN` rows for it):** a round with the rain modifier draws at most 400 streaks (`STREAKS` in `scripts/rain.gd`) as one `MultiMesh`, one extra draw call, with alpha 0.25 at most; the number follows the SHAKE AND FLASH setting and is 0 at 0. The cap is a first guess: it moves to the table above, with a particle line, when a rain round has a frame time on both renderers.
+
 **Not covered:** frame time, video memory, particles and overdraw, entity triangles, and the lights the F9 kit will add when it replaces the stand-in buildings; each of those belongs to the performance passes in the README.
