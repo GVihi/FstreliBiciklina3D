@@ -1623,6 +1623,12 @@ func node_has_modifier(name: String) -> bool:
 	return node_setup().get("modifiers", []).has(name)
 
 
+# true when a bird may chirp: on the DAY and GOLDEN HOUR themes, not on the run summary and never in a rain round
+# (README MD6.3)
+func birds_may_sing() -> bool:
+	return theme_idx < 2 and state != "over" and not rain_sys.raining()
+
+
 # the kind the node plans for rider number i of this round, or "" when it plans none (draw it as usual)
 func planned_rider_type(i: int) -> String:
 	if i >= 0 and i < rider_plan.size():
@@ -2154,6 +2160,7 @@ func _process(delta: float) -> void:
 	player_sys.update_gun(dt)
 	update_cheerleaders(dt)
 	sfx.set_ambient((state == "play" or state == "title") and not paused)
+	sfx.set_rain(rain_sys.raining() and not paused)  # the loop of a rain round; stopped in every other state (MD6.3)
 	rain_sys.update(0.0 if paused else dt)  # the streaks of a rain round; hidden in every other state
 
 
@@ -2420,7 +2427,7 @@ func update_game(dt: float) -> void:
 	bird_t -= dt
 	if bird_t <= 0.0:
 		bird_t = randf_range(2.5, 6.0)
-		if theme_idx < 2 and state != "over":
+		if birds_may_sing():
 			sfx.play("bird", -10.0)
 
 	# shotgun

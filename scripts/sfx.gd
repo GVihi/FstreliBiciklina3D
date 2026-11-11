@@ -38,7 +38,12 @@ const NAMES = [
 const VARIANTS = {
 	"hit": 3, "clank2": 2, "boss_hit_mower": 2, "phone_smash": 2, "bird": 3, "v_hey": 4, "car": 2
 }
-const LOOPS = ["loop_rider", "loop_ambient", "loop_mower", "loop_wifi"]
+const LOOPS = ["loop_rider", "loop_ambient", "loop_mower", "loop_wifi", "loop_rain"]
+# The rain loop of a round with the rain modifier (README MD6.3, `set_rain`). RAIN_LEVEL is the linear level it fades to,
+# like `amb_target`: a first guess, about 17 dB under the rider warning bell at its QUIET setting, and
+# tools/rain_sound_check.gd fails when that margin is lost. RAIN_FADE is how fast the level moves, per second.
+const RAIN_LEVEL = 0.06
+const RAIN_FADE = 0.2
 # Spoken lines. key -> list of lines (the text is only a hint for whoever records them).
 # One line   -> audio/voice/<key>.wav
 # Many lines -> audio/voice/<key>_0.wav, <key>_1.wav ... (one is picked at random)
@@ -130,6 +135,9 @@ var voice_fx_on = true
 var amb: AudioStreamPlayer
 var amb_target = 0.0
 var amb_level = 0.0
+var rain: AudioStreamPlayer  # the rain loop: only playing while a rain round is (`set_rain`), stopped once it has faded out
+var rain_target = 0.0
+var rain_level = 0.0
 var clock = 0.0
 
 
@@ -262,7 +270,11 @@ func _ready() -> void:
 			var d = s.duplicate()
 			d.loop_mode = AudioStreamWAV.LOOP_FORWARD
 			d.loop_begin = 0
-			d.loop_end = int(d.data.size() / 2)  # 16-bit mono -> 2 bytes per frame
+			# The length in frames comes from the stream itself. The files are imported compressed (QOA, `compress/mode=2`
+			# in the .import files), where the size of `data` says nothing about the frames: taking it for 16-bit mono
+			# (two bytes a frame) cut every loop to about a fifth of its length and put the loop point in the middle of
+			# the sound, which a seamless rain loop would have turned into a tick every second.
+			d.loop_end = int(round(d.get_length() * d.mix_rate))
 			streams[n] = d
 	amb = AudioStreamPlayer.new()
 	amb.stream = streams.get("loop_ambient", null)
@@ -270,6 +282,10 @@ func _ready() -> void:
 	add_child(amb)
 	if amb.stream != null:
 		amb.play()
+	rain = AudioStreamPlayer.new()
+	rain.stream = streams.get("loop_rain", null)
+	rain.volume_db = -80.0
+	add_child(rain)  # not started: `_update_rain` plays it when a rain round asks for it
 
 
 func _load(n: String) -> void:
@@ -289,6 +305,23 @@ func _process(delta: float) -> void:
 	var tgt = 0.0 if muted else amb_target
 	amb_level = move_toward(amb_level, tgt, delta * 0.08)
 	amb.volume_db = -80.0 if amb_level <= 0.0005 else linear_to_db(amb_level)
+	_update_rain(delta)
+
+
+# Moves the rain loop towards what `set_rain` asked for. The loop is started when there is rain to hear and *stopped*,
+# not just turned down, once it has faded out, so no loop is left running after a round (README MD6.3).
+func _update_rain(delta: float) -> void:
+	var tgt = 0.0 if muted else rain_target
+	rain_level = move_toward(rain_level, tgt, delta * RAIN_FADE)
+	if rain_level <= 0.0 and tgt <= 0.0:
+		if rain.playing:
+			rain.stop()
+		return
+	if rain.stream == null:
+		return
+	if not rain.playing:
+		rain.play()
+	rain.volume_db = linear_to_db(maxf(rain_level, 0.0001))
 
 
 # ------------------------------------------------------------------ one-shots
@@ -385,6 +418,17 @@ func stop_loop(p) -> void:
 
 func set_ambient(on: bool) -> void:
 	amb_target = 0.035 if on else 0.0
+
+
+# Asked every frame by main.gd: true while a rain round is being played and the game is not paused, false in every other
+# state, so a clear, a death, a quit, a restart and the training room need no call of their own.
+func set_rain(on: bool) -> void:
+	rain_target = RAIN_LEVEL if on else 0.0
+
+
+# true while the rain loop is running (faded in, fading in or still fading out)
+func rain_playing() -> bool:
+	return rain != null and rain.playing
 
 
 # ------------------------------------------------------------------ spoken lines (your recordings)

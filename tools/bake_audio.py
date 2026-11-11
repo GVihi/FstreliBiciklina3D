@@ -423,12 +423,18 @@ one("v_cheer", v_cheer)
 one("v_groan", v_groan)
 
 # ================================================================= seamless loops
-def make_loop(name, sig, fade=0.12):
+def make_loop(name, sig, fade=0.12, equal_power=False):
     f = int(fade * SR)
     head, tail = sig[:f].copy(), sig[-f:].copy()
     w = np.linspace(0, 1, f)
+    if equal_power:
+        # two unrelated noises crossfaded in a straight line dip by 3 dB in the middle, which a long quiet loop like rain
+        # lets you hear as a breath once per loop; the square roots keep the power the same all the way across
+        w, v = np.sqrt(w), np.sqrt(1 - w)
+    else:
+        v = 1 - w
     body = sig[:-f].copy()
-    body[:f] = head * w + tail * (1 - w)
+    body[:f] = head * w + tail * v
     save(name, body * MASTER)
 
 n2 = int(2.0 * SR)
@@ -467,5 +473,31 @@ def sfx_bell(M):
     ring(M, 0.0, 2350, 0.34, 0.55, 0.1)
     ring(M, 0.17, 2350, 0.30, 0.6, 0.1)
 one("bell", sfx_bell)
+
+# Rain for the rain modifier (README MD6.3; scripts/sfx.gd plays it as `loop_rain`): a 4 s seamless loop, a soft hiss with a
+# faint patter of drops on top. It draws random numbers, so it sits here at the very end like every new sound and no other
+# file changes. The hiss has nothing below 1.5 kHz, so it stays out of the way of the rider engines and the voices; it is
+# a plain noise bed on purpose and the game plays it far below the warning bell (RAIN_LEVEL in scripts/sfx.gd,
+# tools/rain_sound_check.gd keeps that margin).
+def sfx_rain():
+    fade = int(0.25 * SR)
+    n = int(4.0 * SR) + fade
+    hiss = filt(noise(n), "highpass", lambda t: 1500, 0.7)
+    hiss = filt(hiss, "lowpass", lambda t: 9000, 0.7)
+    hiss /= np.max(np.abs(hiss))
+    drops = np.zeros(n)
+    for _ in range(int(110 * n / SR)):                    # about 110 drops a second
+        start = int(rand(0, n - 1))
+        k = int(0.006 * SR)
+        burst = noise(k) * np.exp(-np.arange(k) / (0.0012 * SR))
+        b, a = biquad("bandpass", rand(2500, 6000), 3.0)
+        burst = lfilter(b, a, burst)
+        burst /= np.max(np.abs(burst))
+        part = burst[:max(0, min(k, n - start))]
+        drops[start:start + len(part)] += part * rand(0.1, 0.5)
+    rain = hiss * 0.55 + drops * 0.8
+    rain /= np.max(np.abs(rain))
+    make_loop("loop_rain", rain * 0.8, fade=0.25, equal_power=True)
+sfx_rain()
 
 print("baked %d files into %s" % (len(written), os.path.abspath(OUT)))
