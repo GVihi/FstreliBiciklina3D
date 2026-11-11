@@ -10,7 +10,7 @@ extends RefCounted
 #   fights      "riders"     {"count": n, "mix": {"pro": a, "sprinter": b, "courier": c, "tough": d}}, the
 #   (normal,                 numbers in "mix" add up to "count" and only use rider types allowed on that floor
 #   elite,      "gates"      sorted indexes into the arena layout's "gates" list that riders may enter by
-#   boss):      "modifiers"  0 or 1 round modifiers from the rules ("rain", "double_riders"), in an Array
+#   boss):      "modifiers"  0 or 1 round modifiers from the rules ("rain", "double_riders", "night"), in an Array
 #   boss nodes: "boss"       the boss kind ("mower", "wifi", "minister"), and "final": true for the last boss
 #   others      "seed"       a 32-bit number for whatever shop, rest or event needs to draw later (Milestone D)
 #                            (shop, rest, event)
@@ -82,7 +82,7 @@ static func _node_content(
 		return content
 	content["riders"] = _riders(type, floor_no, crules["riders"], rng)
 	content["gates"] = _gates(gate_count, int(crules["gates"]["min_open"]), rng)
-	content["modifiers"] = _modifiers(type, floor_no, crules["modifiers"], rng)
+	content["modifiers"] = _modifiers(type, floor_no, theme, crules["modifiers"], rng)
 	if type == "boss":
 		var kinds = crules["boss_kinds"].get(boss_tag, [])
 		if kinds.is_empty():
@@ -129,8 +129,10 @@ static func _gates(gate_count: int, min_open: int, rng: RandomNumberGenerator) -
 
 
 # 0 or 1 round modifier. The roll is always drawn, so the rest of the node does not depend on the answer.
+# A modifier with `forces_theme` (night) plays the round under that theme, so a node that already has the theme
+# is not offered it: it would change nothing (README MD5.2). The pick is still one draw, so no other node moves.
 static func _modifiers(
-	type: String, floor_no: int, mrules: Dictionary, rng: RandomNumberGenerator
+	type: String, floor_no: int, theme: int, mrules: Dictionary, rng: RandomNumberGenerator
 ) -> Array:
 	var roll = rng.randf()
 	if roll >= float(mrules["chance"].get(type, 0.0)):
@@ -139,12 +141,25 @@ static func _modifiers(
 	var total = 0
 	for t in mrules["types"]:
 		var row = mrules["types"][t]
+		if row.has("forces_theme") and int(row["forces_theme"]) == theme:
+			continue
 		if floor_no >= int(row["min_floor"]):
 			allowed[t] = int(row["weight"])
 			total += int(row["weight"])
 	if total <= 0:
 		return []
 	return [_pick(allowed, total, rng)]
+
+
+# The theme a node's modifiers force on the round (the `forces_theme` of the modifier's row, README MD5.3), or -1 when
+# none does. `rules` are the whole map rules (data/map_rules.json); a modifier that is not in them forces nothing.
+static func forced_theme(mods: Array, rules: Dictionary) -> int:
+	var types = rules.get("content", {}).get("modifiers", {}).get("types", {})
+	for m in mods:
+		var row = types.get(str(m), {})
+		if row.has("forces_theme"):
+			return int(row["forces_theme"])
+	return -1
 
 
 # weighted draw from {name: weight}, in the order of the keys

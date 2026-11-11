@@ -21,6 +21,7 @@ const LOOKAHEAD_TIME = 0.03  # seconds of riding: the point to steer at is this 
 # that arc and comes back. Riders come out of a gate and, when they give up, ride out of the nearest one.
 const PURSUIT_ACCEL = 20.0  # metres per second squared, sideways
 const PURSUIT_MAX_TURN = 6.0  # radians per second
+const RAIN_GRIP = 0.8  # README MD6.4: wet tyres. The sideways acceleration of riders in a rain round is this share of PURSUIT_ACCEL (a first guess, tuned with the bot harness)
 const PASS_RANGE = 7.0  # metres: the player this close and behind means the rider has passed
 const OVERSHOOT = 9.0  # metres ridden straight on after a pass before turning back
 # A gate's "pos" is the middle of its tunnel block, which is 4 m deep on a generated arena: the outer edge of the grid
@@ -312,13 +313,23 @@ func away_distance(r: Dictionary) -> float:
 	return maxf(0.0, Vector2(to.x, to.z).length() - AWAY_REACH)
 
 
+# The sideways acceleration riders have in this round: PURSUIT_ACCEL, and RAIN_GRIP of it in a round with the rain
+# modifier (README MD6.4). The one place rain touches the steering of riders: the turn rate, the speed of a rider that
+# gave up and the reach of the look for obstacles all read it, so they stay consistent with each other. A round
+# without rain gets exactly PURSUIT_ACCEL.
+func pursuit_accel() -> float:
+	if g != null and g.has_modifier("rain"):
+		return PURSUIT_ACCEL * RAIN_GRIP
+	return PURSUIT_ACCEL
+
+
 # The fastest a rider that gave up may go and still reach its gate: its turning circle (twice the radius,
 # speed squared over the sideways acceleration) must fit in the distance left, or it would circle the gate
 # for ever. Never below AWAY_MIN_SPEED.
 func away_speed_cap(r: Dictionary) -> float:
 	var to = gate_exit_point(r["away_gate"]) - r["pos"]
 	var dist = Vector2(to.x, to.z).length()
-	return maxf(AWAY_MIN_SPEED, sqrt(PURSUIT_ACCEL * dist * 0.5))
+	return maxf(AWAY_MIN_SPEED, sqrt(pursuit_accel() * dist * 0.5))
 
 
 # the point an open-ground rider steers at. Still inside the tunnel it rides straight out. A rider that gave up
@@ -342,7 +353,7 @@ func pursuit_target(r: Dictionary) -> Vector3:
 
 # the most an open-ground rider may turn in a second at this speed (sideways acceleration over speed)
 func pursuit_turn_rate(speed: float) -> float:
-	return minf(PURSUIT_MAX_TURN, PURSUIT_ACCEL / maxf(speed, 1.0))
+	return minf(PURSUIT_MAX_TURN, pursuit_accel() / maxf(speed, 1.0))
 
 
 # put a rider that cannot go on back where a new one starts: in the tunnel of the gate nearest to it, facing in, so it
@@ -399,7 +410,7 @@ func move_rider(r: Dictionary, dt: float) -> void:
 		# squared over the sideways acceleration) plus a margin, so it starts to turn away in time
 		var min_reach = 0.0
 		if pursuit:
-			min_reach = 1.2 * speed * speed / PURSUIT_ACCEL + 3.0
+			min_reach = 1.2 * speed * speed / pursuit_accel() + 3.0
 		var steered = avoid_obstacles(r["pos"], want, speed, r["yaw"], r["avoid_side"], min_reach)
 		var swing = wrapf(steered - r["yaw"], -PI, PI)
 		if absf(swing) > 0.0001:
