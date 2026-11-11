@@ -146,7 +146,7 @@ func _expect_look(where: String, rain: bool, dry_top: Color, dry_ground: Diction
 		if rain:
 			if m == dry_ground[part_name]:
 				bad.append("%s: %s is not wet" % [where, part_name])
-			elif m.roughness != Rain.WET_ROUGHNESS:
+			elif not is_equal_approx(m.roughness, Rain.WET_ROUGHNESS):  # a material keeps a 32-bit float
 				bad.append("%s: %s has roughness %s" % [where, part_name, m.roughness])
 			elif Rain.luma(m.albedo_color) >= Rain.luma(dry_ground[part_name].albedo_color):
 				bad.append("%s: %s is not darker wet" % [where, part_name])
@@ -239,6 +239,9 @@ func _check_rounds() -> void:
 		first["modifiers"] = ["rain"]
 		_play_first_node()
 		main.apply_theme(0)
+		# apply_theme takes the look off; the streaks follow the round, not the theme, and no round is played at the
+		# title screen (state is not "play" there, checked in _check_streaks_in_play), so end the round's rain here
+		main.rain_sys.round_rain = false
 		_expect_look("%s, apply_theme without rain" % tag, false, dry_top, dry_ground)
 		# rain on a NIGHT-themed node is not darker than NIGHT
 		first["theme"] = night_theme
