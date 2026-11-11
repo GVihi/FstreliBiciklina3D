@@ -5,10 +5,12 @@ extends SceneTree
 #   godot --path . --rendering-method forward_plus --script res://tools/baseline.gd -- --label=oldpc-forward
 #
 # What it does, in this order, without any input from you:
-#   1. screenshots of every screen (main menu and its pages, play in all four lighting themes, play at
-#      each graphics preset, pause menu, round clear, upgrade, shop, run over)
-#   2. a frame-time log: every graphics preset (HIGH, MEDIUM, LOW) in every lighting theme, while the
-#      script turns the view round, fires the gun and keeps the player alive, with vsync off
+#   1. screenshots of every screen (main menu and its pages, play in all four lighting themes, play with the
+#      rain modifier's look over DAY and NIGHT, play at each graphics preset, pause menu, round clear, upgrade,
+#      shop, run over)
+#   2. a frame-time log: every graphics preset (HIGH, MEDIUM, LOW) in every lighting theme and in the rain
+#      pass (DAY and NIGHT with rain, README MD6.2), while the script turns the view round, fires the gun and
+#      keeps the player alive, with vsync off
 #   3. a report: report.md (read this first), results.json and frametime.csv in one output folder
 #
 # It measures the generated arena, which is the arena of the game (README Milestone K), on a fixed seed so that two
@@ -20,6 +22,7 @@ extends SceneTree
 # score, meta, settings or high score files is written. It checks that at the end and says so in the report.
 # Options after "--": --label=NAME  --out=DIR  --seconds=N (per measurement, default 8)
 #                     --no-screens  --no-frametime  --raw (also write every single frame)
+#                     --no-rain (leave out the rain pass: its screenshots and its frame-time rows)
 #                     --seed=HEX (the run seed, which decides the arena; default 7F3A91C2)
 #                     --roundabout (measure the old roundabout arena, to compare with docs/baseline_f1/)
 
@@ -28,6 +31,7 @@ const SAVE_FILES = ["settings.cfg", "scores.json", "meta.json"]
 const TITLE_PAGES = ["loadout", "unlocks", "scores", "settings"]
 const WARMUP_SECONDS = 2.0
 const BUDGET_MS = 16.67  # 60 fps
+const RAIN_THEMES = ["DAY", "NIGHT"]  # the themes the rain pass draws rain over: the brightest and the darkest
 const DEFAULT_SEED = 0x7F3A91C2
 
 var main
@@ -38,6 +42,7 @@ var seconds = 8.0
 var do_screens = true
 var do_frametime = true
 var do_raw = false
+var do_rain = true
 var roundabout = false
 var run_seed = DEFAULT_SEED
 var results = []
@@ -84,6 +89,8 @@ func _read_args() -> void:
 			do_screens = false
 		elif a == "--no-frametime":
 			do_frametime = false
+		elif a == "--no-rain":
+			do_rain = false
 		elif a == "--raw":
 			do_raw = true
 
@@ -97,11 +104,22 @@ func _make_folders() -> void:
 	DirAccess.make_dir_recursive_absolute(out_dir + "/screens")
 
 
-func _set_theme(t: int) -> void:
+func _set_theme(t: int, rain: bool = false) -> void:
 	# start_round sets theme_idx and then calls apply_theme; the HUD round label reads theme_idx.
 	# Do both, or the screenshots show the lighting of one theme under the name of another.
+	# `rain` draws the rain modifier's look over the theme (scripts/rain.gd, README MD6.2): the same two calls
+	# start_round makes for a node that holds rain, and without it the old behaviour exactly.
 	main.theme_idx = t
-	main.apply_theme(t)
+	main.rain_sys.round_rain = rain
+	main.apply_theme(t, rain)
+
+
+# the index of the theme with this name in main.THEMES, or -1
+func _theme_index(theme_name: String) -> int:
+	for i in range(main.THEMES.size()):
+		if main.THEMES[i]["name"] == theme_name:
+			return i
+	return -1
 
 
 # which arena is measured, for the report
@@ -186,6 +204,17 @@ func _capture_screens() -> void:
 		await _shot(
 			"03_play_%d_%s" % [t, str(main.THEMES[t]["name"]).to_lower().replace(" ", "_")], 12
 		)
+	if do_rain:
+		# the same round with the rain look over the brightest and the darkest theme: are riders, phones and
+		# pickups still readable, is the sky grey and not black, are the streaks thin enough
+		var n = main.THEMES.size()
+		for rain_theme in RAIN_THEMES:
+			var rt = _theme_index(rain_theme)
+			if rt < 0:
+				continue
+			_set_theme(rt, true)
+			await _shot("03_play_%d_%s_rain" % [n, rain_theme.to_lower()], 12)
+			n += 1
 
 	# play at each graphics preset (DAY): compare the edges of these three for the anti-aliasing check
 	_set_theme(0)
@@ -257,11 +286,31 @@ func _measure_frame_times() -> void:
 					% [r["preset"], r["theme"], r["fps_avg"], r["fps_1pct_low"]]
 				)
 			)
+		if do_rain:
+			# the rain pass: the same measurement with the rain look over DAY and NIGHT, to be compared with the
+			# dry row of the same preset and theme above; the cost of rain is the difference
+			for rain_theme in RAIN_THEMES:
+				var rt = _theme_index(rain_theme)
+				if rt < 0:
+					continue
+				main.quality = q
+				main.settings.apply_quality()
+				_set_theme(rt, true)
+				var rr = await _measure_one(q, rt, rid, true)
+				results.append(rr)
+				print(
+					(
+						"frametime %s / %s: %.1f fps average, %.1f fps 1%% low"
+						% [rr["preset"], rr["theme"], rr["fps_avg"], rr["fps_1pct_low"]]
+					)
+				)
+	_set_theme(0)  # the dry look again
 	main.quality = 0
 	main.settings.apply_quality()
 
 
-func _measure_one(q: int, t: int, rid: RID) -> Dictionary:
+func _measure_one(q: int, t: int, rid: RID, rain: bool = false) -> Dictionary:
+	var theme_label = str(main.THEMES[t]["name"]) + (" + RAIN" if rain else "")
 	var times = []
 	var cpu = []
 	var gpu = []
@@ -283,6 +332,7 @@ func _measure_one(q: int, t: int, rid: RID) -> Dictionary:
 		# scripted play: turn the view round, fire, never die, never leave the round
 		if main.state != "play":
 			_begin_round()
+			_set_theme(t, rain)  # a new round starts with the node's own look: put the measured one back
 		main.hearts = main.MAXHEARTS
 		main.score = 0  # a game over with a score would write the high score, scores and meta files
 		main.yaw += 0.7 * minf(dt, 0.05)
@@ -306,7 +356,7 @@ func _measure_one(q: int, t: int, rid: RID) -> Dictionary:
 		vmem += Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)
 		samples += 1
 		if do_raw:
-			raw_lines.append("%s,%s,%.3f" % [QUALITY_NAMES[q], main.THEMES[t]["name"], dt * 1000.0])
+			raw_lines.append("%s,%s,%.3f" % [QUALITY_NAMES[q], theme_label, dt * 1000.0])
 	var sorted = times.duplicate()
 	sorted.sort()
 	var n = maxi(1, sorted.size())
@@ -320,7 +370,7 @@ func _measure_one(q: int, t: int, rid: RID) -> Dictionary:
 	var p99 = _percentile(sorted, 0.99)
 	var r = {}
 	r["preset"] = QUALITY_NAMES[q]
-	r["theme"] = main.THEMES[t]["name"]
+	r["theme"] = theme_label
 	r["frames"] = sorted.size()
 	r["ms_avg"] = avg
 	r["ms_median"] = _percentile(sorted, 0.5)
@@ -400,6 +450,12 @@ func _write_report() -> void:
 				]
 			)
 		md += "\n`gpu ms` is 0 when the renderer or driver does not report GPU time.\n"
+		if do_rain:
+			md += (
+				"\nRows named `+ RAIN` are the same theme with the look of the rain modifier over it (README MD6.2: "
+				+ "the streaks, the greyer sky, the wet ground). Compare each with the dry row of the same preset "
+				+ "and theme: the cost of rain is the difference.\n"
+			)
 	if not notes.is_empty():
 		md += "\n## Anti-aliasing state per preset\n\n"
 		for n in notes:

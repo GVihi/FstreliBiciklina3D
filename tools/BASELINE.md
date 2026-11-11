@@ -6,7 +6,8 @@ lighting theme, and the frame time of every graphics preset in every theme. Run 
 "Compatibility renderer vs Forward+".
 
 It plays by itself, so do not touch the mouse or keyboard while it runs. A full run takes a few
-minutes per renderer (12 frame-time rows of 10 seconds each, about 2 minutes, plus the screenshots).
+minutes per renderer (18 frame-time rows of 10 seconds each, about 3 minutes, plus the screenshots): 12 rows
+are the three presets in the four themes, and 6 are the rain pass (see "The rain pass" below).
 
 ## Windows, Godot from Steam (easiest)
 
@@ -53,6 +54,7 @@ Options after `--`:
 | `--seconds=N` | Measurement time per row, default 8 (plus 2 seconds of warm-up) |
 | `--requested=NAME` | Renderer you asked for; the report warns if Godot ended up using another one |
 | `--no-screens` / `--no-frametime` | Run only one half |
+| `--no-rain` | Leave out the rain pass (its two screenshots and its 6 frame-time rows): the run is then exactly as long as before the rain modifier |
 | `--raw` | Also write every single frame time to `frames_raw.csv` |
 
 ## What you get
@@ -67,6 +69,24 @@ One folder per run in `baseline_out/` (ignored by git):
 
 The report also says whether the save files (settings, scores, meta, high score) were left untouched.
 The scripted play keeps the score at 0 and the hearts full, so it should always say `yes`.
+
+## The rain pass (README MD6.2)
+
+Unless `--no-rain` is given, the run also draws the look of the rain modifier (`scripts/rain.gd`: the streaks,
+the greyer sky, the wet ground) over DAY and NIGHT, the brightest and the darkest theme, which is what the
+README item "Rain modifier: the look" asks a screenshot and a frame time for. No node holds rain yet (its weight
+in `data/map_rules.json` is 0 until MD6.5), so the script puts the look on by hand with the same two calls
+`start_round` makes for a rain node.
+
+- Screenshots `03_play_4_day_rain.png` and `03_play_5_night_rain.png`, after the four theme shots. What to
+  judge: riders, phones, pickups and pedestrians still readable at distance, the sky grey and not black, the
+  ground wet but the lane paint and the start frame still clear, the streaks thin and not over the crosshair.
+  The streaks stand still in these shots, because the script does not capture the mouse and the game then
+  counts as paused; in play they fall.
+- Frame-time rows named `DAY + RAIN` and `NIGHT + RAIN` for each preset, after the four dry rows of that preset.
+  The cost of rain is the difference to the dry row of the same preset and theme (`DAY`, `NIGHT`); the number
+  to compare with `docs/PERFORMANCE_BUDGET.md` is the `+ RAIN` row, and the cap of 400 streaks in
+  `scripts/rain.gd` is what to lower if it is too dear.
 
 ## What to send back
 
