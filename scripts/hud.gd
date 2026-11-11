@@ -2092,6 +2092,16 @@ const MAP_LINES = {
 const MAP_BOSS_LINE = "A BOSS GUARDS THIS FLOOR."
 const MAP_FINAL_LINE = "THE FINAL BOSS."
 
+# README MD5.5: where the modifier of a node is written on the map screen, on the ROUND line of the info panel (the
+# offset is from the panel's left edge, past "ROUND 10"), and its text. "" for a node with no modifier.
+const MAP_MODIFIER_DX = 110.0
+
+
+func map_modifier_text(mods: Array) -> String:
+	if mods.is_empty():
+		return ""
+	return "MODIFIER  " + ", ".join(g.modifier_names(mods))
+
 
 # the line that says what a node of type t does; last_floor is true for the node on the final floor
 func map_node_line(t: String, last_floor: bool) -> String:
@@ -2228,6 +2238,9 @@ func _draw_map_screen(k: float, cx: float) -> void:
 			_txt(ln, px, ly, int(18 * k), TEXT)
 			ly += 24.0 * k
 		_txt("ROUND %d" % (next_f + 1), px, size.y * 0.57, int(18 * k), TEXT)
+		var mod_text = map_modifier_text(node.get("content", {}).get("modifiers", []))
+		if mod_text != "":  # README MD5.5: written out, gold like the round start note
+			_txt(mod_text, px + MAP_MODIFIER_DX * k, size.y * 0.57, int(18 * k), GOLD)
 	# the cash waits for a shop node (README alpha B1.2): show what the player has to spend
 	_txt("CASH  $%d" % g.cash, px, size.y * 0.62, int(24 * k), GOLD)
 	_txt("SPEND IT AT A SHOP NODE", px, size.y * 0.67, int(14 * k), GRAY)
@@ -2308,6 +2321,9 @@ func _draw_pause_menu(k: float, cx: float) -> void:
 			1
 		)
 	var esc_y = 0.80
+	if not g.practice and g.state == "play" and not g.round_modifiers.is_empty():
+		# README MD5.5: the modifier of the round being played, between the buttons and the Heat line
+		_txt(map_modifier_text(g.round_modifiers), cx, size.y * 0.725, int(16 * k), GOLD, 1)
 	if not g.practice:  # README H1.10: the Heat of the run being played, with what the level is called
 		_txt(
 			g.heat_sys.label(-1, true),
@@ -3841,29 +3857,36 @@ func _draw_radar(k: float) -> void:
 			c, c + Vector2(sin(sgn * half_h), -cos(sgn * half_h)) * R, Color(1, 1, 1, 0.22), 1.0 * k
 		)
 	var open_ground = g.arena.rider_pursuit()
+	var factor = Threats.radar_factor(g.has_modifier("night"))  # a night round has a shorter radar (MD5.3)
 	for t in g.threat_list():
+		if Threats.radar_hides(t["dist"], open_ground, factor):
+			continue  # beyond the night radar; the edge arrows (_draw_threats) still show it
 		var rel = _rel_angle(t["pos"])
-		var rr = Threats.radar_fraction(t["dist"], open_ground) * (R - 4.0 * k)
+		var rr = Threats.radar_fraction(t["dist"], open_ground, factor) * (R - 4.0 * k)
 		var dot = c + Vector2(sin(rel), -cos(rel)) * rr
 		var col: Color = THREAT_COL[t["kind"]]
 		var weight: float = Threats.strength(t, open_ground)  # the roundabout: the urgency, as before
 		if open_ground:
 			col.a = 0.5 + 0.5 * weight
 		draw_circle(dot, (2.4 + 1.8 * weight) * k, col)
-	_draw_radar_objectives(c, R, k)
+	_draw_radar_objectives(c, R, k, factor)
 	draw_circle(c, 2.5 * k, Color(1, 1, 1, 0.9))
 
 
-# the extraction point (a square, green once it is open) and the caches in range (gold diamonds) on the radar
-func _draw_radar_objectives(c: Vector2, R: float, k: float) -> void:
+# The extraction point (a square, green once it is open) and the caches in range (gold diamonds) on the radar.
+# `factor` is the radar's range factor (Threats.radar_factor): a night radar leaves off a cache beyond its shorter
+# range, while the extraction square is always drawn (on the rim when it is farther), so the way out is never lost.
+func _draw_radar_objectives(c: Vector2, R: float, k: float, factor: float = 1.0) -> void:
 	var o = g.objective_sys
 	if not o.enabled() or not o.has_goal():
 		return
 	for cache in o.caches:
 		if not o.is_open(cache) or o.dist_to(cache["pos"]) > o.SENSE_RANGE:
 			continue
+		if Threats.radar_hides(o.dist_to(cache["pos"]), true, factor):
+			continue
 		var rel_c = _rel_angle(cache["pos"])
-		var rr_c = Threats.radar_fraction(o.dist_to(cache["pos"]), true) * (R - 4.0 * k)
+		var rr_c = Threats.radar_fraction(o.dist_to(cache["pos"]), true, factor) * (R - 4.0 * k)
 		_cache_shape(
 			c + Vector2(sin(rel_c), -cos(rel_c)) * rr_c,
 			3.6 * k,
@@ -3872,7 +3895,7 @@ func _draw_radar_objectives(c: Vector2, R: float, k: float) -> void:
 		)
 	var gp: Vector3 = o.goal["pos"]
 	var rel = _rel_angle(gp)
-	var rr = Threats.radar_fraction(o.dist_to(gp), true) * (R - 4.0 * k)
+	var rr = Threats.radar_fraction(o.dist_to(gp), true, factor) * (R - 4.0 * k)
 	var col = OBJ_GREEN if o.extracting else Color(OBJ_LOCKED, 0.55)
 	var at = c + Vector2(sin(rel), -cos(rel)) * rr
 	draw_rect(Rect2(at - Vector2(3.6, 3.6) * k, Vector2(7.2, 7.2) * k), col)

@@ -12,7 +12,9 @@ extends SceneTree
 #   - a boss node has its boss only after every rider is down and only once, and the boss is the node's kind (the
 #     last node's is the final president); a fight node without a boss never asks for one, even where the old rule
 #     would have (after 4 riders);
-#   - the "double_riders" modifier makes every wave a pair of riders.
+#   - the "double_riders" modifier makes every wave a pair of riders;
+#   - the "night" modifier plays the round under the NIGHT theme whatever theme the node drew, a round without it keeps
+#     its theme, and the node's own theme is never changed (README MD5.3).
 # On the roundabout (the arena the game starts with) none of it applies: node_setup() is empty, a round has 10
 # riders, no plan, and the theme follows the old rule (round number and run seed).
 
@@ -271,5 +273,104 @@ func _check_bosses_and_modifiers(tag: String) -> void:
 		bad.append(
 			"%s: a wave with double riders has %d riders, expected 2" % [tag, main.riders.size()]
 		)
+	first["modifiers"] = saved
+	main.clear_riders()
+	_check_night_theme(tag, first)
+	_check_modifier_names(tag, first)
+
+
+# README MD5.3: a node with the night modifier plays under NIGHT whatever theme it drew, a node without it keeps its
+# theme, the node's own theme is untouched, and the next round (its own node) is back on its own theme.
+func _check_night_theme(tag: String, first: Dictionary) -> void:
+	var night = -1
+	for i in range(main.THEMES.size()):
+		if str(main.THEMES[i]["name"]) == "NIGHT":
+			night = i
+	if night < 0:
+		bad.append("%s: there is no NIGHT theme in Content.THEMES" % tag)
+		return
+	var own_theme = int(first["theme"])
+	var saved = first["modifiers"]
+	for own in range(main.THEMES.size()):
+		first["theme"] = own
+		first["modifiers"] = []
+		_play_node(0, 0)
+		if main.theme_idx != own % main.THEMES.size():
+			bad.append(
+				(
+					"%s: with no modifier the round has theme %d, the node says %d"
+					% [tag, main.theme_idx, own]
+				)
+			)
+		first["modifiers"] = ["night"]
+		_play_node(0, 0)
+		if main.theme_idx != night:
+			bad.append(
+				(
+					"%s: with night on a theme-%d node the round has theme %d, not NIGHT (%d)"
+					% [tag, own, main.theme_idx, night]
+				)
+			)
+		if int(first["theme"]) != own:
+			bad.append("%s: the night modifier changed the node's own theme %d" % [tag, own])
+	# the next fight node, on floor 2, plays its own theme again after a night round
+	var lane2 = -1
+	var floor2: Array = main.run_map["floors"][1]
+	for k in range(floor2.size()):
+		if lane2 < 0 and floor2[k]["content"].has("modifiers"):
+			lane2 = k
+	if lane2 >= 0:
+		var second: Dictionary = floor2[lane2]["content"]
+		var second_mods = second["modifiers"]
+		second["modifiers"] = []
+		first["modifiers"] = ["night"]
+		_play_node(0, 0)
+		_play_node(1, lane2)
+		if main.theme_idx != int(second["theme"]) % main.THEMES.size():
+			bad.append(
+				(
+					"%s: the round after a night round has theme %d, its node says %d"
+					% [tag, main.theme_idx, int(second["theme"])]
+				)
+			)
+		second["modifiers"] = second_mods
+	first["theme"] = own_theme
+	first["modifiers"] = saved
+	main.clear_riders()
+
+
+# README MD5.5: the written names of the modifiers, and the note at the start of a round. A node with no modifier shows
+# no modifier note; a night node shows NIGHT; an unknown modifier is still written in capitals.
+func _check_modifier_names(tag: String, first: Dictionary) -> void:
+	if main.modifier_names([]) != []:
+		bad.append("%s: no modifier gave a name" % tag)
+	if main.modifier_names(["night"]) != ["NIGHT"]:
+		bad.append("%s: night is written %s" % [tag, str(main.modifier_names(["night"]))])
+	if main.modifier_names(["double_riders"]) != ["DOUBLE RIDERS"]:
+		bad.append(
+			"%s: double riders is written %s" % [tag, str(main.modifier_names(["double_riders"]))]
+		)
+	if main.modifier_names(["fog_bank"]) != ["FOG BANK"]:
+		bad.append(
+			"%s: an unknown modifier is written %s" % [tag, str(main.modifier_names(["fog_bank"]))]
+		)
+	var saved = first["modifiers"]
+	for mods in [[], ["night"], ["double_riders"]]:
+		first["modifiers"] = mods
+		main.notes.clear()
+		_play_node(0, 0)
+		var seen = []
+		for n in main.notes:
+			seen.append(str(n["txt"]))
+		for want in main.modifier_names(mods):
+			if not seen.has(want):
+				bad.append(
+					(
+						"%s: the round with %s has no '%s' note (notes: %s)"
+						% [tag, str(mods), want, str(seen)]
+					)
+				)
+		if mods.is_empty() and (seen.has("NIGHT") or seen.has("DOUBLE RIDERS")):
+			bad.append("%s: a round with no modifier has a modifier note (%s)" % [tag, str(seen)])
 	first["modifiers"] = saved
 	main.clear_riders()
