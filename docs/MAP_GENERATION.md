@@ -146,7 +146,9 @@ A node can already carry `rain` (`modifiers.types` in `data/map_rules.json`, wei
 
 **MD6.4 status:** built as designed. `pursuit_accel()` in `scripts/riders.gd` returns `PURSUIT_ACCEL` times `RAIN_GRIP` (0.8) when `has_modifier("rain")`, and the three places that read the sideways acceleration use it; `tools/rider_pursuit_check.gd` (`_check_rain`) checks that nothing else changes, that the turn rate and the give-up speed follow it, and runs the chase, post and give-up checks again in rain.
 
-**Order of the next steps.** MD6.2 the look, MD6.3 the sound, MD6.4 the rule (done), MD6.5 the names on the map screen, banner and pause menu (already built generically in MD5.5, so only the weight and the docs are left) and the weight, MD6.6 closed by this note.
+**MD6.2 status (2026-11-11):** built as designed, not run (no Godot in the session) and not looked at, so the box stays open. `scripts/rain.gd` holds the three parts: `Rain.rainy_theme` (sky, horizon and ambient greyer and dimmer, the sun weaker, nothing darker than the NIGHT theme), `set_wet` (the ground parts of `world["ground_parts"]` drawn with a darker, glossier copy of their material, the original put back) and `update` (400 streaks in one `MultiMesh` around the camera, `fx_scale` times 400, hidden outside a rain round that is being played). `apply_theme(i, rainy)` in `main.gd` is the one place that puts the look on and takes it off again; `start_round` reads the node's own modifiers through `node_has_modifier`. `tools/rain_look_check.gd` checks it; the screenshot and the frame times on both renderers are still to do (the cap of 400 is a first guess, `docs/PERFORMANCE_BUDGET.md`).
+
+**Order of the next steps.** MD6.2 the look (built, waits for a Godot run), MD6.3 the sound, MD6.4 the rule (done), MD6.5 the names on the map screen, banner and pause menu (already built generically in MD5.5, so only the weight and the docs are left) and the weight, MD6.6 closed by this note.
 
 ## Open points for Milestone D and balance
 

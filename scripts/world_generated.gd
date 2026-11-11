@@ -7,6 +7,7 @@ extends RefCounted
 #   "env", "sky_mat", "sun"    the environment, its sky and the sun (Lighting.make_environment, Lighting.setup_sun)
 #   "win_mat", "lamp_mat"      the materials of the windows and the lamp heads (the theme sets their glow)
 #   "lamps"                    the hidden lamp lights, one per lamp (the theme turns some on)
+#   "ground_parts"             the ground's mesh instances by name (WorldGen.build_ground "parts"): rain.gd draws some wet
 #   "tris", "draw_calls"       what the ground and the boxes of the world cost: triangles and mesh instances
 #   "model_tris", "model_draw_calls"   what the models of world_models.gd cost (MultiMeshes), counted apart
 #
@@ -42,6 +43,7 @@ static func build(root: Node3D, arena) -> Dictionary:
 	# ---------- the ground (WorldGen also lays a big plane under it, so no gap shows the sky) ----------
 	var ground = WorldGen.build_ground(layout)
 	root.add_child(ground["root"])
+	out["ground_parts"] = ground["parts"]
 
 	# ---------- buildings, tunnels, lamps and trees ----------
 	var planned = WorldModels.plan(layout)  # lots that become modelled buildings, benches and crates

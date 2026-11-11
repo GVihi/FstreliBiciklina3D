@@ -38,6 +38,7 @@ const RidersScript = preload("res://scripts/riders.gd")
 const ShopScript = preload("res://scripts/shop.gd")
 const CombatScript = preload("res://scripts/combat.gd")
 const EffectsScript = preload("res://scripts/effects.gd")
+const RainScript = preload("res://scripts/rain.gd")
 const InputScript = preload("res://scripts/input.gd")
 const PlayerScript = preload("res://scripts/player.gd")
 const ScoresScript = preload("res://scripts/scores.gd")
@@ -700,6 +701,7 @@ var rider_sys = RidersScript.new(self)  # riders.gd: Riders: spawning waves, mov
 var shop_sys = ShopScript.new(self)  # shop.gd: Shop: between-round upgrades, the shop and its prices, perks and duos, plus style meter and cash.
 var combat_sys = CombatScript.new(self)  # combat.gd: Combat: shotgun and reload, melee swing, deflecting phones and the dart projectiles.
 var fx_sys = EffectsScript.new(self)  # effects.gd: Effects: pooled particles, bursts, plastic debris and confetti.
+var rain_sys = RainScript.new(self)  # rain.gd: Rain: the look of a round with the rain modifier (greyer sky, wet ground, streaks).
 var wall_marks = WallMarksScript.new(self)  # wall_marks.gd: the glow on a wall the player can jump off, and the ripple of a wall-jump.
 var scores = ScoresScript.new(self)  # scores.gd: Scores: the local Top 10 leaderboard saved to user://scores.json.
 var meta = MetaScript.new(self)  # meta.gd: Meta currency: earned from finished runs, saved to user://meta.json, separate from run cash.
@@ -1100,9 +1102,16 @@ func update_arena_dressing() -> void:
 		cr.position = m["pos"]
 
 
-func apply_theme(i: int) -> void:
+# `rainy` plays the theme as rain makes it and draws the ground wet (rain.gd, README MD6.2). Every other call gets the
+# plain theme and the dry ground back, so nothing can be left looking wet after a rain round.
+func apply_theme(i: int, rainy: bool = false) -> void:
 	if not arena.fixed_lighting():  # the training room keeps its own light
-		Lighting.apply_theme(THEMES[i], world)
+		var th = THEMES[i]
+		if rainy:
+			var night = Content.theme_index("NIGHT")
+			th = RainScript.rainy_theme(th, THEMES[night] if night >= 0 else {})
+		Lighting.apply_theme(th, world)
+	rain_sys.set_wet(rainy and not arena.fixed_lighting())
 	if viewmodel != null:
 		viewmodel.sync_env(world["env"])
 
@@ -1608,6 +1617,12 @@ func has_modifier(name: String) -> bool:
 	return round_modifiers.has(name)
 
 
+# true if the node about to be played has this round modifier. It reads the node itself and not `round_modifiers`,
+# which plan_riders fills after start_round has asked for the theme (the same reason round_theme reads the node).
+func node_has_modifier(name: String) -> bool:
+	return node_setup().get("modifiers", []).has(name)
+
+
 # the kind the node plans for rider number i of this round, or "" when it plans none (draw it as usual)
 func planned_rider_type(i: int) -> String:
 	if i >= 0 and i < rider_plan.size():
@@ -1774,7 +1789,9 @@ func start_round() -> void:
 	clear_phones()
 	clear_pickups()
 	theme_idx = round_theme()
-	apply_theme(theme_idx)
+	var rain_round = node_has_modifier("rain") and not practice and not training_room
+	rain_sys.round_rain = rain_round
+	apply_theme(theme_idx, rain_round)
 	rider_rng.seed = DailyScript.stream_seed(run_seed, round_n, "riders")
 	plan_riders()
 	objective_sys.setup_round()
@@ -2137,6 +2154,7 @@ func _process(delta: float) -> void:
 	player_sys.update_gun(dt)
 	update_cheerleaders(dt)
 	sfx.set_ambient((state == "play" or state == "title") and not paused)
+	rain_sys.update(0.0 if paused else dt)  # the streaks of a rain round; hidden in every other state
 
 
 func pad_on() -> bool:
