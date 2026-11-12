@@ -94,6 +94,42 @@ A run starts on the **map screen** (state `map`): it shows the whole map, floor 
 
 The title screen has a CUSTOM SEED page: 8 hex digits at most, the same text the game shows as "RUN SEED". It plays exactly that seed, so the map, the arena and the riders are the ones `tools/viewer/map_viewer.tscn` and `tools/viewer/arena_viewer.tscn` show for it. Such a run is **not ranked** (no normal high score, no Top 10, like a Daily Run) and a restart replays the same seed.
 
+## How a round modifier is added (README MD7.2)
+
+Night, rain and `double_riders` were each added the same way. Only night needed a change in the map code (the `forces_theme` key, in `_modifiers` and `forced_theme` of `scripts/map_content.gd`); a modifier that forces no theme needs none. This is the recipe and the list of hooks, so the next modifier (the ideas are in `docs/MODIFIERS.md`) needs no change in `scripts/map_gen.gd` or `scripts/map_content.gd`.
+
+**What the map code already does for any modifier**
+- `_modifiers` in `map_content.gd` draws from every row of `content.modifiers.types` in `data/map_rules.json`: a node of a type with a chance (`modifiers.chance`: normal and elite, never boss) gets one pick, by `weight`, from the rows whose `min_floor` has been reached. A new row is drawn with no code.
+- The roll is always drawn and a row at `weight` 0 takes no share of it, so a new row at weight 0 moves no seed (`_check_night_rule` in `tools/map_check.gd` has that check, for the night row while its weight is 0).
+- `map_check.gd` (`_check_modifiers`) already fails, for every row, a modifier that is not in the rules, one at weight 0, one before its `min_floor`, one on the theme it forces, and a node with more than one.
+- The map is made from the run seed and the rules, so the Daily Run, a typed custom seed and a saved run that is continued (`run_map` is generated again from `run_seed` when it is loaded) all get the modifier with no change to a save file.
+- The name is written in three places with no more work: the round start note (`start_round`), the ROUND line of the map screen (`map_modifier_text` in `hud.gd`) and the pause menu. A modifier with no line in `MODIFIER_NAMES` (`main.gd`) is written in capitals with its underscores as spaces; add a line only for a name that is not that.
+
+**The steps**
+1. A note in this file, in the shape of night and rain: what it is, what the player sees, hears and meets, how the player counters it, and the open points with a first guess each. Check it against the rules of `docs/MODIFIERS.md`.
+2. A row in `data/map_rules.json`, `"id": {"weight": 0, "min_floor": N}`, at weight 0. Add `forces_theme` only for a modifier that plays under a theme of its own (night). It stays at 0 until MD7.6.
+3. The rule, in the one place where the round plays it out, read with `g.has_modifier("id")`. Prefer one function that returns the number, like `pursuit_accel()` in `riders.gd` and `Threats.radar_factor`, so a round without the modifier gives exactly the old number. Draw no random number, or draw from a stream of its own (`DailyScript.stream_seed(run_seed, round_n, "name")`, as the ambush does), so that no other stream moves and the Daily Run stays the same for everybody. A change of the riders' number or kinds goes in `plan_riders` after the seed's own shuffle, the way Heat's `with_extra_riders` does.
+4. The look and the sound, if there are any. Put them on and take them off in `start_round` (`apply_theme`) and let the state of the game drive them, the way the rain streaks follow `rain_sys.update`, which draws them only while a rain round is in the state `play`, so a clear, a death, a quit and the pause need no call of their own.
+5. A check, `tools/<id>_modifier_check.gd`. `python tools/run_checks.py` runs every `tools/*_check.gd`, so it needs no list. Follow `night_modifier_check.gd`: load `main.tscn` with `generated_arena = true`, `start_game(false, seed)`, put the id in `run_map["floors"][0][0]["content"]["modifiers"]`, `start_round()`, and check what the round does with it, then without it (it must be exactly the old round) and the round after. Add the id to `_check_modifier_names` of `node_setup_check.gd` only if it has a name of its own.
+6. In MD7.6, the weight and the `min_floor` in `data/map_rules.json`, the odds in this file, a `_check_<id>_rule` in `map_check.gd` that the modifier turns up in 400 maps (as `_check_night_rule`), a run through it alone with `tools/generated_run_check.gd` and a balance pass with the bot harness. Turning a weight on changes every map that has a node with a modifier (the Daily Run's, a typed seed's and a continued run's), so the commit and this file say so.
+
+**The hooks that exist today**
+
+| Hook | Where | What it is for |
+|---|---|---|
+| `has_modifier(name)`, `round_modifiers` | `main.gd` | the answer in play; `plan_riders` fills it from the node, so it is right from `plan_riders()` on and wrong before it |
+| `node_has_modifier(name)` | `main.gd` | the same answer read from the node itself, for what `start_round` does before `plan_riders` (the theme and the rain look) |
+| `start_round` order | `main.gd` | `round_theme`, `apply_theme`, `plan_riders`, then `objective_sys.setup_round`, `explore_sys.setup_round` and the rest, so those can already read `has_modifier` |
+| `plan_riders` | `main.gd` | the riders' number and kinds of the round (`rider_plan`, `PER_ROUND`); no modifier changes them today |
+| `spawn_wave` | `riders.gd` | `double_riders`: a wave is a pair |
+| `pursuit_accel` | `riders.gd` | rain: one function for the riders' sideways grip, read in three places |
+| `forces_theme`, `forced_theme`, `round_theme` | `data/map_rules.json`, `map_content.gd`, `main.gd` | night: the round plays under a theme, and a node already on it is not offered the modifier |
+| `Threats.radar_factor` | `threats.gd`, read in `hud.gd` | night: the radar's range |
+| `apply_theme(theme, rainy)`, `rain_sys` | `main.gd`, `rain.gd` | rain: the look, set and put back in one place |
+| `MODIFIER_NAMES`, `modifier_names` | `main.gd` | the written name, used by the round note, the map screen and the pause menu |
+
+**Where no modifier plays.** `node_setup()` is `{}` on an arena without rider pursuit (the roundabout) and `current_node()` is `{}` in a practice round and in the training room (`run_map` is empty there), so `has_modifier` is false in all three and a new modifier needs no line for them. A boss node never gets one (`chance` for boss is 0.0).
+
 ## Round modifiers: night (README MD5.1 design, MD5.2 the rule in the data, MD5.3 the theme in play)
 
 Today a node carries 0 or 1 modifier from `modifiers.types` in `data/map_rules.json` (`rain` weight 0, `double_riders` weight 50, `night` weight 20 since MD5.6, 0 before), rolled in `_modifiers` of `scripts/map_content.gd` and read in play with `has_modifier(name)` (`round_modifiers` in `main.gd`). The NIGHT theme is the last row of `Content.THEMES`, and a node already draws a theme of its own (`content["theme"]`), so a node can be night today, but only by chance of the theme draw and the player cannot see it coming as a rule. Night as a modifier makes it a named, shown property of a node.

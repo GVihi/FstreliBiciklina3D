@@ -305,7 +305,7 @@ Mostly vibe coded Godot game
 
 - [ ] Additional modifier ideas
   - [ ] MD7.1 Collect the ideas in `docs/MODIFIERS.md`: 10 one-liners, each with what it does, which rule it touches, how the player counters it and a rough cost to build (for example fog, a rider swarm from one gate, a round with no pickups, a round with a timer, slippery ground); the first 3 to build
-  - [ ] MD7.2 Write down how a modifier is added (in `docs/MAP_GENERATION.md`): an entry in `modifiers.types`, one read through `has_modifier` where it plays out, a banner line, a check; list the hooks that exist today (`double_riders` in `plan_riders`, `riders.gd`) so a new one needs no change in the map code
+  - [x] MD7.2 Write down how a modifier is added (in `docs/MAP_GENERATION.md`): an entry in `modifiers.types`, one read through `has_modifier` where it plays out, a banner line, a check; list the hooks that exist today (`double_riders` in `plan_riders`, `riders.gd`) so a new one needs no change in the map code (section "How a round modifier is added" in `docs/MAP_GENERATION.md`; note in `docs/ROADMAP_HISTORY.md`; docs only)
   - [ ] MD7.3 First modifier from the list of MD7.1: the rule, the banner, its check, weight 0 until MD7.6
   - [ ] MD7.4 Second modifier, the same way
   - [ ] MD7.5 Third modifier, the same way
