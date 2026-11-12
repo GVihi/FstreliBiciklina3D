@@ -25,7 +25,7 @@ These come from the notes of the three above, `docs/HEAT.md`, `docs/ART_DIRECTIO
 - No information is removed without another way to get it. The edge arrows, the radar and the rider bell read the same list (`threat_list`), and a player who cannot see or cannot hear must still be told. Nothing flashes beyond what the SHAKE AND FLASH setting (`fx_scale`) allows.
 - No pitch black, and no volumetric fog, SSR or SSAO (`docs/ART_DIRECTION.md`).
 - A modifier is built the way night and rain were: one read through `has_modifier` where it plays out, a name in `MODIFIER_NAMES` in `main.gd` (the round note, the map screen and the pause menu then need no work), a headless check, and a weight of 0 in `data/map_rules.json` until MD7.6.
-- Ideas 2, 9 and 10 need an arena with open ground (`arena.rider_pursuit()`): the roundabout has no extraction point, no ambush and no caches. Each of them needs a line in its build step about what it does on the roundabout (nothing is fine, as long as the banner does not promise it).
+- No modifier plays on the roundabout, in a practice round or in the training room: `node_setup()` is `{}` on an arena without rider pursuit and there is no node in the other two, so `has_modifier` is false there. An idea that needs open ground (2, 9 and 10: gates, caches, the ambush) therefore needs no line about the roundabout.
 
 **Cost.** S is a constant or a factor read in one place, plus a check. M is one system plus a look (lighting, the HUD) or a check that has to play. L is a new state or a new screen element.
 
