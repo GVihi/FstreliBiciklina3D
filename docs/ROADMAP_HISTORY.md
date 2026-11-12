@@ -371,6 +371,10 @@ Built: the `rain` weight in `data/map_rules.json` goes from 0 to 20 (first guess
 
 Checked: the JSON parses. Not covered: **no Godot binary was available in this session, so no check was run and the bot harness has not played.** The **Owner** should run `python tools/run_checks.py map map_node_lines node_setup rider_pursuit round_clear` once, and the bot harness on 8 seeds (`godot --headless --path . --script res://tools/bot_run.gd -- --seeds 8`, exit code 0; with the weight on, rain rounds can turn up in its runs, which is the first time rain meets a full run and the factor 0.8 of MD6.4 can be read from it). Then play to floor 3 in a run with a map that has a RAIN node (a typed custom seed finds one; the map screen says `MODIFIER  RAIN`) and judge the look, the sound and that the pause menu, the banner and the map screen agree. If `map_check` or the harness fails, set the weight back to 0 in `data/map_rules.json`; nothing else depends on it.
 
+### MD6.6 Night and rain together (Rain modifier)
+
+Decided, no code: a node carries 0 or 1 round modifiers, so `night` and `rain` (and `double_riders`) never meet on one node. The answer is in "Night and rain together" in `docs/MAP_GENERATION.md`, with the one case that can still happen (rain on a node whose own *theme* is NIGHT, allowed and never darker than NIGHT) and why two modifiers were not allowed. Read to make sure it is true: `_modifiers` in `scripts/map_content.gd` returns at most one entry, and `tools/map_check.gd` (`_check_modifiers`) fails a node with more than one in every map it builds; `MapGen.validate` does not check it, so the rule is held by the generator and by `map_check` and not by the validator. Checked: nothing run, only docs changed. MD6.1 had said this item stays unticked until the owner agrees; the owner picked it as the next item, which is read as that agreement.
+
 ## Milestone E: Polish & Accessibility › Onboarding
 
 ### Training room map for the tutorial and for trying a weapon before buying it
