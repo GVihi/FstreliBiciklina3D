@@ -10,7 +10,7 @@ A *round modifier* is the property of a map node that changes how one round play
 |---|---|---|
 | `double_riders` | every wave of riders is a pair | `spawn_wave` in `scripts/riders.gd` |
 | `night` | the round plays under the NIGHT theme, and the radar reaches 0.6 of its range | `forces_theme` in the rules, `threats.gd` (`radar_factor`) |
-| `rain` | streaks, a greyer sky and a wet ground, a rain sound, and riders with 0.8 of their sideways grip | `scripts/rain.gd`, `sfx.gd`, `pursuit_accel` in `riders.gd` (the sound, the rule and the weight are on the MD6 branch, not yet on `main`) |
+| `rain` | streaks, a greyer sky and a wet ground, a rain sound, and riders with 0.8 of their sideways grip | `scripts/rain.gd`, `sfx.gd`, `pursuit_accel` in `riders.gd` (the look and the rule are on `main`; the sound and the weight of 20 that turns it on are on the MD6 branch, not yet merged) |
 
 All three make the round harder or, for rain, a little easier. None pays more.
 
