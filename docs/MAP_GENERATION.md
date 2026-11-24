@@ -148,7 +148,13 @@ A node can already carry `rain` (`modifiers.types` in `data/map_rules.json`, wei
 
 **MD6.2 status (2026-11-11):** built as designed, not run (no Godot in the session) and not looked at, so the box stays open. `scripts/rain.gd` holds the three parts: `Rain.rainy_theme` (sky, horizon and ambient greyer and dimmer, the sun weaker, nothing darker than the NIGHT theme), `set_wet` (the ground parts of `world["ground_parts"]` drawn with a darker, glossier copy of their material, the original put back) and `update` (400 streaks in one `MultiMesh` around the camera, `fx_scale` times 400, hidden outside a rain round that is being played). `apply_theme(i, rainy)` in `main.gd` is the one place that puts the look on and takes it off again; `start_round` reads the node's own modifiers through `node_has_modifier`. `tools/rain_look_check.gd` checks it; the screenshot and the frame times on both renderers are still to do (the cap of 400 is a first guess, `docs/PERFORMANCE_BUDGET.md`).
 
-**Order of the next steps.** MD6.2 the look (built, waits for a Godot run), MD6.3 the sound, MD6.4 the rule (done), MD6.5 the names on the map screen, banner and pause menu (already built generically in MD5.5, so only the weight and the docs are left) and the weight, MD6.6 closed by this note.
+**MD6.6 decision: a node carries 0 or 1 modifiers, so night and rain never meet.** `_modifiers` in `scripts/map_content.gd` makes one weighted pick and returns at most one name, and `_check_modifiers` in `tools/map_check.gd` fails any node with two. Why not two:
+1. Night replaces the round's theme and cuts the radar to 0.6 of its range, rain lays a greyer sky, a wet ground and a 0.8 rider grip over whatever theme the node has, and neither has been looked at or measured on its own yet (MD5.4, MD5.6 and MD6.2 wait for a Godot run), so a pair would be tuned blind. The rain look is also written to stay no darker than NIGHT, and a night-plus-rain round would have to be judged against that again.
+2. A second pick changes how many random numbers a node draws, and with it the rest of the node for the same seed (the reason `_modifiers` always draws its roll). The Daily Run's map would change too.
+
+To reopen it later (for example when MD7 has measured the modifiers one by one): allow a second pick in `_modifiers` that draws the same count of numbers whatever the answer, raise the limit in `_check_modifiers`, list which pairs clash (as Heat does for its modifiers), and check the look, the radar and the pursuit grip together in one round. `forced_theme` already reads a list, so it needs no change.
+
+**Order of the next steps.** MD6.2 the look (built, waits for a Godot run), MD6.3 the sound, MD6.4 the rule (done), MD6.5 the names on the map screen, banner and pause menu (already built generically in MD5.5, so only the weight and the docs are left) and the weight, MD6.6 decided (see above).
 
 ## Open points for Milestone D and balance
 
