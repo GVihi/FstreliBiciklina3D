@@ -127,6 +127,7 @@ Night, rain and `double_riders` were each added the same way. Only night needed 
 | `forces_theme`, `forced_theme`, `round_theme` | `data/map_rules.json`, `map_content.gd`, `main.gd` | night: the round plays under a theme, and a node already on it is not offered the modifier |
 | `Threats.radar_factor` | `threats.gd`, read in `hud.gd` | night: the radar's range |
 | `Threats.arrow_limit` | `threats.gd`, read in `_draw_threats` of `hud.gd` | FEWER ARROWS: how many edge arrows are drawn |
+| `Objective.variant_chance`, `Objective.variant_cap` | `objective.gd`, read in `setup_round` | CURSED STREET: how many caches carry a catch |
 | `apply_theme(theme, rainy)`, `rain_sys` | `main.gd`, `rain.gd` | rain: the look, set and put back in one place |
 | `MODIFIER_NAMES`, `modifier_names` | `main.gd` | the written name, used by the round note, the map screen and the pause menu |
 
@@ -228,6 +229,25 @@ This note was written as a design (MD6.1), when a node could carry `rain` (`modi
 1. Row `"fewer_arrows": {"weight": 0, "min_floor": 3}` in `data/map_rules.json`: weight 0 until MD7.6, and `min_floor` 3 like night and rain, because it asks the player to read the radar, which a first floor has not taught yet. The bot harness does not look at arrows, so only a playtest can say whether 3 is too few.
 2. The limit of 3 for every round with the modifier (first guess; the doc of idea 6 says 3). A player who finds it too harsh would be given 4 by changing `FEWER_ARROWS_MAX` in one place.
 3. Whether the radar needs a cue that it is now the main sense (first guess no: the round note already says FEWER ARROWS).
+
+## Round modifiers: cursed street (README MD7.5, idea 9 of `docs/MODIFIERS.md`)
+
+**What it is.** One of a node's 0 or 1 modifiers, `cursed_street`, written CURSED STREET by the fallback of `modifier_names` (it needs no line in `MODIFIER_NAMES`). It forces no theme: nearly every cache of the round carries a catch (vanishing, cursed or locked) instead of the usual one or two.
+
+**The rule (built in MD7.5).** `setup_round` in `scripts/objective.gd` reads `g.has_modifier("cursed_street")` (right there, because `plan_riders` runs before `objective_sys.setup_round`) and hands `pick_variants` two numbers from `variant_chance(street)` and `variant_cap(count, street)`: the old `VARIANT_CHANCE` (0.4) and `VARIANT_MAX` (2) without the modifier, and a certain chance (`CURSED_STREET_CHANCE`, 1.0) and a cap of all but one cache with it. `pick_variants` still draws the same two numbers per cache from the `cache_variant` stream, so no other stream moves, a cache that rolls a catch gets the same kind it would have had in a plain round, and a round without the modifier is exactly what it was. The spots, the meta coins and the called riders come from streams of their own and do not change. Nothing is saved: a continued run, a typed seed and the Daily Run all get it from the map.
+
+**Why all but one.** `assign_keys` pairs every locked cache with a plain one that holds its key. A round that left no plain cache could never open a locked one, so one is always left. `assign_keys` still turns a locked cache that finds no holder plain, so a street round of 4 caches has 3 catches when at most one of them is locked and 2 when two or three are (a locked cache that turned plain can hold the key of a later one); the caches that stay plain are the key holders and those unpaired locked ones. (The note of idea 9 said no cache would be plain except the ones that hold a key; the unpaired locked ones are the exception, see the open points.)
+
+**What the player sees and meets.** The round note, the map screen and the pause menu say CURSED STREET. Each cache already shows its catch by the colour of its light column and glow, and a locked cache says LOCKED or OPEN (`lock_label`), so no HUD element is added. A cursed cache still pays `CURSED_MULT` times and calls `CURSE_MIN_RIDERS` riders (one more from round `CURSE_BIG_ROUND`) out of the gate nearest to it when it is taken; a locked one pays `LOCKED_MULT` times and needs a key; a vanishing one counts down once the player comes near.
+
+**How the player counters it.** Choose which caches are worth the catch and skip the rest: take the cursed ones when the riders are down and the route out is clear, take the key holder first, and leave a vanishing one that is too far.
+
+**What it leaves alone.** The number of caches (`CACHE_COUNT`), the extraction point, the riders of the round, Heat, pay and the shop. No cache is ever taken for the player.
+
+**Open points, with a first guess each.**
+1. Row `"cursed_street": {"weight": 0, "min_floor": 3}` in `data/map_rules.json`: weight 0 until MD7.6, and `min_floor` 3 like night and rain, because it pays more for more risk and a first floor has not taught the player the catches. The bot harness has to say whether a street round is too hard (its extra cursed caches call riders on top of the round's) or too easy (the player skips what is risky).
+2. A locked cache that finds no key holder turns plain, so a street round can end with fewer catches than a plain one rolled with luck (simulated over 4 caches: 3 catches in 74 % of the rounds and 2 in 26 %, 2.7 on average, against 1.4 on average for a plain round, which has 0, 1 or 2). First guess: leave it. If testers want every cache to have a catch, an unpaired locked cache could turn cursed instead; that is a change in `assign_keys`, which the street rule does not need.
+3. How many riders the cursed caches may call together (all 3 cursed would call 6 to 9). First guess: no cap, since the player chooses to take them; MD7.6 looks at the worst case with the harness.
 
 ## Open points for Milestone D and balance
 

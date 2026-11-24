@@ -51,6 +51,9 @@ const VARIANT_LOCKED = "locked"
 const VARIANTS = [VARIANT_VANISHING, VARIANT_CURSED, VARIANT_LOCKED]
 const VARIANT_CHANCE = 0.4  # per cache, first guess
 const VARIANT_MAX = 2  # at most this many of a round's caches get a variant, so plain ones are always left
+# A round with the "cursed_street" modifier (README MD7.5, docs/MODIFIERS.md idea 9): every cache but one rolls a
+# variant, so the chance is certain and the cap is variant_cap(): all but one, which leaves a plain cache to hold a key.
+const CURSED_STREET_CHANCE = 1.0
 const VANISH_TRIGGER = 12.0  # metres: the countdown of a vanishing cache starts when the player is this close
 const VANISH_TIME = 8.0  # seconds from the trigger until it is gone (first guess, tuned by playing)
 const VANISH_COL = Color(0.45, 0.85, 1.0)
@@ -124,7 +127,10 @@ func setup_round() -> void:
 	# the variants have a stream of their own, so the spots above never move when a variant is added
 	var vrng = RandomNumberGenerator.new()
 	vrng.seed = DailyScript.stream_seed(g.run_seed, g.round_n, "cache_variant")
-	var variants = pick_variants(spots.size(), vrng)
+	var street = g.has_modifier("cursed_street")  # a CURSED STREET round: nearly every cache carries a catch (MD7.5)
+	var variants = pick_variants(
+		spots.size(), vrng, variant_chance(street), variant_cap(spots.size(), street)
+	)
 	# the riders a cursed cache calls and the meta coins have a stream of their own, so no roll moves another
 	_curse_rng.seed = DailyScript.stream_seed(g.run_seed, g.round_n, "cache_curse")
 	var holds = assign_keys(variants)
@@ -136,15 +142,31 @@ func setup_round() -> void:
 		caches.append(_make_cache(spots[i], variants[i], holds[i], coins[i]))
 
 
-# The variant of each of `count` caches. Every cache draws the same two numbers whatever the cap does, so the
-# stream stays in step and the same seed gives the same answer.
-static func pick_variants(count: int, rng: RandomNumberGenerator) -> Array:
+# The chance that a cache rolls a variant: VARIANT_CHANCE, or CURSED_STREET_CHANCE in a round with the "cursed_street"
+# modifier (README MD7.5). With `street` false it is the number every other round has always used.
+static func variant_chance(street: bool) -> float:
+	return CURSED_STREET_CHANCE if street else VARIANT_CHANCE
+
+
+# How many of `count` caches may carry a variant: VARIANT_MAX, or all but one in a round with the "cursed_street"
+# modifier, so at least one plain cache is left to hold the key of a locked one (assign_keys turns a locked cache that
+# finds no holder plain, so a cap of all but one is safe). The only place the "all but one" lives.
+static func variant_cap(count: int, street: bool) -> int:
+	return maxi(0, count - 1) if street else VARIANT_MAX
+
+
+# The variant of each of `count` caches. Every cache draws the same two numbers whatever the chance and the cap do, so
+# the stream stays in step and the same seed gives the same answer (a CURSED STREET round gets the same kind of catch a
+# plain round would have rolled for that cache, on more caches).
+static func pick_variants(
+	count: int, rng: RandomNumberGenerator, chance: float = VARIANT_CHANCE, cap: int = VARIANT_MAX
+) -> Array:
 	var out: Array = []
 	var used = 0
 	for _i in range(count):
 		var roll = rng.randf()
 		var which = rng.randi() % VARIANTS.size()
-		if roll < VARIANT_CHANCE and used < VARIANT_MAX:
+		if roll < chance and used < cap:
 			out.append(VARIANTS[which])
 			used += 1
 		else:
