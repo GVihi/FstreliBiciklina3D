@@ -42,7 +42,7 @@
     "modifiers": {
       "chance": {"normal": 0.2, "elite": 0.5, "boss": 0.0},
       "types": {
-        "rain": {"weight": 0, "min_floor": 3},
+        "rain": {"weight": 20, "min_floor": 3},
         "double_riders": {"weight": 50, "min_floor": 4},
         "night": {"weight": 20, "min_floor": 3, "forces_theme": 3}
       }

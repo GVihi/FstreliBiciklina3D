@@ -48,6 +48,7 @@ func _init() -> void:
 	_check_retry(rules)
 	_check_content_streams(rules)
 	_check_night_rule(rules, count)
+	_check_rain_rule(rules, count)
 	_check_content_text(rules)
 	if problems.is_empty():
 		print(
@@ -525,5 +526,70 @@ func _check_night_rule(rules: Dictionary, count: int) -> void:
 			_fail(
 				seed_value,
 				"night has weight 0 but the map differs from the one without a night row"
+			)
+			return
+
+
+# README MD6.5: the `rain` modifier row. Rain forces no theme (it is laid over whatever theme the node drew), so
+# unlike night it is offered on every theme. With the weight on (now 20) it must turn up on some nodes of the maps,
+# on floor 3 and on later floors, and on nodes of the NIGHT theme too (the per-node rules, a first floor, fights only,
+# one modifier at most, are checked for every node above). At weight 0 the map is the map without a rain row.
+func _check_rain_rule(rules: Dictionary, count: int) -> void:
+	var types = rules["content"]["modifiers"]["types"]
+	if not types.has("rain"):
+		problems.append("rain rule: there is no rain row in modifiers.types of data/map_rules.json")
+		return
+	var row = types["rain"]
+	if row.has("forces_theme"):
+		problems.append("rain rule: rain forces no theme, but its row has forces_theme")
+	if int(row["min_floor"]) < 1:
+		problems.append("rain rule: min_floor must be 1 or more")
+	var maps = mini(count, 400)
+	if int(row["weight"]) != 0:
+		var rain_nodes = 0
+		var rain_on_first_floor = 0
+		var rain_on_night = 0
+		var night_theme = Content.theme_index("NIGHT")
+		for n in range(maps):
+			var seed_value = (n * 2654435761 + 12345) & 0xFFFFFFFF
+			var map = MapGen.generate(seed_value, rules, _gates_for(seed_value))
+			for f in range(map["floors"].size()):
+				for node in map["floors"][f]:
+					var c = node.get("content", {})
+					if not c.get("modifiers", []).has("rain"):
+						continue
+					rain_nodes += 1
+					if f + 1 == int(row["min_floor"]):
+						rain_on_first_floor += 1
+					if int(c.get("theme", -1)) == night_theme:
+						rain_on_night += 1
+		if rain_nodes == 0:
+			problems.append(
+				(
+					"rain rule: the weight is %d but no node of %d maps has rain"
+					% [int(row["weight"]), maps]
+				)
+			)
+		elif rain_on_first_floor == 0 and int(row["min_floor"]) > 1:
+			problems.append(
+				(
+					"rain rule: no node of %d maps has rain on its first floor %d"
+					% [maps, int(row["min_floor"])]
+				)
+			)
+		elif rain_on_night == 0:
+			problems.append("rain rule: no node of %d maps has rain on the NIGHT theme" % maps)
+		return
+	var without = rules.duplicate(true)
+	without["content"]["modifiers"]["types"].erase("rain")
+	for n in range(maps):
+		var seed_value = (n * 2654435761 + 12345) & 0xFFFFFFFF
+		var a = JSON.stringify(MapGen.generate(seed_value, rules, _gates_for(seed_value)), "", true)
+		var b = JSON.stringify(
+			MapGen.generate(seed_value, without, _gates_for(seed_value)), "", true
+		)
+		if a != b:
+			_fail(
+				seed_value, "rain has weight 0 but the map differs from the one without a rain row"
 			)
 			return
