@@ -4,6 +4,7 @@ extends RefCounted
 
 const Models = preload("res://scripts/models.gd")
 const Rim = preload("res://scripts/rim.gd")
+const DailyScript = preload("res://scripts/daily.gd")
 
 # Steering. A rider owns its world position and the way it faces ("yaw") and steers at a point on its lane
 # a little way ahead, turning no faster than TURN_RATE. On the roundabout that point is on the lane circle,
@@ -233,7 +234,21 @@ func pick_gate() -> Dictionary:
 			usable.append(gates[int(i)])
 	if usable.is_empty():
 		usable = gates
-	return usable[g.layout_i(usable.size())]
+	# the draw always happens, so the other draws of the round do not depend on the modifier (as in _spawn_rider)
+	var drawn = g.layout_i(usable.size())
+	if g.has_modifier("one_gate"):
+		return usable[one_gate_index(usable.size())]
+	return usable[drawn]
+
+
+# ONE GATE (README MD7.3, docs/MODIFIERS.md idea 2): every rider of the round's waves comes out of the same one of
+# the gates the node leaves open. It is picked from a stream of its own (run seed, round, "one_gate"), so no other
+# stream moves and everybody who plays the seed gets the same gate. The ambush and a cursed cache send extra riders
+# that keep their own gate rule (ambush_gate, gate_override); a rider that gives up still rides out of the nearest gate.
+func one_gate_index(count: int) -> int:
+	var rng = RandomNumberGenerator.new()
+	rng.seed = DailyScript.stream_seed(g.run_seed, g.round_n, "one_gate")
+	return rng.randi() % count
 
 
 # The gate an ambush rider comes out of (ambush.gd): one of the gates the node leaves open that is at least

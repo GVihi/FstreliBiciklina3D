@@ -1,6 +1,6 @@
 # Round modifiers: ideas
 
-Design note for README Milestone D, "Additional modifier ideas", chunk MD7.1. **Ideas only, nothing here is built.** It lists ten round modifiers, says what each one does, which rule it touches, how the player can counter it and what it would cost to build, and picks the first three. The numbers are first guesses; MD7.6 tunes them with the bot harness. How a modifier is added is MD7.2, and `docs/MAP_GENERATION.md` has the notes of the three that exist (night, rain, and `double_riders`).
+Design note for README Milestone D, "Additional modifier ideas", chunk MD7.1. **Ideas only; ONE GATE (idea 2) was built in MD7.3, the rest are not built.** It lists ten round modifiers, says what each one does, which rule it touches, how the player can counter it and what it would cost to build, and picks the first three. The numbers are first guesses; MD7.6 tunes them with the bot harness. How a modifier is added is MD7.2, and `docs/MAP_GENERATION.md` has the notes of the three that exist (night, rain, and `double_riders`).
 
 A *round modifier* is the property of a map node that changes how one round plays (`modifiers` in a node's content, `data/map_rules.json`, `scripts/map_content.gd`). It is not a Heat modifier: those are chosen by the player before a run and are in `docs/HEAT.md`.
 
@@ -46,7 +46,7 @@ These come from the notes of the three above, `docs/HEAT.md`, `docs/ART_DIRECTIO
 
 ## The first three to build
 
-**ONE GATE (idea 2, for MD7.3), FEWER ARROWS (idea 6, MD7.4) and CURSED STREET (idea 9, MD7.5).**
+**ONE GATE (idea 2, for MD7.3, built), FEWER ARROWS (idea 6, MD7.4) and CURSED STREET (idea 9, MD7.5).**
 
 - They are cheap (S, one of them S to M) and none of them touches `player.gd`, the shop or a new HUD element.
 - Each one plugs in at a different place (the rider spawn, the threat arrows, the caches), so MD7.2 can write "how a modifier is added" from three different hooks and not from three copies of one.

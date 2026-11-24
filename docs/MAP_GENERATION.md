@@ -123,6 +123,7 @@ Night, rain and `double_riders` were each added the same way. Only night needed 
 | `plan_riders` | `main.gd` | the riders' number and kinds of the round (`rider_plan`, `PER_ROUND`); no modifier changes them today |
 | `spawn_wave` | `riders.gd` | `double_riders`: a wave is a pair |
 | `pursuit_accel` | `riders.gd` | rain: one function for the riders' sideways grip, read in three places |
+| `pick_gate`, `one_gate_index` | `riders.gd` | ONE GATE: the gate a wave rider comes out of, from a stream of its own |
 | `forces_theme`, `forced_theme`, `round_theme` | `data/map_rules.json`, `map_content.gd`, `main.gd` | night: the round plays under a theme, and a node already on it is not offered the modifier |
 | `Threats.radar_factor` | `threats.gd`, read in `hud.gd` | night: the radar's range |
 | `apply_theme(theme, rainy)`, `rain_sys` | `main.gd`, `rain.gd` | rain: the look, set and put back in one place |
@@ -191,6 +192,24 @@ This note was written as a design (MD6.1), when a node could carry `rain` (`modi
 **Night and rain together (README MD6.6, decided).** A node carries 0 or 1 modifiers, so the `night` modifier and `rain` never meet on one node, and neither does either with `double_riders`. This is how the code already works and nothing changed for it: `_modifiers` in `scripts/map_content.gd` returns an empty Array or a one-element Array (one pick from one weighted draw), and `tools/map_check.gd` fails a node with more than one modifier in any of its maps. What can still happen is rain on a node that has the NIGHT *theme* by its own theme draw (not the night modifier): that is allowed and looks like a rainy night, never darker than NIGHT (open point 2 above, `Rain.rainy_theme`, and the rainy NIGHT sky check in `tools/rain_look_check.gd`). Why not two modifiers: the rain look is laid over the night colours and a night round already has a shorter radar, so both together would stack a darker look, a shorter radar and wider rider turns on one round, which the balance pass (MD7.6) would have to tune as a pair instead of one factor each. If a later milestone wants two, `_modifiers` has to return more than one, `map_check` and the map screen's ROUND line (`map_modifier_text` already takes a list and `tools/map_node_lines_check.gd` already fits two names) are the places that follow, and every map of every seed changes again.
 
 **Order of the next steps.** MD6.2 the look (built, its check passed, waits for a look and the frame times), MD6.3 the sound (done, waits for a listen), MD6.4 the rule (done), MD6.5 the names and the weight (done, see above), MD6.6 the answer (done, see above). MD6 is closed except for the owner's look, listen and harness run.
+
+## Round modifiers: one gate (README MD7.3, idea 2 of `docs/MODIFIERS.md`)
+
+**What it is.** One of a node's 0 or 1 modifiers, `one_gate`, written ONE GATE by the fallback of `modifier_names` (it needs no line in `MODIFIER_NAMES`). It forces no theme and changes no number: every rider of the round's waves comes out of the same one of the gates the node leaves open, so the round plays from one side.
+
+**The rule (built in MD7.3).** `pick_gate` in `scripts/riders.gd` still makes its usual draw from the round's rider stream and then, with `has_modifier("one_gate")`, returns the gate that `one_gate_index` names. That index comes from a stream of its own, `DailyScript.stream_seed(run_seed, round_n, "one_gate")`. So a round without the modifier is exactly as before, a round with it moves no other stream, everybody who plays the seed gets the same gate, and a saved run that is continued gets it again (nothing about it is saved).
+
+**What the player sees and meets.** The round note, the map screen and the pause menu say ONE GATE. Nothing marks the gate: the radar, the edge arrows and the rider bell already say where a rider is coming from, which is how a player who cannot see or cannot hear is told, so no information is removed and no HUD element is added. The first riders show the side and after that the player knows it.
+
+**How the player counters it.** Learn the side, stand where that gate's lane is covered and shoot into the tunnel mouth; riders that come one after another from a single point are also easier to line up than riders from several.
+
+**What it leaves alone.** The ambush and a cursed cache send extra riders with their own gate rule (an ambush rider comes out of a gate at least 35 m from the player, `ambush_gate`; a cursed cache hands `spawn_rider` a gate), so they can still come from another gate. A rider that gives up rides out of the nearest gate. Bosses call `pick_gate` too, but a boss node never carries a modifier. Heat, the number and kinds of riders, speed, pay and pickups are untouched.
+
+**Open points, with a first guess each.**
+1. Row `"one_gate": {"weight": 0, "min_floor": 4}` in `data/map_rules.json`: weight 0 until MD7.6, and `min_floor` 4 like `double_riders`. The bot harness has to say whether one side is too easy (all riders in one lane) or too hard (no time to turn).
+2. Whether the ambush's and a cursed cache's riders should also use the one gate (first guess no: the ambush rule exists so that they ride in from afar, and a gate next to the player would break it).
+3. A mark on the gate (first guess no, see above); if testers say they do not know where to look, a small marker is a later step.
+4. A node always leaves at least 2 gates open (`gates.min_open`), so one gate is a real choice; `tools/one_gate_modifier_check.gd` fails if the first node of one of its seeds leaves fewer open.
 
 ## Open points for Milestone D and balance
 
