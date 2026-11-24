@@ -8,7 +8,7 @@ extends RefCounted
 # and whether it is coming: strength is "urg" times a distance factor (1 within NEAR metres, falling to
 # FAR_FACTOR at FAR metres and beyond) times an approach factor (up to +APPROACH_BONUS at a closing speed of
 # APPROACH_FULL, down to -AWAY_PENALTY moving away at that speed), never below MIN_STRENGTH so that no arrow
-# vanishes. The arrows show the strongest MAX_ARROWS.
+# vanishes. The arrows show the strongest MAX_ARROWS (FEWER_ARROWS_MAX in a round with the "fewer_arrows" modifier).
 
 const NEAR = 8.0  # metres
 const FAR = 60.0  # metres
@@ -18,6 +18,7 @@ const APPROACH_BONUS = 0.35
 const AWAY_PENALTY = 0.3
 const MIN_STRENGTH = 0.15
 const MAX_ARROWS = 8
+const FEWER_ARROWS_MAX = 3  # a round with the "fewer_arrows" modifier: the edge arrows show this many threats
 const RADAR_RANGE_STREET = 26.0  # metres from the centre to the rim of the radar on the roundabout
 const RADAR_RANGE_OPEN = 60.0  # the same on open ground, where riders start up to 96 m off
 const NIGHT_RADAR_FACTOR = 0.6  # a round with the "night" modifier: the radar reaches this share of its range
@@ -52,6 +53,14 @@ static func ranked(list: Array, open_ground: bool) -> Array:
 			return a["order"] < b["order"]
 	)
 	return out
+
+
+# How many edge arrows the HUD may draw: FEWER_ARROWS_MAX in a round with the "fewer_arrows" modifier (README MD7.4,
+# docs/MODIFIERS.md idea 6), otherwise MAX_ARROWS, which leaves every other round as it was. Never below 1, so the
+# modifier can thin the arrows out but never switch them off. The radar and the rider bell read the whole threat
+# list and are not touched. The only place the 3 lives.
+static func arrow_limit(fewer: bool) -> int:
+	return maxi(1, FEWER_ARROWS_MAX) if fewer else MAX_ARROWS
 
 
 # The share of its usual range the radar reaches: NIGHT_RADAR_FACTOR in a round with the "night" modifier (README

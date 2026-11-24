@@ -126,6 +126,7 @@ Night, rain and `double_riders` were each added the same way. Only night needed 
 | `pick_gate`, `one_gate_index` | `riders.gd` | ONE GATE: the gate a wave rider comes out of, from a stream of its own |
 | `forces_theme`, `forced_theme`, `round_theme` | `data/map_rules.json`, `map_content.gd`, `main.gd` | night: the round plays under a theme, and a node already on it is not offered the modifier |
 | `Threats.radar_factor` | `threats.gd`, read in `hud.gd` | night: the radar's range |
+| `Threats.arrow_limit` | `threats.gd`, read in `_draw_threats` of `hud.gd` | FEWER ARROWS: how many edge arrows are drawn |
 | `apply_theme(theme, rainy)`, `rain_sys` | `main.gd`, `rain.gd` | rain: the look, set and put back in one place |
 | `MODIFIER_NAMES`, `modifier_names` | `main.gd` | the written name, used by the round note, the map screen and the pause menu |
 
@@ -210,6 +211,23 @@ This note was written as a design (MD6.1), when a node could carry `rain` (`modi
 2. Whether the ambush's and a cursed cache's riders should also use the one gate (first guess no: the ambush rule exists so that they ride in from afar, and a gate next to the player would break it).
 3. A mark on the gate (first guess no, see above); if testers say they do not know where to look, a small marker is a later step.
 4. A node always leaves at least 2 gates open (`gates.min_open`), so one gate is a real choice; `tools/one_gate_modifier_check.gd` fails if the first node of one of its seeds leaves fewer open.
+
+## Round modifiers: fewer arrows (README MD7.4, idea 6 of `docs/MODIFIERS.md`)
+
+**What it is.** One of a node's 0 or 1 modifiers, `fewer_arrows`, written FEWER ARROWS by the fallback of `modifier_names` (it needs no line in `MODIFIER_NAMES`). It forces no theme and moves no rider, pickup or price: the edge arrows show the 3 strongest threats instead of 8.
+
+**The rule (built in MD7.4).** `Threats.arrow_limit(fewer)` in `scripts/threats.gd` is the one place the number lives: `MAX_ARROWS` (8) for every round, `FEWER_ARROWS_MAX` (3) in a round with the modifier, and never below 1, so the modifier thins the arrows out and cannot switch them off. `_draw_threats` in `scripts/hud.gd` reads it with `g.has_modifier("fewer_arrows")` in place of `MAX_ARROWS`. The ranking is the one every round uses (`Threats.ranked`: nearer and closing first on open ground), so the 3 arrows are the first 3 of the 8. The modifier draws no random number, so no stream moves, the Daily Run is the same for everybody, and nothing is saved.
+
+**What the player sees and meets.** The round note, the map screen and the pause menu say FEWER ARROWS. The arrows that are left are drawn as always. Nothing is removed that a player cannot get another way: the radar and the rider bell read the whole threat list (`Main.threat_list`, `rider_warning.gd`) and are not touched, so a player who cannot see or cannot hear is told as before, and the threat a player cannot see on screen is still shown on the radar.
+
+**How the player counters it.** Look around more, read the radar for the riders the 3 arrows leave out, and deal with the near ones first, since the arrows point at those.
+
+**What it leaves alone.** The radar (its range and its dots), the rider bell, the aim assist, the count of riders, Heat, pay and pickups. A boss node never carries a modifier, so the boss arrow is never dropped.
+
+**Open points, with a first guess each.**
+1. Row `"fewer_arrows": {"weight": 0, "min_floor": 3}` in `data/map_rules.json`: weight 0 until MD7.6, and `min_floor` 3 like night and rain, because it asks the player to read the radar, which a first floor has not taught yet. The bot harness does not look at arrows, so only a playtest can say whether 3 is too few.
+2. The limit of 3 for every round with the modifier (first guess; the doc of idea 6 says 3). A player who finds it too harsh would be given 4 by changing `FEWER_ARROWS_MAX` in one place.
+3. Whether the radar needs a cue that it is now the main sense (first guess no: the round note already says FEWER ARROWS).
 
 ## Open points for Milestone D and balance
 

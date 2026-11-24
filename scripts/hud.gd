@@ -3732,11 +3732,12 @@ func _draw_threats(k: float) -> void:
 	var ry = size.y * 0.5 - 96.0 * k
 	var half_h = atan(tan(deg_to_rad(g.cam.fov * 0.5)) * size.x / size.y)  # horizontal half field of view
 	var drawn = 0
+	var limit = Threats.arrow_limit(g.has_modifier("fewer_arrows"))  # FEWER ARROWS round: fewer arrows (MD7.4)
 	for t in list:
 		var rel = _rel_angle(t["pos"])
 		if absf(rel) < half_h * 0.9:
 			continue  # on screen: you can see it
-		if drawn >= Threats.MAX_ARROWS:
+		if drawn >= limit:
 			break
 		drawn += 1
 		arrows.append({"kind": t["kind"], "dist": t["dist"], "strength": t["strength"]})
