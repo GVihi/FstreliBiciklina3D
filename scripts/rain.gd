@@ -154,11 +154,18 @@ func _build() -> void:
 		)
 
 
+# true while a round with rain is being played. The streaks, the rain loop (`sfx.set_rain`, README MD6.3) and the quiet
+# of the birds (`birds_may_sing` in main.gd) all follow this one answer, and it is about the state of the game and not
+# about a call at the end of a round, so no way out of a round can leave any of them on.
+func raining() -> bool:
+	return round_rain and g.state == "play"
+
+
 # Called every frame with the time that passed in the game (0 while paused). Shows the streaks in a rain round that is
 # being played and hides them in every other state, so a clear, a death, a quit and a practice round need no call.
 func update(dt: float) -> void:
 	var count = streak_count(g.fx_scale)
-	var on = round_rain and g.state == "play" and count > 0 and g.cam != null
+	var on = raining() and count > 0 and g.cam != null
 	if not on:
 		if holder != null:
 			holder.visible = false

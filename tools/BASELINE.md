@@ -74,9 +74,9 @@ The scripted play keeps the score at 0 and the hearts full, so it should always 
 
 Unless `--no-rain` is given, the run also draws the look of the rain modifier (`scripts/rain.gd`: the streaks,
 the greyer sky, the wet ground) over DAY and NIGHT, the brightest and the darkest theme, which is what the
-README item "Rain modifier: the look" asks a screenshot and a frame time for. No node holds rain yet (its weight
-in `data/map_rules.json` is 0 until MD6.5), so the script puts the look on by hand with the same two calls
-`start_round` makes for a rain node.
+README item "Rain modifier: the look" asks a screenshot and a frame time for. The script does not wait for a map
+to hand it a rain node (the weight in `data/map_rules.json` has been 20 since MD6.5, but a baseline round is not a
+node of a run), so it puts the look on by hand with the same two calls `start_round` makes for a rain node.
 
 - Screenshots `03_play_4_day_rain.png` and `03_play_5_night_rain.png`, after the four theme shots. What to
   judge: riders, phones, pickups and pedestrians still readable at distance, the sky grey and not black, the
